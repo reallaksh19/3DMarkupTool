@@ -11,4 +11,5 @@ import './color-by-legend-controller.js?v=phase28-color-by-legend';
 import './color-by-legend-visibility-fix-controller.js?v=phase29-color-legend-visible';
 import './marquee-zoom-controller.js?v=phase29-marquee-zoom';
 import './origin-manager-controller.js?v=phase29-origin-manager';
+import './rvm-compat-validator-controller.js?v=phase30-rvm-compat-validator';
 import './property-tabs-base-controller.js?v=phase20-property-tabs-base';

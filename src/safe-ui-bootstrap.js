@@ -2,7 +2,7 @@
 // This is intentionally separate from clip-render-hook.js so UI recovery does not
 // depend on render-hook cache state or a missed app-ready event.
 
-const SAFE_LOADER_URL = './safe-ui-loader.js?v=phase32-compact-secondary-row';
+const SAFE_LOADER_URL = './safe-ui-loader.js?v=phase33-two-row-icon-ribbon';
 const MAX_ATTEMPTS = 8;
 
 let attempts = 0;

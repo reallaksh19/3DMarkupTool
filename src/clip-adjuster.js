@@ -7,7 +7,6 @@ const AXES = {
 };
 
 const managedPlane = new THREE.Plane(new THREE.Vector3(-1, 0, 0), 0);
-const runtime = window.__3D_MARKUP_CLIP_RUNTIME__ || null;
 
 const state = {
   axis: 'x',
@@ -16,8 +15,8 @@ const state = {
   forceActive: false,
   active: false,
   bounds: null,
-  lastRenderer: runtime?.renderer || null,
-  lastScene: runtime?.scene || null,
+  lastRenderer: runtime()?.renderer || null,
+  lastScene: runtime()?.scene || null,
   lastSignature: '',
   uiReady: false,
   lastError: null
@@ -50,20 +49,20 @@ window.addEventListener('markup:render-context', (event) => {
 
 function initClipUi() {
   ui.panel = document.getElementById('clipAdjustPanel');
-  ui.axis = document.getElementById('clipAxisSelect');
-  ui.range = document.getElementById('clipPositionRange');
-  ui.position = document.getElementById('clipPositionInput');
-  ui.invert = document.getElementById('clipInvert');
-  ui.minus = document.getElementById('clipStepMinus');
-  ui.plus = document.getElementById('clipStepPlus');
-  ui.reset = document.getElementById('clipResetBtn');
-  ui.readout = document.getElementById('clipReadout');
+  ui.axis = byId('clipAxisSelect');
+  ui.range = byId('clipPositionRange', 'clipSlider');
+  ui.position = byId('clipPositionInput', 'clipOffsetInput');
+  ui.invert = byId('clipInvert', 'clipInvertCheck');
+  ui.minus = byId('clipStepMinus', 'clipStepDownBtn');
+  ui.plus = byId('clipStepPlus', 'clipStepUpBtn');
+  ui.reset = byId('clipResetBtn', 'clipCenterBtn');
+  ui.readout = byId('clipReadout', 'clipAdjustHint');
+  ui.toggle = byId('clipPanelToggleBtn', 'clipAdjustToggleBtn');
 
-  if (!ui.panel || !ui.axis || !ui.range || !ui.position || !ui.invert || !ui.minus || !ui.plus || !ui.reset || !ui.readout) return;
-
-  const header = ui.panel.querySelector('.clip-adjust-head');
-  const title = header?.querySelector('strong');
-  ui.toggle = document.getElementById('clipPanelToggleBtn');
+  if (!ui.panel || !ui.axis || !ui.range || !ui.position || !ui.invert || !ui.minus || !ui.plus || !ui.reset || !ui.readout) {
+    console.warn('[3DMarkupTool] Clip plane UI not initialized: missing control IDs.');
+    return;
+  }
 
   if (!ui.toggle) {
     ui.toggle = document.createElement('button');
@@ -71,11 +70,12 @@ function initClipUi() {
     ui.toggle.id = 'clipPanelToggleBtn';
     ui.toggle.className = 'clip-panel-toggle';
     ui.toggle.title = 'Turn clipping on or off';
-    title?.insertAdjacentElement('afterend', ui.toggle);
+    const header = ui.panel.querySelector('.clip-adjust-head');
+    header?.appendChild(ui.toggle);
   }
 
   ui.axis.value = state.axis;
-  ui.range.value = String(Math.round(state.normalized * 1000));
+  writeRangeValue();
   ui.position.value = '50.0';
   ui.invert.checked = state.inverted;
 
@@ -85,7 +85,7 @@ function initClipUi() {
     applyNow();
   });
   ui.range.addEventListener('input', () => {
-    state.normalized = clamp(Number(ui.range.value) / 1000, 0, 1);
+    state.normalized = readRangeValue();
     applyNow();
   });
   ui.position.addEventListener('change', () => {
@@ -117,8 +117,8 @@ function initClipUi() {
   });
 
   state.uiReady = true;
-  updateBounds(state.lastScene || runtime?.scene);
-  if (state.lastRenderer || runtime?.renderer) applyClipToRenderer(state.lastRenderer || runtime.renderer);
+  updateBounds(state.lastScene || runtime()?.scene);
+  if (state.lastRenderer || runtime()?.renderer) applyClipToRenderer(state.lastRenderer || runtime().renderer);
   syncUi(true);
 }
 
@@ -136,8 +136,9 @@ function setClipEnabled(enabled) {
 }
 
 function applyNow() {
-  const renderer = state.lastRenderer || runtime?.renderer;
-  const scene = state.lastScene || runtime?.scene;
+  const currentRuntime = runtime();
+  const renderer = state.lastRenderer || currentRuntime?.renderer;
+  const scene = state.lastScene || currentRuntime?.scene;
 
   updateBounds(scene);
   if (renderer) applyClipToRenderer(renderer);
@@ -239,14 +240,14 @@ function applyPlane(plane) {
 function syncUi() {
   if (!state.uiReady) return;
 
-  updateBounds(state.lastScene || runtime?.scene);
-  const renderer = state.lastRenderer || runtime?.renderer;
+  updateBounds(state.lastScene || runtime()?.scene);
+  const renderer = state.lastRenderer || runtime()?.renderer;
   const planesActive = Boolean(renderer?.clippingPlanes?.length);
   state.active = isToolbarClipActive() || state.forceActive || planesActive;
 
   ui.panel.classList.toggle('clip-active', state.active);
   ui.axis.value = state.axis;
-  ui.range.value = String(Math.round(state.normalized * 1000));
+  writeRangeValue();
   ui.position.value = (state.normalized * 100).toFixed(1);
   ui.invert.checked = state.inverted;
 
@@ -261,12 +262,12 @@ function syncUi() {
   });
 
   if (!state.bounds) {
-    ui.readout.textContent = state.active ? 'Clip waiting for model bounds.' : 'Clip is off — load/convert model first.';
+    ui.readout.textContent = state.active ? 'Clip waiting for model bounds.' : 'Clip plane is waiting for model. Load BM_CII sample and run conversion.';
     return;
   }
 
   if (!state.active) {
-    ui.readout.textContent = 'Clip is off — click Enable Clip or use C.';
+    ui.readout.textContent = 'Clip plane ready — click Enable Clip or use C.';
     return;
   }
 
@@ -276,6 +277,30 @@ function syncUi() {
   const position = min + (max - min) * state.normalized;
   const direction = state.inverted ? '+' : '-';
   ui.readout.textContent = `${AXES[axis].label} ${direction} @ ${formatNumber(position)} (${(state.normalized * 100).toFixed(1)}%)`;
+}
+
+function readRangeValue() {
+  const max = Number(ui.range?.max || 100);
+  const value = Number(ui.range?.value || 0);
+  return clamp(value / (max > 100 ? 1000 : 100), 0, 1);
+}
+
+function writeRangeValue() {
+  if (!ui.range) return;
+  const max = Number(ui.range.max || 100);
+  ui.range.value = String(Math.round(state.normalized * (max > 100 ? 1000 : 100)));
+}
+
+function byId(...ids) {
+  for (const id of ids) {
+    const node = document.getElementById(id);
+    if (node) return node;
+  }
+  return null;
+}
+
+function runtime() {
+  return window.__3D_MARKUP_CLIP_RUNTIME__ || null;
 }
 
 function safeReadout(message) {

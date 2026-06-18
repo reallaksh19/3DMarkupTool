@@ -19,6 +19,11 @@ const ALL_MODULES = [
     src: `./input-drawer-controller.js?v=${SAFE_UI_VERSION}`
   },
   {
+    id: 'viewerRuntimeBridge',
+    label: 'Viewer runtime bridge',
+    src: `./viewer-runtime-bridge-controller.js?v=${SAFE_UI_VERSION}`
+  },
+  {
     id: 'propertyTabs',
     label: 'Property tabs',
     src: `./property-tabs-base-controller.js?v=${SAFE_UI_VERSION}`

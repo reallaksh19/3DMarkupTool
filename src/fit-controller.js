@@ -1,7 +1,6 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
-const runtime = window.__3D_MARKUP_CLIP_RUNTIME__ || null;
 const DEFAULT_VIEW = new THREE.Vector3(1.1, 0.78, 1.12).normalize();
 const SKIP_NAME_PATTERNS = [
   'grid',
@@ -14,11 +13,15 @@ const SKIP_NAME_PATTERNS = [
 ];
 
 const state = {
+  renderer: null,
+  scene: null,
+  camera: null,
   controls: null,
   lastFitAt: 0
 };
 
 patchOrbitControlsCapture();
+bindRenderContext();
 
 if (document.readyState === 'loading') {
   window.addEventListener('DOMContentLoaded', initFitController, { once: true });
@@ -40,6 +43,20 @@ function patchOrbitControlsCapture() {
     value: true,
     configurable: false
   });
+}
+
+function bindRenderContext() {
+  window.addEventListener('markup:render-context', (event) => {
+    const { renderer, scene, camera } = event.detail || {};
+    if (renderer) state.renderer = renderer;
+    if (scene) state.scene = scene;
+    if (camera) state.camera = camera;
+  });
+
+  const runtime = getRuntime();
+  if (runtime?.renderer) state.renderer = runtime.renderer;
+  if (runtime?.scene) state.scene = runtime.scene;
+  if (runtime?.camera) state.camera = runtime.camera;
 }
 
 function initFitController() {
@@ -103,17 +120,22 @@ function fitSelectionOrVisible() {
 }
 
 function getContext() {
-  const renderer = runtime?.renderer || null;
-  const scene = runtime?.scene || null;
-  const camera = runtime?.camera || null;
+  const runtime = getRuntime();
+  const renderer = state.renderer || runtime?.renderer || null;
+  const scene = state.scene || runtime?.scene || null;
+  const camera = state.camera || runtime?.camera || null;
   const controls = state.controls || null;
 
-  if (!renderer || !scene || !camera || !controls) {
+  if (!renderer || !scene || !camera) {
     setStatus('Fit unavailable: viewer not ready');
     return null;
   }
 
   return { renderer, scene, camera, controls };
+}
+
+function getRuntime() {
+  return window.__3D_MARKUP_CLIP_RUNTIME__ || null;
 }
 
 function collectSelectionBounds(scene) {
@@ -184,19 +206,36 @@ function fitBox(box, context, label) {
   const controllingFov = Math.max(Math.min(verticalFov, horizontalFov), THREE.MathUtils.degToRad(10));
   const distance = Math.max(radius / Math.sin(controllingFov / 2), radius * 2.4) * 1.08;
 
-  const currentTarget = controls.target?.clone?.() || center.clone();
-  let direction = camera.position.clone().sub(currentTarget);
-  if (!Number.isFinite(direction.lengthSq()) || direction.lengthSq() < 1e-8) direction = DEFAULT_VIEW.clone();
-  direction.normalize();
+  let direction = resolveViewDirection(camera, controls, center);
 
   camera.position.copy(center).add(direction.multiplyScalar(distance));
   camera.near = Math.max(0.01, distance / 5000);
   camera.far = Math.max(1000, distance + radius * 12);
   camera.updateProjectionMatrix();
 
-  controls.target.copy(center);
-  controls.update();
+  if (controls?.target?.copy) {
+    controls.target.copy(center);
+    controls.update?.();
+  } else {
+    camera.lookAt(center);
+  }
+
   setStatus(label);
+}
+
+function resolveViewDirection(camera, controls, center) {
+  const currentTarget = controls?.target?.clone?.() || center.clone();
+  let direction = camera.position.clone().sub(currentTarget);
+
+  if (!Number.isFinite(direction.lengthSq()) || direction.lengthSq() < 1e-8) {
+    direction = camera.position.clone().sub(center);
+  }
+
+  if (!Number.isFinite(direction.lengthSq()) || direction.lengthSq() < 1e-8) {
+    direction = DEFAULT_VIEW.clone();
+  }
+
+  return direction.normalize();
 }
 
 function isValidBox(box) {

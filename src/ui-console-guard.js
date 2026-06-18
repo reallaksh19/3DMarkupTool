@@ -25,9 +25,7 @@ function initUiConsoleGuard() {
 
   convertBtn?.addEventListener('click', (event) => {
     if (state.inputLoaded) return;
-
     event.preventDefault();
-    event.stopImmediatePropagation();
     showInputRequiredMessage();
   }, true);
 }
@@ -38,22 +36,16 @@ function syncInputStateFromLog(text) {
     text.lastIndexOf('Loaded BM_CII sample'),
     text.lastIndexOf('Loaded ')
   );
-
   state.inputLoaded = lastLoaded > lastClear;
 }
 
 function showInputRequiredMessage() {
   const status = document.getElementById('runtimeStatus');
   const log = document.getElementById('log');
-
   if (status) status.textContent = 'Load InputXML first';
-
   if (log && !/Load an InputXML before running conversion\./.test(log.textContent || '')) {
-    const ts = new Date().toLocaleTimeString();
-    log.textContent += `[${ts}] INFO: Load an InputXML before running conversion. Use Choose InputXML or Load BM_CII sample.\n`;
-    log.scrollTop = log.scrollHeight;
+    log.textContent += 'INFO: Load an InputXML before running conversion.\n';
   }
-
   document.body.classList.add('input-open');
   document.getElementById('xmlFile')?.focus?.();
 }

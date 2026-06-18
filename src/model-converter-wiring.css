@@ -1,0 +1,72 @@
+.converter-field small,
+.field-help {
+  color: #9fb3c9;
+  display: block;
+  font-size: 11px;
+  line-height: 1.35;
+  margin-top: 6px;
+}
+
+.sideload-bundle-picker {
+  border-color: rgba(44, 224, 197, 0.42);
+  margin: 8px 0 10px;
+}
+
+.advanced-options-panel {
+  border-color: rgba(255, 200, 87, 0.22);
+}
+
+.glb-wiring-checklist {
+  background: rgba(8, 17, 30, 0.45);
+  border: 1px solid rgba(116, 187, 255, 0.18);
+  border-radius: 12px;
+  margin-top: 10px;
+  padding: 10px 12px;
+}
+
+.glb-wiring-checklist strong {
+  color: #dfefff;
+  display: block;
+  font-size: 12px;
+  margin-bottom: 8px;
+}
+
+.glb-wiring-checklist ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.glb-wiring-checklist li {
+  color: #a9bed6;
+  font-size: 11px;
+  line-height: 1.45;
+  margin: 3px 0;
+  padding-left: 18px;
+  position: relative;
+}
+
+.glb-wiring-checklist li::before {
+  content: '○';
+  left: 0;
+  position: absolute;
+  top: 0;
+}
+
+.glb-wiring-checklist li[data-ok='true'] {
+  color: #89f5dc;
+}
+
+.glb-wiring-checklist li[data-ok='true']::before {
+  content: '✓';
+  color: #30e0b4;
+}
+
+.glb-wiring-checklist li[data-ok='false'] {
+  color: #ff9d9d;
+}
+
+.glb-wiring-checklist li[data-ok='false']::before {
+  content: '!';
+  color: #ff7c7c;
+}

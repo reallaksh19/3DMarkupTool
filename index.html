@@ -6,15 +6,15 @@
   <title>GLB/RVM Review</title>
   <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
   <link rel="shortcut icon" href="./favicon.ico" />
-  <link rel="stylesheet" href="./src/styles.css?v=phase38b-render-context" />
-  <link rel="stylesheet" href="./src/clip-adjuster.css?v=phase38b-render-context" />
-  <link rel="stylesheet" href="./src/clip-visual-overlays.css?v=phase38b-render-context" />
+  <link rel="stylesheet" href="./src/styles.css?v=phase39-clip-plane-id-compat" />
+  <link rel="stylesheet" href="./src/clip-adjuster.css?v=phase39-clip-plane-id-compat" />
+  <link rel="stylesheet" href="./src/clip-visual-overlays.css?v=phase39-clip-plane-id-compat" />
   <script type="importmap">
     {
       "imports": {
         "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
         "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/",
-        "lucide": "./src/lucide-safe.js?v=phase38b-render-context"
+        "lucide": "./src/lucide-safe.js?v=phase39-clip-plane-id-compat"
       }
     }
   </script>
@@ -222,7 +222,7 @@
             <span>Invert side</span>
           </label>
           <button type="button" id="clipCenterBtn" class="clip-center-btn">Center / Reset</button>
-          <p id="clipAdjustHint" class="clip-adjust-hint">Load or convert a model, then enable clip.</p>
+          <p id="clipAdjustHint" class="clip-adjust-hint">Clip plane is waiting for model. Load BM_CII sample and run conversion.</p>
         </div>
       </div>
       <footer class="statusbar">
@@ -261,9 +261,9 @@ Axial restraints: no OD/2 radial contact; tips touch unless gap; positive gap = 
 After engineering contact: visual resolver ODx2/3 applies only to final axial/pipe-parallel symbols</pre>
   </dialog>
 
-  <script type="module" src="./src/clip-render-hook.js?v=phase38b-render-context"></script>
-  <script type="module" src="./src/render-context-prebridge.js?v=phase38b-render-context"></script>
-  <script type="module" src="./src/app.js?v=phase38b-render-context"></script>
-  <script type="module" src="./src/safe-ui-bootstrap.js?v=phase38b-render-context"></script>
+  <script type="module" src="./src/clip-render-hook.js?v=phase39-clip-plane-id-compat"></script>
+  <script type="module" src="./src/render-context-prebridge.js?v=phase39-clip-plane-id-compat"></script>
+  <script type="module" src="./src/app.js?v=phase39-clip-plane-id-compat"></script>
+  <script type="module" src="./src/safe-ui-bootstrap.js?v=phase39-clip-plane-id-compat"></script>
 </body>
 </html>

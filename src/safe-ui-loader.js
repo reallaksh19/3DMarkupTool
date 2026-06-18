@@ -68,7 +68,7 @@ const ACTIVE_MODULES = [
 ];
 
 const BATCH_MODULES = SAFE_MODE
-  ? ACTIVE_MODULES.filter((entry) => entry.id === 'uiDiagnostics' || entry.id === 'uiAcceptanceHarness')
+  ? ACTIVE_MODULES.filter((entry) => entry.id === 'staticShellGuard' || entry.id === 'uiDiagnostics' || entry.id === 'uiAcceptanceHarness')
   : ACTIVE_MODULES;
 
 const state = {

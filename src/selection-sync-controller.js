@@ -1,13 +1,12 @@
 import * as THREE from 'three';
 
-const runtime = window.__3D_MARKUP_CLIP_RUNTIME__ || null;
 const TREE_HELPER_NAME = 'MODEL_TREE_SELECTION_HELPER';
 const APP_HELPER_NAME = 'SELECTION_BOX_HELPER';
 
 const state = {
-  renderer: runtime?.renderer || null,
-  scene: runtime?.scene || null,
-  camera: runtime?.camera || null,
+  renderer: getRuntime()?.renderer || null,
+  scene: getRuntime()?.scene || null,
+  camera: getRuntime()?.camera || null,
   helper: null,
   selectedUuid: '',
   lastCanvasSyncAt: 0
@@ -26,6 +25,21 @@ window.addEventListener('markup:render-context', (event) => {
   if (camera) state.camera = camera;
 });
 
+window.addEventListener('viewer:runtime-context', (event) => {
+  const { renderer, scene, camera } = event.detail || {};
+  if (renderer) state.renderer = renderer;
+  if (scene) state.scene = scene;
+  if (camera) state.camera = camera;
+});
+
+window.addEventListener('markup:request-select-object', (event) => {
+  const object = event.detail?.object || null;
+  if (!object) return;
+  selectObject(object, event.detail?.data || findUserData(object), { source: event.detail?.source || 'runtime' });
+});
+
+window.addEventListener('markup:request-clear-selection', () => clearSyncedSelection());
+
 function initSelectionSync() {
   document.addEventListener('click', onTreeItemClick, true);
   document.getElementById('clearSelectionBtn')?.addEventListener('click', () => clearSyncedSelection(), true);
@@ -38,6 +52,14 @@ function initSelectionSync() {
   viewer?.addEventListener('pointerup', () => {
     window.setTimeout(syncTreeFromCanvasSelection, 0);
   });
+
+  window.__3D_MARKUP_SELECTION_SYNC__ = {
+    selectObject,
+    clearSelection: clearSyncedSelection,
+    findObjectByUuid,
+    getSelectedObject: () => window.__3D_MARKUP_SELECTED_OBJECT__ || null,
+    getSelectedData: () => window.__3D_MARKUP_SELECTED_DATA__ || null
+  };
 }
 
 function onTreeItemClick(event) {
@@ -52,32 +74,47 @@ function onTreeItemClick(event) {
 }
 
 function selectObject(object, data = {}, options = {}) {
-  if (!object) return;
+  if (!object) return false;
 
   state.selectedUuid = object.uuid;
   window.__3D_MARKUP_SELECTED_OBJECT__ = object;
   window.__3D_MARKUP_SELECTED_DATA__ = data;
 
+  const runtime = getRuntime();
+  if (runtime) {
+    runtime.selectedObject = object;
+    runtime.selectedData = data;
+  }
+
   markTreeActive(object.uuid);
   showSelectionHelper(object);
   updateSelectionStatus(data, object);
 
-  if (options.source === 'tree') {
+  if (options.source === 'tree' || options.source === 'runtime') {
     showProperties(data, object);
   }
 
-  window.dispatchEvent(new CustomEvent('markup:selected-object-changed', {
-    detail: { object, data, source: options.source || 'unknown' }
-  }));
+  const detail = { object, data, source: options.source || 'unknown' };
+  window.dispatchEvent(new CustomEvent('markup:selected-object-changed', { detail }));
+  window.dispatchEvent(new CustomEvent('viewer:selection-changed', { detail }));
+  return true;
 }
 
 function clearSyncedSelection() {
   state.selectedUuid = '';
   window.__3D_MARKUP_SELECTED_OBJECT__ = null;
   window.__3D_MARKUP_SELECTED_DATA__ = null;
+
+  const runtime = getRuntime();
+  if (runtime) {
+    runtime.selectedObject = null;
+    runtime.selectedData = null;
+  }
+
   markTreeActive('');
   removeSelectionHelper();
   window.dispatchEvent(new CustomEvent('markup:selected-object-cleared'));
+  window.dispatchEvent(new CustomEvent('viewer:selection-changed', { detail: { object: null, data: null, source: 'clear' } }));
 }
 
 function syncTreeFromCanvasSelection() {
@@ -313,7 +350,7 @@ function getScene() {
 }
 
 function getRuntime() {
-  return window.__3D_MARKUP_CLIP_RUNTIME__ || null;
+  return window.__3D_MARKUP_VIEWER_RUNTIME__ || window.__3D_MARKUP_CLIP_RUNTIME__ || null;
 }
 
 function isValidBox(box) {

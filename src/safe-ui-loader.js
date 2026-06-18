@@ -31,6 +31,11 @@ const BATCH_MODULES = [
     id: 'originManager',
     label: 'Origin manager',
     src: './origin-manager-controller.js?v=phase26-safe-origin'
+  },
+  {
+    id: 'rvmQa',
+    label: 'RVM QA',
+    src: './rvm-compat-validator-controller.js?v=phase26-safe-rvm-qa'
   }
 ];
 

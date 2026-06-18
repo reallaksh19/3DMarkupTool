@@ -44,7 +44,7 @@ function queueSafeUiLoader() {
   const loadSafeUi = () => {
     if (window.__3D_MARKUP_SAFE_UI_IMPORT_STARTED__) return;
     window.__3D_MARKUP_SAFE_UI_IMPORT_STARTED__ = true;
-    import('./safe-ui-loader.js?v=phase26-batch1').catch((error) => {
+    import('./safe-ui-loader.js?v=phase26-batch5a-46').catch((error) => {
       console.warn('[3DMarkupTool] Safe UI loader failed to start.', error);
       const status = document.getElementById('runtimeStatus');
       if (status) status.textContent = 'Core Ready / UI loader failed';

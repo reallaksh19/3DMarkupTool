@@ -84,6 +84,10 @@ window.__3D_MARKUP_CLIP_RUNTIME__ = runtime;
 
 const proto = THREE.WebGLRenderer?.prototype;
 
+if (proto && !proto.__MARKUP_ORIGINAL_RENDER__) {
+  proto.__MARKUP_ORIGINAL_RENDER__ = proto.render;
+}
+
 if (proto && !proto.__MARKUP_CLIP_RENDER_HOOK__) {
   const renderStore = new WeakMap();
 
@@ -103,8 +107,4 @@ if (proto && !proto.__MARKUP_CLIP_RENDER_HOOK__) {
   });
 
   proto.__MARKUP_CLIP_RENDER_HOOK__ = true;
-}
-
-if (proto && !proto.__MARKUP_ORIGINAL_RENDER__) {
-  proto.__MARKUP_ORIGINAL_RENDER__ = proto.render;
 }

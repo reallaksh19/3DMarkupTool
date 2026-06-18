@@ -1,14 +1,10 @@
-// Direct optional-UI bootstrap.
-// This is intentionally separate from clip-render-hook.js so UI recovery does not
-// depend on render-hook cache state or a missed app-ready event.
+// Deterministic optional-UI bootstrap.
+// Keep this as the single owner for optional controller startup. Do not import
+// phase hotfix controllers here; safe-ui-loader.js owns the active module list.
 
-const SAFE_LOADER_URL = './safe-ui-loader.js?v=phase41-tree-clip-controls';
-const INPUT_DRAWER_FIX_URL = './phase36-input-drawer-fix-controller.js?v=phase41-tree-clip-controls';
-const INPUT_DRAWER_STACK_URL = './phase37-input-drawer-stack-controller.js?v=phase41-tree-clip-controls';
-const PHASE38_CLEANUP_URL = './phase38-clipbox-ui-cleanup-controller.js?v=phase41-tree-clip-controls';
-const LEGACY_HINT_COMPAT_URL = './phase40-legacy-hint-compat-controller.js?v=phase41-tree-clip-controls';
-const PHASE41_TREE_CLIP_URL = './phase41-tree-clip-controls-controller.js?v=phase41-tree-clip-controls';
-const MAX_ATTEMPTS = 8;
+const SAFE_UI_VERSION = 'ui-runtime-cleanup-20260618';
+const SAFE_LOADER_URL = `./safe-ui-loader.js?v=${SAFE_UI_VERSION}`;
+const MAX_ATTEMPTS = 6;
 
 let attempts = 0;
 
@@ -39,21 +35,16 @@ function startSoon(delayMs) {
 function importSafeLoader() {
   if (window.__3D_MARKUP_SAFE_UI_IMPORT_STARTED__) return;
   window.__3D_MARKUP_SAFE_UI_IMPORT_STARTED__ = true;
+  window.__3D_MARKUP_SAFE_UI_VERSION__ = SAFE_UI_VERSION;
 
-  import(SAFE_LOADER_URL)
-    .then(function () { return import(INPUT_DRAWER_FIX_URL); })
-    .then(function () { return import(INPUT_DRAWER_STACK_URL); })
-    .then(function () { return import(PHASE38_CLEANUP_URL); })
-    .then(function () { return import(LEGACY_HINT_COMPAT_URL); })
-    .then(function () { return import(PHASE41_TREE_CLIP_URL); })
-    .catch(function (error) {
-      console.warn('[3DMarkupTool] Direct safe UI bootstrap failed.', error);
-      window.__3D_MARKUP_SAFE_UI_IMPORT_STARTED__ = false;
-      attempts += 1;
-      setBootstrapStatus('UI bootstrap retry');
-      if (attempts < MAX_ATTEMPTS) startSoon(Math.min(1000 + attempts * 400, 3500));
-      else setBootstrapStatus('UI bootstrap failed');
-    });
+  import(SAFE_LOADER_URL).catch(function (error) {
+    console.warn('[3DMarkupTool] Safe UI bootstrap failed.', error);
+    window.__3D_MARKUP_SAFE_UI_IMPORT_STARTED__ = false;
+    attempts += 1;
+    setBootstrapStatus('UI bootstrap retry');
+    if (attempts < MAX_ATTEMPTS) startSoon(Math.min(1000 + attempts * 400, 3500));
+    else setBootstrapStatus('UI bootstrap failed');
+  });
 }
 
 function setBootstrapStatus(text) {

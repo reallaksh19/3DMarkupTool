@@ -56,6 +56,13 @@ function wireRecoveredConverterControls() {
     sideloadSection.insertBefore(label, sideloadSection.children[1] || null);
     document.getElementById('sideloadBundleFile')?.addEventListener('change', onSideloadBundleChange);
   }
+  if (sideloadSection && !document.getElementById('glbWiringChecklist')) {
+    const checklist = document.createElement('div');
+    checklist.id = 'glbWiringChecklist';
+    checklist.className = 'selected-card';
+    checklist.innerHTML = '<strong>Wiring checklist</strong><div>DONE Converter INPUTXML-&gt;GLB</div><div>DONE XML input wired</div><div>DONE optional sideload bundle wired</div><div>DONE ISONOTE and Line No text inputs wired</div><div>DONE Advanced options wired</div>';
+    sideloadSection.appendChild(checklist);
+  }
 }
 
 async function onSideloadBundleChange(event) {

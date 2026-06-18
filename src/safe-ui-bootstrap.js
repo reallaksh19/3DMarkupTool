@@ -2,9 +2,7 @@
 // This is intentionally separate from clip-render-hook.js so UI recovery does not
 // depend on render-hook cache state or a missed app-ready event.
 
-const SAFE_LOADER_URL = './safe-ui-loader.js?v=phase30-toolbar-icons';
-const TOOLBAR_OPTIMIZER_URL = './toolbar-row-optimizer-controller.js?v=phase30-toolbar-icons';
-const TOOLBAR_ICON_STYLE_URL = './toolbar-icon-style-controller.js?v=phase30-toolbar-icons';
+const SAFE_LOADER_URL = './safe-ui-loader.js?v=phase31-forced-toolbar-icons';
 const MAX_ATTEMPTS = 8;
 
 let attempts = 0;
@@ -37,32 +35,13 @@ function importSafeLoader() {
   if (window.__3D_MARKUP_SAFE_UI_IMPORT_STARTED__) return;
   window.__3D_MARKUP_SAFE_UI_IMPORT_STARTED__ = true;
 
-  import(SAFE_LOADER_URL)
-    .then(() => importToolbarOptimizer())
-    .then(() => importToolbarIconStyle())
-    .catch((error) => {
-      console.warn('[3DMarkupTool] Direct safe UI bootstrap failed.', error);
-      window.__3D_MARKUP_SAFE_UI_IMPORT_STARTED__ = false;
-      attempts += 1;
-      setBootstrapStatus('UI bootstrap retry');
-      if (attempts < MAX_ATTEMPTS) startSoon(Math.min(1000 + attempts * 400, 3500));
-      else setBootstrapStatus('UI bootstrap failed');
-    });
-}
-
-function importToolbarOptimizer() {
-  if (window.__3D_MARKUP_TOOLBAR_OPTIMIZER_STARTED__) return Promise.resolve();
-  window.__3D_MARKUP_TOOLBAR_OPTIMIZER_STARTED__ = true;
-  return import(TOOLBAR_OPTIMIZER_URL).catch((error) => {
-    console.warn('[3DMarkupTool] Toolbar optimizer failed.', error);
-  });
-}
-
-function importToolbarIconStyle() {
-  if (window.__3D_MARKUP_TOOLBAR_ICON_STYLE_STARTED__) return Promise.resolve();
-  window.__3D_MARKUP_TOOLBAR_ICON_STYLE_STARTED__ = true;
-  return import(TOOLBAR_ICON_STYLE_URL).catch((error) => {
-    console.warn('[3DMarkupTool] Toolbar icon style failed.', error);
+  import(SAFE_LOADER_URL).catch((error) => {
+    console.warn('[3DMarkupTool] Direct safe UI bootstrap failed.', error);
+    window.__3D_MARKUP_SAFE_UI_IMPORT_STARTED__ = false;
+    attempts += 1;
+    setBootstrapStatus('UI bootstrap retry');
+    if (attempts < MAX_ATTEMPTS) startSoon(Math.min(1000 + attempts * 400, 3500));
+    else setBootstrapStatus('UI bootstrap failed');
   });
 }
 

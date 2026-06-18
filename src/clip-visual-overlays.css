@@ -74,6 +74,10 @@ body.props-open .canvas-axis-triad {
   fill: #4aa3ff;
 }
 
+.clip-adjust-panel[hidden] {
+  display: none !important;
+}
+
 .view-pad.viewcube-lite {
   position: absolute;
   top: 50px;
@@ -205,6 +209,11 @@ body.props-open .view-pad.viewcube-lite {
 .view-pad.viewcube-lite .viewcube-front {
   grid-column: 2;
   grid-row: 4;
+}
+
+.view-pad.viewcube-lite .viewcube-left {
+  grid-column: 1;
+  grid-row: 3;
 }
 
 .view-pad.viewcube-lite .viewcube-side {

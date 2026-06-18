@@ -1,7 +1,7 @@
 // Deterministic optional-UI bootstrap.
 // index.html owns the professional shell. safe-ui-loader.js only adds behavior.
 
-const SAFE_UI_VERSION = 'static-professional-shell-20260618';
+const SAFE_UI_VERSION = 'static-shell-responsive-core-20260618';
 const SAFE_LOADER_URL = `./safe-ui-loader.js?v=${SAFE_UI_VERSION}`;
 const MAX_ATTEMPTS = 4;
 

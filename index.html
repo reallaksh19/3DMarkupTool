@@ -6,15 +6,15 @@
   <title>GLB/RVM Review</title>
   <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
   <link rel="shortcut icon" href="./favicon.ico" />
-  <link rel="stylesheet" href="./src/styles.css?v=phase41-tree-clip-controls" />
-  <link rel="stylesheet" href="./src/clip-adjuster.css?v=phase41-tree-clip-controls" />
-  <link rel="stylesheet" href="./src/clip-visual-overlays.css?v=phase41-tree-clip-controls" />
+  <link rel="stylesheet" href="./src/styles.css?v=ui-runtime-cleanup-20260618" />
+  <link rel="stylesheet" href="./src/clip-adjuster.css?v=ui-runtime-cleanup-20260618" />
+  <link rel="stylesheet" href="./src/clip-visual-overlays.css?v=ui-runtime-cleanup-20260618" />
   <script type="importmap">
     {
       "imports": {
         "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
         "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/",
-        "lucide": "./src/lucide-safe.js?v=phase41-tree-clip-controls"
+        "lucide": "./src/lucide-safe.js?v=ui-runtime-cleanup-20260618"
       }
     }
   </script>
@@ -228,6 +228,7 @@
       <footer class="statusbar">
         <span id="selectedStatus">Selected: none</span>
         <span id="componentStatus">Objects: 0</span>
+        <span id="coordStatus">XYZ: -</span>
       </footer>
     </section>
 
@@ -261,9 +262,9 @@ Axial restraints: no OD/2 radial contact; tips touch unless gap; positive gap = 
 After engineering contact: visual resolver ODx2/3 applies only to final axial/pipe-parallel symbols</pre>
   </dialog>
 
-  <script type="module" src="./src/clip-render-hook.js?v=phase41-tree-clip-controls"></script>
-  <script type="module" src="./src/render-context-prebridge.js?v=phase41-tree-clip-controls"></script>
-  <script type="module" src="./src/app.js?v=phase41-tree-clip-controls"></script>
-  <script type="module" src="./src/safe-ui-bootstrap.js?v=phase41-tree-clip-controls"></script>
+  <script type="module" src="./src/clip-render-hook.js?v=ui-runtime-cleanup-20260618"></script>
+  <script type="module" src="./src/render-context-prebridge.js?v=ui-runtime-cleanup-20260618"></script>
+  <script type="module" src="./src/app.js?v=ui-runtime-cleanup-20260618"></script>
+  <script type="module" src="./src/safe-ui-bootstrap.js?v=ui-runtime-cleanup-20260618"></script>
 </body>
 </html>

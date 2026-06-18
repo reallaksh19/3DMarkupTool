@@ -3,160 +3,142 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>GLB/RVM Review</title>
+  <title>InputXML GLB/RVM Review Viewer</title>
   <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
   <link rel="shortcut icon" href="./favicon.ico" />
-  <link rel="stylesheet" href="./src/styles.css?v=ui-runtime-cleanup-20260618" />
-  <link rel="stylesheet" href="./src/clip-adjuster.css?v=ui-runtime-cleanup-20260618" />
-  <link rel="stylesheet" href="./src/clip-visual-overlays.css?v=ui-runtime-cleanup-20260618" />
+  <link rel="stylesheet" href="./src/styles.css?v=static-professional-shell-20260618" />
+  <link rel="stylesheet" href="./src/clip-adjuster.css?v=static-professional-shell-20260618" />
+  <link rel="stylesheet" href="./src/clip-visual-overlays.css?v=static-professional-shell-20260618" />
   <script type="importmap">
     {
       "imports": {
         "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
         "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/",
-        "lucide": "./src/lucide-safe.js?v=ui-runtime-cleanup-20260618"
+        "lucide": "./src/lucide-safe.js?v=static-professional-shell-20260618"
       }
     }
   </script>
 </head>
-<body>
-  <header class="app-shell">
-    <div class="brand-block">
-      <span class="eyebrow">3D Markup Tool</span>
-      <h1>GLB/RVM Review</h1>
-      <p>View/Markup/Export</p>
+<body class="input-open props-open pro-shell">
+  <header class="viewer-topbar" aria-label="Application header">
+    <div class="topbar-main">
+      <div class="brand-block">
+        <div class="brand-logo" aria-hidden="true">
+          <i data-lucide="box"></i>
+        </div>
+        <div>
+          <h1>InputXML GLB/RVM Review Viewer</h1>
+          <p class="brand-subtitle">Static Navis-style model review for InputXML conversion output.</p>
+        </div>
+      </div>
+
+      <div class="topbar-actions" aria-label="Display and panel controls">
+        <label class="color-control">
+          <span>Color By</span>
+          <select id="colorBySelect" aria-label="Color model by">
+            <option value="default">Default</option>
+            <option value="lineNo">Line No.</option>
+            <option value="componentType">Component Type</option>
+            <option value="supportSource">Support Source</option>
+            <option value="sourceMode">Source Mode</option>
+          </select>
+        </label>
+        <button id="toggleInputBtn" type="button" class="panel-toggle active"><span>Input</span></button>
+        <button id="togglePropsBtn" type="button" class="panel-toggle active"><span>Props</span></button>
+        <div id="runtimeStatus" class="status-pill" role="status">Ready</div>
+      </div>
     </div>
 
-    <nav class="toolbar" aria-label="Viewer controls">
-      <div class="tool-group">
+    <nav class="toolbar main-ribbon" aria-label="Viewer controls">
+      <div class="tool-group toolbar-group primary-tools" aria-label="Navigation tools">
         <button id="selectToolBtn" type="button" class="tool-btn active"><i data-lucide="mouse-pointer-2"></i><span>Select</span></button>
         <button id="orbitToolBtn" type="button" class="tool-btn"><i data-lucide="orbit"></i><span>Orbit</span></button>
-        <button id="panToolBtn" type="button" class="tool-btn"><i data-lucide="move"></i><span>Pan</span></button>
+        <button id="panToolBtn" type="button" class="tool-btn"><i data-lucide="hand"></i><span>Pan</span></button>
         <button id="measureBtn" type="button" class="tool-btn"><i data-lucide="ruler"></i><span>Measure</span></button>
       </div>
-      <div class="tool-group" aria-label="View tools">
-        <button id="viewIsoBtn" type="button" class="tool-btn">ISO</button>
-        <button id="viewTopBtn" type="button" class="tool-btn">TOP</button>
-        <button id="viewFrontBtn" type="button" class="tool-btn">FRONT</button>
-        <button id="viewSideBtn" type="button" class="tool-btn">SIDE</button>
-        <button id="resetCameraBtn" type="button" class="tool-btn accent"><i data-lucide="scan"></i><span>Fit All</span></button>
-        <button id="fitSelectionBtn" type="button" class="tool-btn accent"><i data-lucide="scan-search"></i><span>Fit Sel</span></button>
+
+      <div class="tool-group toolbar-group" aria-label="View tools">
+        <button id="viewIsoBtn" type="button" class="tool-btn"><i data-lucide="box"></i><span>ISO</span></button>
+        <button id="viewTopBtn" type="button" class="tool-btn"><i data-lucide="flip-vertical"></i><span>TOP</span></button>
+        <button id="viewFrontBtn" type="button" class="tool-btn"><i data-lucide="rectangle-horizontal"></i><span>FRONT</span></button>
+        <button id="viewSideBtn" type="button" class="tool-btn"><i data-lucide="cuboid"></i><span>SIDE</span></button>
+        <button id="resetCameraBtn" type="button" class="tool-btn"><i data-lucide="scan"></i><span>Fit All</span></button>
+        <button id="fitSelectionBtn" type="button" class="tool-btn"><i data-lucide="scan-search"></i><span>Fit Sel</span></button>
       </div>
-      <div class="tool-group">
-        <button id="clipBtn" type="button" class="tool-btn"><i data-lucide="scissors"></i><span>Clip Off</span></button>
-        <button id="clearSelectionBtn" type="button" class="tool-btn"><i data-lucide="x-circle"></i><span>Clear</span></button>
+
+      <div class="tool-group toolbar-group two-row-command-group" data-group="display" aria-label="Display tools">
+        <button id="clipBtn" type="button" class="tool-btn"><i data-lucide="split-square-horizontal"></i><span>Clip Off</span></button>
+        <button id="clearSelectionBtn" type="button" class="tool-btn"><i data-lucide="eraser"></i><span>Clear</span></button>
       </div>
-      <div class="tool-group" aria-label="Output preview">
-        <button id="previewGlbBtn" type="button" class="tool-btn mode active" disabled>GLB</button>
-        <button id="previewRvmBtn" type="button" class="tool-btn mode" disabled>RVM</button>
+
+      <div class="tool-group toolbar-group" aria-label="Preview mode">
+        <button id="previewGlbBtn" type="button" class="tool-btn mode active" disabled><i data-lucide="box"></i><span>GLB</span></button>
+        <button id="previewRvmBtn" type="button" class="tool-btn mode" disabled><i data-lucide="file-box"></i><span>RVM</span></button>
       </div>
-      <label class="color-control">
-        <span><i data-lucide="palette"></i> Color By</span>
-        <select id="colorBySelect">
-          <option value="default">Default</option>
-          <option value="lineNo">Line No.</option>
-          <option value="componentType">Component Type</option>
-          <option value="supportSource">Support Source</option>
-          <option value="sourceMode">Source Mode</option>
-        </select>
-      </label>
-      <div class="tool-group panel-toggles">
-        <button id="toggleInputBtn" type="button" class="tool-btn active"><i data-lucide="panel-left"></i><span>Input</span></button>
-        <button id="togglePropsBtn" type="button" class="tool-btn"><i data-lucide="panel-right"></i><span>Props</span></button>
-      </div>
-      <div id="runtimeStatus" class="status-pill">Ready</div>
     </nav>
+
+    <div class="markup-ribbon" aria-label="Markup and XML tools">
+      <div class="tool-group toolbar-group navis-tag-tools tag-lite-host" aria-label="Tag XML tools"></div>
+    </div>
   </header>
 
-  <main class="layout">
-    <aside class="control-drawer open" id="inputDrawer" aria-label="Input and conversion controls">
+  <main class="app-workspace">
+    <aside class="control-drawer input-drawer" id="inputDrawer" aria-label="Input and conversion controls">
       <div class="drawer-head">
         <div>
-          <h2>Input / Export</h2>
+          <h2><i data-lucide="file-input"></i> Input / Export</h2>
           <p>Load InputXML, sideload metadata, convert, then export GLB or RVM+ATT.</p>
         </div>
-        <button id="closeInputBtn" type="button" class="icon-btn" title="Close input panel"><i data-lucide="x"></i></button>
+        <button id="closeInputBtn" type="button" class="icon-btn" title="Close input panel"><i data-lucide="chevrons-left"></i></button>
       </div>
 
       <section class="panel-section">
-        <h3>Input</h3>
+        <h3><span class="section-no">1</span> Input</h3>
         <label class="file-drop">
           <input type="file" id="xmlFile" accept=".xml,.txt" />
           <i data-lucide="upload"></i>
           <span>Choose InputXML</span>
         </label>
         <div class="button-row">
-          <button id="loadSampleBtn" type="button" class="primary">Load BM_CII sample</button>
-          <button id="clearBtn" type="button" class="ghost">Clear All</button>
+          <button id="loadSampleBtn" type="button" class="primary icon-text"><i data-lucide="folder-open"></i><span>Load BM_CII sample</span></button>
+          <button id="clearBtn" type="button" class="ghost icon-text"><i data-lucide="folder-x"></i><span>Clear All</span></button>
         </div>
       </section>
 
       <section class="panel-section">
-        <h3>Conversion</h3>
-        <label class="field">
-          <span>RVM / GLB scale</span>
-          <input id="scaleInput" type="number" value="0.001" step="0.0001" />
-        </label>
-        <label class="field">
-          <span>Support visual scale</span>
-          <input id="supportScaleInput" type="number" value="1" step="0.1" min="0.1" />
-        </label>
-        <label class="field">
-          <span>Board width</span>
-          <input id="boardWidthInput" type="number" value="2.8" step="0.1" min="0.5" />
-        </label>
-        <label class="field">
-          <span>RVM version</span>
-          <input id="rvmVersion" type="text" value="3.0" />
-        </label>
-        <label class="field checkbox-field">
-          <input id="renderExpectedSupport" type="checkbox" checked />
-          <span>Render expected supports from ISONOTE</span>
-        </label>
-        <label class="field checkbox-field">
-          <input id="renderActualSupport" type="checkbox" checked />
-          <span>Render actual supports from InputXML</span>
-        </label>
-        <label class="field checkbox-field">
-          <input id="showSupportLabel" type="checkbox" />
-          <span>Show support labels</span>
-        </label>
-        <label class="field">
-          <span>Single-axis unresolved decision</span>
-          <select id="singleAxisDecision">
-            <option value="warning" selected>Warning marker only</option>
-            <option value="+">Use + axis</option>
-            <option value="-">Use - axis</option>
-          </select>
-        </label>
-        <div class="check-grid">
-          <label><input type="checkbox" id="nodeLabels" checked /> Node labels</label>
-          <label><input type="checkbox" id="isonoteBoards" checked /> ISONOTE boards</label>
-          <label><input type="checkbox" id="supportLabels" /> Support labels</label>
-          <label><input type="checkbox" id="componentText" /> Component text labels</label>
-          <label><input type="checkbox" id="compareColors" checked /> Compare colors</label>
-          <label><input type="checkbox" id="compactMode" checked /> Compact geometry</label>
-        </div>
+        <h3><span class="section-no">2</span> Conversion</h3>
+        <label class="field"><span>RVM / GLB scale</span><input id="scaleInput" type="number" value="0.001" step="0.0001" /></label>
+        <label class="field"><span>Support visual scale</span><input id="supportScaleInput" type="number" value="1" step="0.1" min="0.1" /></label>
+        <label class="field"><span>Board width</span><input id="boardWidthInput" type="number" value="2.8" step="0.1" min="0.5" /></label>
+        <label class="field"><span>RVM version</span><input id="rvmVersion" type="text" value="3.0" /></label>
+        <label class="field checkbox-field"><input id="renderExpectedSupport" type="checkbox" checked /><span>Render expected supports from ISONOTE</span></label>
+        <label class="field checkbox-field"><input id="renderActualSupport" type="checkbox" checked /><span>Render actual supports from InputXML</span></label>
+        <label class="field checkbox-field"><input id="showSupportLabel" type="checkbox" /><span>Show support labels</span></label>
+        <label class="field"><span>Single-axis unresolved decision</span><select id="singleAxisDecision"><option value="warning" selected>Warning marker only</option><option value="+">Use + axis</option><option value="-">Use - axis</option></select></label>
+
+        <details class="options-expander">
+          <summary>Options</summary>
+          <div class="check-grid">
+            <label><input type="checkbox" id="nodeLabels" checked /> Node labels</label>
+            <label><input type="checkbox" id="isonoteBoards" checked /> ISONOTE boards</label>
+            <label><input type="checkbox" id="supportLabels" /> Support labels</label>
+            <label><input type="checkbox" id="componentText" /> Component text labels</label>
+            <label><input type="checkbox" id="compareColors" checked /> Compare colors</label>
+            <label><input type="checkbox" id="compactMode" checked /> Compact geometry</label>
+          </div>
+        </details>
+      </section>
+
+      <section class="panel-section sideload-section">
+        <h3><span class="section-no">3</span> Sideload Data</h3>
+        <label class="field"><span>Line No sideload CSV</span><textarea id="lineNoText" spellcheck="false" rows="3"></textarea></label>
+        <label class="field"><span>ISONOTE sideload CSV / text</span><textarea id="isonoteText" spellcheck="false" rows="5"></textarea></label>
       </section>
 
       <section class="panel-section">
-        <h3>Sideload Data</h3>
-        <label class="field">
-          <span>Line No sideload CSV</span>
-          <textarea id="lineNoText" spellcheck="false" rows="4"></textarea>
-        </label>
-        <label class="field">
-          <span>ISONOTE sideload CSV / text</span>
-          <textarea id="isonoteText" spellcheck="false" rows="8"></textarea>
-        </label>
-      </section>
-
-      <section class="panel-section">
-        <h3>Run / Download</h3>
+        <h3><span class="section-no">4</span> Run / Download</h3>
         <div class="button-row">
-          <button id="convertBtn" type="button" class="primary icon-text">
-            <i data-lucide="refresh-cw"></i><span>Run Conversion</span>
-          </button>
+          <button id="convertBtn" type="button" class="primary icon-text"><i data-lucide="refresh-cw"></i><span>Run Conversion</span></button>
           <button id="viewRulesBtn" type="button" class="ghost">Mapping Rules</button>
         </div>
         <div class="download-grid">
@@ -168,81 +150,67 @@
       </section>
 
       <section class="panel-section log-section">
-        <h3>Log</h3>
+        <h3><span class="section-no">5</span> Log</h3>
         <pre id="log"></pre>
       </section>
     </aside>
 
     <section class="viewer-shell" aria-label="3D viewer">
       <div id="viewer" class="viewer-canvas">
-        <div class="canvas-help" id="canvasHelp">
+        <div class="canvas-help" id="hint">
           <strong>Canvas</strong>
-          <span>LMB drag: orbit</span>
-          <span>MMB/Wheel: zoom</span>
-          <span>RMB drag: pan</span>
-          <span>S/O/P/M/H/F/Esc shortcuts</span>
+          <span>LMB: select/orbit · Wheel: zoom · RMB: pan</span>
+          <span>Shortcuts: S/O/P/M/H/F/C/Esc</span>
         </div>
-        <button id="treeToggleBtn" type="button" class="tree-toggle" title="Show model tree">Tree</button>
+        <div class="canvas-help secondary-help" id="canvasHelp" hidden></div>
+        <button id="treeToggleBtn" type="button" class="tree-toggle" title="Show model tree"><i data-lucide="list-tree"></i><span>Tree</span></button>
+
         <div class="view-pad" aria-label="View shortcuts">
-          <button type="button" data-view="iso">ISO</button>
           <button type="button" data-view="top">TOP</button>
-          <button type="button" data-view="front">FRT</button>
-          <button type="button" data-view="side">SIDE</button>
+          <button type="button" data-view="iso">ISO</button>
+          <button type="button" data-view="side">RIGHT</button>
+          <button type="button" data-view="front">FRONT</button>
           <button type="button" data-view="fit">FIT</button>
-          <button type="button" data-view="fitSelection">F SEL</button>
+          <button type="button" data-view="fitSelection">SEL</button>
           <button type="button" data-view="zoom">ZOOM</button>
           <button type="button" data-view="clip">CLIP</button>
           <button type="button" data-view="msr">MSR</button>
         </div>
+
         <div class="measure-readout" id="measureReadout" hidden></div>
         <div class="clip-adjust-panel" id="clipAdjustPanel" aria-live="polite">
-          <div class="clip-adjust-head">
-            <span>Clip Adjust</span>
-            <button type="button" id="clipAdjustToggleBtn">Enable Clip</button>
-          </div>
-          <div class="clip-adjust-row">
-            <label for="clipAxisSelect">Axis</label>
-            <select id="clipAxisSelect">
-              <option value="x">X</option>
-              <option value="y">Y</option>
-              <option value="z">Z</option>
-            </select>
-          </div>
-          <div class="clip-adjust-row">
-            <label for="clipSlider">Position</label>
-            <input id="clipSlider" type="range" min="0" max="100" value="50" step="1" />
-          </div>
-          <div class="clip-adjust-row compact">
-            <button type="button" id="clipStepDownBtn" title="Move clip plane backward">−</button>
-            <input id="clipOffsetInput" type="number" min="0" max="100" value="50" step="1" />
-            <button type="button" id="clipStepUpBtn" title="Move clip plane forward">+</button>
-          </div>
-          <label class="clip-adjust-check">
-            <input id="clipInvertCheck" type="checkbox" />
-            <span>Invert side</span>
-          </label>
+          <div class="clip-adjust-head"><span>Clip Adjust</span><button type="button" id="clipAdjustToggleBtn">Enable Clip</button></div>
+          <div class="clip-adjust-row"><label for="clipAxisSelect">Axis</label><select id="clipAxisSelect"><option value="x">X</option><option value="y">Y</option><option value="z">Z</option></select></div>
+          <div class="clip-adjust-row"><label for="clipSlider">Position</label><input id="clipSlider" type="range" min="0" max="100" value="50" step="1" /></div>
+          <div class="clip-adjust-row compact"><button type="button" id="clipStepDownBtn" title="Move clip plane backward">−</button><input id="clipOffsetInput" type="number" min="0" max="100" value="50" step="1" /><button type="button" id="clipStepUpBtn" title="Move clip plane forward">+</button></div>
+          <label class="clip-adjust-check"><input id="clipInvertCheck" type="checkbox" /><span>Invert side</span></label>
           <button type="button" id="clipCenterBtn" class="clip-center-btn">Center / Reset</button>
-          <p id="clipAdjustHint" class="clip-adjust-hint">Clip plane is waiting for model. Load BM_CII sample and run conversion.</p>
+          <p id="clipAdjustHint" class="clip-adjust-hint">Load or convert a model, then enable clip.</p>
         </div>
       </div>
-      <footer class="statusbar">
+      <footer class="viewer-statusbar">
         <span id="selectedStatus">Selected: none</span>
         <span id="componentStatus">Objects: 0</span>
         <span id="coordStatus">XYZ: -</span>
+        <span class="status-note">Protected core: InputXML / support mapping untouched</span>
       </footer>
     </section>
 
     <aside class="property-drawer" id="propertiesPanel" aria-label="Component properties">
       <div class="property-head">
         <div>
-          <h2>Component Properties</h2>
+          <h2><i data-lucide="panel-right"></i> Component Properties</h2>
           <p>Selection metadata is displayed as parsed by the existing conversion pipeline.</p>
         </div>
-        <button id="closePropsBtn" type="button" class="icon-btn" title="Close properties">
-          <i data-lucide="x"></i>
-        </button>
+        <button id="closePropsBtn" type="button" class="icon-btn" title="Close properties"><i data-lucide="chevrons-right"></i></button>
       </div>
-      <div id="propertiesBody" class="properties-body empty-state">Select an object in the viewer.</div>
+      <div id="propertiesBody" class="properties-body empty-state">
+        <div class="empty-card">
+          <i data-lucide="box-select"></i>
+          <h3>No selection</h3>
+          <p>Use the selection tools and choose an object to view details here.</p>
+        </div>
+      </div>
     </aside>
   </main>
 
@@ -262,9 +230,9 @@ Axial restraints: no OD/2 radial contact; tips touch unless gap; positive gap = 
 After engineering contact: visual resolver ODx2/3 applies only to final axial/pipe-parallel symbols</pre>
   </dialog>
 
-  <script type="module" src="./src/clip-render-hook.js?v=ui-runtime-cleanup-20260618"></script>
-  <script type="module" src="./src/render-context-prebridge.js?v=ui-runtime-cleanup-20260618"></script>
-  <script type="module" src="./src/app.js?v=ui-runtime-cleanup-20260618"></script>
-  <script type="module" src="./src/safe-ui-bootstrap.js?v=ui-runtime-cleanup-20260618"></script>
+  <script type="module" src="./src/clip-render-hook.js?v=static-professional-shell-20260618"></script>
+  <script type="module" src="./src/render-context-prebridge.js?v=static-professional-shell-20260618"></script>
+  <script type="module" src="./src/app.js?v=static-professional-shell-20260618"></script>
+  <script type="module" src="./src/safe-ui-bootstrap.js?v=static-professional-shell-20260618"></script>
 </body>
 </html>

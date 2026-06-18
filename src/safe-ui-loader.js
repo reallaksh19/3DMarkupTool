@@ -69,6 +69,11 @@ const ALL_MODULES = [
     src: `./visibility-context-menu.js?v=${SAFE_UI_VERSION}`
   },
   {
+    id: 'treePanelBridge',
+    label: 'Tree panel bridge',
+    src: `./tree-panel-bridge-controller.js?v=${SAFE_UI_VERSION}`
+  },
+  {
     id: 'selectionSync',
     label: 'Selection sync',
     src: `./selection-sync-controller.js?v=${SAFE_UI_VERSION}`

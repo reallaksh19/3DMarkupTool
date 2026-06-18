@@ -14,6 +14,11 @@ const ALL_MODULES = [
     src: `./shell-layout-recovery-controller.js?v=${SAFE_UI_VERSION}`
   },
   {
+    id: 'inputDrawer',
+    label: 'Input drawer',
+    src: `./input-drawer-controller.js?v=${SAFE_UI_VERSION}`
+  },
+  {
     id: 'propertyTabs',
     label: 'Property tabs',
     src: `./property-tabs-base-controller.js?v=${SAFE_UI_VERSION}`

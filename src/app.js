@@ -101,6 +101,8 @@ const raycaster = new THREE.Raycaster();
 const mouse = new THREE.Vector2();
 
 initUi();
+window.__3D_MARKUP_APP_READY__ = true;
+window.dispatchEvent(new CustomEvent('markup:app-ready', { detail: { recoveryMode: Boolean(window.__3D_MARKUP_CORE_RECOVERY__) } }));
 animate();
 
 function initUi() {
@@ -929,22 +931,24 @@ function formatNumber(value) {
   return value.toFixed(2);
 }
 
-function escapeHtml(value) {
-  return String(value ?? '').replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
-}
-
 function onResize() {
-  renderer.setSize(viewer.clientWidth, viewer.clientHeight);
-  camera.aspect = viewer.clientWidth / viewer.clientHeight;
+  const rect = viewer.getBoundingClientRect();
+  renderer.setSize(rect.width, rect.height);
+  camera.aspect = rect.width / rect.height;
   camera.updateProjectionMatrix();
 }
 
 function animate() {
   requestAnimationFrame(animate);
   controls.update();
-  state.measureGroup.traverse((object) => {
-    if (object.name === 'MEASURE_LABEL') object.lookAt(camera.position);
-  });
-  if (state.selectionHelper && state.selected) updateSelectionHelper(state.selected);
   renderer.render(scene, camera);
+}
+
+function escapeHtml(value) {
+  return String(value ?? 'N/A')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
 }

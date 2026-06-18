@@ -2,10 +2,11 @@
 // This is intentionally separate from clip-render-hook.js so UI recovery does not
 // depend on render-hook cache state or a missed app-ready event.
 
-const SAFE_LOADER_URL = './safe-ui-loader.js?v=phase39-clip-plane-id-compat';
-const INPUT_DRAWER_FIX_URL = './phase36-input-drawer-fix-controller.js?v=phase39-clip-plane-id-compat';
-const INPUT_DRAWER_STACK_URL = './phase37-input-drawer-stack-controller.js?v=phase39-clip-plane-id-compat';
-const PHASE38_CLEANUP_URL = './phase38-clipbox-ui-cleanup-controller.js?v=phase39-clip-plane-id-compat';
+const SAFE_LOADER_URL = './safe-ui-loader.js?v=phase40-null-hint-compat';
+const INPUT_DRAWER_FIX_URL = './phase36-input-drawer-fix-controller.js?v=phase40-null-hint-compat';
+const INPUT_DRAWER_STACK_URL = './phase37-input-drawer-stack-controller.js?v=phase40-null-hint-compat';
+const PHASE38_CLEANUP_URL = './phase38-clipbox-ui-cleanup-controller.js?v=phase40-null-hint-compat';
+const LEGACY_HINT_COMPAT_URL = './phase40-legacy-hint-compat-controller.js?v=phase40-null-hint-compat';
 const MAX_ATTEMPTS = 8;
 
 let attempts = 0;
@@ -42,6 +43,7 @@ function importSafeLoader() {
     .then(function () { return import(INPUT_DRAWER_FIX_URL); })
     .then(function () { return import(INPUT_DRAWER_STACK_URL); })
     .then(function () { return import(PHASE38_CLEANUP_URL); })
+    .then(function () { return import(LEGACY_HINT_COMPAT_URL); })
     .catch(function (error) {
       console.warn('[3DMarkupTool] Direct safe UI bootstrap failed.', error);
       window.__3D_MARKUP_SAFE_UI_IMPORT_STARTED__ = false;

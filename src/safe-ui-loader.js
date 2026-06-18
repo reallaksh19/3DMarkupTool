@@ -11,6 +11,16 @@ const BATCH_MODULES = [
     id: 'colorLegend',
     label: 'Color legend',
     src: './color-by-legend-safe-controller.js?v=phase26-safe-legend'
+  },
+  {
+    id: 'treeVisibility',
+    label: 'Tree + visibility',
+    src: './visibility-context-menu.js?v=phase26-safe-tree-visibility'
+  },
+  {
+    id: 'selectionSync',
+    label: 'Selection sync',
+    src: './selection-sync-controller.js?v=phase26-safe-selection-sync'
   }
 ];
 

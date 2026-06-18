@@ -1,125 +1,130 @@
-const SAFE_UI_VERSION = 'phase35-ui-cleanup';
+const SAFE_UI_VERSION = 'phase37-input-drawer-stack';
 
 const ALL_MODULES = [
   {
     id: 'uiDiagnostics',
     label: 'UI diagnostics',
-    src: './ui-diagnostics-controller.js?v=phase35-diagnostics'
+    src: './ui-diagnostics-controller.js?v=phase37-diagnostics'
   },
   {
     id: 'shellLayoutRecovery',
     label: 'Shell layout recovery',
-    src: './shell-layout-recovery-controller.js?v=phase35-shell-layout'
+    src: './shell-layout-recovery-controller.js?v=phase37-shell-layout'
   },
   {
     id: 'propertyTabs',
     label: 'Property tabs',
-    src: './property-tabs-base-controller.js?v=phase35-property-tabs-base'
+    src: './property-tabs-base-controller.js?v=phase37-property-tabs-base'
   },
   {
     id: 'consoleGuard',
     label: 'Input guard',
-    src: './ui-console-guard.js?v=phase35-console-guard'
+    src: './ui-console-guard.js?v=phase37-console-guard'
   },
   {
     id: 'conversionOptionsCompat',
     label: 'Conversion options compatibility',
-    src: './conversion-options-compat-controller.js?v=phase35-conversion-options'
+    src: './conversion-options-compat-controller.js?v=phase37-conversion-options'
   },
   {
     id: 'fit',
     label: 'Fit',
-    src: './fit-controller.js?v=phase35-fit'
+    src: './fit-controller.js?v=phase37-fit'
   },
   {
     id: 'grid',
     label: 'Grid toggle',
-    src: './grid-toggle-controller.js?v=phase35-grid'
+    src: './grid-toggle-controller.js?v=phase37-grid'
   },
   {
     id: 'clipAdjuster',
     label: 'Clip adjuster',
-    src: './clip-adjuster.js?v=phase35-clip-adjuster'
+    src: './clip-adjuster.js?v=phase37-clip-adjuster'
   },
   {
     id: 'clipVisuals',
     label: 'Clip / axis overlays',
-    src: './clip-visual-overlays.js?v=phase35-clip-visuals'
+    src: './clip-visual-overlays.js?v=phase37-clip-visuals'
   },
   {
     id: 'colorLegend',
     label: 'Color legend',
-    src: './color-by-legend-safe-controller.js?v=phase35-safe-legend'
+    src: './color-by-legend-safe-controller.js?v=phase37-safe-legend'
   },
   {
     id: 'treeVisibility',
     label: 'Tree + visibility',
-    src: './visibility-context-menu.js?v=phase35-tree-visibility'
+    src: './visibility-context-menu.js?v=phase37-tree-visibility'
   },
   {
     id: 'selectionSync',
     label: 'Selection sync',
-    src: './selection-sync-controller.js?v=phase35-selection-sync'
+    src: './selection-sync-controller.js?v=phase37-selection-sync'
   },
   {
     id: 'marqueeZoom',
     label: 'Marquee zoom',
-    src: './marquee-zoom-controller.js?v=phase35-marquee'
+    src: './marquee-zoom-controller.js?v=phase37-marquee'
   },
   {
     id: 'originManager',
     label: 'Origin manager',
-    src: './origin-manager-controller.js?v=phase35-origin'
+    src: './origin-manager-controller.js?v=phase37-origin'
   },
   {
     id: 'rvmQa',
     label: 'RVM QA',
-    src: './rvm-compat-validator-controller.js?v=phase35-rvm-qa'
+    src: './rvm-compat-validator-controller.js?v=phase37-rvm-qa'
   },
   {
     id: 'rvmStrictProfile',
     label: 'RVM strict profile',
-    src: './rvm-strict-mode-controller.js?v=phase35-rvm-strict'
+    src: './rvm-strict-mode-controller.js?v=phase37-rvm-strict'
   },
   {
     id: 'tagLiteHost',
     label: 'Tag toolbar host',
-    src: './tag-lite-host-controller.js?v=phase35-tag-host'
+    src: './tag-lite-host-controller.js?v=phase37-tag-host'
   },
   {
     id: 'tagImportViews',
     label: 'Tag import/views',
-    src: './navis-tag-import-controller.js?v=phase35-tag-import'
+    src: './navis-tag-import-controller.js?v=phase37-tag-import'
   },
   {
     id: 'manualTag',
     label: 'Manual tag',
-    src: './navis-manual-tag-safe-controller.js?v=phase35-manual-tag'
+    src: './navis-manual-tag-safe-controller.js?v=phase37-manual-tag'
   },
   {
     id: 'tagUsability',
     label: 'Tag usability',
-    src: './navis-tag-usability-safe-controller.js?v=phase35-tag-usability'
+    src: './navis-tag-usability-safe-controller.js?v=phase37-tag-usability'
   },
   {
     id: 'tagSession',
     label: 'Tag session',
-    src: './navis-tag-session-safe-controller.js?v=phase35-tag-session'
+    src: './navis-tag-session-safe-controller.js?v=phase37-tag-session'
   },
   {
     id: 'tagXmlQa',
     label: 'Tag XML QA',
-    src: './navis-tag-xml-qa-mini-controller.js?v=phase35-tag-xml-qa'
+    src: './navis-tag-xml-qa-mini-controller.js?v=phase37-tag-xml-qa'
   },
   {
     id: 'twoRowIconRibbon',
     label: 'Two-row icon ribbon',
-    src: './two-row-icon-ribbon-controller.js?v=phase35-two-row-ribbon'
+    src: './two-row-icon-ribbon-controller.js?v=phase37-two-row-ribbon'
   },
   {
     id: 'phase35Cleanup',
     label: 'Phase 35 UI cleanup',
-    src: './phase35-ui-cleanup-controller.js?v=phase35-ui-cleanup'
+    src: './phase35-ui-cleanup-controller.js?v=phase37-ui-cleanup'
+  },
+  {
+    id: 'phase37InputDrawerStack',
+    label: 'Input drawer stack',
+    src: './phase37-input-drawer-stack-controller.js?v=phase37-input-drawer-stack'
   }
 ];
 

@@ -1,8 +1,12 @@
-import * as THREE from 'three';
-
 // Emergency production recovery mode.
 // Keep the core app.js path alive and prevent late optional UI controllers from
 // executing until they can be re-enabled one by one under a guarded loader.
+//
+// Important: do NOT monkey-patch THREE.WebGLRenderer.prototype.render here.
+// Some Three.js builds define/assign renderer.render as a read-only own property
+// during WebGLRenderer construction; patching the prototype can make
+// new WebGLRenderer() throw "Cannot assign to read only property 'render'".
+
 const CORE_RECOVERY_MODE = true;
 
 const OPTIONAL_CONTROLLER_FRAGMENTS = [
@@ -28,6 +32,31 @@ const OPTIONAL_CONTROLLER_FRAGMENTS = [
 ];
 
 window.__3D_MARKUP_CORE_RECOVERY__ = CORE_RECOVERY_MODE;
+
+const runtime = window.__3D_MARKUP_CLIP_RUNTIME__ || {
+  renderer: null,
+  scene: null,
+  camera: null,
+  frame: 0
+};
+window.__3D_MARKUP_CLIP_RUNTIME__ = runtime;
+
+// Safe optional API for app.js or future modules to publish render context
+// without patching Three.js internals.
+window.__3D_MARKUP_RECORD_RENDER_CONTEXT__ = function recordRenderContext(detail = {}) {
+  if (detail.renderer) runtime.renderer = detail.renderer;
+  if (detail.scene) runtime.scene = detail.scene;
+  if (detail.camera) runtime.camera = detail.camera;
+  runtime.frame += 1;
+  window.dispatchEvent(new CustomEvent('markup:render-context', {
+    detail: {
+      renderer: runtime.renderer,
+      scene: runtime.scene,
+      camera: runtime.camera,
+      frame: runtime.frame
+    }
+  }));
+};
 
 if (CORE_RECOVERY_MODE) {
   disableOptionalControllerScripts();
@@ -55,7 +84,7 @@ function queueSafeUiLoader() {
   const loadSafeUi = () => {
     if (window.__3D_MARKUP_SAFE_UI_IMPORT_STARTED__) return;
     window.__3D_MARKUP_SAFE_UI_IMPORT_STARTED__ = true;
-    import('./safe-ui-loader.js?v=phase26-batch5f-52').catch((error) => {
+    import('./safe-ui-loader.js?v=hotfix57-render-safe-loader').catch((error) => {
       console.warn('[3DMarkupTool] Safe UI loader failed to start.', error);
       const status = document.getElementById('runtimeStatus');
       if (status) status.textContent = 'Core Ready / UI loader failed';
@@ -68,43 +97,5 @@ function queueSafeUiLoader() {
   }
 
   window.addEventListener('markup:app-ready', () => window.requestAnimationFrame(loadSafeUi), { once: true });
-  window.setTimeout(() => {
-    if (window.__3D_MARKUP_APP_READY__) loadSafeUi();
-  }, 6000);
-}
-
-const runtime = window.__3D_MARKUP_CLIP_RUNTIME__ || {
-  renderer: null,
-  scene: null,
-  camera: null,
-  frame: 0
-};
-
-window.__3D_MARKUP_CLIP_RUNTIME__ = runtime;
-
-const proto = THREE.WebGLRenderer?.prototype;
-
-if (proto && !proto.__MARKUP_ORIGINAL_RENDER__) {
-  proto.__MARKUP_ORIGINAL_RENDER__ = proto.render;
-}
-
-if (proto && !proto.__MARKUP_CLIP_RENDER_HOOK__) {
-  const renderStore = new WeakMap();
-
-  Object.defineProperty(proto, 'render', {
-    configurable: true,
-    value: function patchedRender(scene, camera, ...rest) {
-      runtime.renderer = this;
-      runtime.scene = scene;
-      runtime.camera = camera;
-      runtime.frame += 1;
-      renderStore.set(this, { scene, camera, frame: runtime.frame });
-      window.dispatchEvent(new CustomEvent('markup:render-context', {
-        detail: { renderer: this, scene, camera, frame: runtime.frame }
-      }));
-      return proto.__MARKUP_ORIGINAL_RENDER__.call(this, scene, camera, ...rest);
-    }
-  });
-
-  proto.__MARKUP_CLIP_RENDER_HOOK__ = true;
+  window.setTimeout(() => loadSafeUi(), 2000);
 }

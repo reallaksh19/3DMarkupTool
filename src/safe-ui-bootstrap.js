@@ -2,7 +2,7 @@
 // This is intentionally separate from clip-render-hook.js so UI recovery does not
 // depend on render-hook cache state or a missed app-ready event.
 
-const SAFE_LOADER_URL = './safe-ui-loader.js?v=phase27-production-cleanup';
+const SAFE_LOADER_URL = './safe-ui-loader.js?v=phase28-rvm-strict-foundation';
 const MAX_ATTEMPTS = 8;
 
 let attempts = 0;
@@ -21,8 +21,6 @@ function startSoon(delayMs) {
   window.setTimeout(() => {
     if (window.__3D_MARKUP_SAFE_UI_IMPORT_STARTED__) return;
 
-    // Prefer app-ready, but do not block forever. The modules are guarded and
-    // safe-ui-loader also waits for core readiness internally.
     if (!window.__3D_MARKUP_APP_READY__ && attempts < 2) {
       attempts += 1;
       startSoon(350);

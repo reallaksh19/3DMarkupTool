@@ -13,7 +13,18 @@ const OPTIONAL_CONTROLLER_FRAGMENTS = [
   'clip-visual-overlays.js',
   'visibility-context-menu.js',
   'selection-sync-controller.js',
-  'property-tabs-controller.js'
+  'property-tabs-controller.js',
+  'model-tree-panel.js',
+  'navis-tag-',
+  'tag-lite-host-controller.js',
+  'toolbar-cleanup-controller.js',
+  'professional-ui-shell-controller.js',
+  'two-row-ribbon-controller.js',
+  'color-by-legend',
+  'origin-manager-controller.js',
+  'marquee-zoom-controller.js',
+  'phase24b-ui-exposure-controller.js',
+  'rvm-compat-validator-controller.js'
 ];
 
 window.__3D_MARKUP_CORE_RECOVERY__ = CORE_RECOVERY_MODE;
@@ -44,7 +55,7 @@ function queueSafeUiLoader() {
   const loadSafeUi = () => {
     if (window.__3D_MARKUP_SAFE_UI_IMPORT_STARTED__) return;
     window.__3D_MARKUP_SAFE_UI_IMPORT_STARTED__ = true;
-    import('./safe-ui-loader.js?v=phase26-batch5a-46').catch((error) => {
+    import('./safe-ui-loader.js?v=phase26-batch5b-46').catch((error) => {
       console.warn('[3DMarkupTool] Safe UI loader failed to start.', error);
       const status = document.getElementById('runtimeStatus');
       if (status) status.textContent = 'Core Ready / UI loader failed';

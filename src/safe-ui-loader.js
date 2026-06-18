@@ -56,6 +56,11 @@ const BATCH_MODULES = [
     id: 'tagUsability',
     label: 'Tag usability',
     src: './navis-tag-usability-safe-controller.js?v=phase26-batch5d-usability'
+  },
+  {
+    id: 'tagSession',
+    label: 'Tag session',
+    src: './navis-tag-session-safe-controller.js?v=phase26-batch5e-session'
   }
 ];
 

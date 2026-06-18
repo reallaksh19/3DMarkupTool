@@ -51,6 +51,11 @@ const BATCH_MODULES = [
     id: 'manualTag',
     label: 'Manual tag',
     src: './navis-manual-tag-safe-controller.js?v=phase26-batch5c-manual'
+  },
+  {
+    id: 'tagUsability',
+    label: 'Tag usability',
+    src: './navis-tag-usability-safe-controller.js?v=phase26-batch5d-usability'
   }
 ];
 
@@ -141,29 +146,44 @@ function ensureStatusChip() {
     style.id = 'safeUiLoaderStyles';
     style.textContent = `
       .safe-ui-status-chip {
-        min-width: 74px;
-        padding: 8px 10px;
-        border-radius: 999px;
-        border: 1px solid rgba(125, 172, 222, .24);
-        background: rgba(9, 20, 33, .72);
-        color: #a7bdd4;
-        font-size: 11px;
-        font-weight: 800;
-        text-align: center;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 68px;
+        height: 32px;
+        border-radius: 18px;
+        padding: 0 13px;
+        font-size: 12px;
+        font-weight: 900;
+        letter-spacing: .02em;
+        color: #dcecff;
+        border: 1px solid rgba(133,190,255,.3);
+        background: rgba(6,18,34,.9);
+        box-shadow: inset 0 0 0 1px rgba(255,255,255,.04);
         white-space: nowrap;
       }
-      .safe-ui-status-chip.ok { color: #39f5a5; border-color: rgba(57,245,165,.28); }
-      .safe-ui-status-chip.warning { color: #ffd166; border-color: rgba(255,209,102,.35); }
-      .safe-ui-status-chip.loading { color: #a9d5ff; }
+      .safe-ui-status-chip.ok {
+        color: #40f7af;
+        border-color: rgba(64,247,175,.35);
+        background: rgba(0,48,41,.82);
+      }
+      .safe-ui-status-chip.warning {
+        color: #ffd166;
+        border-color: rgba(255,209,102,.55);
+        background: rgba(65,42,0,.82);
+      }
+      .safe-ui-status-chip.loading {
+        color: #a8d8ff;
+      }
     `;
     document.head.appendChild(style);
   }
 }
 
-function updateStatusChip(status, text) {
+function updateStatusChip(stateName, text) {
   const chip = document.getElementById('safeUiStatus');
   if (!chip) return;
-  chip.className = `safe-ui-status-chip ${status}`;
+  chip.classList.remove('ok', 'warning', 'loading');
+  chip.classList.add(stateName);
   chip.textContent = text;
-  chip.title = state.results.map((item) => `${item.label}: ${item.status}${item.error ? ` — ${item.error}` : ''}`).join('\n');
 }

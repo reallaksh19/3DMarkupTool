@@ -40,7 +40,7 @@ const BATCH_MODULES = [
   {
     id: 'tagLiteHost',
     label: 'Tag toolbar host',
-    src: './tag-lite-host-controller.js?v=phase26-batch5a-host'
+    src: './tag-lite-host-controller.js?v=phase26-batch5b-host'
   },
   {
     id: 'tagImportViews',

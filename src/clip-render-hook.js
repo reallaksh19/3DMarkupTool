@@ -1,5 +1,44 @@
 import * as THREE from 'three';
 
+// Emergency production recovery mode.
+// Keep the core app.js path alive and prevent late optional UI controllers from
+// executing until they can be re-enabled one by one under a guarded loader.
+const CORE_RECOVERY_MODE = true;
+
+const OPTIONAL_CONTROLLER_FRAGMENTS = [
+  'fit-controller.js',
+  'grid-toggle-controller.js',
+  'ui-console-guard.js',
+  'clip-adjuster.js',
+  'clip-visual-overlays.js',
+  'visibility-context-menu.js',
+  'selection-sync-controller.js',
+  'property-tabs-controller.js'
+];
+
+window.__3D_MARKUP_CORE_RECOVERY__ = CORE_RECOVERY_MODE;
+
+if (CORE_RECOVERY_MODE) {
+  disableOptionalControllerScripts();
+  window.addEventListener('DOMContentLoaded', () => {
+    document.body.classList.add('core-recovery-mode');
+    const status = document.getElementById('runtimeStatus');
+    if (status && /ready/i.test(status.textContent || '')) status.textContent = 'Core Ready';
+    console.warn('[3DMarkupTool] Core recovery mode: optional UI controllers disabled.');
+  }, { once: true });
+}
+
+function disableOptionalControllerScripts() {
+  const scripts = Array.from(document.querySelectorAll('script[type="module"][src]'));
+  for (const script of scripts) {
+    const src = script.getAttribute('src') || '';
+    if (!OPTIONAL_CONTROLLER_FRAGMENTS.some((fragment) => src.includes(fragment))) continue;
+    script.setAttribute('data-disabled-by-core-recovery', 'true');
+    script.type = 'text/plain';
+    script.remove();
+  }
+}
+
 const runtime = window.__3D_MARKUP_CLIP_RUNTIME__ || {
   renderer: null,
   scene: null,

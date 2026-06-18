@@ -1,10 +1,9 @@
 // Deterministic optional-UI bootstrap.
-// Keep this as the single owner for optional controller startup. Do not import
-// phase hotfix controllers here; safe-ui-loader.js owns the active module list.
+// index.html owns the professional shell. safe-ui-loader.js only adds behavior.
 
-const SAFE_UI_VERSION = 'ui-runtime-cleanup-20260618';
+const SAFE_UI_VERSION = 'static-professional-shell-20260618';
 const SAFE_LOADER_URL = `./safe-ui-loader.js?v=${SAFE_UI_VERSION}`;
-const MAX_ATTEMPTS = 6;
+const MAX_ATTEMPTS = 4;
 
 let attempts = 0;
 
@@ -24,7 +23,7 @@ function startSoon(delayMs) {
 
     if (!window.__3D_MARKUP_APP_READY__ && attempts < 2) {
       attempts += 1;
-      startSoon(350);
+      startSoon(250);
       return;
     }
 
@@ -42,7 +41,7 @@ function importSafeLoader() {
     window.__3D_MARKUP_SAFE_UI_IMPORT_STARTED__ = false;
     attempts += 1;
     setBootstrapStatus('UI bootstrap retry');
-    if (attempts < MAX_ATTEMPTS) startSoon(Math.min(1000 + attempts * 400, 3500));
+    if (attempts < MAX_ATTEMPTS) startSoon(Math.min(800 + attempts * 300, 2200));
     else setBootstrapStatus('UI bootstrap failed');
   });
 }

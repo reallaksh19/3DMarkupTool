@@ -1,158 +1,34 @@
-const SAFE_UI_VERSION = window.__3D_MARKUP_SAFE_UI_VERSION__ || 'ui-runtime-cleanup-20260618';
+const SAFE_UI_VERSION = window.__3D_MARKUP_SAFE_UI_VERSION__ || 'static-professional-shell-20260618';
 
-// Active optional UI modules only. Deprecated phase hotfix controllers are kept in
-// the repository for traceability but are intentionally not loaded here.
+// The professional shell is now static HTML/CSS in index.html. This loader must
+// only add behavior modules; it must not load layout/ribbon rewrite controllers.
 const ALL_MODULES = [
-  {
-    id: 'uiDiagnostics',
-    label: 'UI diagnostics',
-    src: `./ui-diagnostics-controller.js?v=${SAFE_UI_VERSION}`
-  },
-  {
-    id: 'shellLayoutRecovery',
-    label: 'Shell layout recovery',
-    src: `./shell-layout-recovery-controller.js?v=${SAFE_UI_VERSION}`
-  },
-  {
-    id: 'inputDrawer',
-    label: 'Input drawer',
-    src: `./input-drawer-controller.js?v=${SAFE_UI_VERSION}`
-  },
-  {
-    id: 'viewerRuntimeBridge',
-    label: 'Viewer runtime bridge',
-    src: `./viewer-runtime-bridge-controller.js?v=${SAFE_UI_VERSION}`
-  },
-  {
-    id: 'propertyTabs',
-    label: 'Property tabs',
-    src: `./property-tabs-base-controller.js?v=${SAFE_UI_VERSION}`
-  },
-  {
-    id: 'consoleGuard',
-    label: 'Input guard',
-    src: `./ui-console-guard.js?v=${SAFE_UI_VERSION}`
-  },
-  {
-    id: 'coreAppSafety',
-    label: 'Core app safety',
-    src: `./core-app-safety-controller.js?v=${SAFE_UI_VERSION}`
-  },
-  {
-    id: 'fit',
-    label: 'Fit',
-    src: `./fit-controller.js?v=${SAFE_UI_VERSION}`
-  },
-  {
-    id: 'grid',
-    label: 'Grid toggle',
-    src: `./grid-toggle-controller.js?v=${SAFE_UI_VERSION}`
-  },
-  {
-    id: 'clipAdjuster',
-    label: 'Clip adjuster',
-    src: `./clip-adjuster.js?v=${SAFE_UI_VERSION}`
-  },
-  {
-    id: 'viewerClipBox',
-    label: '3D Clip Box',
-    src: `./viewer-clipbox-controller.js?v=${SAFE_UI_VERSION}`
-  },
-  {
-    id: 'clipVisuals',
-    label: 'Clip / axis overlays',
-    src: `./clip-visual-overlays.js?v=${SAFE_UI_VERSION}`
-  },
-  {
-    id: 'colorLegend',
-    label: 'Color legend',
-    src: `./color-by-legend-safe-controller.js?v=${SAFE_UI_VERSION}`
-  },
-  {
-    id: 'modelTreePanel',
-    label: 'Model tree panel',
-    src: `./model-tree-panel.js?v=${SAFE_UI_VERSION}`
-  },
-  {
-    id: 'treeVisibility',
-    label: 'Visibility context menu',
-    src: `./visibility-context-menu.js?v=${SAFE_UI_VERSION}`
-  },
-  {
-    id: 'treePanelBridge',
-    label: 'Tree panel bridge',
-    src: `./tree-panel-bridge-controller.js?v=${SAFE_UI_VERSION}`
-  },
-  {
-    id: 'treeSelectionBridge',
-    label: 'Tree selection bridge',
-    src: `./tree-selection-bridge-controller.js?v=${SAFE_UI_VERSION}`
-  },
-  {
-    id: 'selectionSync',
-    label: 'Selection sync',
-    src: `./selection-sync-controller.js?v=${SAFE_UI_VERSION}`
-  },
-  {
-    id: 'marqueeZoom',
-    label: 'Marquee zoom',
-    src: `./marquee-zoom-controller.js?v=${SAFE_UI_VERSION}`
-  },
-  {
-    id: 'originManager',
-    label: 'Origin manager',
-    src: `./origin-manager-controller.js?v=${SAFE_UI_VERSION}`
-  },
-  {
-    id: 'rvmQa',
-    label: 'RVM QA',
-    src: `./rvm-compat-validator-controller.js?v=${SAFE_UI_VERSION}`
-  },
-  {
-    id: 'rvmStrictProfile',
-    label: 'RVM strict profile',
-    src: `./rvm-strict-mode-controller.js?v=${SAFE_UI_VERSION}`
-  },
-  {
-    id: 'tagLiteHost',
-    label: 'Tag toolbar host',
-    src: `./tag-lite-host-controller.js?v=${SAFE_UI_VERSION}`
-  },
-  {
-    id: 'tagImportViews',
-    label: 'Tag import/views',
-    src: `./navis-tag-import-controller.js?v=${SAFE_UI_VERSION}`
-  },
-  {
-    id: 'manualTag',
-    label: 'Manual tag',
-    src: `./navis-manual-tag-safe-controller.js?v=${SAFE_UI_VERSION}`
-  },
-  {
-    id: 'tagUsability',
-    label: 'Tag usability',
-    src: `./navis-tag-usability-safe-controller.js?v=${SAFE_UI_VERSION}`
-  },
-  {
-    id: 'tagSession',
-    label: 'Tag session',
-    src: `./navis-tag-session-safe-controller.js?v=${SAFE_UI_VERSION}`
-  },
-  {
-    id: 'tagXmlQa',
-    label: 'Tag XML QA',
-    src: `./navis-tag-xml-qa-mini-controller.js?v=${SAFE_UI_VERSION}`
-  },
-  {
-    id: 'twoRowIconRibbon',
-    label: 'Two-row icon ribbon',
-    src: `./two-row-icon-ribbon-controller.js?v=${SAFE_UI_VERSION}`
-  },
-  {
-    id: 'ribbonMenuPolish',
-    label: 'Ribbon menu polish',
-    src: `./ribbon-menu-polish-controller.js?v=${SAFE_UI_VERSION}`
-  }
+  { id: 'uiDiagnostics', label: 'UI diagnostics', src: `./ui-diagnostics-controller.js?v=${SAFE_UI_VERSION}` },
+  { id: 'inputDrawer', label: 'Input drawer', src: `./input-drawer-controller.js?v=${SAFE_UI_VERSION}` },
+  { id: 'viewerRuntimeBridge', label: 'Viewer runtime bridge', src: `./viewer-runtime-bridge-controller.js?v=${SAFE_UI_VERSION}` },
+  { id: 'consoleGuard', label: 'Input guard', src: `./ui-console-guard.js?v=${SAFE_UI_VERSION}` },
+  { id: 'coreAppSafety', label: 'Core app safety', src: `./core-app-safety-controller.js?v=${SAFE_UI_VERSION}` },
+  { id: 'fit', label: 'Fit', src: `./fit-controller.js?v=${SAFE_UI_VERSION}` },
+  { id: 'grid', label: 'Grid toggle', src: `./grid-toggle-controller.js?v=${SAFE_UI_VERSION}` },
+  { id: 'clipAdjuster', label: 'Clip adjuster', src: `./clip-adjuster.js?v=${SAFE_UI_VERSION}` },
+  { id: 'viewerClipBox', label: '3D Clip Box', src: `./viewer-clipbox-controller.js?v=${SAFE_UI_VERSION}` },
+  { id: 'clipVisuals', label: 'Clip / axis overlays', src: `./clip-visual-overlays.js?v=${SAFE_UI_VERSION}` },
+  { id: 'colorLegend', label: 'Color legend', src: `./color-by-legend-safe-controller.js?v=${SAFE_UI_VERSION}` },
+  { id: 'modelTreePanel', label: 'Model tree panel', src: `./model-tree-panel.js?v=${SAFE_UI_VERSION}` },
+  { id: 'treeVisibility', label: 'Visibility context menu', src: `./visibility-context-menu.js?v=${SAFE_UI_VERSION}` },
+  { id: 'treePanelBridge', label: 'Tree panel bridge', src: `./tree-panel-bridge-controller.js?v=${SAFE_UI_VERSION}` },
+  { id: 'treeSelectionBridge', label: 'Tree selection bridge', src: `./tree-selection-bridge-controller.js?v=${SAFE_UI_VERSION}` },
+  { id: 'selectionSync', label: 'Selection sync', src: `./selection-sync-controller.js?v=${SAFE_UI_VERSION}` },
+  { id: 'marqueeZoom', label: 'Marquee zoom', src: `./marquee-zoom-controller.js?v=${SAFE_UI_VERSION}` },
+  { id: 'originManager', label: 'Origin manager', src: `./origin-manager-controller.js?v=${SAFE_UI_VERSION}` },
+  { id: 'rvmQa', label: 'RVM QA', src: `./rvm-compat-validator-controller.js?v=${SAFE_UI_VERSION}` },
+  { id: 'rvmStrictProfile', label: 'RVM strict profile', src: `./rvm-strict-mode-controller.js?v=${SAFE_UI_VERSION}` },
+  { id: 'tagLiteHost', label: 'Tag toolbar host', src: `./tag-lite-host-controller.js?v=${SAFE_UI_VERSION}` },
+  { id: 'tagImportViews', label: 'Tag import/views', src: `./navis-tag-import-controller.js?v=${SAFE_UI_VERSION}` },
+  { id: 'manualTag', label: 'Manual tag', src: `./navis-manual-tag-safe-controller.js?v=${SAFE_UI_VERSION}` },
+  { id: 'tagUsability', label: 'Tag usability', src: `./navis-tag-usability-safe-controller.js?v=${SAFE_UI_VERSION}` },
+  { id: 'tagSession', label: 'Tag session', src: `./navis-tag-session-safe-controller.js?v=${SAFE_UI_VERSION}` },
+  { id: 'tagXmlQa', label: 'Tag XML QA', src: `./navis-tag-xml-qa-mini-controller.js?v=${SAFE_UI_VERSION}` }
 ];
 
 const ACCEPTANCE_MODE = new URLSearchParams(window.location.search).has('uiAcceptance')
@@ -167,6 +43,11 @@ const ACCEPTANCE_MODULE = {
 const ACTIVE_MODULES = ACCEPTANCE_MODE ? [...ALL_MODULES, ACCEPTANCE_MODULE] : ALL_MODULES;
 
 const DEPRECATED_MODULES = [
+  'shell-layout-recovery-controller.js',
+  'property-tabs-base-controller.js',
+  'two-row-icon-ribbon-controller.js',
+  'ribbon-menu-polish-controller.js',
+  'professional-ui-shell-controller.js',
   'phase35-ui-cleanup-controller.js',
   'phase36-input-drawer-fix-controller.js',
   'phase37-input-drawer-stack-controller.js',
@@ -224,50 +105,32 @@ async function loadGuarded(moduleInfo) {
     state.results.push({ ...moduleInfo, status: 'loaded' });
   } catch (error) {
     console.warn(`[3DMarkupTool] Optional UI module failed: ${moduleInfo.label}`, error);
-    state.results.push({
-      ...moduleInfo,
-      status: 'failed',
-      error: error?.message || String(error)
-    });
+    state.results.push({ ...moduleInfo, status: 'failed', error: error?.message || String(error) });
   }
 }
 
 function ensureStatusBadge() {
   if (document.getElementById('safeUiStatus')) return;
-
-  const toolbar = document.querySelector('.toolbar');
-  if (!toolbar) return;
-
+  const host = document.querySelector('.topbar-actions') || document.querySelector('.toolbar');
+  if (!host) return;
   const badge = document.createElement('div');
   badge.id = 'safeUiStatus';
   badge.className = 'status-pill safe-ui-status';
   badge.textContent = 'UI 0/0';
-  toolbar.appendChild(badge);
+  host.insertBefore(badge, document.getElementById('runtimeStatus')?.nextSibling || null);
 }
 
 function updateStatusBadge() {
   const badge = document.getElementById('safeUiStatus');
   if (!badge) return;
-
-  const loaded = state.results.filter((result) => result.status === 'loaded').length;
-  const failed = state.results.filter((result) => result.status === 'failed').length;
+  const loaded = state.results.filter((item) => item.status === 'loaded').length;
+  const failed = state.results.filter((item) => item.status === 'failed').length;
   const total = state.modules.length;
-
-  badge.textContent = failed ? `UI ${loaded}/${total} · ${failed} failed` : `UI ${loaded}/${total}`;
-  badge.classList.toggle('warn', failed > 0);
-  badge.title = state.results.map((result) => {
-    const suffix = result.error ? ` — ${result.error}` : '';
-    return `${result.label}: ${result.status}${suffix}`;
-  }).join('\n') || 'Optional UI modules pending';
-
-  window.__3D_MARKUP_SAFE_UI_STATUS__ = {
-    version: state.version,
-    safeMode: state.safeMode,
-    acceptanceMode: state.acceptanceMode,
-    loaded,
-    failed,
-    total,
-    deprecatedModules: [...state.deprecatedModules],
-    results: [...state.results]
-  };
+  badge.textContent = failed ? `UI ${loaded}/${total} (${failed} failed)` : `UI ${loaded}/${total}`;
+  badge.classList.toggle('failed', failed > 0);
+  badge.title = failed
+    ? `${failed} optional UI module(s) failed. Open UI Tools for details.`
+    : `${loaded}/${total} optional UI behavior modules loaded.`;
 }
+
+window.__3D_MARKUP_SAFE_UI_LOADER__ = state;

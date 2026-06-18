@@ -2,7 +2,7 @@
 // This is intentionally separate from clip-render-hook.js so UI recovery does not
 // depend on render-hook cache state or a missed app-ready event.
 
-const SAFE_LOADER_URL = './safe-ui-loader.js?v=phase34-two-row-hotfix';
+const SAFE_LOADER_URL = './safe-ui-loader.js?v=phase35-ui-cleanup';
 const MAX_ATTEMPTS = 8;
 
 let attempts = 0;
@@ -11,14 +11,14 @@ scheduleStart();
 
 function scheduleStart() {
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', () => startSoon(0), { once: true });
+    document.addEventListener('DOMContentLoaded', function () { startSoon(0); }, { once: true });
     return;
   }
   startSoon(0);
 }
 
 function startSoon(delayMs) {
-  window.setTimeout(() => {
+  window.setTimeout(function () {
     if (window.__3D_MARKUP_SAFE_UI_IMPORT_STARTED__) return;
 
     if (!window.__3D_MARKUP_APP_READY__ && attempts < 2) {
@@ -35,7 +35,7 @@ function importSafeLoader() {
   if (window.__3D_MARKUP_SAFE_UI_IMPORT_STARTED__) return;
   window.__3D_MARKUP_SAFE_UI_IMPORT_STARTED__ = true;
 
-  import(SAFE_LOADER_URL).catch((error) => {
+  import(SAFE_LOADER_URL).catch(function (error) {
     console.warn('[3DMarkupTool] Direct safe UI bootstrap failed.', error);
     window.__3D_MARKUP_SAFE_UI_IMPORT_STARTED__ = false;
     attempts += 1;
@@ -47,5 +47,5 @@ function importSafeLoader() {
 
 function setBootstrapStatus(text) {
   const status = document.getElementById('runtimeStatus');
-  if (status && /ready/i.test(status.textContent || '')) status.textContent = `Core Ready / ${text}`;
+  if (status && /ready/i.test(status.textContent || '')) status.textContent = 'Core Ready / ' + text;
 }

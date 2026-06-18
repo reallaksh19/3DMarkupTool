@@ -69,8 +69,13 @@ const ALL_MODULES = [
     src: `./color-by-legend-safe-controller.js?v=${SAFE_UI_VERSION}`
   },
   {
+    id: 'modelTreePanel',
+    label: 'Model tree panel',
+    src: `./model-tree-panel.js?v=${SAFE_UI_VERSION}`
+  },
+  {
     id: 'treeVisibility',
-    label: 'Tree + visibility',
+    label: 'Visibility context menu',
     src: `./visibility-context-menu.js?v=${SAFE_UI_VERSION}`
   },
   {

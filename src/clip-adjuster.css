@@ -1,0 +1,114 @@
+.clip-adjust-panel {
+  position: absolute;
+  left: 18px;
+  top: 70px;
+  z-index: 10;
+  width: min(420px, calc(100vw - 36px));
+  border: 1px solid rgba(255, 255, 255, .18);
+  border-radius: 12px;
+  padding: 11px;
+  background: rgba(7, 13, 22, .78);
+  color: #dce8f4;
+  box-shadow: 0 12px 36px rgba(0, 0, 0, .26);
+  backdrop-filter: blur(10px);
+  font-size: 12px;
+}
+
+.clip-adjust-panel.clip-active {
+  border-color: rgba(248, 195, 74, .76);
+  box-shadow: 0 0 0 1px rgba(248, 195, 74, .12), 0 12px 36px rgba(0, 0, 0, .3);
+}
+
+.clip-adjust-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 9px;
+}
+
+.clip-adjust-head strong {
+  color: #ffffff;
+  font-size: 12px;
+  letter-spacing: .3px;
+}
+
+#clipReadout {
+  color: #ffe9b4;
+  text-align: right;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 11px;
+}
+
+.clip-adjust-grid {
+  display: grid;
+  grid-template-columns: 84px 112px 1fr;
+  gap: 8px;
+  align-items: end;
+  margin-bottom: 9px;
+}
+
+.clip-adjust-grid label,
+.clip-slider-row {
+  color: #b9c9dc;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.clip-adjust-grid select,
+.clip-adjust-grid input[type='number'] {
+  width: 100%;
+  height: 30px;
+  margin-top: 4px;
+  border: 1px solid #45627f;
+  border-radius: 8px;
+  padding: 0 8px;
+  background: #0a1422;
+  color: #f6fbff;
+}
+
+.clip-invert {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 30px;
+  padding-top: 15px;
+  color: #f6fbff !important;
+}
+
+.clip-invert input {
+  accent-color: #f8c34a;
+}
+
+.clip-slider-row {
+  display: grid;
+  grid-template-columns: 34px 1fr 34px 70px;
+  gap: 8px;
+  align-items: center;
+}
+
+.clip-slider-row button {
+  min-height: 30px;
+  height: 30px;
+  padding: 0 10px;
+  border-radius: 8px;
+  font-size: 12px;
+}
+
+#clipPositionRange {
+  width: 100%;
+  accent-color: #f8c34a;
+}
+
+.clip-adjust-panel :disabled {
+  opacity: .48;
+  cursor: not-allowed;
+}
+
+@media (max-width: 700px) {
+  .clip-adjust-panel { top: 92px; }
+  .clip-adjust-grid { grid-template-columns: 1fr 1fr; }
+  .clip-invert { padding-top: 0; }
+  .clip-slider-row { grid-template-columns: 34px 1fr 34px; }
+  #clipResetBtn { grid-column: 1 / -1; }
+}

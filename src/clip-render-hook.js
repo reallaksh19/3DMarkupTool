@@ -20,11 +20,12 @@ window.__3D_MARKUP_CORE_RECOVERY__ = CORE_RECOVERY_MODE;
 
 if (CORE_RECOVERY_MODE) {
   disableOptionalControllerScripts();
+  queueSafeUiLoader();
   window.addEventListener('DOMContentLoaded', () => {
     document.body.classList.add('core-recovery-mode');
     const status = document.getElementById('runtimeStatus');
     if (status && /ready/i.test(status.textContent || '')) status.textContent = 'Core Ready';
-    console.warn('[3DMarkupTool] Core recovery mode: optional UI controllers disabled.');
+    console.warn('[3DMarkupTool] Core recovery mode: optional UI controllers disabled; guarded UI batch will load after core startup.');
   }, { once: true });
 }
 
@@ -37,6 +38,28 @@ function disableOptionalControllerScripts() {
     script.type = 'text/plain';
     script.remove();
   }
+}
+
+function queueSafeUiLoader() {
+  const loadSafeUi = () => {
+    if (window.__3D_MARKUP_SAFE_UI_IMPORT_STARTED__) return;
+    window.__3D_MARKUP_SAFE_UI_IMPORT_STARTED__ = true;
+    import('./safe-ui-loader.js?v=phase26-batch1').catch((error) => {
+      console.warn('[3DMarkupTool] Safe UI loader failed to start.', error);
+      const status = document.getElementById('runtimeStatus');
+      if (status) status.textContent = 'Core Ready / UI loader failed';
+    });
+  };
+
+  if (window.__3D_MARKUP_APP_READY__) {
+    window.requestAnimationFrame(loadSafeUi);
+    return;
+  }
+
+  window.addEventListener('markup:app-ready', () => window.requestAnimationFrame(loadSafeUi), { once: true });
+  window.setTimeout(() => {
+    if (window.__3D_MARKUP_APP_READY__) loadSafeUi();
+  }, 6000);
 }
 
 const runtime = window.__3D_MARKUP_CLIP_RUNTIME__ || {

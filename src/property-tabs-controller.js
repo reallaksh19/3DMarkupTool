@@ -7,4 +7,5 @@ import './navis-tag-xml-qa-controller.js?v=phase24-tag-xml-qa';
 import './navis-tag-session-controller.js?v=phase25-tag-session';
 import './toolbar-cleanup-controller.js?v=phase26-toolbar-tags-menu';
 import './two-row-ribbon-controller.js?v=phase27-two-row-ribbon';
+import './color-by-legend-controller.js?v=phase28-color-by-legend';
 import './property-tabs-base-controller.js?v=phase20-property-tabs-base';

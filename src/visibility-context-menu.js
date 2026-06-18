@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import './model-tree-panel.js?v=phase14-model-tree-panel';
 
 const runtime = window.__3D_MARKUP_CLIP_RUNTIME__ || null;
 

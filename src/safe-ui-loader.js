@@ -1,105 +1,110 @@
-const SAFE_UI_VERSION = 'phase27-production-cleanup';
+const SAFE_UI_VERSION = 'phase28-rvm-strict-foundation';
 
 const ALL_MODULES = [
   {
     id: 'uiDiagnostics',
     label: 'UI diagnostics',
-    src: './ui-diagnostics-controller.js?v=phase27-diagnostics'
+    src: './ui-diagnostics-controller.js?v=phase28-diagnostics'
   },
   {
     id: 'shellLayoutRecovery',
     label: 'Shell layout recovery',
-    src: './shell-layout-recovery-controller.js?v=phase27-shell-layout'
+    src: './shell-layout-recovery-controller.js?v=phase28-shell-layout'
   },
   {
     id: 'propertyTabs',
     label: 'Property tabs',
-    src: './property-tabs-base-controller.js?v=phase27-property-tabs-base'
+    src: './property-tabs-base-controller.js?v=phase28-property-tabs-base'
   },
   {
     id: 'consoleGuard',
     label: 'Input guard',
-    src: './ui-console-guard.js?v=phase27-console-guard'
+    src: './ui-console-guard.js?v=phase28-console-guard'
   },
   {
     id: 'fit',
     label: 'Fit',
-    src: './fit-controller.js?v=phase27-fit'
+    src: './fit-controller.js?v=phase28-fit'
   },
   {
     id: 'grid',
     label: 'Grid toggle',
-    src: './grid-toggle-controller.js?v=phase27-grid'
+    src: './grid-toggle-controller.js?v=phase28-grid'
   },
   {
     id: 'clipAdjuster',
     label: 'Clip adjuster',
-    src: './clip-adjuster.js?v=phase27-clip-adjuster'
+    src: './clip-adjuster.js?v=phase28-clip-adjuster'
   },
   {
     id: 'clipVisuals',
     label: 'Clip / axis overlays',
-    src: './clip-visual-overlays.js?v=phase27-clip-visuals'
+    src: './clip-visual-overlays.js?v=phase28-clip-visuals'
   },
   {
     id: 'colorLegend',
     label: 'Color legend',
-    src: './color-by-legend-safe-controller.js?v=phase27-safe-legend'
+    src: './color-by-legend-safe-controller.js?v=phase28-safe-legend'
   },
   {
     id: 'treeVisibility',
     label: 'Tree + visibility',
-    src: './visibility-context-menu.js?v=phase27-tree-visibility'
+    src: './visibility-context-menu.js?v=phase28-tree-visibility'
   },
   {
     id: 'selectionSync',
     label: 'Selection sync',
-    src: './selection-sync-controller.js?v=phase27-selection-sync'
+    src: './selection-sync-controller.js?v=phase28-selection-sync'
   },
   {
     id: 'marqueeZoom',
     label: 'Marquee zoom',
-    src: './marquee-zoom-controller.js?v=phase27-marquee'
+    src: './marquee-zoom-controller.js?v=phase28-marquee'
   },
   {
     id: 'originManager',
     label: 'Origin manager',
-    src: './origin-manager-controller.js?v=phase27-origin'
+    src: './origin-manager-controller.js?v=phase28-origin'
   },
   {
     id: 'rvmQa',
     label: 'RVM QA',
-    src: './rvm-compat-validator-controller.js?v=phase27-rvm-qa'
+    src: './rvm-compat-validator-controller.js?v=phase28-rvm-qa'
+  },
+  {
+    id: 'rvmStrictProfile',
+    label: 'RVM strict profile',
+    src: './rvm-strict-mode-controller.js?v=phase28-rvm-strict'
   },
   {
     id: 'tagLiteHost',
     label: 'Tag toolbar host',
-    src: './tag-lite-host-controller.js?v=phase27-tag-host'
+    src: './tag-lite-host-controller.js?v=phase28-tag-host'
   },
   {
     id: 'tagImportViews',
     label: 'Tag import/views',
-    src: './navis-tag-import-controller.js?v=phase27-tag-import'
+    src: './navis-tag-import-controller.js?v=phase28-tag-import'
   },
   {
     id: 'manualTag',
     label: 'Manual tag',
-    src: './navis-manual-tag-safe-controller.js?v=phase27-manual-tag'
+    src: './navis-manual-tag-safe-controller.js?v=phase28-manual-tag'
   },
   {
     id: 'tagUsability',
     label: 'Tag usability',
-    src: './navis-tag-usability-safe-controller.js?v=phase27-tag-usability'
+    src: './navis-tag-usability-safe-controller.js?v=phase28-tag-usability'
   },
   {
     id: 'tagSession',
     label: 'Tag session',
-    src: './navis-tag-session-safe-controller.js?v=phase27-tag-session'
+    src: './navis-tag-session-safe-controller.js?v=phase28-tag-session'
   },
   {
     id: 'tagXmlQa',
     label: 'Tag XML QA',
-    src: './navis-tag-xml-qa-mini-controller.js?v=phase27-tag-xml-qa'
+    src: './navis-tag-xml-qa-mini-controller.js?v=phase28-tag-xml-qa'
   }
 ];
 

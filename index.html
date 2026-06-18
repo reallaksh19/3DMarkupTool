@@ -6,15 +6,15 @@
   <title>InputXML GLB/RVM Review Viewer</title>
   <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
   <link rel="shortcut icon" href="./favicon.ico" />
-  <link rel="stylesheet" href="./src/styles.css?v=phase28-rvm-strict" />
-  <link rel="stylesheet" href="./src/clip-adjuster.css?v=phase28-rvm-strict" />
-  <link rel="stylesheet" href="./src/clip-visual-overlays.css?v=phase28-rvm-strict" />
+  <link rel="stylesheet" href="./src/styles.css?v=phase29-toolbar-compact" />
+  <link rel="stylesheet" href="./src/clip-adjuster.css?v=phase29-toolbar-compact" />
+  <link rel="stylesheet" href="./src/clip-visual-overlays.css?v=phase29-toolbar-compact" />
   <script type="importmap">
     {
       "imports": {
         "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
         "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/",
-        "lucide": "./src/lucide-safe.js?v=phase28-rvm-strict"
+        "lucide": "./src/lucide-safe.js?v=phase29-toolbar-compact"
       }
     }
   </script>
@@ -34,7 +34,7 @@
         <button id="panToolBtn" type="button" class="tool-btn"><i data-lucide="move"></i><span>Pan</span></button>
         <button id="measureBtn" type="button" class="tool-btn"><i data-lucide="ruler"></i><span>Measure</span></button>
       </div>
-      <div class="tool-group">
+      <div class="tool-group" aria-label="View tools">
         <button id="viewIsoBtn" type="button" class="tool-btn">ISO</button>
         <button id="viewTopBtn" type="button" class="tool-btn">TOP</button>
         <button id="viewFrontBtn" type="button" class="tool-btn">FRONT</button>
@@ -46,7 +46,7 @@
         <button id="clipBtn" type="button" class="tool-btn"><i data-lucide="scissors"></i><span>Clip Off</span></button>
         <button id="clearSelectionBtn" type="button" class="tool-btn"><i data-lucide="x-circle"></i><span>Clear</span></button>
       </div>
-      <div class="tool-group">
+      <div class="tool-group" aria-label="Output preview">
         <button id="previewGlbBtn" type="button" class="tool-btn mode active" disabled>GLB</button>
         <button id="previewRvmBtn" type="button" class="tool-btn mode" disabled>RVM</button>
       </div>
@@ -209,13 +209,13 @@
             </select>
           </div>
           <div class="clip-adjust-row">
-            <label for="clipPositionRange">Position</label>
-            <input id="clipPositionRange" type="range" min="0" max="100" value="50" />
+            <label for="clipSlider">Position</label>
+            <input id="clipSlider" type="range" min="0" max="100" value="50" step="1" />
           </div>
-          <div class="clip-adjust-row split">
-            <button type="button" id="clipStepMinusBtn">−</button>
-            <input id="clipPositionNumber" type="number" min="0" max="100" step="1" value="50" />
-            <button type="button" id="clipStepPlusBtn">+</button>
+          <div class="clip-adjust-row compact">
+            <button type="button" id="clipStepDownBtn" title="Move clip plane backward">−</button>
+            <input id="clipOffsetInput" type="number" min="0" max="100" value="50" step="1" />
+            <button type="button" id="clipStepUpBtn" title="Move clip plane forward">+</button>
           </div>
           <label class="clip-adjust-check">
             <input id="clipInvertCheck" type="checkbox" />
@@ -262,8 +262,8 @@ Axial restraints: no OD/2 radial contact; tips touch unless gap; positive gap = 
 After engineering contact: visual resolver ODx2/3 applies only to final axial/pipe-parallel symbols</pre>
   </dialog>
 
-  <script type="module" src="./src/clip-render-hook.js?v=phase28-rvm-strict"></script>
-  <script type="module" src="./src/app.js?v=phase28-rvm-strict"></script>
-  <script type="module" src="./src/safe-ui-bootstrap.js?v=phase28-rvm-strict"></script>
+  <script type="module" src="./src/clip-render-hook.js?v=phase29-toolbar-compact"></script>
+  <script type="module" src="./src/app.js?v=phase29-toolbar-compact"></script>
+  <script type="module" src="./src/safe-ui-bootstrap.js?v=phase29-toolbar-compact"></script>
 </body>
 </html>

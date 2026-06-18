@@ -8,7 +8,7 @@ const GRID_DEFAULT_VISIBLE = false;
 const GRID_POLL_LIMIT = 24;
 const GRID_POLL_DELAY_MS = 120;
 const UI_SCORE_TOTAL = 9;
-const VERSION = 'static-shell-score-tree-20260618';
+const VERSION = 'static-shell-left-anchor-20260618';
 
 const state = {
   gridUserSet: false,
@@ -16,7 +16,8 @@ const state = {
   gridPollCount: 0,
   ready: false,
   uiScore: 0,
-  uiScoreChecks: []
+  uiScoreChecks: [],
+  ribbonAnchorUntil: 0
 };
 
 runWhenReady(initStaticShellCore);
@@ -44,6 +45,7 @@ function initStaticShellCore() {
     setGridVisible,
     getGridObject,
     updateUiScore,
+    anchorRibbonLeft,
     state
   };
   window.dispatchEvent(new CustomEvent('viewer:static-shell-core-ready', { detail: { state } }));
@@ -57,6 +59,15 @@ function ensureCoreStyles() {
     .ui-score-pill { min-width: 76px; border-color: rgba(55,216,255,.46); color: #74e6ff; background: rgba(5, 32, 46, .74); }
     .ui-score-pill.score-ok { border-color: rgba(39,224,161,.48); color: #2df0ae; }
     .ui-score-pill.score-warn { border-color: rgba(255,171,53,.56); color: #ffc86d; }
+
+    html, body.pro-shell { max-width: 100vw; overflow-x: hidden !important; }
+    body.pro-shell .viewer-topbar,
+    body.pro-shell .app-workspace { width: 100%; max-width: 100vw; margin-left: 0 !important; transform: none !important; }
+    body.pro-shell .viewer-topbar { padding-left: max(12px, env(safe-area-inset-left)); padding-right: max(12px, env(safe-area-inset-right)); }
+    body.pro-shell .main-ribbon { width: 100%; max-width: 100%; margin-left: 0 !important; transform: none !important; padding-left: 8px; padding-right: 8px; scroll-padding-left: 8px; overscroll-behavior-x: contain; }
+    body.pro-shell .main-ribbon > :first-child { margin-left: 0 !important; }
+    body.pro-shell .main-ribbon::-webkit-scrollbar { height: 8px; }
+    body.pro-shell .main-ribbon::-webkit-scrollbar-thumb { background: rgba(83, 125, 176, .42); border-radius: 999px; }
   `;
   document.head.appendChild(style);
 }
@@ -114,20 +125,25 @@ function bindGridButton() {
 
 function bindRuntimeEvents() {
   window.addEventListener('markup:app-ready', () => {
+    anchorRibbonLeftSoon();
     applyGridDefaultSoon();
     updateUiScoreSoon();
   });
   window.addEventListener('markup:render-context', () => {
+    anchorRibbonLeftSoon();
     applyGridDefaultSoon();
     updateUiScoreSoon();
   });
   window.addEventListener('viewer:runtime-context', () => {
+    anchorRibbonLeftSoon();
     applyGridDefaultSoon();
     updateUiScoreSoon();
   });
-  window.addEventListener('viewer:static-tree-ready', updateUiScoreSoon);
+  window.addEventListener('viewer:static-tree-ready', () => { anchorRibbonLeftSoon(); updateUiScoreSoon(); });
   window.addEventListener('viewer:static-tree-refreshed', updateUiScoreSoon);
   window.addEventListener('viewer:grid-visibility-changed', updateUiScoreSoon);
+  window.addEventListener('load', anchorRibbonLeftSoon, { once: true });
+  window.addEventListener('resize', anchorRibbonLeftSoon);
   window.addEventListener('keydown', (event) => {
     if (hasInputFocus()) return;
     if (event.key.toLowerCase() !== 'g') return;
@@ -143,10 +159,30 @@ function hasInputFocus() {
 
 function normalizeShellState() {
   document.body.classList.add('static-shell-core-ready');
-  const ribbon = document.querySelector('.main-ribbon');
-  if (ribbon) ribbon.scrollLeft = 0;
+  anchorRibbonLeftSoon();
   updateGridButton();
   updateUiScore();
+}
+
+function anchorRibbonLeftSoon() {
+  state.ribbonAnchorUntil = Date.now() + 1500;
+  [0, 30, 120, 300, 700, 1200, 1600].forEach((delay) => {
+    window.setTimeout(() => {
+      if (Date.now() <= state.ribbonAnchorUntil + 100) anchorRibbonLeft();
+    }, delay);
+  });
+}
+
+function anchorRibbonLeft() {
+  const root = document.scrollingElement || document.documentElement;
+  if (root) root.scrollLeft = 0;
+  if (document.body) document.body.scrollLeft = 0;
+  if (window.scrollX) window.scrollTo(0, window.scrollY || 0);
+
+  const ribbon = document.querySelector('.main-ribbon');
+  if (ribbon) ribbon.scrollLeft = 0;
+  const topbar = document.querySelector('.viewer-topbar');
+  if (topbar) topbar.scrollLeft = 0;
 }
 
 function applyGridDefaultSoon() {

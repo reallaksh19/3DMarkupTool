@@ -5,9 +5,9 @@ import * as THREE from 'three';
 // seen in earlier recovery work while still giving clip/tree tools access to the
 // active renderer and scene.
 //
-// This prebridge is loaded before src/app.js, so it also keeps the small legacy
-// DOM contract that app.js still expects. The newer compact UI removed #hint,
-// but app.js still toggles el('hint').style after conversion and Clear All.
+// This prebridge is loaded before src/app.js, so it also owns the few remaining
+// legacy DOM contracts that app.js still reads directly. Keep this list small and
+// explicit; do not use this file as a general patch-controller.
 
 const runtime = window.__3D_MARKUP_VIEWER_RUNTIME__ || window.__3D_MARKUP_CLIP_RUNTIME__ || {};
 runtime.renderer = runtime.renderer || null;
@@ -25,6 +25,7 @@ window.__3D_MARKUP_VIEWER_RUNTIME__ = runtime;
 window.__3D_MARKUP_CLIP_RUNTIME__ = runtime;
 
 ensureLegacyHintElement();
+ensureLegacySupportModeContract();
 installRendererSetSizeHook();
 installSceneAddHook();
 
@@ -50,6 +51,87 @@ function ensureLegacyHintElement() {
   } else {
     create();
   }
+}
+
+function ensureLegacySupportModeContract() {
+  if (typeof document === 'undefined') return;
+
+  const create = () => {
+    const root = ensureCompatibilityRoot();
+    const supportMode = ensureHiddenSelect(root, 'supportMode', [
+      'compare',
+      'inputxml-actual',
+      'isonote-expected',
+      'none'
+    ], 'compare');
+
+    const sync = () => {
+      const actual = isChecked('renderActualSupport', true);
+      const expected = isChecked('renderExpectedSupport', true);
+      supportMode.value = actual && expected
+        ? 'compare'
+        : actual
+          ? 'inputxml-actual'
+          : expected
+            ? 'isonote-expected'
+            : 'none';
+
+      const showSupportLabel = document.getElementById('showSupportLabel');
+      const legacySupportLabels = document.getElementById('supportLabels');
+      if (showSupportLabel && legacySupportLabels && showSupportLabel !== legacySupportLabels) {
+        legacySupportLabels.checked = Boolean(showSupportLabel.checked);
+      }
+
+      window.__3D_MARKUP_CONVERSION_OPTIONS_COMPAT__ = {
+        installed: true,
+        owner: 'render-context-prebridge',
+        supportMode: supportMode.value
+      };
+    };
+
+    ['renderActualSupport', 'renderExpectedSupport', 'showSupportLabel', 'supportLabels']
+      .forEach((id) => document.getElementById(id)?.addEventListener('change', sync));
+    sync();
+  };
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', create, { once: true });
+  } else {
+    create();
+  }
+}
+
+function ensureCompatibilityRoot() {
+  let root = document.getElementById('preAppCompatibilityRoot');
+  if (root) return root;
+  root = document.createElement('div');
+  root.id = 'preAppCompatibilityRoot';
+  root.hidden = true;
+  root.setAttribute('aria-hidden', 'true');
+  root.style.display = 'none';
+  document.body.appendChild(root);
+  return root;
+}
+
+function ensureHiddenSelect(root, id, values, defaultValue) {
+  let select = document.getElementById(id);
+  if (select) return select;
+  select = document.createElement('select');
+  select.id = id;
+  values.forEach((value) => {
+    const option = document.createElement('option');
+    option.value = value;
+    option.textContent = value;
+    select.appendChild(option);
+  });
+  select.value = defaultValue;
+  root.appendChild(select);
+  return select;
+}
+
+function isChecked(id, fallback) {
+  const node = document.getElementById(id);
+  return node ? Boolean(node.checked) : Boolean(fallback);
 }
 
 function installRendererSetSizeHook() {

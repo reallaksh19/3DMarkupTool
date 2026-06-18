@@ -1,15 +1,8 @@
-import './professional-ui-shell-controller.js?v=phase21-pro-ui-shell';
-import './navis-tag-markup-controller.js?v=phase20-navis-tag-markup';
-import './navis-tag-import-controller.js?v=phase21-navis-tag-import';
-import './navis-tag-roundtrip-controller.js?v=phase22-navis-tag-roundtrip';
-import './navis-tag-usability-controller.js?v=phase23-tag-usability';
-import './navis-tag-xml-qa-safe-controller.js?v=phase31-xml-qa-safe';
-import './navis-tag-session-controller.js?v=phase25-tag-session';
-import './toolbar-cleanup-controller.js?v=phase26-toolbar-tags-menu';
-import './two-row-ribbon-controller.js?v=phase27-two-row-ribbon';
-import './color-by-legend-controller.js?v=phase28-color-by-legend';
-import './color-by-legend-visibility-fix-controller.js?v=phase29-color-legend-visible';
-import './marquee-zoom-controller.js?v=phase29-marquee-zoom';
-import './origin-manager-controller.js?v=phase29-origin-manager';
-import './rvm-compat-validator-controller.js?v=phase30-rvm-compat-validator';
+// Emergency safe wrapper: keep the app responsive by loading only the stable base property tabs.
+// Late-stage optional UI controllers are temporarily disabled and will be re-enabled one by one
+// behind explicit safe-load guards after runtime profiling.
+
 import './property-tabs-base-controller.js?v=phase20-property-tabs-base';
+
+window.__3D_MARKUP_SAFE_UI_MODE__ = true;
+console.info('[3DMarkupTool] Safe UI mode enabled: optional late UI controllers disabled.');

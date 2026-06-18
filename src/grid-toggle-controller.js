@@ -19,6 +19,11 @@ window.addEventListener('markup:render-context', (event) => {
   applyGridVisibility();
 });
 
+window.addEventListener('markup:toolbar-optimized', () => {
+  ensureButton();
+  updateButton();
+});
+
 function initGridToggle() {
   injectStyles();
   ensureButton();
@@ -28,33 +33,49 @@ function initGridToggle() {
 }
 
 function ensureButton() {
-  if (state.button && document.body.contains(state.button)) return state.button;
+  const host = findGridHost();
+  let button = state.button || document.getElementById('gridToggleBtn');
 
-  const viewGroup = document.querySelector('[aria-label="View tools"]');
-  if (!viewGroup) return null;
+  if (!button) {
+    button = document.createElement('button');
+    button.id = 'gridToggleBtn';
+    button.type = 'button';
+    button.className = 'tool-btn icon-text grid-toggle-btn';
+    button.title = 'Show canvas grid (G)';
+    button.setAttribute('aria-pressed', 'false');
+    button.innerHTML = `
+      <svg class="grid-toggle-icon" viewBox="0 0 20 20" aria-hidden="true">
+        <path d="M3 5.5h14M3 10h14M3 14.5h14M5.5 3v14M10 3v14M14.5 3v14"></path>
+      </svg>
+      <span>Grid Off</span>`;
 
-  const button = document.createElement('button');
-  button.id = 'gridToggleBtn';
-  button.type = 'button';
-  button.className = 'tool-btn icon-text grid-toggle-btn';
-  button.title = 'Show canvas grid (G)';
-  button.setAttribute('aria-pressed', 'false');
-  button.innerHTML = `
-    <svg class="grid-toggle-icon" viewBox="0 0 20 20" aria-hidden="true">
-      <path d="M3 5.5h14M3 10h14M3 14.5h14M5.5 3v14M10 3v14M14.5 3v14"></path>
-    </svg>
-    <span>Grid Off</span>`;
+    button.addEventListener('click', () => {
+      state.gridVisible = !state.gridVisible;
+      updateButton();
+      applyGridVisibility();
+      status(state.gridVisible ? 'Grid on' : 'Grid off');
+    });
+  }
 
-  button.addEventListener('click', () => {
-    state.gridVisible = !state.gridVisible;
-    updateButton();
-    applyGridVisibility();
-    status(state.gridVisible ? 'Grid on' : 'Grid off');
-  });
+  if (host && button.parentElement !== host) {
+    const fitSelection = document.getElementById('fitSelectionBtn');
+    const insertAfter = fitSelection?.parentElement === host ? fitSelection : document.getElementById('resetCameraBtn');
+    if (insertAfter?.parentElement === host) insertAfter.insertAdjacentElement('afterend', button);
+    else host.appendChild(button);
+  } else if (!button.parentElement) {
+    document.querySelector('.toolbar')?.appendChild(button);
+  }
 
-  viewGroup.appendChild(button);
   state.button = button;
   return button;
+}
+
+function findGridHost() {
+  return document.querySelector('[aria-label="View tools"]')
+    || document.getElementById('fitSelectionBtn')?.closest('.tool-group, .toolbar-group')
+    || document.getElementById('resetCameraBtn')?.closest('.tool-group, .toolbar-group')
+    || document.getElementById('viewSideBtn')?.closest('.tool-group, .toolbar-group')
+    || document.querySelector('.toolbar');
 }
 
 function bindShortcuts() {
@@ -125,7 +146,7 @@ function injectStyles() {
   style.id = 'gridToggleControllerStyles';
   style.textContent = `
     .grid-toggle-btn {
-      min-width: 82px;
+      min-width: 88px;
     }
 
     .grid-toggle-icon {

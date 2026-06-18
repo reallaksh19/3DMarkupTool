@@ -29,6 +29,7 @@ export function parseMarkupSource(text, options = {}) {
   if (detected.kind === 'uxml') {
     const model = parseUxmlText(text, options);
     model.detectedSource = detected;
+    normalizeUxmlModelForExistingExporters(model);
     return model;
   }
   if (detected.kind === 'inputxml') {
@@ -38,4 +39,26 @@ export function parseMarkupSource(text, options = {}) {
     return model;
   }
   throw new Error(`Unsupported model source: ${detected.label}. Choose InputXML or UXML.`);
+}
+
+function normalizeUxmlModelForExistingExporters(model) {
+  for (const element of model.elements || []) {
+    const props = element.props || {};
+    for (const key of ['bore', 'startBore', 'endBore', 'branchBore']) {
+      const parsed = numericText(props[key]);
+      if (parsed) {
+        props[`${key}Raw`] = props[`${key}Raw`] || props[key];
+        props[key] = parsed;
+      }
+    }
+  }
+  return model;
+}
+
+function numericText(value) {
+  if (value && typeof value === 'object' && 'value' in value) value = value.value;
+  const match = String(value ?? '').match(/-?\d+(?:\.\d+)?/);
+  if (!match) return '';
+  const n = Number(match[0]);
+  return Number.isFinite(n) && n > 0 ? String(n) : '';
 }

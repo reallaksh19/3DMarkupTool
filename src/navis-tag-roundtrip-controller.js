@@ -1,10 +1,11 @@
+import * as THREE from 'three';
+
 const runtime = window.__3D_MARKUP_CLIP_RUNTIME__ || null;
 
 const state = {
   scene: runtime?.scene || null,
   panel: null,
-  lastSignature: '',
-  timer: null
+  lastSignature: ''
 };
 
 if (document.readyState === 'loading') {
@@ -21,7 +22,7 @@ window.addEventListener('markup:render-context', (event) => {
 function initRoundtripStatus() {
   injectStyles();
   attachExportValidation();
-  state.timer = window.setInterval(updateRoundtripStatus, 1000);
+  window.setInterval(updateRoundtripStatus, 1000);
   updateRoundtripStatus(true);
 }
 
@@ -29,7 +30,7 @@ function attachExportValidation() {
   const exportBtn = document.getElementById('navisExportTagsBtn');
   if (!exportBtn || exportBtn.dataset.roundtripValidation === 'true') return;
   exportBtn.dataset.roundtripValidation = 'true';
-  exportBtn.addEventListener('click', (event) => {
+  exportBtn.addEventListener('click', () => {
     const summary = collectTagSummary();
     if (!summary.total) {
       toast('No tag viewpoints available. Use ISONOTE XML, Import XML, or Tag first.');
@@ -67,10 +68,7 @@ function updateRoundtripStatus(force = false) {
 
 function ensureStatusHost() {
   let panel = document.querySelector('#navisTagViewPanel .navis-roundtrip-status-panel');
-  if (panel) {
-    state.panel = panel;
-    return panel;
-  }
+  if (panel) return panel;
 
   const tagPanel = document.getElementById('navisTagViewPanel');
   if (!tagPanel) return null;
@@ -119,13 +117,13 @@ function collectTagSummary() {
 
 function hasValidTagGroup(group) {
   if (!group?.children?.length) return false;
-  const line = group.children.find((child) => /TAG_(LEADER|TEXT|ANCHOR)/i.test(child.name || ''));
-  return Boolean(line) && hasFiniteWorldPosition(group);
+  const hasTagChild = group.children.some((child) => /TAG_(LEADER|TEXT|ANCHOR)/i.test(child.name || ''));
+  return hasTagChild && hasFiniteWorldPosition(group);
 }
 
 function hasFiniteWorldPosition(object) {
   try {
-    const position = object.getWorldPosition?.({ x: 0, y: 0, z: 0 });
+    const position = object.getWorldPosition?.(new THREE.Vector3());
     return Boolean(position) && Number.isFinite(position.x) && Number.isFinite(position.y) && Number.isFinite(position.z);
   } catch {
     return false;

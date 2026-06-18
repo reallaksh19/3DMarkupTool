@@ -1,6 +1,11 @@
+import './property-panel-revamp.js?v=property-panel-revamp-1';
+import './property-panel-revamp-reset.js?v=property-panel-revamp-1';
+
 const state = {
   inputLoaded: false
 };
+
+ensurePropertyPanelRevampStyles();
 
 if (document.readyState === 'loading') {
   window.addEventListener('DOMContentLoaded', initUiConsoleGuard, { once: true });
@@ -30,6 +35,15 @@ function initUiConsoleGuard() {
     event.stopImmediatePropagation();
     showInputRequiredMessage();
   }, true);
+}
+
+function ensurePropertyPanelRevampStyles() {
+  const href = './src/property-panel-revamp.css?v=property-panel-revamp-1';
+  if (document.querySelector(`link[href="${href}"]`)) return;
+  const link = document.createElement('link');
+  link.rel = 'stylesheet';
+  link.href = href;
+  document.head.appendChild(link);
 }
 
 function syncInputStateFromLog(text) {

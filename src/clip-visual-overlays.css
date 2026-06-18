@@ -1,16 +1,31 @@
 .canvas-axis-triad {
   position: absolute;
   right: 18px;
-  bottom: 58px;
-  z-index: 9;
-  width: 104px;
-  height: 104px;
-  border: 1px solid rgba(255, 255, 255, .14);
-  border-radius: 14px;
-  background: rgba(7, 13, 22, .54);
-  box-shadow: 0 10px 28px rgba(0, 0, 0, .22);
-  backdrop-filter: blur(8px);
+  bottom: 46px;
+  z-index: 19;
+  width: 118px;
+  height: 118px;
+  border: 1px solid rgba(132, 178, 220, .34);
+  border-radius: 16px;
+  background: rgba(7, 13, 22, .68);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, .32);
+  backdrop-filter: blur(10px);
   pointer-events: none;
+}
+
+body.props-open .canvas-axis-triad {
+  right: 360px;
+}
+
+.canvas-axis-triad::before {
+  content: 'AXIS';
+  position: absolute;
+  top: 7px;
+  left: 9px;
+  color: rgba(224, 239, 255, .82);
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: .9px;
 }
 
 .canvas-axis-triad svg {
@@ -34,10 +49,10 @@
 
 .canvas-axis-triad .axis-label {
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 900;
   paint-order: stroke;
-  stroke: rgba(7, 13, 22, .88);
+  stroke: rgba(7, 13, 22, .9);
   stroke-width: 3px;
 }
 
@@ -69,11 +84,17 @@
   letter-spacing: .2px;
 }
 
+@media (max-width: 940px) {
+  body.props-open .canvas-axis-triad {
+    right: 12px;
+  }
+}
+
 @media (max-width: 700px) {
   .canvas-axis-triad {
     right: 10px;
-    bottom: 72px;
-    width: 88px;
-    height: 88px;
+    bottom: 46px;
+    width: 92px;
+    height: 92px;
   }
 }

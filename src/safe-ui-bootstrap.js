@@ -2,7 +2,7 @@
 // This is intentionally separate from clip-render-hook.js so UI recovery does not
 // depend on render-hook cache state or a missed app-ready event.
 
-const SAFE_LOADER_URL = './safe-ui-loader.js?v=phase28-rvm-strict-foundation';
+const SAFE_LOADER_URL = './safe-ui-loader.js?v=hotfix60-conversion-options';
 const MAX_ATTEMPTS = 8;
 
 let attempts = 0;

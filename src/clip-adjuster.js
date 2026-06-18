@@ -19,7 +19,8 @@ const state = {
   lastScene: runtime()?.scene || null,
   lastSignature: '',
   uiReady: false,
-  lastError: null
+  lastError: null,
+  applyingRuntimeClip: false
 };
 
 const ui = {};
@@ -30,8 +31,17 @@ if (document.readyState === 'loading') {
   initClipUi();
 }
 
-window.addEventListener('markup:render-context', (event) => {
-  const { renderer, scene } = event.detail || {};
+window.addEventListener('markup:render-context', handleRuntimeContext);
+window.addEventListener('viewer:runtime-context', handleRuntimeContext);
+window.addEventListener('viewer:model-loaded', handleRuntimeContext);
+
+function handleRuntimeContext(event) {
+  if (state.applyingRuntimeClip) return;
+
+  const detail = event.detail || {};
+  const renderer = detail.renderer || runtime()?.renderer;
+  const scene = detail.modelRoot || detail.scene || runtime()?.getModelRoot?.() || runtime()?.modelRoot || runtime()?.scene;
+
   if (!renderer || !scene) return;
 
   try {
@@ -45,7 +55,7 @@ window.addEventListener('markup:render-context', (event) => {
     state.lastError = error;
     safeReadout(`Clip controller paused: ${error?.message || 'unknown error'}`);
   }
-});
+}
 
 function initClipUi() {
   ui.panel = document.getElementById('clipAdjustPanel');
@@ -117,8 +127,9 @@ function initClipUi() {
   });
 
   state.uiReady = true;
-  updateBounds(state.lastScene || runtime()?.scene);
-  if (state.lastRenderer || runtime()?.renderer) applyClipToRenderer(state.lastRenderer || runtime().renderer);
+  updateBounds(currentModelRoot());
+  const renderer = state.lastRenderer || runtime()?.renderer;
+  if (renderer) applyClipToRenderer(renderer);
   syncUi(true);
 }
 
@@ -138,9 +149,9 @@ function setClipEnabled(enabled) {
 function applyNow() {
   const currentRuntime = runtime();
   const renderer = state.lastRenderer || currentRuntime?.renderer;
-  const scene = state.lastScene || currentRuntime?.scene;
+  const root = currentModelRoot();
 
-  updateBounds(scene);
+  updateBounds(root);
   if (renderer) applyClipToRenderer(renderer);
   syncUi(true);
 }
@@ -156,18 +167,37 @@ function applyClipToRenderer(renderer) {
   const active = isToolbarClipActive() || state.forceActive;
   renderer.localClippingEnabled = true;
 
+  const api = runtime();
+
   if (!active) {
-    renderer.clippingPlanes = [];
+    state.applyingRuntimeClip = true;
+    try {
+      if (typeof api?.clearClipping === 'function') {
+        api.clearClipping({ source: 'clip-adjuster' });
+      } else {
+        renderer.clippingPlanes = [];
+      }
+    } finally {
+      state.applyingRuntimeClip = false;
+    }
     state.active = false;
     return;
   }
 
-  const planes = Array.isArray(renderer.clippingPlanes) && renderer.clippingPlanes.length
-    ? renderer.clippingPlanes
-    : [managedPlane];
+  applyPlane(managedPlane);
+  const planes = [managedPlane];
 
-  renderer.clippingPlanes = planes;
-  applyPlane(planes[0]);
+  state.applyingRuntimeClip = true;
+  try {
+    if (typeof api?.applyClipping === 'function') {
+      api.applyClipping(planes, { mode: 'plane', source: 'clip-adjuster' });
+    } else {
+      renderer.clippingPlanes = planes;
+    }
+  } finally {
+    state.applyingRuntimeClip = false;
+  }
+
   state.active = true;
 }
 
@@ -207,17 +237,20 @@ function updateBounds(root) {
 function shouldSkip(object) {
   if (!object || object.visible === false) return true;
   if (object.isLight || object.isCamera) return true;
+  if (object.userData?.ignoreBounds || object.userData?.isDisplayHelper) return true;
 
   const name = String(object.name || '').toLowerCase();
   if (name === 'grid' || name === 'axes') return true;
   if (name.includes('selection_box_helper')) return true;
+  if (name.includes('model_tree_selection')) return true;
+  if (name.includes('clip_box')) return true;
   if (name.includes('measure')) return true;
   if (name.includes('helper')) return true;
 
   let parent = object.parent;
   while (parent) {
     const parentName = String(parent.name || '').toLowerCase();
-    if (parentName.includes('measure') || parentName.includes('selection_box_helper')) return true;
+    if (parentName.includes('measure') || parentName.includes('selection_box_helper') || parentName.includes('model_tree_selection')) return true;
     parent = parent.parent;
   }
 
@@ -240,7 +273,7 @@ function applyPlane(plane) {
 function syncUi() {
   if (!state.uiReady) return;
 
-  updateBounds(state.lastScene || runtime()?.scene);
+  updateBounds(currentModelRoot());
   const renderer = state.lastRenderer || runtime()?.renderer;
   const planesActive = Boolean(renderer?.clippingPlanes?.length);
   state.active = isToolbarClipActive() || state.forceActive || planesActive;
@@ -291,6 +324,11 @@ function writeRangeValue() {
   ui.range.value = String(Math.round(state.normalized * (max > 100 ? 1000 : 100)));
 }
 
+function currentModelRoot() {
+  const api = runtime();
+  return api?.getModelRoot?.() || api?.modelRoot || state.lastScene || api?.scene || null;
+}
+
 function byId(...ids) {
   for (const id of ids) {
     const node = document.getElementById(id);
@@ -300,7 +338,7 @@ function byId(...ids) {
 }
 
 function runtime() {
-  return window.__3D_MARKUP_CLIP_RUNTIME__ || null;
+  return window.__3D_MARKUP_VIEWER_RUNTIME__ || window.__3D_MARKUP_CLIP_RUNTIME__ || null;
 }
 
 function safeReadout(message) {

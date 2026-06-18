@@ -19,6 +19,11 @@ const ALL_MODULES = [
     src: `./input-drawer-controller.js?v=${SAFE_UI_VERSION}`
   },
   {
+    id: 'viewerRuntimeBridge',
+    label: 'Viewer runtime bridge',
+    src: `./viewer-runtime-bridge-controller.js?v=${SAFE_UI_VERSION}`
+  },
+  {
     id: 'propertyTabs',
     label: 'Property tabs',
     src: `./property-tabs-base-controller.js?v=${SAFE_UI_VERSION}`
@@ -62,6 +67,11 @@ const ALL_MODULES = [
     id: 'treeVisibility',
     label: 'Tree + visibility',
     src: `./visibility-context-menu.js?v=${SAFE_UI_VERSION}`
+  },
+  {
+    id: 'treePanelBridge',
+    label: 'Tree panel bridge',
+    src: `./tree-panel-bridge-controller.js?v=${SAFE_UI_VERSION}`
   },
   {
     id: 'selectionSync',

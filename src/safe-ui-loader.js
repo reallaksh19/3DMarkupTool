@@ -160,6 +160,17 @@ const ALL_MODULES = [
   }
 ];
 
+const ACCEPTANCE_MODE = new URLSearchParams(window.location.search).has('uiAcceptance')
+  || window.localStorage.getItem('3dmarkup.uiAcceptance') === '1';
+
+const ACCEPTANCE_MODULE = {
+  id: 'uiAcceptanceHarness',
+  label: 'UI acceptance harness',
+  src: `./ui-acceptance-harness.js?v=${SAFE_UI_VERSION}`
+};
+
+const ACTIVE_MODULES = ACCEPTANCE_MODE ? [...ALL_MODULES, ACCEPTANCE_MODULE] : ALL_MODULES;
+
 const DEPRECATED_MODULES = [
   'phase35-ui-cleanup-controller.js',
   'phase36-input-drawer-fix-controller.js',
@@ -173,12 +184,13 @@ const SAFE_MODE = new URLSearchParams(window.location.search).has('safe')
   || window.localStorage.getItem('3dmarkup.safeUiMode') === 'core';
 
 const BATCH_MODULES = SAFE_MODE
-  ? ALL_MODULES.filter((entry) => entry.id === 'uiDiagnostics')
-  : ALL_MODULES;
+  ? ACTIVE_MODULES.filter((entry) => entry.id === 'uiDiagnostics' || entry.id === 'uiAcceptanceHarness')
+  : ACTIVE_MODULES;
 
 const state = {
   version: SAFE_UI_VERSION,
   safeMode: SAFE_MODE,
+  acceptanceMode: ACCEPTANCE_MODE,
   started: false,
   modules: BATCH_MODULES,
   deprecatedModules: DEPRECATED_MODULES,
@@ -203,6 +215,7 @@ async function startSafeUiLoader() {
     detail: {
       version: state.version,
       safeMode: state.safeMode,
+      acceptanceMode: state.acceptanceMode,
       deprecatedModules: [...state.deprecatedModules],
       results: [...state.results]
     }
@@ -254,6 +267,7 @@ function updateStatusBadge() {
   window.__3D_MARKUP_SAFE_UI_STATUS__ = {
     version: state.version,
     safeMode: state.safeMode,
+    acceptanceMode: state.acceptanceMode,
     loaded,
     failed,
     total,

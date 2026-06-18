@@ -61,6 +61,11 @@ const BATCH_MODULES = [
     id: 'tagSession',
     label: 'Tag session',
     src: './navis-tag-session-safe-controller.js?v=phase26-batch5e-session'
+  },
+  {
+    id: 'tagXmlQa',
+    label: 'Tag XML QA',
+    src: './navis-tag-xml-qa-mini-controller.js?v=phase26-batch5f-qa'
   }
 ];
 

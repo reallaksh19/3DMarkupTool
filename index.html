@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>InputXML GLB/RVM Review Viewer</title>
-  <link rel="stylesheet" href="./src/styles.css?v=professional-viewer-3" />
+  <title>3D Markup Tool - InputXML Review Viewer</title>
+  <link rel="stylesheet" href="./src/styles.css?v=phase1-ui" />
   <script type="importmap">
   {
     "imports": {
@@ -18,14 +18,53 @@
 <body class="input-open">
   <header class="viewer-topbar">
     <div class="brand-block">
-      <div class="eyebrow">SCENE</div>
+      <div class="eyebrow">3D MARKUP TOOL</div>
       <h1>InputXML GLB/RVM Review Viewer</h1>
+      <p class="brand-subtitle">Static Navis-style model review for InputXML conversion output.</p>
     </div>
 
-    <div class="toolbar" aria-label="Viewer tools">
-      <button id="toggleInputBtn" type="button" class="tool-btn icon-text" title="Input and export drawer">
-        <i data-lucide="panel-left-open"></i><span>Input</span>
-      </button>
+    <nav class="toolbar" aria-label="Viewer tools">
+      <div class="toolbar-group primary-tools" aria-label="Navigation tools">
+        <button id="selectToolBtn" type="button" class="tool-btn icon-text" title="Select object (S)">
+          <i data-lucide="mouse-pointer-2"></i><span>Select</span>
+        </button>
+        <button id="orbitToolBtn" type="button" class="tool-btn icon-text" title="Orbit view (O)">
+          <i data-lucide="rotate-3d"></i><span>Orbit</span>
+        </button>
+        <button id="panToolBtn" type="button" class="tool-btn icon-text" title="Pan view (P)">
+          <i data-lucide="move"></i><span>Pan</span>
+        </button>
+        <button id="measureBtn" type="button" class="tool-btn icon-text" title="Measure distance (M)">
+          <i data-lucide="ruler"></i><span>Measure</span>
+        </button>
+      </div>
+
+      <div class="toolbar-group" aria-label="View tools">
+        <button id="viewIsoBtn" type="button" class="tool-btn" title="Isometric view">ISO</button>
+        <button id="viewTopBtn" type="button" class="tool-btn" title="Top view">TOP</button>
+        <button id="viewFrontBtn" type="button" class="tool-btn" title="Front view">FRONT</button>
+        <button id="viewSideBtn" type="button" class="tool-btn" title="Side view">SIDE</button>
+        <button id="resetCameraBtn" type="button" class="tool-btn accent icon-text" title="Fit all (H)">
+          <i data-lucide="maximize"></i><span>Fit All</span>
+        </button>
+        <button id="fitSelectionBtn" type="button" class="tool-btn accent icon-text" title="Fit selected object (F)">
+          <i data-lucide="scan-search"></i><span>Fit Sel</span>
+        </button>
+      </div>
+
+      <div class="toolbar-group" aria-label="Review tools">
+        <button id="clipBtn" type="button" class="tool-btn icon-text" title="Toggle clipping plane (C)">
+          <i data-lucide="scissors"></i><span>Clip Off</span>
+        </button>
+        <button id="clearSelectionBtn" type="button" class="tool-btn icon-text" title="Clear selection / cancel tool (Esc)">
+          <i data-lucide="x-circle"></i><span>Clear</span>
+        </button>
+      </div>
+
+      <div class="toolbar-group" aria-label="Preview mode">
+        <button id="previewGlbBtn" type="button" class="tool-btn" disabled title="Preview generated GLB">GLB</button>
+        <button id="previewRvmBtn" type="button" class="tool-btn" disabled title="Preview generated RVM">RVM</button>
+      </div>
 
       <label class="color-control" title="Color model by metadata">
         <span><i data-lucide="palette"></i> Color By</span>
@@ -38,27 +77,9 @@
         </select>
       </label>
 
-      <div class="toolbar-group">
-        <button id="previewGlbBtn" type="button" class="tool-btn" disabled title="Preview GLB">GLB</button>
-        <button id="previewRvmBtn" type="button" class="tool-btn" disabled title="Preview generated RVM">RVM</button>
-      </div>
-
-      <div class="toolbar-group">
-        <button id="viewIsoBtn" type="button" class="tool-btn" title="Isometric view">ISO</button>
-        <button id="viewTopBtn" type="button" class="tool-btn" title="Top view">TOP</button>
-        <button id="viewFrontBtn" type="button" class="tool-btn" title="Front view">FRONT</button>
-        <button id="viewSideBtn" type="button" class="tool-btn" title="Side view">SIDE</button>
-        <button id="resetCameraBtn" type="button" class="tool-btn accent" title="Fit all">
-          <i data-lucide="maximize"></i><span>FIT ALL</span>
-        </button>
-      </div>
-
-      <div class="toolbar-group">
-        <button id="measureBtn" type="button" class="tool-btn icon-text" title="Measure distance">
-          <i data-lucide="ruler"></i><span>MSR</span>
-        </button>
-        <button id="clipBtn" type="button" class="tool-btn icon-text" title="Toggle clipping plane">
-          <i data-lucide="scissors"></i><span>CLIP OFF</span>
+      <div class="toolbar-group panel-tools" aria-label="Panels">
+        <button id="toggleInputBtn" type="button" class="tool-btn icon-text" title="Input and export drawer">
+          <i data-lucide="panel-left-open"></i><span>Input</span>
         </button>
         <button id="togglePropsBtn" type="button" class="tool-btn icon-text" title="Properties panel">
           <i data-lucide="panel-right-open"></i><span>Props</span>
@@ -66,7 +87,7 @@
       </div>
 
       <div class="status-pill" id="runtimeStatus">Ready</div>
-    </div>
+    </nav>
   </header>
 
   <main class="viewer-shell">
@@ -89,7 +110,7 @@
         </label>
         <div class="button-row">
           <button id="loadSampleBtn" type="button" class="primary">Load BM_CII sample</button>
-          <button id="clearBtn" type="button" class="ghost">Clear</button>
+          <button id="clearBtn" type="button" class="ghost">Clear All</button>
         </div>
       </section>
 
@@ -160,22 +181,40 @@
       <div id="hint" class="hint">Load an InputXML or BM_CII sample, then run conversion.</div>
       <div id="measureReadout" class="measure-readout" hidden></div>
 
+      <div class="canvas-help" aria-label="Canvas controls help">
+        <strong>Canvas</strong>
+        <span>LMB drag: orbit</span>
+        <span>MMB/Wheel: zoom</span>
+        <span>RMB drag: pan</span>
+        <span>S/O/P/M/H/F/Esc shortcuts</span>
+      </div>
+
       <div class="view-pad" aria-label="Camera shortcuts">
         <button type="button" data-view="iso">ISO</button>
         <button type="button" data-view="top">TOP</button>
         <button type="button" data-view="front">FRT</button>
         <button type="button" data-view="side">SIDE</button>
         <button type="button" data-view="fit">FIT</button>
+        <button type="button" data-view="fitSelection">F SEL</button>
         <button type="button" data-view="zoom">ZOOM</button>
-        <button type="button" data-view="measure">MZoom</button>
         <button type="button" data-view="clip">CLIP</button>
         <button type="button" data-view="msr">MSR</button>
       </div>
+
+      <footer class="viewer-statusbar" aria-label="Viewer status">
+        <span id="coordStatus">XYZ: -</span>
+        <span id="selectedStatus">Selected: none</span>
+        <span id="componentStatus">Objects: 0</span>
+        <span>Protected core: InputXML / support mapping untouched</span>
+      </footer>
     </section>
 
     <aside class="property-drawer" id="propertiesPanel" aria-label="Component properties">
       <div class="property-head">
-        <h2>Component Properties</h2>
+        <div>
+          <h2>Component Properties</h2>
+          <p>Selection metadata is displayed as parsed by the existing conversion pipeline.</p>
+        </div>
         <button id="closePropsBtn" type="button" class="icon-btn" title="Close properties">
           <i data-lucide="x"></i>
         </button>
@@ -200,6 +239,6 @@ Axial restraints: no OD/2 radial contact; tips touch unless gap; positive gap = 
 After engineering contact: visual resolver ODx2/3 applies only to final axial/pipe-parallel symbols</pre>
   </dialog>
 
-  <script type="module" src="./src/app.js?v=professional-viewer-3"></script>
+  <script type="module" src="./src/app.js?v=phase1-ui"></script>
 </body>
 </html>

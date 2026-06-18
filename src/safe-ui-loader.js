@@ -128,49 +128,82 @@ const BATCH_MODULES = SAFE_MODE
 const state = {
   version: SAFE_UI_VERSION,
   safeMode: SAFE_MODE,
-  total: BATCH_MODULES.length,
-  loaded: 0,
-  failed: []
+  started: false,
+  modules: BATCH_MODULES,
+  results: []
 };
 
-window.__3D_MARKUP_SAFE_UI__ = state;
+startSafeUiLoader();
 
-runSafeLoader();
+async function startSafeUiLoader() {
+  if (state.started) return;
+  state.started = true;
 
-async function runSafeLoader() {
-  for (const entry of BATCH_MODULES) {
-    try {
-      await import(entry.src);
-      state.loaded += 1;
-      updateStatus();
-      window.dispatchEvent(new CustomEvent('markup:safe-ui-module-loaded', { detail: { ...entry, state: { ...state } } }));
-    } catch (error) {
-      state.failed.push({ id: entry.id, label: entry.label, message: error?.message || String(error) });
-      console.warn(`[3DMarkupTool] Optional UI module failed: ${entry.label}`, error);
-      updateStatus();
-      window.dispatchEvent(new CustomEvent('markup:safe-ui-module-failed', { detail: { ...entry, error, state: { ...state } } }));
-    }
+  ensureStatusBadge();
+  updateStatusBadge();
+
+  for (const moduleInfo of state.modules) {
+    await loadGuarded(moduleInfo);
+    updateStatusBadge();
   }
 
-  updateStatus(true);
-  window.dispatchEvent(new CustomEvent('markup:safe-ui-status', { detail: { ...state } }));
+  window.dispatchEvent(new CustomEvent('markup:safe-ui-status', {
+    detail: {
+      version: state.version,
+      safeMode: state.safeMode,
+      results: [...state.results]
+    }
+  }));
 }
 
-function updateStatus(done = false) {
-  let status = document.getElementById('safeUiStatus');
-  const toolbar = document.querySelector('.toolbar');
-  if (!status && toolbar) {
-    status = document.createElement('div');
-    status.id = 'safeUiStatus';
-    status.className = 'status-pill safe-ui-status';
-    toolbar.appendChild(status);
+async function loadGuarded(moduleInfo) {
+  try {
+    await import(moduleInfo.src);
+    state.results.push({ ...moduleInfo, status: 'loaded' });
+  } catch (error) {
+    console.warn(`[3DMarkupTool] Optional UI module failed: ${moduleInfo.label}`, error);
+    state.results.push({
+      ...moduleInfo,
+      status: 'failed',
+      error: error?.message || String(error)
+    });
   }
-  if (!status) return;
+}
 
-  const failedText = state.failed.length ? ` / ${state.failed.length} failed` : '';
-  status.textContent = state.safeMode
-    ? `Safe UI ${state.loaded}/${state.total}${failedText}`
-    : `UI ${state.loaded}/${state.total}${failedText}`;
-  status.classList.toggle('warning', Boolean(state.failed.length));
-  status.classList.toggle('done', done && !state.failed.length);
+function ensureStatusBadge() {
+  if (document.getElementById('safeUiStatus')) return;
+
+  const toolbar = document.querySelector('.toolbar');
+  if (!toolbar) return;
+
+  const badge = document.createElement('div');
+  badge.id = 'safeUiStatus';
+  badge.className = 'status-pill safe-ui-status';
+  badge.textContent = 'UI 0/0';
+  toolbar.appendChild(badge);
+}
+
+function updateStatusBadge() {
+  const badge = document.getElementById('safeUiStatus');
+  if (!badge) return;
+
+  const loaded = state.results.filter((result) => result.status === 'loaded').length;
+  const failed = state.results.filter((result) => result.status === 'failed').length;
+  const total = state.modules.length;
+
+  badge.textContent = failed ? `UI ${loaded}/${total} · ${failed} failed` : `UI ${loaded}/${total}`;
+  badge.classList.toggle('warn', failed > 0);
+  badge.title = state.results.map((result) => {
+    const suffix = result.error ? ` — ${result.error}` : '';
+    return `${result.label}: ${result.status}${suffix}`;
+  }).join('\n') || 'Optional UI modules pending';
+
+  window.__3D_MARKUP_SAFE_UI_STATUS__ = {
+    version: state.version,
+    safeMode: state.safeMode,
+    loaded,
+    failed,
+    total,
+    results: [...state.results]
+  };
 }

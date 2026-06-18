@@ -55,7 +55,7 @@ function queueSafeUiLoader() {
   const loadSafeUi = () => {
     if (window.__3D_MARKUP_SAFE_UI_IMPORT_STARTED__) return;
     window.__3D_MARKUP_SAFE_UI_IMPORT_STARTED__ = true;
-    import('./safe-ui-loader.js?v=phase26-batch5e-51').catch((error) => {
+    import('./safe-ui-loader.js?v=phase26-batch5f-52').catch((error) => {
       console.warn('[3DMarkupTool] Safe UI loader failed to start.', error);
       const status = document.getElementById('runtimeStatus');
       if (status) status.textContent = 'Core Ready / UI loader failed';
@@ -89,34 +89,22 @@ if (proto && !proto.__MARKUP_CLIP_RENDER_HOOK__) {
 
   Object.defineProperty(proto, 'render', {
     configurable: true,
-    get() {
-      return renderStore.get(this);
-    },
-    set(renderFn) {
-      if (typeof renderFn !== 'function') {
-        renderStore.set(this, renderFn);
-        return;
-      }
-
-      const wrappedRender = function markupClipRenderBridge(scene, camera) {
-        runtime.renderer = this;
-        runtime.scene = scene;
-        runtime.camera = camera;
-        runtime.frame += 1;
-
-        window.dispatchEvent(new CustomEvent('markup:render-context', {
-          detail: { renderer: this, scene, camera, frame: runtime.frame }
-        }));
-
-        return renderFn.call(this, scene, camera);
-      };
-
-      renderStore.set(this, wrappedRender);
+    value: function patchedRender(scene, camera, ...rest) {
+      runtime.renderer = this;
+      runtime.scene = scene;
+      runtime.camera = camera;
+      runtime.frame += 1;
+      renderStore.set(this, { scene, camera, frame: runtime.frame });
+      window.dispatchEvent(new CustomEvent('markup:render-context', {
+        detail: { renderer: this, scene, camera, frame: runtime.frame }
+      }));
+      return proto.__MARKUP_ORIGINAL_RENDER__.call(this, scene, camera, ...rest);
     }
   });
 
-  Object.defineProperty(proto, '__MARKUP_CLIP_RENDER_HOOK__', {
-    value: true,
-    configurable: false
-  });
+  proto.__MARKUP_CLIP_RENDER_HOOK__ = true;
+}
+
+if (proto && !proto.__MARKUP_ORIGINAL_RENDER__) {
+  proto.__MARKUP_ORIGINAL_RENDER__ = proto.render;
 }

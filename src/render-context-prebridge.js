@@ -4,6 +4,12 @@ import * as THREE from 'three';
 // WebGLRenderer.render(). This avoids the read-only render-property regression
 // seen in earlier recovery work while still giving clip tools access to the
 // active renderer and scene.
+//
+// This prebridge is loaded before src/app.js, so it is also the safest place
+// to restore small legacy DOM contracts that app.js still expects. The newer
+// compact UI removed #hint, but app.js still toggles el('hint').style after a
+// conversion and during Clear All. Recreate it as a hidden compatibility node
+// so source imports such as UXML can complete and enable downloads.
 
 const runtime = window.__3D_MARKUP_CLIP_RUNTIME__ || {
   renderer: null,
@@ -13,8 +19,33 @@ const runtime = window.__3D_MARKUP_CLIP_RUNTIME__ || {
 };
 window.__3D_MARKUP_CLIP_RUNTIME__ = runtime;
 
+ensureLegacyHintElement();
 installRendererSetSizeHook();
 installSceneAddHook();
+
+function ensureLegacyHintElement() {
+  if (typeof document === 'undefined') return;
+  if (document.getElementById('hint')) return;
+
+  const create = () => {
+    if (document.getElementById('hint')) return;
+    const hint = document.createElement('div');
+    hint.id = 'hint';
+    hint.className = 'hint legacy-hint-compat';
+    hint.textContent = '';
+    hint.style.display = 'none';
+    hint.setAttribute('aria-hidden', 'true');
+
+    const viewer = document.getElementById('viewer') || document.body;
+    viewer.appendChild(hint);
+  };
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', create, { once: true });
+  } else {
+    create();
+  }
+}
 
 function installRendererSetSizeHook() {
   const proto = THREE.WebGLRenderer?.prototype;

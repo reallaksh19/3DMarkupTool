@@ -12,6 +12,11 @@ const SKIP_NAME_PATTERNS = [
   'viewcube'
 ];
 
+const SELECTION_HELPER_NAMES = new Set([
+  'SELECTION_BOX_HELPER',
+  'MODEL_TREE_SELECTION_HELPER'
+]);
+
 const state = {
   renderer: null,
   scene: null,
@@ -51,6 +56,10 @@ function bindRenderContext() {
     if (renderer) state.renderer = renderer;
     if (scene) state.scene = scene;
     if (camera) state.camera = camera;
+  });
+
+  window.addEventListener('markup:selected-object-changed', () => {
+    setStatus('Selection synced');
   });
 
   const runtime = getRuntime();
@@ -139,9 +148,16 @@ function getRuntime() {
 }
 
 function collectSelectionBounds(scene) {
+  const syncedObject = window.__3D_MARKUP_SELECTED_OBJECT__ || null;
+  if (syncedObject?.visible !== false) {
+    const syncedBox = new THREE.Box3().setFromObject(syncedObject);
+    if (isValidBox(syncedBox)) return syncedBox;
+  }
+
   let selectionHelper = null;
   scene?.traverse?.((object) => {
-    if (String(object.name || '').toUpperCase() === 'SELECTION_BOX_HELPER') selectionHelper = object;
+    const name = String(object.name || '').toUpperCase();
+    if (!selectionHelper && SELECTION_HELPER_NAMES.has(name)) selectionHelper = object;
   });
 
   if (!selectionHelper || selectionHelper.visible === false) return null;

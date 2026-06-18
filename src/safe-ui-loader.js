@@ -79,6 +79,11 @@ const ALL_MODULES = [
     src: `./tree-panel-bridge-controller.js?v=${SAFE_UI_VERSION}`
   },
   {
+    id: 'treeSelectionBridge',
+    label: 'Tree selection bridge',
+    src: `./tree-selection-bridge-controller.js?v=${SAFE_UI_VERSION}`
+  },
+  {
     id: 'selectionSync',
     label: 'Selection sync',
     src: `./selection-sync-controller.js?v=${SAFE_UI_VERSION}`

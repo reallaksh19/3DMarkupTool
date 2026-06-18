@@ -4,7 +4,8 @@ const state = {
   gridVisible: false,
   gridApplyToken: 0,
   gridUserControlled: false,
-  clipObserver: null
+  clipObserver: null,
+  materialGuardInstalled: false
 };
 
 if (document.readyState === 'loading') {
@@ -30,13 +31,15 @@ function initCoreAppSafety() {
   ensureCoordStatus();
   scheduleGridOff({ force: true });
   lockClipButtonIcon();
+  installMaterialRestoreGuard();
 
   window.__3D_MARKUP_CORE_SAFETY__ = {
     version: SAFETY_VERSION,
     setGridVisible,
     ensureLegacyHint,
     ensureCoordStatus,
-    lockClipButtonIcon
+    lockClipButtonIcon,
+    disposeUnusedColorMaterials
   };
 }
 
@@ -148,8 +151,73 @@ function lockClipButtonIcon() {
   });
 }
 
+function installMaterialRestoreGuard() {
+  if (state.materialGuardInstalled) return;
+  const select = document.getElementById('colorBySelect');
+  if (!select) {
+    window.setTimeout(installMaterialRestoreGuard, 100);
+    return;
+  }
+
+  state.materialGuardInstalled = true;
+  select.addEventListener('change', (event) => {
+    if (event.target?.value !== 'default') return;
+
+    const candidates = collectCurrentModelMaterials();
+    window.requestAnimationFrame(() => disposeUnusedColorMaterials(candidates));
+  }, true);
+}
+
+function collectCurrentModelMaterials() {
+  const materials = new Set();
+  const root = getModelRoot();
+  if (!root) return materials;
+
+  root.traverse?.((object) => {
+    if (!object?.isMesh || !object.material) return;
+    for (const material of normalizeMaterials(object.material)) {
+      if (material?.isMaterial) materials.add(material);
+    }
+  });
+
+  return materials;
+}
+
+function disposeUnusedColorMaterials(candidates = new Set()) {
+  if (!candidates?.size) return 0;
+
+  const liveMaterials = collectCurrentModelMaterials();
+  let disposed = 0;
+
+  for (const material of candidates) {
+    if (!material?.isMaterial || liveMaterials.has(material)) continue;
+    material.dispose?.();
+    disposed += 1;
+  }
+
+  if (disposed) {
+    window.dispatchEvent(new CustomEvent('viewer:materials-disposed', {
+      detail: { count: disposed, reason: 'color-by-restore' }
+    }));
+  }
+
+  return disposed;
+}
+
+function normalizeMaterials(material) {
+  return Array.isArray(material) ? material : [material];
+}
+
 function getRuntime() {
   return window.__3D_MARKUP_VIEWER_RUNTIME__ || window.__3D_MARKUP_CLIP_RUNTIME__ || null;
+}
+
+function getModelRoot() {
+  const runtime = getRuntime();
+  return runtime?.modelRoot
+    || runtime?.getModelRoot?.()
+    || runtime?.getCurrentModelRoot?.()
+    || null;
 }
 
 function isGridHelper(object) {

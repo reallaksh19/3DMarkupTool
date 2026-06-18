@@ -16,6 +16,7 @@ const state = {
   forceActive: false,
   bounds: null,
   lastRenderer: null,
+  lastScene: null,
   lastSignature: '',
   uiReady: false
 };
@@ -25,6 +26,8 @@ const originalRender = THREE.WebGLRenderer.prototype.render;
 
 THREE.WebGLRenderer.prototype.render = function patchedRender(scene, camera) {
   state.lastRenderer = this;
+  state.lastScene = scene;
+  this.localClippingEnabled = true;
 
   updateBounds(scene);
 
@@ -78,7 +81,7 @@ function initClipAdjusterUi() {
 
   const header = ui.panel.querySelector('.clip-adjust-head');
   const title = header?.querySelector('strong');
-  if (header && title) {
+  if (header && title && !document.getElementById('clipPanelToggleBtn')) {
     title.insertAdjacentElement('afterend', ui.toggle);
   }
 
@@ -177,8 +180,11 @@ function isToolbarClipActive() {
 function applyRendererClipState() {
   if (!state.lastRenderer) return;
 
+  updateBounds(state.lastScene);
+
   const active = isToolbarClipActive() || state.forceActive;
   let planes = Array.isArray(state.lastRenderer.clippingPlanes) ? state.lastRenderer.clippingPlanes : [];
+  state.lastRenderer.localClippingEnabled = true;
 
   if (active && !planes.length) {
     state.lastRenderer.clippingPlanes = [managedPlane];
@@ -201,25 +207,23 @@ function updateBounds(scene) {
 
   const box = new THREE.Box3();
   const scratch = new THREE.Box3();
-  let meshCount = 0;
+  let renderableCount = 0;
+
+  scene.updateMatrixWorld?.(true);
 
   scene.traverse((object) => {
-    if (!object.isMesh) return;
-    if (object.name === 'SELECTION_BOX_HELPER') return;
-    if (object.name && object.name.includes('MEASURE')) return;
-
-    const data = object.userData || {};
-    const hasEngineeringData = Object.keys(data).length > 0;
-    const hasUsefulGeometry = object.geometry && !object.name?.toLowerCase().includes('grid');
-    if (!hasEngineeringData && !hasUsefulGeometry) return;
+    if (shouldSkipObject(object)) return;
+    if (!isRenderableGeometry(object)) return;
 
     scratch.setFromObject(object);
     if (!Number.isFinite(scratch.min.x)) return;
     box.union(scratch);
-    meshCount += 1;
+    renderableCount += 1;
   });
 
-  if (!meshCount || !Number.isFinite(box.min.x)) return;
+  if (!renderableCount || !Number.isFinite(box.min.x)) {
+    return;
+  }
 
   const signature = ['x', 'y', 'z']
     .map((axis) => `${box.min[axis].toFixed(4)}:${box.max[axis].toFixed(4)}`)
@@ -231,6 +235,37 @@ function updateBounds(scene) {
   }
 }
 
+function shouldSkipObject(object) {
+  if (!object || object.visible === false) return true;
+  if (object.isLight || object.isCamera) return true;
+
+  const name = String(object.name || '').toLowerCase();
+  if (name === 'grid' || name === 'axes') return true;
+  if (name.includes('selection_box_helper')) return true;
+  if (name.includes('measure')) return true;
+  if (name.includes('helper')) return true;
+
+  let parent = object.parent;
+  while (parent) {
+    const parentName = String(parent.name || '').toLowerCase();
+    if (parentName.includes('measure') || parentName.includes('selection_box_helper')) return true;
+    parent = parent.parent;
+  }
+
+  return false;
+}
+
+function isRenderableGeometry(object) {
+  if (!object?.geometry) return false;
+  return Boolean(
+    object.isMesh ||
+    object.isLine ||
+    object.isLineSegments ||
+    object.isPoints ||
+    object.type === 'Sprite'
+  );
+}
+
 function applyAdjustableClipPlane(plane) {
   if (!state.bounds) return;
 
@@ -238,7 +273,8 @@ function applyAdjustableClipPlane(plane) {
   const bounds = state.bounds;
   const min = bounds.min[axis];
   const max = bounds.max[axis];
-  const position = min + (max - min) * state.normalized;
+  const span = Math.max(max - min, 1e-9);
+  const position = min + span * state.normalized;
   const normal = AXIS_META[axis].vector.clone().multiplyScalar(state.inverted ? 1 : -1);
   const pointOnPlane = new THREE.Vector3();
   pointOnPlane[axis] = position;
@@ -250,6 +286,7 @@ function applyAdjustableClipPlane(plane) {
 function syncUi(force = false) {
   if (!state.uiReady) return;
 
+  updateBounds(state.lastScene);
   state.active = isToolbarClipActive() || state.forceActive || Boolean(state.lastRenderer?.clippingPlanes?.length);
 
   ui.panel.classList.toggle('clip-active', state.active);
@@ -283,17 +320,18 @@ function syncUi(force = false) {
   const max = state.bounds.max[axis];
   const position = min + (max - min) * state.normalized;
   const direction = state.inverted ? '+' : '-';
-  ui.readout.textContent = `${AXIS_META[axis].label} ${direction} @ ${(state.normalized * 100).toFixed(1)}% / scene ${formatSceneNumber(position)}`;
-}
-
-function formatSceneNumber(value) {
-  if (!Number.isFinite(value)) return 'N/A';
-  if (Math.abs(value) >= 1000) return value.toFixed(0);
-  if (Math.abs(value) >= 10) return value.toFixed(2);
-  return value.toFixed(4);
+  ui.readout.textContent = `${AXIS_META[axis].label} ${direction} @ ${formatNumber(position)} (${(state.normalized * 100).toFixed(1)}%)`;
 }
 
 function clamp(value, min, max) {
   if (!Number.isFinite(value)) return min;
   return Math.min(max, Math.max(min, value));
+}
+
+function formatNumber(value) {
+  if (!Number.isFinite(value)) return 'N/A';
+  const abs = Math.abs(value);
+  if (abs >= 1000) return value.toFixed(0);
+  if (abs >= 10) return value.toFixed(2);
+  return value.toFixed(4);
 }

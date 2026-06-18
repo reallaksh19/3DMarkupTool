@@ -34,11 +34,6 @@ const ALL_MODULES = [
     src: `./ui-console-guard.js?v=${SAFE_UI_VERSION}`
   },
   {
-    id: 'conversionOptionsCompat',
-    label: 'Conversion options compatibility',
-    src: `./conversion-options-compat-controller.js?v=${SAFE_UI_VERSION}`
-  },
-  {
     id: 'coreAppSafety',
     label: 'Core app safety',
     src: `./core-app-safety-controller.js?v=${SAFE_UI_VERSION}`
@@ -177,7 +172,8 @@ const DEPRECATED_MODULES = [
   'phase37-input-drawer-stack-controller.js',
   'phase38-clipbox-ui-cleanup-controller.js',
   'phase40-legacy-hint-compat-controller.js',
-  'phase41-tree-clip-controls-controller.js'
+  'phase41-tree-clip-controls-controller.js',
+  'conversion-options-compat-controller.js'
 ];
 
 const SAFE_MODE = new URLSearchParams(window.location.search).has('safe')

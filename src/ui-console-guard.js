@@ -1,4 +1,5 @@
 import './property-panel-revamp.js?v=property-panel-revamp-1';
+import './property-panel-revamp-reset.js?v=property-panel-revamp-1';
 
 const state = {
   inputLoaded: false

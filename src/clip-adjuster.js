@@ -7,6 +7,7 @@ const AXES = {
 };
 
 const managedPlane = new THREE.Plane(new THREE.Vector3(-1, 0, 0), 0);
+const runtime = window.__3D_MARKUP_CLIP_RUNTIME__ || null;
 
 const state = {
   axis: 'x',
@@ -15,36 +16,37 @@ const state = {
   forceActive: false,
   active: false,
   bounds: null,
-  lastRenderer: null,
-  lastScene: null,
+  lastRenderer: runtime?.renderer || null,
+  lastScene: runtime?.scene || null,
   lastSignature: '',
   uiReady: false,
   lastError: null
 };
 
 const ui = {};
-const originalRender = THREE.WebGLRenderer.prototype.render;
 
-if (!THREE.WebGLRenderer.prototype.__MARKUP_SAFE_CLIP_PATCHED__) {
-  THREE.WebGLRenderer.prototype.__MARKUP_SAFE_CLIP_PATCHED__ = true;
-  THREE.WebGLRenderer.prototype.render = function safeClipRender(scene, camera) {
-    try {
-      state.lastRenderer = this;
-      state.lastScene = scene;
-      this.localClippingEnabled = true;
-      updateBounds(scene);
-      applyClipToRenderer(this);
-      syncUi();
-    } catch (error) {
-      state.lastError = error;
-      safeReadout(`Clip controller paused: ${error?.message || 'unknown error'}`);
-    }
-
-    return originalRender.call(this, scene, camera);
-  };
+if (document.readyState === 'loading') {
+  window.addEventListener('DOMContentLoaded', initClipUi, { once: true });
+} else {
+  initClipUi();
 }
 
-window.addEventListener('DOMContentLoaded', initClipUi);
+window.addEventListener('markup:render-context', (event) => {
+  const { renderer, scene } = event.detail || {};
+  if (!renderer || !scene) return;
+
+  try {
+    state.lastRenderer = renderer;
+    state.lastScene = scene;
+    renderer.localClippingEnabled = true;
+    updateBounds(scene);
+    applyClipToRenderer(renderer);
+    syncUi();
+  } catch (error) {
+    state.lastError = error;
+    safeReadout(`Clip controller paused: ${error?.message || 'unknown error'}`);
+  }
+});
 
 function initClipUi() {
   ui.panel = document.getElementById('clipAdjustPanel');
@@ -68,7 +70,6 @@ function initClipUi() {
     ui.toggle.type = 'button';
     ui.toggle.id = 'clipPanelToggleBtn';
     ui.toggle.className = 'clip-panel-toggle';
-    ui.toggle.textContent = 'Clip On';
     ui.toggle.title = 'Turn clipping on or off';
     title?.insertAdjacentElement('afterend', ui.toggle);
   }
@@ -116,6 +117,8 @@ function initClipUi() {
   });
 
   state.uiReady = true;
+  updateBounds(state.lastScene || runtime?.scene);
+  if (state.lastRenderer || runtime?.renderer) applyClipToRenderer(state.lastRenderer || runtime.renderer);
   syncUi(true);
 }
 
@@ -126,17 +129,18 @@ function setClipEnabled(enabled) {
 
   if (clipButton && toolbarActive !== desired) {
     clipButton.click();
-    state.forceActive = false;
-  } else {
-    state.forceActive = desired;
   }
 
+  state.forceActive = desired;
   applyNow();
 }
 
 function applyNow() {
-  updateBounds(state.lastScene);
-  if (state.lastRenderer) applyClipToRenderer(state.lastRenderer);
+  const renderer = state.lastRenderer || runtime?.renderer;
+  const scene = state.lastScene || runtime?.scene;
+
+  updateBounds(scene);
+  if (renderer) applyClipToRenderer(renderer);
   syncUi(true);
 }
 
@@ -149,22 +153,20 @@ function applyClipToRenderer(renderer) {
   if (!renderer) return;
 
   const active = isToolbarClipActive() || state.forceActive;
-  let planes = Array.isArray(renderer.clippingPlanes) ? renderer.clippingPlanes : [];
-
   renderer.localClippingEnabled = true;
 
   if (!active) {
-    if (planes[0] === managedPlane) renderer.clippingPlanes = [];
-    state.active = Boolean(renderer.clippingPlanes?.length);
+    renderer.clippingPlanes = [];
+    state.active = false;
     return;
   }
 
-  if (!planes.length) {
-    renderer.clippingPlanes = [managedPlane];
-    planes = renderer.clippingPlanes;
-  }
+  const planes = Array.isArray(renderer.clippingPlanes) && renderer.clippingPlanes.length
+    ? renderer.clippingPlanes
+    : [managedPlane];
 
-  if (planes[0]) applyPlane(planes[0]);
+  renderer.clippingPlanes = planes;
+  applyPlane(planes[0]);
   state.active = true;
 }
 
@@ -174,15 +176,15 @@ function isToolbarClipActive() {
   return clipButton.classList.contains('tool-active') || /clip\s+on/i.test(clipButton.textContent || '');
 }
 
-function updateBounds(scene) {
-  if (!scene) return;
+function updateBounds(root) {
+  if (!root) return;
 
   const box = new THREE.Box3();
   const scratch = new THREE.Box3();
   let count = 0;
 
-  scene.updateMatrixWorld?.(true);
-  scene.traverse((object) => {
+  root.updateMatrixWorld?.(true);
+  root.traverse?.((object) => {
     if (shouldSkip(object)) return;
     if (!object.geometry) return;
 
@@ -222,7 +224,7 @@ function shouldSkip(object) {
 }
 
 function applyPlane(plane) {
-  if (!state.bounds) return;
+  if (!state.bounds || !plane) return;
   const axis = state.axis in AXES ? state.axis : 'x';
   const min = state.bounds.min[axis];
   const max = state.bounds.max[axis];
@@ -234,10 +236,12 @@ function applyPlane(plane) {
   plane.constant = -normal.dot(point);
 }
 
-function syncUi(force = false) {
+function syncUi() {
   if (!state.uiReady) return;
-  updateBounds(state.lastScene);
-  const planesActive = Boolean(state.lastRenderer?.clippingPlanes?.length);
+
+  updateBounds(state.lastScene || runtime?.scene);
+  const renderer = state.lastRenderer || runtime?.renderer;
+  const planesActive = Boolean(renderer?.clippingPlanes?.length);
   state.active = isToolbarClipActive() || state.forceActive || planesActive;
 
   ui.panel.classList.toggle('clip-active', state.active);
@@ -247,7 +251,7 @@ function syncUi(force = false) {
   ui.invert.checked = state.inverted;
 
   if (ui.toggle) {
-    ui.toggle.textContent = state.active ? 'Clip Off' : 'Clip On';
+    ui.toggle.textContent = state.active ? 'Disable Clip' : 'Enable Clip';
     ui.toggle.classList.toggle('clip-panel-toggle-active', state.active);
   }
 
@@ -262,7 +266,7 @@ function syncUi(force = false) {
   }
 
   if (!state.active) {
-    ui.readout.textContent = 'Clip is off — click Clip On here or use C.';
+    ui.readout.textContent = 'Clip is off — click Enable Clip or use C.';
     return;
   }
 

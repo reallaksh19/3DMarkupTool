@@ -13,6 +13,10 @@ const AXES = {
   z: new THREE.Vector3(0, 0, 1)
 };
 
+const VIEW_DIRECTIONS = {
+  left: new THREE.Vector3(-1, 0.08, 0)
+};
+
 const state = {
   renderer: runtime?.renderer || null,
   scene: runtime?.scene || null,
@@ -46,6 +50,7 @@ window.addEventListener('markup:render-context', (event) => {
 
   updateBounds(scene);
   syncFromClipUi();
+  updateClipPanelVisibility();
   updateClipPlanePreview();
   updateAxisTriad();
 });
@@ -73,6 +78,7 @@ function scheduleOverlayUpdate() {
   window.requestAnimationFrame(() => {
     updateBounds(state.scene || runtime?.scene);
     syncFromClipUi();
+    updateClipPanelVisibility();
     updateClipPlanePreview();
     updateAxisTriad();
   });
@@ -99,9 +105,16 @@ function syncFromClipUi() {
 
 function isClipActive() {
   const rendererActive = Boolean((state.renderer || runtime?.renderer)?.clippingPlanes?.length);
-  const panelActive = Boolean(document.getElementById('clipAdjustPanel')?.classList.contains('clip-active'));
   const toolbarActive = Boolean(document.getElementById('clipBtn')?.classList.contains('tool-active')) || /clip\s+on/i.test(document.getElementById('clipBtn')?.textContent || '');
-  return rendererActive || panelActive || toolbarActive;
+  return rendererActive || toolbarActive;
+}
+
+function updateClipPanelVisibility() {
+  const panel = document.getElementById('clipAdjustPanel');
+  if (!panel) return;
+
+  panel.hidden = !state.active;
+  panel.setAttribute('aria-hidden', state.active ? 'false' : 'true');
 }
 
 function updateClipPlanePreview() {
@@ -237,6 +250,8 @@ function ensureViewCubeLite() {
     button.innerHTML = `<span>${labels[view]}</span>`;
   });
 
+  ensureLeftFace(pad);
+
   const compass = document.createElement('div');
   compass.className = 'viewcube-compass';
   compass.setAttribute('aria-hidden', 'true');
@@ -249,6 +264,42 @@ function ensureViewCubeLite() {
   pad.prepend(title);
 
   state.viewCube = pad;
+}
+
+function ensureLeftFace(pad) {
+  let left = pad.querySelector('[data-view="left"]');
+  if (!left) {
+    left = document.createElement('button');
+    left.type = 'button';
+    left.dataset.view = 'left';
+    pad.appendChild(left);
+  }
+
+  left.hidden = false;
+  left.removeAttribute('aria-hidden');
+  left.className = 'viewcube-face viewcube-left';
+  left.title = 'Left side view';
+  left.setAttribute('aria-label', 'Left side view');
+  left.innerHTML = '<span>LEFT</span>';
+  left.addEventListener('click', () => setOverlayCameraView(VIEW_DIRECTIONS.left));
+}
+
+function setOverlayCameraView(direction) {
+  const camera = state.camera || runtime?.camera;
+  const bounds = state.bounds;
+  if (!camera || !bounds) return;
+
+  const center = bounds.getCenter(new THREE.Vector3());
+  const size = bounds.getSize(new THREE.Vector3());
+  const radius = Math.max(size.x, size.y, size.z, 1);
+  const dir = direction.clone().normalize();
+
+  camera.position.copy(center).add(dir.multiplyScalar(radius * 1.18));
+  camera.near = Math.max(0.01, radius / 1200);
+  camera.far = Math.max(1000, radius * 20);
+  camera.lookAt(center);
+  camera.updateProjectionMatrix();
+  scheduleOverlayUpdate();
 }
 
 function updateAxisTriad() {
@@ -271,17 +322,28 @@ function updateAxisTriad() {
     const label = state.triadLabels[axis];
     if (!line || !label) return;
 
+    const labelOffset = stableLabelOffset(projected);
     line.setAttribute('x1', String(origin.x));
     line.setAttribute('y1', String(origin.y));
     line.setAttribute('x2', end.x.toFixed(2));
     line.setAttribute('y2', end.y.toFixed(2));
-    label.setAttribute('x', (end.x + Math.sign(projected.x || 1) * 7).toFixed(2));
-    label.setAttribute('y', (end.y - Math.sign(projected.y || 1) * 7).toFixed(2));
+    label.setAttribute('x', (end.x + labelOffset.x).toFixed(2));
+    label.setAttribute('y', (end.y + labelOffset.y).toFixed(2));
 
-    const depth = clamp((projected.z + 1) / 2, 0.35, 1);
-    line.style.opacity = String(depth);
-    label.style.opacity = String(depth);
+    line.style.opacity = '1';
+    label.style.opacity = '1';
   });
+}
+
+function stableLabelOffset(projected) {
+  const x = projected.x;
+  const y = -projected.y;
+  const length = Math.hypot(x, y);
+  if (length < 0.08) return { x: 7, y: -7 };
+  return {
+    x: (x / length) * 8,
+    y: (y / length) * 8
+  };
 }
 
 function updateBounds(root) {

@@ -1,0 +1,292 @@
+import * as THREE from 'three';
+
+const AXES = {
+  x: { label: 'X', vector: new THREE.Vector3(1, 0, 0) },
+  y: { label: 'Y', vector: new THREE.Vector3(0, 1, 0) },
+  z: { label: 'Z', vector: new THREE.Vector3(0, 0, 1) }
+};
+
+const managedPlane = new THREE.Plane(new THREE.Vector3(-1, 0, 0), 0);
+
+const state = {
+  axis: 'x',
+  normalized: 0.5,
+  inverted: false,
+  forceActive: false,
+  active: false,
+  bounds: null,
+  lastRenderer: null,
+  lastScene: null,
+  lastSignature: '',
+  uiReady: false,
+  lastError: null
+};
+
+const ui = {};
+const originalRender = THREE.WebGLRenderer.prototype.render;
+
+if (!THREE.WebGLRenderer.prototype.__MARKUP_SAFE_CLIP_PATCHED__) {
+  THREE.WebGLRenderer.prototype.__MARKUP_SAFE_CLIP_PATCHED__ = true;
+  THREE.WebGLRenderer.prototype.render = function safeClipRender(scene, camera) {
+    try {
+      state.lastRenderer = this;
+      state.lastScene = scene;
+      this.localClippingEnabled = true;
+      updateBounds(scene);
+      applyClipToRenderer(this);
+      syncUi();
+    } catch (error) {
+      state.lastError = error;
+      safeReadout(`Clip controller paused: ${error?.message || 'unknown error'}`);
+    }
+
+    return originalRender.call(this, scene, camera);
+  };
+}
+
+window.addEventListener('DOMContentLoaded', initClipUi);
+
+function initClipUi() {
+  ui.panel = document.getElementById('clipAdjustPanel');
+  ui.axis = document.getElementById('clipAxisSelect');
+  ui.range = document.getElementById('clipPositionRange');
+  ui.position = document.getElementById('clipPositionInput');
+  ui.invert = document.getElementById('clipInvert');
+  ui.minus = document.getElementById('clipStepMinus');
+  ui.plus = document.getElementById('clipStepPlus');
+  ui.reset = document.getElementById('clipResetBtn');
+  ui.readout = document.getElementById('clipReadout');
+
+  if (!ui.panel || !ui.axis || !ui.range || !ui.position || !ui.invert || !ui.minus || !ui.plus || !ui.reset || !ui.readout) return;
+
+  const header = ui.panel.querySelector('.clip-adjust-head');
+  const title = header?.querySelector('strong');
+  ui.toggle = document.getElementById('clipPanelToggleBtn');
+
+  if (!ui.toggle) {
+    ui.toggle = document.createElement('button');
+    ui.toggle.type = 'button';
+    ui.toggle.id = 'clipPanelToggleBtn';
+    ui.toggle.className = 'clip-panel-toggle';
+    ui.toggle.textContent = 'Clip On';
+    ui.toggle.title = 'Turn clipping on or off';
+    title?.insertAdjacentElement('afterend', ui.toggle);
+  }
+
+  ui.axis.value = state.axis;
+  ui.range.value = String(Math.round(state.normalized * 1000));
+  ui.position.value = '50.0';
+  ui.invert.checked = state.inverted;
+
+  ui.toggle.addEventListener('click', () => setClipEnabled(!state.active));
+  ui.axis.addEventListener('change', () => {
+    state.axis = ui.axis.value in AXES ? ui.axis.value : 'x';
+    applyNow();
+  });
+  ui.range.addEventListener('input', () => {
+    state.normalized = clamp(Number(ui.range.value) / 1000, 0, 1);
+    applyNow();
+  });
+  ui.position.addEventListener('change', () => {
+    state.normalized = clamp(Number(ui.position.value) / 100, 0, 1);
+    applyNow();
+  });
+  ui.invert.addEventListener('change', () => {
+    state.inverted = Boolean(ui.invert.checked);
+    applyNow();
+  });
+  ui.minus.addEventListener('click', () => stepClip(-0.05));
+  ui.plus.addEventListener('click', () => stepClip(0.05));
+  ui.reset.addEventListener('click', () => {
+    state.normalized = 0.5;
+    applyNow();
+  });
+
+  window.addEventListener('keydown', (event) => {
+    const tag = document.activeElement?.tagName;
+    if (['INPUT', 'TEXTAREA', 'SELECT'].includes(tag)) return;
+    if (event.key === '[') {
+      stepClip(-0.05);
+      event.preventDefault();
+    }
+    if (event.key === ']') {
+      stepClip(0.05);
+      event.preventDefault();
+    }
+  });
+
+  state.uiReady = true;
+  syncUi(true);
+}
+
+function setClipEnabled(enabled) {
+  const desired = Boolean(enabled);
+  const clipButton = document.getElementById('clipBtn');
+  const toolbarActive = isToolbarClipActive();
+
+  if (clipButton && toolbarActive !== desired) {
+    clipButton.click();
+    state.forceActive = false;
+  } else {
+    state.forceActive = desired;
+  }
+
+  applyNow();
+}
+
+function applyNow() {
+  updateBounds(state.lastScene);
+  if (state.lastRenderer) applyClipToRenderer(state.lastRenderer);
+  syncUi(true);
+}
+
+function stepClip(delta) {
+  state.normalized = clamp(state.normalized + delta, 0, 1);
+  applyNow();
+}
+
+function applyClipToRenderer(renderer) {
+  if (!renderer) return;
+
+  const active = isToolbarClipActive() || state.forceActive;
+  let planes = Array.isArray(renderer.clippingPlanes) ? renderer.clippingPlanes : [];
+
+  renderer.localClippingEnabled = true;
+
+  if (!active) {
+    if (planes[0] === managedPlane) renderer.clippingPlanes = [];
+    state.active = Boolean(renderer.clippingPlanes?.length);
+    return;
+  }
+
+  if (!planes.length) {
+    renderer.clippingPlanes = [managedPlane];
+    planes = renderer.clippingPlanes;
+  }
+
+  if (planes[0]) applyPlane(planes[0]);
+  state.active = true;
+}
+
+function isToolbarClipActive() {
+  const clipButton = document.getElementById('clipBtn');
+  if (!clipButton) return false;
+  return clipButton.classList.contains('tool-active') || /clip\s+on/i.test(clipButton.textContent || '');
+}
+
+function updateBounds(scene) {
+  if (!scene) return;
+
+  const box = new THREE.Box3();
+  const scratch = new THREE.Box3();
+  let count = 0;
+
+  scene.updateMatrixWorld?.(true);
+  scene.traverse((object) => {
+    if (shouldSkip(object)) return;
+    if (!object.geometry) return;
+
+    scratch.setFromObject(object);
+    if (!Number.isFinite(scratch.min.x)) return;
+    box.union(scratch);
+    count += 1;
+  });
+
+  if (!count || !Number.isFinite(box.min.x)) return;
+
+  const signature = ['x', 'y', 'z'].map((axis) => `${box.min[axis].toFixed(4)}:${box.max[axis].toFixed(4)}`).join('|');
+  if (signature !== state.lastSignature) {
+    state.bounds = box.clone();
+    state.lastSignature = signature;
+  }
+}
+
+function shouldSkip(object) {
+  if (!object || object.visible === false) return true;
+  if (object.isLight || object.isCamera) return true;
+
+  const name = String(object.name || '').toLowerCase();
+  if (name === 'grid' || name === 'axes') return true;
+  if (name.includes('selection_box_helper')) return true;
+  if (name.includes('measure')) return true;
+  if (name.includes('helper')) return true;
+
+  let parent = object.parent;
+  while (parent) {
+    const parentName = String(parent.name || '').toLowerCase();
+    if (parentName.includes('measure') || parentName.includes('selection_box_helper')) return true;
+    parent = parent.parent;
+  }
+
+  return false;
+}
+
+function applyPlane(plane) {
+  if (!state.bounds) return;
+  const axis = state.axis in AXES ? state.axis : 'x';
+  const min = state.bounds.min[axis];
+  const max = state.bounds.max[axis];
+  const position = min + Math.max(max - min, 1e-9) * state.normalized;
+  const normal = AXES[axis].vector.clone().multiplyScalar(state.inverted ? 1 : -1);
+  const point = new THREE.Vector3();
+  point[axis] = position;
+  plane.normal.copy(normal);
+  plane.constant = -normal.dot(point);
+}
+
+function syncUi(force = false) {
+  if (!state.uiReady) return;
+  updateBounds(state.lastScene);
+  const planesActive = Boolean(state.lastRenderer?.clippingPlanes?.length);
+  state.active = isToolbarClipActive() || state.forceActive || planesActive;
+
+  ui.panel.classList.toggle('clip-active', state.active);
+  ui.axis.value = state.axis;
+  ui.range.value = String(Math.round(state.normalized * 1000));
+  ui.position.value = (state.normalized * 100).toFixed(1);
+  ui.invert.checked = state.inverted;
+
+  if (ui.toggle) {
+    ui.toggle.textContent = state.active ? 'Clip Off' : 'Clip On';
+    ui.toggle.classList.toggle('clip-panel-toggle-active', state.active);
+  }
+
+  const disabled = !state.bounds;
+  [ui.axis, ui.range, ui.position, ui.invert, ui.minus, ui.plus, ui.reset].forEach((control) => {
+    control.disabled = disabled;
+  });
+
+  if (!state.bounds) {
+    ui.readout.textContent = state.active ? 'Clip waiting for model bounds.' : 'Clip is off — load/convert model first.';
+    return;
+  }
+
+  if (!state.active) {
+    ui.readout.textContent = 'Clip is off — click Clip On here or use C.';
+    return;
+  }
+
+  const axis = state.axis in AXES ? state.axis : 'x';
+  const min = state.bounds.min[axis];
+  const max = state.bounds.max[axis];
+  const position = min + (max - min) * state.normalized;
+  const direction = state.inverted ? '+' : '-';
+  ui.readout.textContent = `${AXES[axis].label} ${direction} @ ${formatNumber(position)} (${(state.normalized * 100).toFixed(1)}%)`;
+}
+
+function safeReadout(message) {
+  if (ui.readout) ui.readout.textContent = message;
+}
+
+function clamp(value, min, max) {
+  if (!Number.isFinite(value)) return min;
+  return Math.min(max, Math.max(min, value));
+}
+
+function formatNumber(value) {
+  if (!Number.isFinite(value)) return 'N/A';
+  const abs = Math.abs(value);
+  if (abs >= 1000) return value.toFixed(0);
+  if (abs >= 10) return value.toFixed(2);
+  return value.toFixed(4);
+}

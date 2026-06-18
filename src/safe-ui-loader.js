@@ -40,12 +40,17 @@ const BATCH_MODULES = [
   {
     id: 'tagLiteHost',
     label: 'Tag toolbar host',
-    src: './tag-lite-host-controller.js?v=phase26-batch5b-host'
+    src: './tag-lite-host-controller.js?v=phase26-batch5c-host'
   },
   {
     id: 'tagImportViews',
     label: 'Tag import/views',
     src: './navis-tag-import-controller.js?v=phase26-batch5a-import'
+  },
+  {
+    id: 'manualTag',
+    label: 'Manual tag',
+    src: './navis-manual-tag-safe-controller.js?v=phase26-batch5c-manual'
   }
 ];
 

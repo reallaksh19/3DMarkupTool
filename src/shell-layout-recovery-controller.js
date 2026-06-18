@@ -3,13 +3,16 @@ const STYLE_ID = 'shellLayoutRecoveryStyles';
 installShellLayoutRecovery();
 
 function installShellLayoutRecovery() {
-  if (document.getElementById(STYLE_ID)) return;
+  const existing = document.getElementById(STYLE_ID);
+  if (existing) existing.remove();
 
   const style = document.createElement('style');
   style.id = STYLE_ID;
   style.textContent = `
     html,
     body {
+      width: 100%;
+      height: 100%;
       min-width: 0;
       min-height: 0;
     }
@@ -24,9 +27,9 @@ function installShellLayoutRecovery() {
     .viewer-topbar {
       flex: 0 0 auto !important;
       min-height: 92px !important;
-      max-height: 36vh !important;
+      max-height: 38vh !important;
       display: grid !important;
-      grid-template-columns: minmax(330px, 0.28fr) minmax(0, 1fr) !important;
+      grid-template-columns: minmax(320px, 0.27fr) minmax(0, 1fr) !important;
       align-items: start !important;
       gap: 12px !important;
       padding: 10px 12px 12px 16px !important;
@@ -40,9 +43,10 @@ function installShellLayoutRecovery() {
 
     .brand-block {
       min-width: 0 !important;
-      max-width: 440px !important;
+      max-width: 430px !important;
       padding-top: 4px !important;
       align-self: start !important;
+      pointer-events: auto !important;
     }
 
     .brand-block h1 {
@@ -69,6 +73,7 @@ function installShellLayoutRecovery() {
       justify-content: flex-end !important;
       gap: 8px !important;
       overflow: visible !important;
+      pointer-events: auto !important;
     }
 
     .tool-group,
@@ -95,6 +100,7 @@ function installShellLayoutRecovery() {
     .toolbar button {
       flex: 0 0 auto !important;
       white-space: nowrap !important;
+      pointer-events: auto !important;
     }
 
     .color-control {
@@ -123,31 +129,66 @@ function installShellLayoutRecovery() {
       background: var(--bg) !important;
     }
 
-    .control-drawer,
-    .input-drawer {
+    #viewer,
+    .viewer-canvas {
+      position: absolute !important;
+      inset: 0 !important;
+    }
+
+    #inputDrawer,
+    #propertiesPanel {
       position: absolute !important;
       top: 16px !important;
       bottom: 48px !important;
-      left: 16px !important;
-      z-index: 12 !important;
-      width: 378px !important;
-      min-width: 320px !important;
+      z-index: 30 !important;
       overflow: auto !important;
       border: 1px solid rgba(88, 124, 160, .7) !important;
       border-radius: 12px !important;
-      padding: 14px !important;
       background: rgba(15, 27, 42, .96) !important;
       box-shadow: var(--shadow) !important;
       backdrop-filter: blur(12px) !important;
       transition: transform .2s ease, opacity .2s ease !important;
+      pointer-events: auto !important;
     }
 
-    body:not(.input-open) .control-drawer,
-    body:not(.input-open) .input-drawer,
-    .control-drawer:not(.open) {
+    #inputDrawer {
+      left: 16px !important;
+      width: 378px !important;
+      min-width: 320px !important;
+      padding: 14px !important;
+    }
+
+    #propertiesPanel {
+      right: 16px !important;
+      width: 324px !important;
+      min-width: 288px !important;
+      max-width: min(480px, 42vw) !important;
+      padding: 14px 14px 18px !important;
+      resize: both !important;
+    }
+
+    body:not(.input-open) #inputDrawer {
       transform: translateX(calc(-100% - 22px)) !important;
       opacity: 0 !important;
       pointer-events: none !important;
+    }
+
+    body.input-open #inputDrawer {
+      transform: translateX(0) !important;
+      opacity: 1 !important;
+      pointer-events: auto !important;
+    }
+
+    body:not(.props-open) #propertiesPanel {
+      transform: translateX(calc(100% + 22px)) !important;
+      opacity: 0 !important;
+      pointer-events: none !important;
+    }
+
+    body.props-open #propertiesPanel {
+      transform: translateX(0) !important;
+      opacity: 1 !important;
+      pointer-events: auto !important;
     }
 
     .statusbar,

@@ -36,7 +36,7 @@ export async function convertInputXmlToGlb(sourceText, options = {}) {
   scene.name = `${sourceKind}_GLTF_SCENE`;
   scene.userData = {
     app: 'inputxml-glb-standalone',
-    converterVersion: '1.1.0-uxml-source',
+    converterVersion: '1.1.1-uxml-route-aware-topology',
     sourceKind,
     sourceMode: options.supportMode || 'compare',
     generatedAt: new Date().toISOString()
@@ -154,8 +154,10 @@ function trimmedElementEndpoints(element, elementByNode, pipeRadius, fullA, full
 }
 
 function startBendTrim(element, elementByNode, pipeRadius) {
-  const connected = elementByNode.get(String(Number(element.fromNode))) || [];
-  const previousBend = connected.find((candidate) => candidate !== element && candidate.toNode === String(Number(element.fromNode)) && isBendElement(candidate));
+  const connected = sameRouteElementsAtNode(elementByNode, element.fromNode, element);
+  const previousBend = connected
+    .filter((candidate) => candidate !== element && candidate.toNode === String(Number(element.fromNode)) && isBendElement(candidate))
+    .sort((a, b) => topologyOrder(b) - topologyOrder(a))[0];
   return previousBend ? bendCenterlineRadius(previousBend, pipeRadius) : 0;
 }
 
@@ -189,12 +191,67 @@ function createBendGeometry(element, elementByNode, pipeRadius, userData, option
 }
 
 function connectedDirectionAtNode(elementByNode, nodeId, currentElement) {
-  const elements = elementByNode.get(String(Number(nodeId))) || [];
-  const next = elements.find((element) => element !== currentElement && element.fromNode === String(Number(nodeId)))
-    || elements.find((element) => element !== currentElement);
-  if (!next) return null;
-  if (next.fromNode === String(Number(nodeId))) return new THREE.Vector3(next.dx, next.dy, next.dz);
-  return new THREE.Vector3(-next.dx, -next.dy, -next.dz);
+  const key = String(Number(nodeId));
+  const currentOrder = topologyOrder(currentElement);
+  const sameRoute = sameRouteElementsAtNode(elementByNode, key, currentElement)
+    .filter((element) => element !== currentElement)
+    .sort((a, b) => topologyOrder(a) - topologyOrder(b));
+
+  const forwardSameRoute = sameRoute.find((element) => element.fromNode === key && topologyOrder(element) >= currentOrder)
+    || sameRoute.find((element) => element.fromNode === key)
+    || sameRoute.find((element) => topologyOrder(element) >= currentOrder)
+    || sameRoute[0];
+  if (forwardSameRoute) return directionForNode(forwardSameRoute, key);
+
+  // UXML contains explicit branches/ports. At TEE/OLET nodes, falling back to any
+  // connected element can draw a false elbow across a different branch. If no
+  // same-route continuation exists, skip the decorative bend instead of guessing.
+  if (String(currentElement.props?.source || '').toUpperCase() === 'UXML') return null;
+
+  const candidates = (elementByNode.get(key) || []).filter((element) => element !== currentElement);
+  const next = candidates.find((element) => element.fromNode === key) || candidates[0];
+  return next ? directionForNode(next, key) : null;
+}
+
+function sameRouteElementsAtNode(elementByNode, nodeId, currentElement) {
+  const key = String(Number(nodeId));
+  const currentRoute = routeKey(currentElement);
+  const currentLine = lineKey(currentElement);
+  return (elementByNode.get(key) || []).filter((candidate) => {
+    if (candidate === currentElement) return true;
+    if (currentRoute && routeKey(candidate) === currentRoute) return true;
+    if (currentLine && lineKey(candidate) === currentLine) return true;
+    return false;
+  });
+}
+
+function directionForNode(element, nodeId) {
+  const key = String(Number(nodeId));
+  if (element.fromNode === key) return new THREE.Vector3(element.dx, element.dy, element.dz);
+  return new THREE.Vector3(-element.dx, -element.dy, -element.dz);
+}
+
+function routeKey(element) {
+  const p = element.props || {};
+  const explicit = p.uxmlRouteKey || p.routeKey || p.branchName || p.owner || p.rawAttributes?.OWNER;
+  if (explicit) return String(explicit);
+  return lineKey(element);
+}
+
+function lineKey(element) {
+  return String(element.props?.lineNo || '').trim();
+}
+
+function topologyOrder(element) {
+  const p = element.props || {};
+  for (const value of [p.topologyOrder, p.sourceOrder, p.rawAttributes?.SOURCE_INDEX]) {
+    const n = Number(value);
+    if (Number.isFinite(n)) return n;
+  }
+  const id = String(p.uxmlComponentId || p.id || element.id || '');
+  const m = id.match(/[:/_-](\d{1,8})$/);
+  if (m) return Number(m[1]);
+  return 0;
 }
 
 function bendCenterlineRadius(element, pipeRadius) {
@@ -225,6 +282,8 @@ function buildComponentUserData(element) {
     uxmlComponentId: p.uxmlComponentId,
     uxmlSegmentId: p.uxmlSegmentId,
     uxmlNormalizedType: p.uxmlNormalizedType,
+    topologyOrder: p.topologyOrder,
+    routeKey: p.uxmlRouteKey || p.routeKey || p.lineNo,
     wallThickness: resolved(p.wallThickness),
     wallThicknessSource: source(p.wallThickness),
     materialThickness: resolved(p.materialThickness),
@@ -257,6 +316,9 @@ function buildElementIndex(model) {
       if (!index.has(n)) index.set(n, []);
       index.get(n).push(el);
     }
+  }
+  for (const list of index.values()) {
+    list.sort((a, b) => topologyOrder(a) - topologyOrder(b));
   }
   return index;
 }
@@ -412,18 +474,21 @@ function nodePosition(model, nodeId) {
 }
 
 function localTangent(elementByNode, nodeId) {
-  const els = elementByNode.get(String(Number(nodeId))) || [];
+  const key = String(Number(nodeId));
+  const els = elementByNode.get(key) || [];
   if (!els.length) return new THREE.Vector3(1, 0, 0);
-  const e = els[0];
-  const v = new THREE.Vector3(e.dx, e.dy, e.dz);
+  const e = els.find((candidate) => candidate.fromNode === key) || els[0];
+  const v = directionForNode(e, key);
   if (v.lengthSq() < 1e-8) return new THREE.Vector3(1, 0, 0);
   return v.normalize();
 }
 
 function localOd(elementByNode, nodeId) {
-  const els = elementByNode.get(String(Number(nodeId))) || [];
+  const key = String(Number(nodeId));
+  const els = elementByNode.get(key) || [];
   if (!els.length) return 100;
-  return numberValue(els[0].props.bore, 100);
+  const e = els.find((candidate) => candidate.fromNode === key) || els[0];
+  return numberValue(e.props.bore, 100);
 }
 
 function frameScene(scene) {

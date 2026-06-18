@@ -152,6 +152,11 @@ const ALL_MODULES = [
     id: 'twoRowIconRibbon',
     label: 'Two-row icon ribbon',
     src: `./two-row-icon-ribbon-controller.js?v=${SAFE_UI_VERSION}`
+  },
+  {
+    id: 'ribbonMenuPolish',
+    label: 'Ribbon menu polish',
+    src: `./ribbon-menu-polish-controller.js?v=${SAFE_UI_VERSION}`
   }
 ];
 

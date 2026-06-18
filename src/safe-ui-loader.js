@@ -1,125 +1,130 @@
-const SAFE_UI_VERSION = 'phase31-forced-toolbar-icons';
+const SAFE_UI_VERSION = 'phase32-compact-secondary-row';
 
 const ALL_MODULES = [
   {
     id: 'uiDiagnostics',
     label: 'UI diagnostics',
-    src: './ui-diagnostics-controller.js?v=phase31-diagnostics'
+    src: './ui-diagnostics-controller.js?v=phase32-diagnostics'
   },
   {
     id: 'shellLayoutRecovery',
     label: 'Shell layout recovery',
-    src: './shell-layout-recovery-controller.js?v=phase31-shell-layout'
+    src: './shell-layout-recovery-controller.js?v=phase32-shell-layout'
   },
   {
     id: 'toolbarRowOptimizer',
     label: 'Toolbar row optimizer',
-    src: './toolbar-row-optimizer-controller.js?v=phase31-toolbar-row'
+    src: './toolbar-row-optimizer-controller.js?v=phase32-toolbar-row'
   },
   {
     id: 'toolbarIconStyle',
     label: 'Toolbar icon style',
-    src: './toolbar-icon-style-controller.js?v=phase31-toolbar-icons'
+    src: './toolbar-icon-style-controller.js?v=phase32-toolbar-icons'
+  },
+  {
+    id: 'secondaryRowCompact',
+    label: 'Secondary row compact layout',
+    src: './secondary-row-compact-controller.js?v=phase32-secondary-row'
   },
   {
     id: 'propertyTabs',
     label: 'Property tabs',
-    src: './property-tabs-base-controller.js?v=phase31-property-tabs-base'
+    src: './property-tabs-base-controller.js?v=phase32-property-tabs-base'
   },
   {
     id: 'consoleGuard',
     label: 'Input guard',
-    src: './ui-console-guard.js?v=phase31-console-guard'
+    src: './ui-console-guard.js?v=phase32-console-guard'
   },
   {
     id: 'conversionOptionsCompat',
     label: 'Conversion options compatibility',
-    src: './conversion-options-compat-controller.js?v=phase31-conversion-options'
+    src: './conversion-options-compat-controller.js?v=phase32-conversion-options'
   },
   {
     id: 'fit',
     label: 'Fit',
-    src: './fit-controller.js?v=phase31-fit'
+    src: './fit-controller.js?v=phase32-fit'
   },
   {
     id: 'grid',
     label: 'Grid toggle',
-    src: './grid-toggle-controller.js?v=phase31-grid'
+    src: './grid-toggle-controller.js?v=phase32-grid'
   },
   {
     id: 'clipAdjuster',
     label: 'Clip adjuster',
-    src: './clip-adjuster.js?v=phase31-clip-adjuster'
+    src: './clip-adjuster.js?v=phase32-clip-adjuster'
   },
   {
     id: 'clipVisuals',
     label: 'Clip / axis overlays',
-    src: './clip-visual-overlays.js?v=phase31-clip-visuals'
+    src: './clip-visual-overlays.js?v=phase32-clip-visuals'
   },
   {
     id: 'colorLegend',
     label: 'Color legend',
-    src: './color-by-legend-safe-controller.js?v=phase31-safe-legend'
+    src: './color-by-legend-safe-controller.js?v=phase32-safe-legend'
   },
   {
     id: 'treeVisibility',
     label: 'Tree + visibility',
-    src: './visibility-context-menu.js?v=phase31-tree-visibility'
+    src: './visibility-context-menu.js?v=phase32-tree-visibility'
   },
   {
     id: 'selectionSync',
     label: 'Selection sync',
-    src: './selection-sync-controller.js?v=phase31-selection-sync'
+    src: './selection-sync-controller.js?v=phase32-selection-sync'
   },
   {
     id: 'marqueeZoom',
     label: 'Marquee zoom',
-    src: './marquee-zoom-controller.js?v=phase31-marquee'
+    src: './marquee-zoom-controller.js?v=phase32-marquee'
   },
   {
     id: 'originManager',
     label: 'Origin manager',
-    src: './origin-manager-controller.js?v=phase31-origin'
+    src: './origin-manager-controller.js?v=phase32-origin'
   },
   {
     id: 'rvmQa',
     label: 'RVM QA',
-    src: './rvm-compat-validator-controller.js?v=phase31-rvm-qa'
+    src: './rvm-compat-validator-controller.js?v=phase32-rvm-qa'
   },
   {
     id: 'rvmStrictProfile',
     label: 'RVM strict profile',
-    src: './rvm-strict-mode-controller.js?v=phase31-rvm-strict'
+    src: './rvm-strict-mode-controller.js?v=phase32-rvm-strict'
   },
   {
     id: 'tagLiteHost',
     label: 'Tag toolbar host',
-    src: './tag-lite-host-controller.js?v=phase31-tag-host'
+    src: './tag-lite-host-controller.js?v=phase32-tag-host'
   },
   {
     id: 'tagImportViews',
     label: 'Tag import/views',
-    src: './navis-tag-import-controller.js?v=phase31-tag-import'
+    src: './navis-tag-import-controller.js?v=phase32-tag-import'
   },
   {
     id: 'manualTag',
     label: 'Manual tag',
-    src: './navis-manual-tag-safe-controller.js?v=phase31-manual-tag'
+    src: './navis-manual-tag-safe-controller.js?v=phase32-manual-tag'
   },
   {
     id: 'tagUsability',
     label: 'Tag usability',
-    src: './navis-tag-usability-safe-controller.js?v=phase31-tag-usability'
+    src: './navis-tag-usability-safe-controller.js?v=phase32-tag-usability'
   },
   {
     id: 'tagSession',
     label: 'Tag session',
-    src: './navis-tag-session-safe-controller.js?v=phase31-tag-session'
+    src: './navis-tag-session-safe-controller.js?v=phase32-tag-session'
   },
   {
     id: 'tagXmlQa',
     label: 'Tag XML QA',
-    src: './navis-tag-xml-qa-mini-controller.js?v=phase31-tag-xml-qa'
+    src: './navis-tag-xml-qa-mini-controller.js?v=phase32-tag-xml-qa'
   }
 ];
 
@@ -138,149 +143,77 @@ const state = {
   results: []
 };
 
-window.__3D_MARKUP_SAFE_UI_LOADER__ = state;
+startSafeUiLoader();
 
-bootSafeLoader();
-
-async function bootSafeLoader() {
+async function startSafeUiLoader() {
   if (state.started) return;
   state.started = true;
 
-  await waitForCoreApp();
-  ensureStatusChip();
+  ensureStatusBadge();
+  updateStatusBadge();
 
-  if (SAFE_MODE) {
-    updateStatusChip('warning', 'UI safe mode');
-  } else {
-    updateStatusChip('loading', 'UI loading…');
-  }
-  dispatchStatus();
-
-  for (const entry of BATCH_MODULES) {
-    await nextFrame();
-    await loadModule(entry);
-    updateStatusChip('loading', statusText());
-    dispatchStatus();
+  for (const moduleInfo of state.modules) {
+    await loadGuarded(moduleInfo);
+    updateStatusBadge();
   }
 
-  const failures = state.results.filter((item) => item.status === 'failed');
-  updateStatusChip(failures.length || SAFE_MODE ? 'warning' : 'ok', statusText());
-  dispatchStatus();
-}
-
-function waitForCoreApp(timeoutMs = 5000) {
-  if (window.__3D_MARKUP_APP_READY__) return Promise.resolve();
-
-  return new Promise((resolve) => {
-    let done = false;
-    const finish = () => {
-      if (done) return;
-      done = true;
-      window.removeEventListener('markup:app-ready', finish);
-      resolve();
-    };
-
-    window.addEventListener('markup:app-ready', finish, { once: true });
-    window.setTimeout(finish, timeoutMs);
-  });
-}
-
-async function loadModule(entry) {
-  if (state.results.some((item) => item.id === entry.id)) return;
-
-  const result = { id: entry.id, label: entry.label, status: 'loading' };
-  state.results.push(result);
-  dispatchStatus();
-
-  try {
-    await import(entry.src);
-    result.status = 'loaded';
-  } catch (error) {
-    result.status = 'failed';
-    result.error = error?.message || String(error);
-    console.warn(`[3DMarkupTool] Optional UI module failed: ${entry.label}`, error);
-  }
-}
-
-function nextFrame() {
-  return new Promise((resolve) => window.requestAnimationFrame(() => resolve()));
-}
-
-function statusText() {
-  const loaded = state.results.filter((item) => item.status === 'loaded').length;
-  const failed = state.results.filter((item) => item.status === 'failed').length;
-  const suffix = SAFE_MODE ? ' safe' : '';
-  return failed
-    ? `UI ${loaded}/${BATCH_MODULES.length}, ${failed} failed${suffix}`
-    : `UI ${loaded}/${BATCH_MODULES.length}${suffix}`;
-}
-
-function ensureStatusChip() {
-  if (document.getElementById('safeUiStatus')) return;
-
-  const chip = document.createElement('div');
-  chip.id = 'safeUiStatus';
-  chip.className = 'safe-ui-status-chip loading';
-  chip.textContent = 'UI loading…';
-  chip.title = 'Optional UI module loader status';
-
-  const runtimeStatus = document.getElementById('runtimeStatus');
-  runtimeStatus?.insertAdjacentElement('afterend', chip);
-
-  if (!document.getElementById('safeUiLoaderStyles')) {
-    const style = document.createElement('style');
-    style.id = 'safeUiLoaderStyles';
-    style.textContent = `
-      .safe-ui-status-chip {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        min-width: 68px;
-        height: 32px;
-        border-radius: 18px;
-        padding: 0 13px;
-        font-size: 12px;
-        font-weight: 900;
-        letter-spacing: .02em;
-        color: #dcecff;
-        border: 1px solid rgba(133,190,255,.3);
-        background: rgba(6,18,34,.9);
-        box-shadow: inset 0 0 0 1px rgba(255,255,255,.04);
-        white-space: nowrap;
-      }
-      .safe-ui-status-chip.ok {
-        color: #40f7af;
-        border-color: rgba(64,247,175,.35);
-        background: rgba(0,48,41,.82);
-      }
-      .safe-ui-status-chip.warning {
-        color: #ffd166;
-        border-color: rgba(255,209,102,.55);
-        background: rgba(65,42,0,.82);
-      }
-      .safe-ui-status-chip.loading {
-        color: #a8d8ff;
-      }
-    `;
-    document.head.appendChild(style);
-  }
-}
-
-function updateStatusChip(stateName, text) {
-  const chip = document.getElementById('safeUiStatus');
-  if (!chip) return;
-  chip.classList.remove('ok', 'warning', 'loading');
-  chip.classList.add(stateName);
-  chip.textContent = text;
-}
-
-function dispatchStatus() {
   window.dispatchEvent(new CustomEvent('markup:safe-ui-status', {
     detail: {
       version: state.version,
       safeMode: state.safeMode,
-      modules: state.modules,
-      results: state.results
+      results: [...state.results]
     }
   }));
+}
+
+async function loadGuarded(moduleInfo) {
+  try {
+    await import(moduleInfo.src);
+    state.results.push({ ...moduleInfo, status: 'loaded' });
+  } catch (error) {
+    console.warn(`[3DMarkupTool] Optional UI module failed: ${moduleInfo.label}`, error);
+    state.results.push({
+      ...moduleInfo,
+      status: 'failed',
+      error: error?.message || String(error)
+    });
+  }
+}
+
+function ensureStatusBadge() {
+  if (document.getElementById('safeUiStatus')) return;
+
+  const toolbar = document.querySelector('.toolbar');
+  if (!toolbar) return;
+
+  const badge = document.createElement('div');
+  badge.id = 'safeUiStatus';
+  badge.className = 'status-pill safe-ui-status';
+  badge.textContent = 'UI 0/0';
+  toolbar.appendChild(badge);
+}
+
+function updateStatusBadge() {
+  const badge = document.getElementById('safeUiStatus');
+  if (!badge) return;
+
+  const loaded = state.results.filter((result) => result.status === 'loaded').length;
+  const failed = state.results.filter((result) => result.status === 'failed').length;
+  const total = state.modules.length;
+
+  badge.textContent = failed ? `UI ${loaded}/${total} · ${failed} failed` : `UI ${loaded}/${total}`;
+  badge.classList.toggle('warn', failed > 0);
+  badge.title = state.results.map((result) => {
+    const suffix = result.error ? ` — ${result.error}` : '';
+    return `${result.label}: ${result.status}${suffix}`;
+  }).join('\n') || 'Optional UI modules pending';
+
+  window.__3D_MARKUP_SAFE_UI_STATUS__ = {
+    version: state.version,
+    safeMode: state.safeMode,
+    loaded,
+    failed,
+    total,
+    results: [...state.results]
+  };
 }

@@ -9,6 +9,7 @@
 // new WebGLRenderer() throw "Cannot assign to read only property 'render'".
 
 const CORE_RECOVERY_MODE = true;
+const DEFAULT_FRAME_MS = 66; // ~15 FPS; enough for review UI and prevents browser hangs on weak WebGL paths.
 
 const OPTIONAL_CONTROLLER_FRAGMENTS = [
   'fit-controller.js',
@@ -41,6 +42,7 @@ const OPTIONAL_CONTROLLER_FRAGMENTS = [
 ];
 
 window.__3D_MARKUP_CORE_RECOVERY__ = CORE_RECOVERY_MODE;
+installStartupFreezeGuard();
 
 const runtime = window.__3D_MARKUP_CLIP_RUNTIME__ || {
   renderer: null,
@@ -73,8 +75,63 @@ if (CORE_RECOVERY_MODE) {
     document.body.classList.add('core-recovery-mode');
     const status = document.getElementById('runtimeStatus');
     if (status && /ready/i.test(status.textContent || '')) status.textContent = 'Core Ready';
-    console.warn('[3DMarkupTool] Core recovery mode: optional UI scripts in markup are disabled; safe-ui-bootstrap.js owns optional UI startup.');
+    console.warn('[3DMarkupTool] Core recovery mode: optional UI scripts in markup are disabled; optional behavior modules are opt-in only.');
   }, { once: true });
+}
+
+function installStartupFreezeGuard() {
+  if (window.__3D_MARKUP_RAF_THROTTLE_INSTALLED__) return;
+  const params = new URLSearchParams(window.location.search);
+  if (params.has('fullFps') || window.localStorage.getItem('3dmarkup.fullFps') === '1') return;
+  if (typeof window.requestAnimationFrame !== 'function') return;
+
+  const originalRequestAnimationFrame = window.requestAnimationFrame.bind(window);
+  const originalCancelAnimationFrame = typeof window.cancelAnimationFrame === 'function'
+    ? window.cancelAnimationFrame.bind(window)
+    : null;
+
+  let nextId = 1;
+  let lastFrameTime = 0;
+  const handles = new Map();
+
+  window.requestAnimationFrame = function throttledRequestAnimationFrame(callback) {
+    const id = nextId++;
+    const schedule = () => {
+      const rafId = originalRequestAnimationFrame((timestamp) => {
+        const elapsed = timestamp - lastFrameTime;
+        const waitMs = Math.max(0, DEFAULT_FRAME_MS - elapsed);
+        if (waitMs <= 1) {
+          handles.delete(id);
+          lastFrameTime = timestamp;
+          callback(timestamp);
+          return;
+        }
+
+        const timeoutId = window.setTimeout(() => {
+          handles.delete(id);
+          const syntheticTimestamp = performance.now();
+          lastFrameTime = syntheticTimestamp;
+          callback(syntheticTimestamp);
+        }, waitMs);
+        handles.set(id, { timeoutId });
+      });
+      handles.set(id, { rafId });
+    };
+
+    schedule();
+    return id;
+  };
+
+  window.cancelAnimationFrame = function throttledCancelAnimationFrame(id) {
+    const handle = handles.get(id);
+    if (!handle) return;
+    if (handle.rafId && originalCancelAnimationFrame) originalCancelAnimationFrame(handle.rafId);
+    if (handle.timeoutId) window.clearTimeout(handle.timeoutId);
+    handles.delete(id);
+  };
+
+  window.__3D_MARKUP_RAF_THROTTLE_INSTALLED__ = true;
+  window.__3D_MARKUP_RAF_THROTTLE_MS__ = DEFAULT_FRAME_MS;
 }
 
 function disableOptionalControllerScripts() {

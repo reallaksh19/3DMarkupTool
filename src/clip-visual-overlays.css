@@ -74,6 +74,144 @@ body.props-open .canvas-axis-triad {
   fill: #4aa3ff;
 }
 
+.view-pad.viewcube-lite {
+  position: absolute;
+  top: 50px;
+  right: 18px;
+  z-index: 18;
+  width: 174px;
+  height: 174px;
+  display: grid;
+  grid-template-columns: 42px 42px 42px;
+  grid-template-rows: 24px 42px 42px 42px;
+  justify-content: center;
+  align-content: center;
+  gap: 7px;
+  padding: 10px;
+  border: 1px solid rgba(132, 178, 220, .34);
+  border-radius: 22px;
+  background: linear-gradient(180deg, rgba(9, 18, 31, .80), rgba(10, 21, 36, .62));
+  box-shadow: 0 16px 42px rgba(0, 0, 0, .32);
+  backdrop-filter: blur(12px);
+  pointer-events: auto;
+}
+
+body.props-open .view-pad.viewcube-lite {
+  right: 360px;
+}
+
+.view-pad.viewcube-lite::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 84px;
+  height: 84px;
+  transform: translate(-50%, -35%) rotate(45deg);
+  border: 1px solid rgba(101, 213, 255, .18);
+  border-radius: 14px;
+  background: radial-gradient(circle, rgba(101, 213, 255, .10), rgba(101, 213, 255, .02) 70%);
+  pointer-events: none;
+}
+
+.viewcube-title {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(224, 239, 255, .84);
+  font-size: 9px;
+  font-weight: 950;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  pointer-events: none;
+}
+
+.viewcube-compass {
+  position: absolute;
+  inset: 10px;
+  pointer-events: none;
+  color: rgba(224, 239, 255, .56);
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: .5px;
+}
+
+.viewcube-compass span {
+  position: absolute;
+}
+
+.viewcube-compass span:nth-child(1) { top: 16px; left: 50%; transform: translateX(-50%); }
+.viewcube-compass span:nth-child(2) { top: 50%; right: 2px; transform: translateY(-25%); }
+.viewcube-compass span:nth-child(3) { bottom: 4px; left: 50%; transform: translateX(-50%); }
+.viewcube-compass span:nth-child(4) { top: 50%; left: 2px; transform: translateY(-25%); }
+
+.view-pad.viewcube-lite button[hidden] {
+  display: none !important;
+}
+
+.view-pad.viewcube-lite .viewcube-face {
+  position: relative;
+  z-index: 1;
+  min-width: 42px;
+  width: 42px;
+  height: 42px;
+  min-height: 42px;
+  padding: 0;
+  border-radius: 12px;
+  color: #eaf6ff;
+  background: rgba(22, 36, 56, .84);
+  border: 1px solid rgba(90, 132, 174, .82);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, .08) inset,
+    0 8px 18px rgba(0, 0, 0, .22);
+  font-size: 10px;
+  font-weight: 950;
+  letter-spacing: .2px;
+  text-align: center;
+  line-height: 1;
+}
+
+.view-pad.viewcube-lite .viewcube-face:hover {
+  border-color: rgba(101, 213, 255, .98);
+  background: rgba(37, 66, 97, .95);
+  transform: translateY(-1px);
+}
+
+.view-pad.viewcube-lite .viewcube-face:active {
+  transform: translateY(0);
+  border-color: rgba(247, 183, 92, .98);
+  background: rgba(90, 67, 44, .98);
+}
+
+.view-pad.viewcube-lite .viewcube-face span {
+  display: block;
+  transform: translateY(1px);
+}
+
+.view-pad.viewcube-lite .viewcube-iso {
+  grid-column: 2;
+  grid-row: 3;
+  border-color: rgba(247, 183, 92, .85);
+  color: #fff0cf;
+  background: linear-gradient(180deg, rgba(81, 67, 48, .94), rgba(49, 41, 32, .92));
+}
+
+.view-pad.viewcube-lite .viewcube-top {
+  grid-column: 2;
+  grid-row: 2;
+}
+
+.view-pad.viewcube-lite .viewcube-front {
+  grid-column: 2;
+  grid-row: 4;
+}
+
+.view-pad.viewcube-lite .viewcube-side {
+  grid-column: 3;
+  grid-row: 3;
+}
+
 .clip-adjust-panel.clip-active::after {
   content: 'section plane preview visible';
   display: block;
@@ -85,8 +223,25 @@ body.props-open .canvas-axis-triad {
 }
 
 @media (max-width: 940px) {
-  body.props-open .canvas-axis-triad {
+  body.props-open .canvas-axis-triad,
+  body.props-open .view-pad.viewcube-lite {
     right: 12px;
+  }
+
+  .view-pad.viewcube-lite {
+    width: 154px;
+    height: 154px;
+    grid-template-columns: 38px 38px 38px;
+    grid-template-rows: 20px 38px 38px 38px;
+    gap: 6px;
+  }
+
+  .view-pad.viewcube-lite .viewcube-face {
+    min-width: 38px;
+    width: 38px;
+    height: 38px;
+    min-height: 38px;
+    font-size: 9px;
   }
 }
 
@@ -96,5 +251,12 @@ body.props-open .canvas-axis-triad {
     bottom: 46px;
     width: 92px;
     height: 92px;
+  }
+
+  .view-pad.viewcube-lite {
+    right: 10px;
+    top: 42px;
+    width: 142px;
+    height: 142px;
   }
 }

@@ -3,6 +3,7 @@ const SAFETY_VERSION = window.__3D_MARKUP_SAFE_UI_VERSION__ || 'ui-runtime-clean
 const state = {
   gridVisible: false,
   gridApplyToken: 0,
+  gridUserControlled: false,
   clipObserver: null
 };
 
@@ -12,16 +13,22 @@ if (document.readyState === 'loading') {
   initCoreAppSafety();
 }
 
-window.addEventListener('viewer:runtime-context', () => scheduleGridOff());
-window.addEventListener('markup:render-context', () => scheduleGridOff());
-window.addEventListener('viewer:model-loaded', () => scheduleGridOff());
+window.addEventListener('viewer:model-loaded', () => scheduleGridOff({ force: true }));
 window.addEventListener('markup:safe-ui-status', () => lockClipButtonIcon());
 window.addEventListener('markup:toolbar-optimized', () => lockClipButtonIcon());
+
+document.addEventListener('click', (event) => {
+  if (event.target?.closest?.('#gridToggleBtn')) state.gridUserControlled = true;
+}, true);
+
+window.addEventListener('keydown', (event) => {
+  if (event.key?.toLowerCase() === 'g') state.gridUserControlled = true;
+}, true);
 
 function initCoreAppSafety() {
   ensureLegacyHint();
   ensureCoordStatus();
-  scheduleGridOff();
+  scheduleGridOff({ force: true });
   lockClipButtonIcon();
 
   window.__3D_MARKUP_CORE_SAFETY__ = {
@@ -64,12 +71,14 @@ function ensureCoordStatus() {
 }
 
 function setGridVisible(visible) {
+  state.gridUserControlled = true;
   state.gridVisible = Boolean(visible);
   applyGridVisibility();
   syncGridButton();
 }
 
-function scheduleGridOff() {
+function scheduleGridOff(options = {}) {
+  if (state.gridUserControlled && !options.force) return;
   state.gridVisible = false;
   const token = ++state.gridApplyToken;
 
@@ -84,7 +93,8 @@ function scheduleGridOff() {
 }
 
 function applyGridVisibility() {
-  const scene = getRuntime()?.scene || getRuntime()?.getScene?.();
+  const runtime = getRuntime();
+  const scene = runtime?.scene || runtime?.getScene?.();
   if (!scene) return;
 
   scene.traverse?.((object) => {

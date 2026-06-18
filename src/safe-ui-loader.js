@@ -39,6 +39,11 @@ const ALL_MODULES = [
     src: `./conversion-options-compat-controller.js?v=${SAFE_UI_VERSION}`
   },
   {
+    id: 'coreAppSafety',
+    label: 'Core app safety',
+    src: `./core-app-safety-controller.js?v=${SAFE_UI_VERSION}`
+  },
+  {
     id: 'fit',
     label: 'Fit',
     src: `./fit-controller.js?v=${SAFE_UI_VERSION}`

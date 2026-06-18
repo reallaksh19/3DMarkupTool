@@ -1,116 +1,89 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>3D Markup Tool - InputXML Review Viewer</title>
-  <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>InputXML GLB/RVM Review Viewer</title>
+  <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
   <link rel="shortcut icon" href="./favicon.ico" />
   <link rel="stylesheet" href="./src/styles.css?v=phase3-clip" />
   <link rel="stylesheet" href="./src/clip-adjuster.css?v=phase5-clip-direct-sync" />
-  <link rel="stylesheet" href="./src/clip-visual-overlays.css?v=phase11-viewcube-clip-polish" />
+  <link rel="stylesheet" href="./src/clip-visual-overlays.css?v=phase12-axis-bottom-right" />
   <script type="importmap">
-  {
-    "imports": {
-      "three": "https://cdn.jsdelivr.net/npm/three@0.164.1/build/three.module.js",
-      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.164.1/examples/jsm/",
-      "lucide": "https://cdn.jsdelivr.net/npm/lucide@0.468.0/dist/esm/lucide.js"
+    {
+      "imports": {
+        "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+        "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/",
+        "lucide": "https://unpkg.com/lucide@0.468.0/dist/esm/lucide.js"
+      }
     }
-  }
   </script>
 </head>
-<body class="input-open">
-  <header class="viewer-topbar">
+<body>
+  <header class="app-shell">
     <div class="brand-block">
-      <div class="eyebrow">3D MARKUP TOOL</div>
+      <span class="eyebrow">3D Markup Tool</span>
       <h1>InputXML GLB/RVM Review Viewer</h1>
-      <p class="brand-subtitle">Static Navis-style model review for InputXML conversion output.</p>
+      <p>Static Navis-style model review for InputXML conversion output.</p>
     </div>
 
-    <nav class="toolbar" aria-label="Viewer tools">
-      <div class="toolbar-group primary-tools" aria-label="Navigation tools">
-        <button id="selectToolBtn" type="button" class="tool-btn icon-text" title="Select object (S)">
-          <i data-lucide="mouse-pointer-2"></i><span>Select</span>
-        </button>
-        <button id="orbitToolBtn" type="button" class="tool-btn icon-text" title="Orbit view (O)">
-          <i data-lucide="rotate-3d"></i><span>Orbit</span>
-        </button>
-        <button id="panToolBtn" type="button" class="tool-btn icon-text" title="Pan view (P)">
-          <i data-lucide="move"></i><span>Pan</span>
-        </button>
-        <button id="measureBtn" type="button" class="tool-btn icon-text" title="Measure distance (M)">
-          <i data-lucide="ruler"></i><span>Measure</span>
-        </button>
+    <nav class="toolbar" aria-label="Viewer controls">
+      <div class="tool-group">
+        <button id="selectToolBtn" type="button" class="tool-btn active"><i data-lucide="mouse-pointer-2"></i><span>Select</span></button>
+        <button id="orbitToolBtn" type="button" class="tool-btn"><i data-lucide="orbit"></i><span>Orbit</span></button>
+        <button id="panToolBtn" type="button" class="tool-btn"><i data-lucide="move"></i><span>Pan</span></button>
+        <button id="measureBtn" type="button" class="tool-btn"><i data-lucide="ruler"></i><span>Measure</span></button>
       </div>
-
-      <div class="toolbar-group" aria-label="View tools">
-        <button id="viewIsoBtn" type="button" class="tool-btn" title="Isometric view">ISO</button>
-        <button id="viewTopBtn" type="button" class="tool-btn" title="Top view">TOP</button>
-        <button id="viewFrontBtn" type="button" class="tool-btn" title="Front view">FRONT</button>
-        <button id="viewSideBtn" type="button" class="tool-btn" title="Side view">SIDE</button>
-        <button id="resetCameraBtn" type="button" class="tool-btn accent icon-text" title="Fit all (H)">
-          <i data-lucide="maximize"></i><span>Fit All</span>
-        </button>
-        <button id="fitSelectionBtn" type="button" class="tool-btn accent icon-text" title="Fit selected object (F)">
-          <i data-lucide="scan-search"></i><span>Fit Sel</span>
-        </button>
+      <div class="tool-group">
+        <button id="viewIsoBtn" type="button" class="tool-btn">ISO</button>
+        <button id="viewTopBtn" type="button" class="tool-btn">TOP</button>
+        <button id="viewFrontBtn" type="button" class="tool-btn">FRONT</button>
+        <button id="viewSideBtn" type="button" class="tool-btn">SIDE</button>
+        <button id="resetCameraBtn" type="button" class="tool-btn accent"><i data-lucide="scan"></i><span>Fit All</span></button>
+        <button id="fitSelectionBtn" type="button" class="tool-btn accent"><i data-lucide="scan-search"></i><span>Fit Sel</span></button>
       </div>
-
-      <div class="toolbar-group" aria-label="Review tools">
-        <button id="clipBtn" type="button" class="tool-btn icon-text" title="Toggle clipping plane (C)">
-          <i data-lucide="scissors"></i><span>Clip Off</span>
-        </button>
-        <button id="clearSelectionBtn" type="button" class="tool-btn icon-text" title="Clear selection / cancel tool (Esc)">
-          <i data-lucide="x-circle"></i><span>Clear</span>
-        </button>
+      <div class="tool-group">
+        <button id="clipBtn" type="button" class="tool-btn"><i data-lucide="scissors"></i><span>Clip Off</span></button>
+        <button id="clearSelectionBtn" type="button" class="tool-btn"><i data-lucide="x-circle"></i><span>Clear</span></button>
       </div>
-
-      <div class="toolbar-group" aria-label="Preview mode">
-        <button id="previewGlbBtn" type="button" class="tool-btn" disabled title="Preview generated GLB">GLB</button>
-        <button id="previewRvmBtn" type="button" class="tool-btn" disabled title="Preview generated RVM">RVM</button>
+      <div class="tool-group">
+        <button id="previewGlbBtn" type="button" class="tool-btn mode active" disabled>GLB</button>
+        <button id="previewRvmBtn" type="button" class="tool-btn mode" disabled>RVM</button>
       </div>
-
-      <label class="color-control" title="Color model by metadata">
+      <label class="color-control">
         <span><i data-lucide="palette"></i> Color By</span>
         <select id="colorBySelect">
-          <option value="default" selected>Default</option>
-          <option value="lineNo">Line No</option>
+          <option value="default">Default</option>
+          <option value="lineNo">Line No.</option>
           <option value="componentType">Component Type</option>
           <option value="supportSource">Support Source</option>
           <option value="sourceMode">Source Mode</option>
         </select>
       </label>
-
-      <div class="toolbar-group panel-tools" aria-label="Panels">
-        <button id="toggleInputBtn" type="button" class="tool-btn icon-text" title="Input and export drawer">
-          <i data-lucide="panel-left-open"></i><span>Input</span>
-        </button>
-        <button id="togglePropsBtn" type="button" class="tool-btn icon-text" title="Properties panel">
-          <i data-lucide="panel-right-open"></i><span>Props</span>
-        </button>
+      <div class="tool-group panel-toggles">
+        <button id="toggleInputBtn" type="button" class="tool-btn active"><i data-lucide="panel-left"></i><span>Input</span></button>
+        <button id="togglePropsBtn" type="button" class="tool-btn"><i data-lucide="panel-right"></i><span>Props</span></button>
       </div>
-
-      <div class="status-pill" id="runtimeStatus">Ready</div>
+      <div id="runtimeStatus" class="status-pill">Ready</div>
     </nav>
   </header>
 
-  <main class="viewer-shell">
-    <aside class="input-drawer" id="inputDrawer" aria-label="Input and export">
+  <main class="layout">
+    <aside class="control-drawer open" id="inputDrawer" aria-label="Input and conversion controls">
       <div class="drawer-head">
         <div>
           <h2>Input / Export</h2>
           <p>Load InputXML, sideload metadata, convert, then export GLB or RVM+ATT.</p>
         </div>
-        <button id="closeInputBtn" type="button" class="icon-btn" title="Close input drawer">
-          <i data-lucide="x"></i>
-        </button>
+        <button id="closeInputBtn" type="button" class="icon-btn" title="Close input panel"><i data-lucide="x"></i></button>
       </div>
 
       <section class="panel-section">
         <h3>Input</h3>
-        <label class="file-picker">
-          <input type="file" id="xmlFile" accept=".xml,.XML,text/xml,application/xml" />
-          <span><i data-lucide="upload"></i> Choose InputXML</span>
+        <label class="file-drop">
+          <input type="file" id="xmlFile" accept=".xml,.txt" />
+          <i data-lucide="upload"></i>
+          <span>Choose InputXML</span>
         </label>
         <div class="button-row">
           <button id="loadSampleBtn" type="button" class="primary">Load BM_CII sample</button>
@@ -121,12 +94,32 @@
       <section class="panel-section">
         <h3>Conversion</h3>
         <label class="field">
-          <span>Support source mode</span>
-          <select id="supportMode">
-            <option value="inputxml-actual">InputXML actual restraints</option>
-            <option value="isonote-expected">ISONOTE expected restraints</option>
-            <option value="compare" selected>Compare actual vs expected</option>
-          </select>
+          <span>RVM / GLB scale</span>
+          <input id="scaleInput" type="number" value="0.001" step="0.0001" />
+        </label>
+        <label class="field">
+          <span>Support visual scale</span>
+          <input id="supportScaleInput" type="number" value="1" step="0.1" min="0.1" />
+        </label>
+        <label class="field">
+          <span>Board width</span>
+          <input id="boardWidthInput" type="number" value="2.8" step="0.1" min="0.5" />
+        </label>
+        <label class="field">
+          <span>RVM version</span>
+          <input id="rvmVersion" type="text" value="3.0" />
+        </label>
+        <label class="field checkbox-field">
+          <input id="renderExpectedSupport" type="checkbox" checked />
+          <span>Render expected supports from ISONOTE</span>
+        </label>
+        <label class="field checkbox-field">
+          <input id="renderActualSupport" type="checkbox" checked />
+          <span>Render actual supports from InputXML</span>
+        </label>
+        <label class="field checkbox-field">
+          <input id="showSupportLabel" type="checkbox" />
+          <span>Show support labels</span>
         </label>
         <label class="field">
           <span>Single-axis unresolved decision</span>
@@ -180,63 +173,59 @@
       </section>
     </aside>
 
-    <section class="viewer-stage">
-      <div id="viewer"></div>
-      <div id="hint" class="hint">Load an InputXML or BM_CII sample, then run conversion.</div>
-      <div id="measureReadout" class="measure-readout" hidden></div>
-
-      <div id="clipAdjustPanel" class="clip-adjust-panel" aria-label="Clip adjustment controls">
-        <div class="clip-adjust-head">
-          <strong>Clip Adjust</strong>
-          <span id="clipReadout">Clip is off — use Clip button or C.</span>
+    <section class="viewer-shell" aria-label="3D viewer">
+      <div id="viewer" class="viewer-canvas">
+        <div class="canvas-help" id="canvasHelp">
+          <strong>Canvas</strong>
+          <span>LMB drag: orbit</span>
+          <span>MMB/Wheel: zoom</span>
+          <span>RMB drag: pan</span>
+          <span>S/O/P/M/H/F/Esc shortcuts</span>
         </div>
-        <div class="clip-adjust-grid">
-          <label>
-            Axis
+        <button id="treeToggleBtn" type="button" class="tree-toggle" title="Show model tree">Tree</button>
+        <div class="view-pad" aria-label="View shortcuts">
+          <button type="button" data-view="iso">ISO</button>
+          <button type="button" data-view="top">TOP</button>
+          <button type="button" data-view="front">FRT</button>
+          <button type="button" data-view="side">SIDE</button>
+          <button type="button" data-view="fit">FIT</button>
+          <button type="button" data-view="fitSelection">F SEL</button>
+          <button type="button" data-view="zoom">ZOOM</button>
+          <button type="button" data-view="clip">CLIP</button>
+          <button type="button" data-view="msr">MSR</button>
+        </div>
+        <div class="measure-readout" id="measureReadout" hidden></div>
+        <div class="clip-adjust-panel" id="clipAdjustPanel" aria-live="polite">
+          <div class="clip-adjust-head">
+            <span>Clip Adjust</span>
+            <button type="button" id="clipAdjustToggleBtn">Enable Clip</button>
+          </div>
+          <div class="clip-adjust-row">
+            <label for="clipAxisSelect">Axis</label>
             <select id="clipAxisSelect">
               <option value="x">X</option>
               <option value="y">Y</option>
               <option value="z">Z</option>
             </select>
+          </div>
+          <div class="clip-adjust-row">
+            <label for="clipPositionRange">Position</label>
+            <input id="clipPositionRange" type="range" min="0" max="100" value="50" />
+          </div>
+          <div class="clip-adjust-row split">
+            <button type="button" id="clipStepMinusBtn">−</button>
+            <input id="clipPositionNumber" type="number" min="0" max="100" step="1" value="50" />
+            <button type="button" id="clipStepPlusBtn">+</button>
+          </div>
+          <label class="clip-adjust-check">
+            <input id="clipInvertCheck" type="checkbox" />
+            <span>Invert side</span>
           </label>
-          <label>
-            Position %
-            <input id="clipPositionInput" type="number" min="0" max="100" step="0.5" value="50.0" />
-          </label>
-          <label class="clip-invert">
-            <input id="clipInvert" type="checkbox" /> Invert
-          </label>
+          <button type="button" id="clipCenterBtn" class="clip-center-btn">Center / Reset</button>
+          <p id="clipAdjustHint" class="clip-adjust-hint">Load or convert a model, then enable clip.</p>
         </div>
-        <div class="clip-slider-row">
-          <button id="clipStepMinus" type="button" title="Move clip plane backward ([)">−</button>
-          <input id="clipPositionRange" type="range" min="0" max="1000" value="500" />
-          <button id="clipStepPlus" type="button" title="Move clip plane forward (])">+</button>
-          <button id="clipResetBtn" type="button" title="Reset clip plane to model center">Center</button>
-        </div>
       </div>
-
-      <div class="canvas-help" aria-label="Canvas controls help">
-        <strong>Canvas</strong>
-        <span>LMB drag: orbit</span>
-        <span>MMB/Wheel: zoom</span>
-        <span>RMB drag: pan</span>
-        <span>S/O/P/M/H/F/Esc shortcuts</span>
-      </div>
-
-      <div class="view-pad" aria-label="Camera shortcuts">
-        <button type="button" data-view="iso">ISO</button>
-        <button type="button" data-view="top">TOP</button>
-        <button type="button" data-view="front">FRT</button>
-        <button type="button" data-view="side">SIDE</button>
-        <button type="button" data-view="fit">FIT</button>
-        <button type="button" data-view="fitSelection">F SEL</button>
-        <button type="button" data-view="zoom">ZOOM</button>
-        <button type="button" data-view="clip">CLIP</button>
-        <button type="button" data-view="msr">MSR</button>
-      </div>
-
-      <footer class="viewer-statusbar" aria-label="Viewer status">
-        <span id="coordStatus">XYZ: -</span>
+      <footer class="statusbar">
         <span id="selectedStatus">Selected: none</span>
         <span id="componentStatus">Objects: 0</span>
         <span>Protected core: InputXML / support mapping untouched</span>
@@ -276,6 +265,7 @@ After engineering contact: visual resolver ODx2/3 applies only to final axial/pi
   <script type="module" src="./src/clip-render-hook.js?v=phase26-batch5f-53-bootstrap"></script>
   <script type="module" src="./src/fit-controller.js?v=phase17-selection-sync"></script>
   <script type="module" src="./src/app.js?v=phase1-ui"></script>
+  <script type="module" src="./src/safe-ui-bootstrap.js?v=phase26-batch5f-54-direct"></script>
   <script type="module" src="./src/grid-toggle-controller.js?v=phase18-grid-toggle"></script>
   <script type="module" src="./src/ui-console-guard.js?v=phase13-console-polish"></script>
   <script type="module" src="./src/clip-adjuster.js?v=phase7-clip-runtime-hook"></script>

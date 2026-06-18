@@ -36,6 +36,16 @@ const BATCH_MODULES = [
     id: 'rvmQa',
     label: 'RVM QA',
     src: './rvm-compat-validator-controller.js?v=phase26-safe-rvm-qa'
+  },
+  {
+    id: 'tagLiteHost',
+    label: 'Tag toolbar host',
+    src: './tag-lite-host-controller.js?v=phase26-batch5a-host'
+  },
+  {
+    id: 'tagImportViews',
+    label: 'Tag import/views',
+    src: './navis-tag-import-controller.js?v=phase26-batch5a-import'
   }
 ];
 

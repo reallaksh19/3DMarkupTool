@@ -4,11 +4,9 @@ const BATCH_MODULES = [
     label: 'Fit',
     src: './fit-controller.js?v=phase26-safe-fit'
   },
-  {
-    id: 'grid',
-    label: 'Grid',
-    src: './grid-toggle-controller.js?v=phase26-safe-grid'
-  },
+  // Grid is intentionally not imported here. index.html still contains the
+  // direct grid-toggle-controller module, and importing it again with a
+  // different cache key creates a duplicate Grid button.
   {
     id: 'colorLegend',
     label: 'Color legend',

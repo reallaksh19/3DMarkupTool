@@ -1,136 +1,132 @@
-const SAFE_UI_VERSION = 'phase39-clip-plane-id-compat';
+const SAFE_UI_VERSION = window.__3D_MARKUP_SAFE_UI_VERSION__ || 'ui-runtime-cleanup-20260618';
 
+// Active optional UI modules only. Deprecated phase hotfix controllers are kept in
+// the repository for traceability but are intentionally not loaded here.
 const ALL_MODULES = [
   {
     id: 'uiDiagnostics',
     label: 'UI diagnostics',
-    src: './ui-diagnostics-controller.js?v=phase39-diagnostics'
+    src: `./ui-diagnostics-controller.js?v=${SAFE_UI_VERSION}`
   },
   {
     id: 'shellLayoutRecovery',
     label: 'Shell layout recovery',
-    src: './shell-layout-recovery-controller.js?v=phase39-shell-layout'
+    src: `./shell-layout-recovery-controller.js?v=${SAFE_UI_VERSION}`
   },
   {
     id: 'propertyTabs',
     label: 'Property tabs',
-    src: './property-tabs-base-controller.js?v=phase39-property-tabs-base'
+    src: `./property-tabs-base-controller.js?v=${SAFE_UI_VERSION}`
   },
   {
     id: 'consoleGuard',
     label: 'Input guard',
-    src: './ui-console-guard.js?v=phase39-console-guard'
+    src: `./ui-console-guard.js?v=${SAFE_UI_VERSION}`
   },
   {
     id: 'conversionOptionsCompat',
     label: 'Conversion options compatibility',
-    src: './conversion-options-compat-controller.js?v=phase39-conversion-options'
+    src: `./conversion-options-compat-controller.js?v=${SAFE_UI_VERSION}`
   },
   {
     id: 'fit',
     label: 'Fit',
-    src: './fit-controller.js?v=phase39-fit'
+    src: `./fit-controller.js?v=${SAFE_UI_VERSION}`
   },
   {
     id: 'grid',
     label: 'Grid toggle',
-    src: './grid-toggle-controller.js?v=phase39-grid'
+    src: `./grid-toggle-controller.js?v=${SAFE_UI_VERSION}`
   },
   {
     id: 'clipAdjuster',
     label: 'Clip adjuster',
-    src: './clip-adjuster.js?v=phase39-clip-plane-id-compat'
+    src: `./clip-adjuster.js?v=${SAFE_UI_VERSION}`
   },
   {
     id: 'clipVisuals',
     label: 'Clip / axis overlays',
-    src: './clip-visual-overlays.js?v=phase39-clip-visuals'
+    src: `./clip-visual-overlays.js?v=${SAFE_UI_VERSION}`
   },
   {
     id: 'colorLegend',
     label: 'Color legend',
-    src: './color-by-legend-safe-controller.js?v=phase39-safe-legend'
+    src: `./color-by-legend-safe-controller.js?v=${SAFE_UI_VERSION}`
   },
   {
     id: 'treeVisibility',
     label: 'Tree + visibility',
-    src: './visibility-context-menu.js?v=phase39-tree-visibility'
+    src: `./visibility-context-menu.js?v=${SAFE_UI_VERSION}`
   },
   {
     id: 'selectionSync',
     label: 'Selection sync',
-    src: './selection-sync-controller.js?v=phase39-selection-sync'
+    src: `./selection-sync-controller.js?v=${SAFE_UI_VERSION}`
   },
   {
     id: 'marqueeZoom',
     label: 'Marquee zoom',
-    src: './marquee-zoom-controller.js?v=phase39-marquee'
+    src: `./marquee-zoom-controller.js?v=${SAFE_UI_VERSION}`
   },
   {
     id: 'originManager',
     label: 'Origin manager',
-    src: './origin-manager-controller.js?v=phase39-origin'
+    src: `./origin-manager-controller.js?v=${SAFE_UI_VERSION}`
   },
   {
     id: 'rvmQa',
     label: 'RVM QA',
-    src: './rvm-compat-validator-controller.js?v=phase39-rvm-qa'
+    src: `./rvm-compat-validator-controller.js?v=${SAFE_UI_VERSION}`
   },
   {
     id: 'rvmStrictProfile',
     label: 'RVM strict profile',
-    src: './rvm-strict-mode-controller.js?v=phase39-rvm-strict'
+    src: `./rvm-strict-mode-controller.js?v=${SAFE_UI_VERSION}`
   },
   {
     id: 'tagLiteHost',
     label: 'Tag toolbar host',
-    src: './tag-lite-host-controller.js?v=phase39-tag-host'
+    src: `./tag-lite-host-controller.js?v=${SAFE_UI_VERSION}`
   },
   {
     id: 'tagImportViews',
     label: 'Tag import/views',
-    src: './navis-tag-import-controller.js?v=phase39-tag-import'
+    src: `./navis-tag-import-controller.js?v=${SAFE_UI_VERSION}`
   },
   {
     id: 'manualTag',
     label: 'Manual tag',
-    src: './navis-manual-tag-safe-controller.js?v=phase39-manual-tag'
+    src: `./navis-manual-tag-safe-controller.js?v=${SAFE_UI_VERSION}`
   },
   {
     id: 'tagUsability',
     label: 'Tag usability',
-    src: './navis-tag-usability-safe-controller.js?v=phase39-tag-usability'
+    src: `./navis-tag-usability-safe-controller.js?v=${SAFE_UI_VERSION}`
   },
   {
     id: 'tagSession',
     label: 'Tag session',
-    src: './navis-tag-session-safe-controller.js?v=phase39-tag-session'
+    src: `./navis-tag-session-safe-controller.js?v=${SAFE_UI_VERSION}`
   },
   {
     id: 'tagXmlQa',
     label: 'Tag XML QA',
-    src: './navis-tag-xml-qa-mini-controller.js?v=phase39-tag-xml-qa'
+    src: `./navis-tag-xml-qa-mini-controller.js?v=${SAFE_UI_VERSION}`
   },
   {
     id: 'twoRowIconRibbon',
     label: 'Two-row icon ribbon',
-    src: './two-row-icon-ribbon-controller.js?v=phase39-two-row-ribbon'
-  },
-  {
-    id: 'phase35Cleanup',
-    label: 'Phase 35 UI cleanup',
-    src: './phase35-ui-cleanup-controller.js?v=phase39-ui-cleanup'
-  },
-  {
-    id: 'phase37InputDrawerStack',
-    label: 'Input drawer stack',
-    src: './phase37-input-drawer-stack-controller.js?v=phase39-input-drawer-stack'
-  },
-  {
-    id: 'phase38ClipBoxUiCleanup',
-    label: 'Clip box + UI cleanup',
-    src: './phase38-clipbox-ui-cleanup-controller.js?v=phase39-clipbox-ui-cleanup'
+    src: `./two-row-icon-ribbon-controller.js?v=${SAFE_UI_VERSION}`
   }
+];
+
+const DEPRECATED_MODULES = [
+  'phase35-ui-cleanup-controller.js',
+  'phase36-input-drawer-fix-controller.js',
+  'phase37-input-drawer-stack-controller.js',
+  'phase38-clipbox-ui-cleanup-controller.js',
+  'phase40-legacy-hint-compat-controller.js',
+  'phase41-tree-clip-controls-controller.js'
 ];
 
 const SAFE_MODE = new URLSearchParams(window.location.search).has('safe')
@@ -145,6 +141,7 @@ const state = {
   safeMode: SAFE_MODE,
   started: false,
   modules: BATCH_MODULES,
+  deprecatedModules: DEPRECATED_MODULES,
   results: []
 };
 
@@ -166,6 +163,7 @@ async function startSafeUiLoader() {
     detail: {
       version: state.version,
       safeMode: state.safeMode,
+      deprecatedModules: [...state.deprecatedModules],
       results: [...state.results]
     }
   }));
@@ -219,6 +217,7 @@ function updateStatusBadge() {
     loaded,
     failed,
     total,
+    deprecatedModules: [...state.deprecatedModules],
     results: [...state.results]
   };
 }

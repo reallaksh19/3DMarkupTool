@@ -4,7 +4,8 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>3D Markup Tool - InputXML Review Viewer</title>
-  <link rel="stylesheet" href="./src/styles.css?v=phase1-ui" />
+  <link rel="stylesheet" href="./src/styles.css?v=phase3-clip" />
+  <link rel="stylesheet" href="./src/clip-adjuster.css?v=phase3-clip" />
   <script type="importmap">
   {
     "imports": {
@@ -181,6 +182,36 @@
       <div id="hint" class="hint">Load an InputXML or BM_CII sample, then run conversion.</div>
       <div id="measureReadout" class="measure-readout" hidden></div>
 
+      <div id="clipAdjustPanel" class="clip-adjust-panel" aria-label="Clip adjustment controls">
+        <div class="clip-adjust-head">
+          <strong>Clip Adjust</strong>
+          <span id="clipReadout">Clip is off — use Clip button or C.</span>
+        </div>
+        <div class="clip-adjust-grid">
+          <label>
+            Axis
+            <select id="clipAxisSelect">
+              <option value="x">X</option>
+              <option value="y">Y</option>
+              <option value="z">Z</option>
+            </select>
+          </label>
+          <label>
+            Position %
+            <input id="clipPositionInput" type="number" min="0" max="100" step="0.5" value="50.0" />
+          </label>
+          <label class="clip-invert">
+            <input id="clipInvert" type="checkbox" /> Invert
+          </label>
+        </div>
+        <div class="clip-slider-row">
+          <button id="clipStepMinus" type="button" title="Move clip plane backward ([)">−</button>
+          <input id="clipPositionRange" type="range" min="0" max="1000" value="500" />
+          <button id="clipStepPlus" type="button" title="Move clip plane forward (])">+</button>
+          <button id="clipResetBtn" type="button" title="Reset clip plane to model center">Center</button>
+        </div>
+      </div>
+
       <div class="canvas-help" aria-label="Canvas controls help">
         <strong>Canvas</strong>
         <span>LMB drag: orbit</span>
@@ -239,6 +270,7 @@ Axial restraints: no OD/2 radial contact; tips touch unless gap; positive gap = 
 After engineering contact: visual resolver ODx2/3 applies only to final axial/pipe-parallel symbols</pre>
   </dialog>
 
+  <script type="module" src="./src/clip-adjuster.js?v=phase3-clip"></script>
   <script type="module" src="./src/app.js?v=phase1-ui"></script>
 </body>
 </html>

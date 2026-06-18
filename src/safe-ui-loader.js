@@ -2,7 +2,7 @@ const BATCH_MODULES = [
   {
     id: 'shellLayoutRecovery',
     label: 'Shell layout recovery',
-    src: './shell-layout-recovery-controller.js?v=hotfix55-shell-layout'
+    src: './shell-layout-recovery-controller.js?v=hotfix56-drawer-layout'
   },
   {
     id: 'fit',

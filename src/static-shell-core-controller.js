@@ -7,12 +7,16 @@
 const GRID_DEFAULT_VISIBLE = false;
 const GRID_POLL_LIMIT = 24;
 const GRID_POLL_DELAY_MS = 120;
+const UI_SCORE_TOTAL = 9;
+const VERSION = 'static-shell-score-tree-20260618';
 
 const state = {
   gridUserSet: false,
   gridVisible: GRID_DEFAULT_VISIBLE,
   gridPollCount: 0,
-  ready: false
+  ready: false,
+  uiScore: 0,
+  uiScoreChecks: []
 };
 
 runWhenReady(initStaticShellCore);
@@ -26,19 +30,52 @@ function runWhenReady(callback) {
 }
 
 function initStaticShellCore() {
+  ensureCoreStyles();
+  ensureUiScoreBadge();
   ensureGridToolbarButton();
   bindGridButton();
   bindRuntimeEvents();
   normalizeShellState();
   applyGridDefaultSoon();
+  updateUiScoreSoon();
   state.ready = true;
   window.__3D_MARKUP_STATIC_SHELL_CORE__ = {
-    version: 'static-shell-core-grid-20260618',
+    version: VERSION,
     setGridVisible,
     getGridObject,
+    updateUiScore,
     state
   };
   window.dispatchEvent(new CustomEvent('viewer:static-shell-core-ready', { detail: { state } }));
+}
+
+function ensureCoreStyles() {
+  if (document.getElementById('staticShellCoreStyles')) return;
+  const style = document.createElement('style');
+  style.id = 'staticShellCoreStyles';
+  style.textContent = `
+    .ui-score-pill { min-width: 76px; border-color: rgba(55,216,255,.46); color: #74e6ff; background: rgba(5, 32, 46, .74); }
+    .ui-score-pill.score-ok { border-color: rgba(39,224,161,.48); color: #2df0ae; }
+    .ui-score-pill.score-warn { border-color: rgba(255,171,53,.56); color: #ffc86d; }
+  `;
+  document.head.appendChild(style);
+}
+
+function ensureUiScoreBadge() {
+  let badge = document.getElementById('uiScorePill');
+  if (badge) return badge;
+  const runtimeStatus = document.getElementById('runtimeStatus');
+  const host = runtimeStatus?.parentElement || document.querySelector('.topbar-actions');
+  if (!host) return null;
+  badge = document.createElement('div');
+  badge.id = 'uiScorePill';
+  badge.className = 'status-pill ui-score-pill score-warn';
+  badge.setAttribute('role', 'status');
+  badge.setAttribute('aria-live', 'polite');
+  badge.title = 'Static UI score pending';
+  badge.textContent = `UI 0/${UI_SCORE_TOTAL}`;
+  runtimeStatus?.after(badge) || host.appendChild(badge);
+  return badge;
 }
 
 function ensureGridToolbarButton() {
@@ -76,9 +113,21 @@ function bindGridButton() {
 }
 
 function bindRuntimeEvents() {
-  window.addEventListener('markup:app-ready', () => applyGridDefaultSoon());
-  window.addEventListener('markup:render-context', () => applyGridDefaultSoon());
-  window.addEventListener('viewer:runtime-context', () => applyGridDefaultSoon());
+  window.addEventListener('markup:app-ready', () => {
+    applyGridDefaultSoon();
+    updateUiScoreSoon();
+  });
+  window.addEventListener('markup:render-context', () => {
+    applyGridDefaultSoon();
+    updateUiScoreSoon();
+  });
+  window.addEventListener('viewer:runtime-context', () => {
+    applyGridDefaultSoon();
+    updateUiScoreSoon();
+  });
+  window.addEventListener('viewer:static-tree-ready', updateUiScoreSoon);
+  window.addEventListener('viewer:static-tree-refreshed', updateUiScoreSoon);
+  window.addEventListener('viewer:grid-visibility-changed', updateUiScoreSoon);
   window.addEventListener('keydown', (event) => {
     if (hasInputFocus()) return;
     if (event.key.toLowerCase() !== 'g') return;
@@ -97,6 +146,7 @@ function normalizeShellState() {
   const ribbon = document.querySelector('.main-ribbon');
   if (ribbon) ribbon.scrollLeft = 0;
   updateGridButton();
+  updateUiScore();
 }
 
 function applyGridDefaultSoon() {
@@ -143,4 +193,56 @@ function updateGridButton() {
   button.setAttribute('aria-pressed', state.gridVisible ? 'true' : 'false');
   const label = button.querySelector('span');
   if (label) label.textContent = state.gridVisible ? 'Grid On' : 'Grid Off';
+}
+
+function updateUiScoreSoon() {
+  window.setTimeout(updateUiScore, 0);
+  window.setTimeout(updateUiScore, 250);
+}
+
+function updateUiScore() {
+  const checks = uiChecks();
+  const score = checks.filter((check) => check.ok).length;
+  state.uiScore = score;
+  state.uiScoreChecks = checks;
+
+  const badge = ensureUiScoreBadge();
+  if (badge) {
+    badge.textContent = `UI ${score}/${UI_SCORE_TOTAL}`;
+    badge.title = checks.map((check) => `${check.ok ? '✓' : '×'} ${check.label}`).join('\n');
+    badge.classList.toggle('score-ok', score === UI_SCORE_TOTAL);
+    badge.classList.toggle('score-warn', score !== UI_SCORE_TOTAL);
+  }
+
+  window.__3D_MARKUP_UI_SCORE__ = {
+    score,
+    total: UI_SCORE_TOTAL,
+    checks,
+    version: VERSION
+  };
+  window.dispatchEvent(new CustomEvent('viewer:ui-score-changed', {
+    detail: window.__3D_MARKUP_UI_SCORE__
+  }));
+}
+
+function uiChecks() {
+  return [
+    check('Static shell body', document.body.classList.contains('pro-shell')),
+    check('Viewer canvas mounted', Boolean(document.getElementById('viewer')?.querySelector('canvas'))),
+    check('Input drawer controls', Boolean(document.getElementById('inputDrawer') && document.getElementById('toggleInputBtn') && document.getElementById('closeInputBtn'))),
+    check('Props drawer controls', Boolean(document.getElementById('propertiesPanel') && document.getElementById('togglePropsBtn') && document.getElementById('closePropsBtn'))),
+    check('Main viewer toolbar', ['selectToolBtn', 'orbitToolBtn', 'panToolBtn', 'measureBtn'].every(byId)),
+    check('Display/status controls', Boolean(document.getElementById('colorBySelect') && document.getElementById('runtimeStatus'))),
+    check('Grid control', Boolean(document.getElementById('gridToggleBtn'))),
+    check('Static tree control', Boolean(document.getElementById('treeToggleBtn') && window.__3D_MARKUP_TREE__)),
+    check('Preview/export controls', ['previewGlbBtn', 'previewRvmBtn', 'downloadGlbBtn', 'downloadRvmBtn', 'downloadAttBtn'].every(byId))
+  ];
+}
+
+function check(label, ok) {
+  return { label, ok: Boolean(ok) };
+}
+
+function byId(id) {
+  return Boolean(document.getElementById(id));
 }

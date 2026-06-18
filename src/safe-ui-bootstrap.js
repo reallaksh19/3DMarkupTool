@@ -1,11 +1,14 @@
 // Deterministic optional-UI bootstrap.
 // index.html owns the professional shell. During recovery, optional behavior
 // modules are opt-in so the core viewer cannot be frozen by controller loops.
-// A tiny static shell core module is still loaded in all modes because it owns
+// Tiny static shell modules are still loaded in all modes because they own
 // first-class shell behavior, not optional patch-controller behavior.
 
-const SAFE_UI_VERSION = 'static-shell-core-grid-20260618';
-const CORE_SHELL_URL = `./static-shell-core-controller.js?v=${SAFE_UI_VERSION}`;
+const SAFE_UI_VERSION = 'static-shell-score-tree-20260618';
+const CORE_MODULE_URLS = [
+  `./static-shell-core-controller.js?v=${SAFE_UI_VERSION}`,
+  `./static-tree-core-controller.js?v=${SAFE_UI_VERSION}`
+];
 const SAFE_LOADER_URL = `./safe-ui-loader.js?v=${SAFE_UI_VERSION}`;
 const MAX_ATTEMPTS = 4;
 
@@ -18,9 +21,14 @@ scheduleStart();
 function scheduleCoreShell() {
   if (coreShellStarted) return;
   coreShellStarted = true;
-  const start = () => import(CORE_SHELL_URL).catch((error) => {
-    console.warn('[3DMarkupTool] Static shell core wiring failed.', error);
-  });
+  const start = () => Promise.allSettled(CORE_MODULE_URLS.map((url) => import(url)))
+    .then((results) => {
+      results.forEach((result, index) => {
+        if (result.status === 'rejected') {
+          console.warn(`[3DMarkupTool] Static shell core module failed: ${CORE_MODULE_URLS[index]}`, result.reason);
+        }
+      });
+    });
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', start, { once: true });
   } else {

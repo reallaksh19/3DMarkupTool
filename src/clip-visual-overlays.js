@@ -26,7 +26,8 @@ const state = {
   inverted: false,
   triad: null,
   triadLines: {},
-  triadLabels: {}
+  triadLabels: {},
+  viewCube: null
 };
 
 if (document.readyState === 'loading') {
@@ -51,6 +52,7 @@ window.addEventListener('markup:render-context', (event) => {
 
 function initOverlays() {
   ensureAxisTriad();
+  ensureViewCubeLite();
 
   ['clipAxisSelect', 'clipPositionRange', 'clipPositionInput', 'clipInvert', 'clipBtn', 'clipPanelToggleBtn'].forEach((id) => {
     document.getElementById(id)?.addEventListener('input', scheduleOverlayUpdate);
@@ -196,6 +198,57 @@ function ensureAxisTriad() {
     y: document.getElementById('axisTriadYLabel'),
     z: document.getElementById('axisTriadZLabel')
   };
+}
+
+function ensureViewCubeLite() {
+  const pad = document.querySelector('.view-pad');
+  if (!pad || pad.dataset.viewcubeReady === 'true') return;
+
+  pad.dataset.viewcubeReady = 'true';
+  pad.classList.add('viewcube-lite');
+  pad.setAttribute('aria-label', 'ViewCube orientation controls');
+  pad.setAttribute('title', 'ViewCube-lite orientation controls');
+
+  const labels = {
+    iso: 'ISO',
+    top: 'TOP',
+    front: 'FRONT',
+    side: 'RIGHT'
+  };
+  const titles = {
+    iso: 'Isometric view',
+    top: 'Top view',
+    front: 'Front view',
+    side: 'Right side view'
+  };
+  const activeViews = new Set(Object.keys(labels));
+
+  pad.querySelectorAll('button').forEach((button) => {
+    const view = button.dataset.view;
+    if (!activeViews.has(view)) {
+      button.hidden = true;
+      button.setAttribute('aria-hidden', 'true');
+      return;
+    }
+
+    button.className = `viewcube-face viewcube-${view}`;
+    button.title = titles[view] || labels[view];
+    button.setAttribute('aria-label', titles[view] || labels[view]);
+    button.innerHTML = `<span>${labels[view]}</span>`;
+  });
+
+  const compass = document.createElement('div');
+  compass.className = 'viewcube-compass';
+  compass.setAttribute('aria-hidden', 'true');
+  compass.innerHTML = '<span>N</span><span>E</span><span>S</span><span>W</span>';
+  pad.prepend(compass);
+
+  const title = document.createElement('div');
+  title.className = 'viewcube-title';
+  title.textContent = 'VIEW';
+  pad.prepend(title);
+
+  state.viewCube = pad;
 }
 
 function updateAxisTriad() {

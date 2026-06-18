@@ -3,6 +3,7 @@ const SAFE_UI_VERSION = window.__3D_MARKUP_SAFE_UI_VERSION__ || 'static-shell-re
 // index.html owns the shell. Default startup must stay small and deterministic.
 // Heavy/retry-based extras are opt-in until browser acceptance proves they are safe.
 const CORE_MODULES = [
+  { id: 'staticShellGuard', label: 'Static shell guard', src: `./static-shell-responsive-controller.js?v=${SAFE_UI_VERSION}` },
   { id: 'uiDiagnostics', label: 'UI diagnostics', src: `./ui-diagnostics-controller.js?v=${SAFE_UI_VERSION}` },
   { id: 'inputDrawer', label: 'Input drawer', src: `./input-drawer-controller.js?v=${SAFE_UI_VERSION}` },
   { id: 'viewerRuntimeBridge', label: 'Viewer runtime bridge', src: `./viewer-runtime-bridge-controller.js?v=${SAFE_UI_VERSION}` },

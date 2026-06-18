@@ -1,3 +1,5 @@
+import './phase24b-ui-exposure-controller.js?v=phase30-origin-marquee-visible';
+
 const LEGEND_ID = 'colorByLegendPanel';
 
 function byId(id) {

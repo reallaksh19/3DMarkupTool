@@ -1,12 +1,11 @@
 import * as THREE from 'three';
-import './model-tree-panel.js?v=phase14-model-tree-panel';
 
-const runtime = window.__3D_MARKUP_CLIP_RUNTIME__ || null;
+const initialRuntime = getRuntime();
 
 const state = {
-  renderer: runtime?.renderer || null,
-  scene: runtime?.scene || null,
-  camera: runtime?.camera || null,
+  renderer: initialRuntime?.renderer || null,
+  scene: initialRuntime?.scene || null,
+  camera: initialRuntime?.camera || null,
   menu: null,
   target: null,
   hiddenObjects: new Set(),
@@ -20,7 +19,8 @@ const SKIP_NAME_PATTERNS = [
   'helper',
   'measure',
   'clip_plane_preview',
-  'selection_box'
+  'selection_box',
+  'clip_box'
 ];
 
 if (document.readyState === 'loading') {
@@ -29,20 +29,25 @@ if (document.readyState === 'loading') {
   initVisibilityContextMenu();
 }
 
-window.addEventListener('markup:render-context', (event) => {
-  const { renderer, scene, camera } = event.detail || {};
-  if (!renderer || !scene || !camera) return;
+window.addEventListener('markup:render-context', handleRuntimeContext);
+window.addEventListener('viewer:runtime-context', handleRuntimeContext);
+window.addEventListener('viewer:runtime-ready', handleRuntimeContext);
 
-  state.renderer = renderer;
-  state.scene = scene;
-  state.camera = camera;
-  bindCanvas(renderer.domElement);
-});
+function handleRuntimeContext(event) {
+  const { renderer, scene, camera } = event.detail || {};
+  if (renderer) state.renderer = renderer;
+  if (scene) state.scene = scene;
+  if (camera) state.camera = camera;
+  if (state.renderer?.domElement) bindCanvas(state.renderer.domElement);
+}
 
 function initVisibilityContextMenu() {
   injectStyles();
   ensureMenu();
-  document.addEventListener('click', hideMenu);
+  hideMenu();
+  document.addEventListener('click', (event) => {
+    if (!event.target?.closest?.('#visibilityContextMenu')) hideMenu();
+  });
   window.addEventListener('keydown', (event) => {
     if (event.key === 'Escape') hideMenu();
   });
@@ -55,6 +60,7 @@ function bindCanvas(canvas) {
 }
 
 function onContextMenu(event) {
+  const runtime = getRuntime();
   const renderer = state.renderer || runtime?.renderer;
   const scene = state.scene || runtime?.scene;
   const camera = state.camera || runtime?.camera;
@@ -128,6 +134,10 @@ function ensureMenu() {
   menu.id = 'visibilityContextMenu';
   menu.className = 'visibility-context-menu';
   menu.setAttribute('role', 'menu');
+  menu.setAttribute('aria-hidden', 'true');
+  menu.hidden = true;
+  menu.style.left = '-9999px';
+  menu.style.top = '-9999px';
   menu.innerHTML = `
     <div class="visibility-context-title" id="visibilityContextTitle">Object Visibility</div>
     <button type="button" data-action="hide">Hide Selected</button>
@@ -142,6 +152,7 @@ function ensureMenu() {
     const button = event.target.closest('button[data-action]');
     if (!button) return;
     event.preventDefault();
+    event.stopPropagation();
     handleAction(button.dataset.action);
   });
 
@@ -161,6 +172,7 @@ function showMenu(clientX, clientY, target) {
   menu.querySelector('[data-action="copyMetadata"]').disabled = !target;
 
   menu.hidden = false;
+  menu.setAttribute('aria-hidden', 'false');
   menu.classList.add('open');
 
   const margin = 8;
@@ -176,6 +188,9 @@ function hideMenu() {
   if (!state.menu) return;
   state.menu.classList.remove('open');
   state.menu.hidden = true;
+  state.menu.setAttribute('aria-hidden', 'true');
+  state.menu.style.left = '-9999px';
+  state.menu.style.top = '-9999px';
 }
 
 function handleAction(action) {
@@ -212,6 +227,7 @@ function isolateObject(object) {
 }
 
 function showAllObjects() {
+  const runtime = getRuntime();
   const scene = state.scene || runtime?.scene;
   state.hiddenObjects.forEach((object) => {
     if (object) {
@@ -232,6 +248,7 @@ function showAllObjects() {
 }
 
 function collectSelectableObjects() {
+  const runtime = getRuntime();
   const scene = state.scene || runtime?.scene;
   const objects = [];
   const seen = new Set();
@@ -298,6 +315,10 @@ function status(message) {
   if (pill) pill.textContent = message;
 }
 
+function getRuntime() {
+  return window.__3D_MARKUP_VIEWER_RUNTIME__ || window.__3D_MARKUP_CLIP_RUNTIME__ || null;
+}
+
 function injectStyles() {
   if (document.getElementById('visibilityContextMenuStyles')) return;
 
@@ -317,8 +338,10 @@ function injectStyles() {
       backdrop-filter: blur(12px);
     }
 
-    .visibility-context-menu[hidden] {
-      display: none;
+    .visibility-context-menu[hidden],
+    .visibility-context-menu:not(.open) {
+      display: none !important;
+      pointer-events: none !important;
     }
 
     .visibility-context-title {

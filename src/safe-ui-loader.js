@@ -1,135 +1,135 @@
-const SAFE_UI_VERSION = 'phase38-clipbox-ui-cleanup';
+const SAFE_UI_VERSION = 'phase39-clip-plane-id-compat';
 
 const ALL_MODULES = [
   {
     id: 'uiDiagnostics',
     label: 'UI diagnostics',
-    src: './ui-diagnostics-controller.js?v=phase38-diagnostics'
+    src: './ui-diagnostics-controller.js?v=phase39-diagnostics'
   },
   {
     id: 'shellLayoutRecovery',
     label: 'Shell layout recovery',
-    src: './shell-layout-recovery-controller.js?v=phase38-shell-layout'
+    src: './shell-layout-recovery-controller.js?v=phase39-shell-layout'
   },
   {
     id: 'propertyTabs',
     label: 'Property tabs',
-    src: './property-tabs-base-controller.js?v=phase38-property-tabs-base'
+    src: './property-tabs-base-controller.js?v=phase39-property-tabs-base'
   },
   {
     id: 'consoleGuard',
     label: 'Input guard',
-    src: './ui-console-guard.js?v=phase38-console-guard'
+    src: './ui-console-guard.js?v=phase39-console-guard'
   },
   {
     id: 'conversionOptionsCompat',
     label: 'Conversion options compatibility',
-    src: './conversion-options-compat-controller.js?v=phase38-conversion-options'
+    src: './conversion-options-compat-controller.js?v=phase39-conversion-options'
   },
   {
     id: 'fit',
     label: 'Fit',
-    src: './fit-controller.js?v=phase38-fit'
+    src: './fit-controller.js?v=phase39-fit'
   },
   {
     id: 'grid',
     label: 'Grid toggle',
-    src: './grid-toggle-controller.js?v=phase38-grid'
+    src: './grid-toggle-controller.js?v=phase39-grid'
   },
   {
     id: 'clipAdjuster',
     label: 'Clip adjuster',
-    src: './clip-adjuster.js?v=phase38-clip-adjuster'
+    src: './clip-adjuster.js?v=phase39-clip-plane-id-compat'
   },
   {
     id: 'clipVisuals',
     label: 'Clip / axis overlays',
-    src: './clip-visual-overlays.js?v=phase38-clip-visuals'
+    src: './clip-visual-overlays.js?v=phase39-clip-visuals'
   },
   {
     id: 'colorLegend',
     label: 'Color legend',
-    src: './color-by-legend-safe-controller.js?v=phase38-safe-legend'
+    src: './color-by-legend-safe-controller.js?v=phase39-safe-legend'
   },
   {
     id: 'treeVisibility',
     label: 'Tree + visibility',
-    src: './visibility-context-menu.js?v=phase38-tree-visibility'
+    src: './visibility-context-menu.js?v=phase39-tree-visibility'
   },
   {
     id: 'selectionSync',
     label: 'Selection sync',
-    src: './selection-sync-controller.js?v=phase38-selection-sync'
+    src: './selection-sync-controller.js?v=phase39-selection-sync'
   },
   {
     id: 'marqueeZoom',
     label: 'Marquee zoom',
-    src: './marquee-zoom-controller.js?v=phase38-marquee'
+    src: './marquee-zoom-controller.js?v=phase39-marquee'
   },
   {
     id: 'originManager',
     label: 'Origin manager',
-    src: './origin-manager-controller.js?v=phase38-origin'
+    src: './origin-manager-controller.js?v=phase39-origin'
   },
   {
     id: 'rvmQa',
     label: 'RVM QA',
-    src: './rvm-compat-validator-controller.js?v=phase38-rvm-qa'
+    src: './rvm-compat-validator-controller.js?v=phase39-rvm-qa'
   },
   {
     id: 'rvmStrictProfile',
     label: 'RVM strict profile',
-    src: './rvm-strict-mode-controller.js?v=phase38-rvm-strict'
+    src: './rvm-strict-mode-controller.js?v=phase39-rvm-strict'
   },
   {
     id: 'tagLiteHost',
     label: 'Tag toolbar host',
-    src: './tag-lite-host-controller.js?v=phase38-tag-host'
+    src: './tag-lite-host-controller.js?v=phase39-tag-host'
   },
   {
     id: 'tagImportViews',
     label: 'Tag import/views',
-    src: './navis-tag-import-controller.js?v=phase38-tag-import'
+    src: './navis-tag-import-controller.js?v=phase39-tag-import'
   },
   {
     id: 'manualTag',
     label: 'Manual tag',
-    src: './navis-manual-tag-safe-controller.js?v=phase38-manual-tag'
+    src: './navis-manual-tag-safe-controller.js?v=phase39-manual-tag'
   },
   {
     id: 'tagUsability',
     label: 'Tag usability',
-    src: './navis-tag-usability-safe-controller.js?v=phase38-tag-usability'
+    src: './navis-tag-usability-safe-controller.js?v=phase39-tag-usability'
   },
   {
     id: 'tagSession',
     label: 'Tag session',
-    src: './navis-tag-session-safe-controller.js?v=phase38-tag-session'
+    src: './navis-tag-session-safe-controller.js?v=phase39-tag-session'
   },
   {
     id: 'tagXmlQa',
     label: 'Tag XML QA',
-    src: './navis-tag-xml-qa-mini-controller.js?v=phase38-tag-xml-qa'
+    src: './navis-tag-xml-qa-mini-controller.js?v=phase39-tag-xml-qa'
   },
   {
     id: 'twoRowIconRibbon',
     label: 'Two-row icon ribbon',
-    src: './two-row-icon-ribbon-controller.js?v=phase38-two-row-ribbon'
+    src: './two-row-icon-ribbon-controller.js?v=phase39-two-row-ribbon'
   },
   {
     id: 'phase35Cleanup',
     label: 'Phase 35 UI cleanup',
-    src: './phase35-ui-cleanup-controller.js?v=phase38-ui-cleanup'
+    src: './phase35-ui-cleanup-controller.js?v=phase39-ui-cleanup'
   },
   {
     id: 'phase37InputDrawerStack',
     label: 'Input drawer stack',
-    src: './phase37-input-drawer-stack-controller.js?v=phase38-input-drawer-stack'
+    src: './phase37-input-drawer-stack-controller.js?v=phase39-input-drawer-stack'
   },
   {
     id: 'phase38ClipBoxUiCleanup',
     label: 'Clip box + UI cleanup',
-    src: './phase38-clipbox-ui-cleanup-controller.js?v=phase38-clipbox-ui-cleanup'
+    src: './phase38-clipbox-ui-cleanup-controller.js?v=phase39-clipbox-ui-cleanup'
   }
 ];
 

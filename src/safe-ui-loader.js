@@ -54,6 +54,11 @@ const ALL_MODULES = [
     src: `./clip-adjuster.js?v=${SAFE_UI_VERSION}`
   },
   {
+    id: 'viewerClipBox',
+    label: '3D Clip Box',
+    src: `./viewer-clipbox-controller.js?v=${SAFE_UI_VERSION}`
+  },
+  {
     id: 'clipVisuals',
     label: 'Clip / axis overlays',
     src: `./clip-visual-overlays.js?v=${SAFE_UI_VERSION}`
@@ -72,6 +77,11 @@ const ALL_MODULES = [
     id: 'treePanelBridge',
     label: 'Tree panel bridge',
     src: `./tree-panel-bridge-controller.js?v=${SAFE_UI_VERSION}`
+  },
+  {
+    id: 'treeSelectionBridge',
+    label: 'Tree selection bridge',
+    src: `./tree-selection-bridge-controller.js?v=${SAFE_UI_VERSION}`
   },
   {
     id: 'selectionSync',

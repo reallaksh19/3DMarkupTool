@@ -21,6 +21,16 @@ const BATCH_MODULES = [
     id: 'selectionSync',
     label: 'Selection sync',
     src: './selection-sync-controller.js?v=phase26-safe-selection-sync'
+  },
+  {
+    id: 'marqueeZoom',
+    label: 'Marquee zoom',
+    src: './marquee-zoom-controller.js?v=phase26-safe-marquee'
+  },
+  {
+    id: 'originManager',
+    label: 'Origin manager',
+    src: './origin-manager-controller.js?v=phase26-safe-origin'
   }
 ];
 

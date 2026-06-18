@@ -1,8 +1,6 @@
-const runtime = window.__3D_MARKUP_CLIP_RUNTIME__ || null;
-
 const state = {
   gridVisible: false,
-  scene: runtime?.scene || null,
+  scene: getRuntime()?.scene || getRuntime()?.getScene?.() || null,
   button: null,
   lastApplyToken: 0
 };
@@ -17,6 +15,18 @@ window.addEventListener('markup:render-context', (event) => {
   const { scene } = event.detail || {};
   if (scene) state.scene = scene;
   applyGridVisibility();
+});
+
+window.addEventListener('viewer:runtime-context', (event) => {
+  const { scene } = event.detail || {};
+  if (scene) state.scene = scene;
+  applyGridVisibility();
+});
+
+window.addEventListener('viewer:model-loaded', () => {
+  state.gridVisible = false;
+  updateButton();
+  scheduleApplyGridVisibility();
 });
 
 window.addEventListener('markup:toolbar-optimized', () => {
@@ -49,12 +59,7 @@ function ensureButton() {
       </svg>
       <span>Grid Off</span>`;
 
-    button.addEventListener('click', () => {
-      state.gridVisible = !state.gridVisible;
-      updateButton();
-      applyGridVisibility();
-      status(state.gridVisible ? 'Grid on' : 'Grid off');
-    });
+    button.addEventListener('click', () => toggleGrid());
   }
 
   if (host && button.parentElement !== host) {
@@ -86,11 +91,16 @@ function bindShortcuts() {
     if (hasInputFocus()) return;
     if (event.key?.toLowerCase() !== 'g') return;
     event.preventDefault();
-    state.gridVisible = !state.gridVisible;
-    updateButton();
-    applyGridVisibility();
-    status(state.gridVisible ? 'Grid on' : 'Grid off');
+    toggleGrid();
   });
+}
+
+function toggleGrid() {
+  state.gridVisible = !state.gridVisible;
+  updateButton();
+  applyGridVisibility();
+  window.__3D_MARKUP_CORE_SAFETY__?.setGridVisible?.(state.gridVisible);
+  status(state.gridVisible ? 'Grid on' : 'Grid off');
 }
 
 function updateButton() {
@@ -115,7 +125,8 @@ function scheduleApplyGridVisibility() {
 }
 
 function applyGridVisibility() {
-  const scene = state.scene || runtime?.scene || window.__3D_MARKUP_CLIP_RUNTIME__?.scene;
+  const runtime = getRuntime();
+  const scene = state.scene || runtime?.scene || runtime?.getScene?.();
   if (!scene) return;
 
   scene.traverse?.((object) => {
@@ -128,6 +139,10 @@ function isGridHelper(object) {
   if (String(object.name || '').toLowerCase() === 'grid') return true;
   if (object.type === 'GridHelper') return true;
   return false;
+}
+
+function getRuntime() {
+  return window.__3D_MARKUP_VIEWER_RUNTIME__ || window.__3D_MARKUP_CLIP_RUNTIME__ || null;
 }
 
 function hasInputFocus() {

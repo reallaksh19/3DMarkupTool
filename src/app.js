@@ -8,9 +8,11 @@ import { createTextPlane } from './geometry.js?v=professional-viewer-3';
 import { DEFAULT_ISONOTE, DEFAULT_LINE_NO } from './parser.js?v=professional-viewer-3';
 
 const el = (id) => document.getElementById(id);
+const hasInputFocus = () => ['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement?.tagName);
 
 const DEFAULT_VIEW = new THREE.Vector3(1.1, 0.78, 1.12);
 const CLIP_PLANE = new THREE.Plane(new THREE.Vector3(-1, 0, 0), 0);
+const DRAG_TOLERANCE_PX = 5;
 const MATERIAL_COLORS = {
   default: null,
   pipe: 0xf0f4f8,
@@ -35,13 +37,16 @@ const state = {
   rvmScene: null,
   previewMode: 'glb',
   selected: null,
+  selectedData: null,
+  selectionHelper: null,
   objectUrls: [],
   activeTool: 'select',
   colorBy: 'default',
   clipEnabled: false,
   measurePoints: [],
   measureGroup: new THREE.Group(),
-  originalMaterials: new WeakMap()
+  originalMaterials: new WeakMap(),
+  pointerDown: null
 };
 
 const viewer = el('viewer');
@@ -55,7 +60,7 @@ renderer.localClippingEnabled = true;
 viewer.appendChild(renderer.domElement);
 
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x383943);
+scene.background = new THREE.Color(0x30323a);
 scene.add(state.measureGroup);
 
 const camera = new THREE.PerspectiveCamera(48, viewer.clientWidth / viewer.clientHeight, 0.01, 10000);
@@ -69,6 +74,7 @@ controls.zoomSpeed = 0.82;
 controls.panSpeed = 0.72;
 controls.screenSpacePanning = true;
 controls.target.set(0, 0, 0);
+applyControlMode('select');
 
 scene.add(new THREE.HemisphereLight(0xffffff, 0x242833, 1.55));
 const keyLight = new THREE.DirectionalLight(0xffffff, 1.75);
@@ -83,7 +89,7 @@ scene.add(rimLight);
 
 const grid = new THREE.GridHelper(48, 48, 0x4b6179, 0x2d3d50);
 grid.name = 'grid';
-grid.visible = false;
+grid.visible = true;
 scene.add(grid);
 
 const axes = new THREE.AxesHelper(2.5);
@@ -119,6 +125,7 @@ function initUi() {
   el('viewRulesBtn').addEventListener('click', () => el('rulesDialog').showModal());
   el('closeRulesBtn').addEventListener('click', () => el('rulesDialog').close());
   el('resetCameraBtn').addEventListener('click', fitView);
+  el('fitSelectionBtn').addEventListener('click', fitSelection);
   el('viewIsoBtn').addEventListener('click', () => setCameraView(DEFAULT_VIEW));
   el('viewTopBtn').addEventListener('click', () => setCameraView(new THREE.Vector3(0, 1, 0.001)));
   el('viewFrontBtn').addEventListener('click', () => setCameraView(new THREE.Vector3(0, 0.08, 1)));
@@ -128,16 +135,25 @@ function initUi() {
   el('closeInputBtn').addEventListener('click', () => setInputDrawer(false));
   el('togglePropsBtn').addEventListener('click', () => togglePropsDrawer());
   el('closePropsBtn').addEventListener('click', () => setPropsDrawer(false));
-  el('measureBtn').addEventListener('click', toggleMeasureTool);
+  el('measureBtn').addEventListener('click', () => setActiveTool(state.activeTool === 'measure' ? 'select' : 'measure'));
   el('clipBtn').addEventListener('click', toggleClip);
+  el('selectToolBtn').addEventListener('click', () => setActiveTool('select'));
+  el('orbitToolBtn').addEventListener('click', () => setActiveTool('orbit'));
+  el('panToolBtn').addEventListener('click', () => setActiveTool('pan'));
+  el('clearSelectionBtn').addEventListener('click', clearSelectionAndTool);
 
   document.querySelectorAll('.view-pad button').forEach((button) => {
     button.addEventListener('click', () => handleViewPad(button.dataset.view));
   });
 
   renderer.domElement.addEventListener('pointerdown', onCanvasPointerDown);
+  renderer.domElement.addEventListener('pointerup', onCanvasPointerUp);
+  renderer.domElement.addEventListener('pointermove', onCanvasPointerMove);
+  renderer.domElement.addEventListener('contextmenu', (event) => event.preventDefault());
+  window.addEventListener('keydown', onKeyDown);
   window.addEventListener('resize', onResize);
   updateUiState();
+  updateStatusBar();
 }
 
 async function onFile(event) {
@@ -172,6 +188,7 @@ async function runConversion() {
     status('Converting');
     el('convertBtn').disabled = true;
     clearMeasurement();
+    clearSelection();
 
     const options = collectOptions();
     log(`Run Conversion mode=${options.supportMode}, singleAxis=${options.singleAxisDecision}`);
@@ -224,6 +241,8 @@ function collectOptions() {
 function setModelScene(newScene, mode) {
   if (!newScene) return;
   if (modelRoot) scene.remove(modelRoot);
+  clearSelection();
+  clearMeasurement();
   modelRoot = newScene;
   state.scene = newScene;
   state.previewMode = mode || state.previewMode;
@@ -232,6 +251,7 @@ function setModelScene(newScene, mode) {
   fitView();
   applyColorBy();
   el('hint').style.display = 'none';
+  updateStatusBar();
 }
 
 function fitView() {
@@ -239,9 +259,25 @@ function fitView() {
   setCameraView(DEFAULT_VIEW);
 }
 
+function fitSelection() {
+  if (!state.selected) {
+    fitView();
+    return;
+  }
+  const box = new THREE.Box3().setFromObject(state.selected);
+  if (!Number.isFinite(box.min.x)) {
+    fitView();
+    return;
+  }
+  fitBox(box, DEFAULT_VIEW);
+}
+
 function setCameraView(direction) {
   if (!modelRoot) return;
-  const box = modelBox();
+  fitBox(modelBox(), direction);
+}
+
+function fitBox(box, direction) {
   const size = box.getSize(new THREE.Vector3());
   const center = box.getCenter(new THREE.Vector3());
   const radius = Math.max(size.x, size.y, size.z, 1);
@@ -267,8 +303,9 @@ function handleViewPad(view) {
   if (view === 'front') setCameraView(new THREE.Vector3(0, 0.08, 1));
   if (view === 'side') setCameraView(new THREE.Vector3(1, 0.08, 0));
   if (view === 'fit') fitView();
+  if (view === 'fitSelection') fitSelection();
   if (view === 'zoom') zoomCamera(0.72);
-  if (view === 'measure' || view === 'msr') toggleMeasureTool();
+  if (view === 'msr') setActiveTool(state.activeTool === 'measure' ? 'select' : 'measure');
   if (view === 'clip') toggleClip();
 }
 
@@ -278,19 +315,75 @@ function zoomCamera(factor) {
   controls.update();
 }
 
+function setActiveTool(tool) {
+  state.activeTool = tool;
+  if (tool === 'measure') clearMeasurement();
+  applyControlMode(tool);
+  updateUiState();
+  status(tool === 'measure' ? 'Measure' : `${tool[0].toUpperCase()}${tool.slice(1)} mode`);
+}
+
+function applyControlMode(tool) {
+  controls.enableRotate = true;
+  controls.enablePan = true;
+  controls.enableZoom = true;
+  controls.mouseButtons = {
+    LEFT: tool === 'pan' ? THREE.MOUSE.PAN : THREE.MOUSE.ROTATE,
+    MIDDLE: THREE.MOUSE.DOLLY,
+    RIGHT: tool === 'pan' ? THREE.MOUSE.ROTATE : THREE.MOUSE.PAN
+  };
+}
+
 function onCanvasPointerDown(event) {
-  if (!modelRoot) return;
+  state.pointerDown = { x: event.clientX, y: event.clientY, button: event.button };
+}
+
+function onCanvasPointerUp(event) {
+  if (!modelRoot || !state.pointerDown) return;
+  const dx = Math.abs(event.clientX - state.pointerDown.x);
+  const dy = Math.abs(event.clientY - state.pointerDown.y);
+  const wasClick = dx <= DRAG_TOLERANCE_PX && dy <= DRAG_TOLERANCE_PX;
+  const wasLeftClick = state.pointerDown.button === 0;
+  state.pointerDown = null;
+  if (!wasClick || !wasLeftClick) return;
+
   const hit = raycastModel(event);
   if (state.activeTool === 'measure') {
     if (hit) addMeasurePoint(hit.point);
     return;
   }
-  if (!hit) return;
-  const data = findUserData(hit.object);
-  if (!Object.keys(data).length) return;
-  state.selected = hit.object;
-  setPropsDrawer(true);
-  showProperties(data);
+  if (state.activeTool !== 'select') return;
+  if (!hit) {
+    clearSelection();
+    return;
+  }
+  selectHit(hit);
+}
+
+function onCanvasPointerMove(event) {
+  if (!modelRoot) {
+    el('coordStatus').textContent = 'XYZ: -';
+    return;
+  }
+  const hit = raycastModel(event);
+  if (!hit) {
+    el('coordStatus').textContent = 'XYZ: -';
+    return;
+  }
+  el('coordStatus').textContent = `XYZ: ${formatPoint(hit.point)}`;
+}
+
+function onKeyDown(event) {
+  if (hasInputFocus()) return;
+  const key = event.key.toLowerCase();
+  if (key === 's') setActiveTool('select');
+  if (key === 'o') setActiveTool('orbit');
+  if (key === 'p') setActiveTool('pan');
+  if (key === 'm') setActiveTool(state.activeTool === 'measure' ? 'select' : 'measure');
+  if (key === 'h') fitView();
+  if (key === 'f') fitSelection();
+  if (key === 'c') toggleClip();
+  if (event.key === 'Escape') clearSelectionAndTool();
 }
 
 function raycastModel(event) {
@@ -300,6 +393,31 @@ function raycastModel(event) {
   raycaster.setFromCamera(mouse, camera);
   const hits = raycaster.intersectObject(modelRoot, true);
   return hits.find((hit) => Object.keys(findUserData(hit.object)).length) || hits[0] || null;
+}
+
+function selectHit(hit) {
+  const selectable = findSelectableObject(hit.object) || hit.object;
+  const data = findUserData(selectable);
+  if (!Object.keys(data).length) return;
+  state.selected = selectable;
+  state.selectedData = data;
+  setPropsDrawer(true);
+  showProperties(data);
+  updateSelectionHelper(selectable);
+  updateStatusBar();
+}
+
+function findSelectableObject(obj) {
+  let cur = obj;
+  while (cur) {
+    const data = cur.userData || {};
+    if (Object.keys(data).length) {
+      if (data.TYPE && data.TYPE !== 'RVM_PRIMITIVE') return cur;
+      if (data.type && data.type !== 'RVM_PRIMITIVE') return cur;
+    }
+    cur = cur.parent;
+  }
+  return obj;
 }
 
 function findUserData(obj) {
@@ -319,6 +437,40 @@ function findUserData(obj) {
 function normalizeLegacyUserData(data) {
   if (data.type === 'NODE') return { TYPE: 'NODE', NODE: data.node, LABEL: `N${data.node}`, SOURCE: 'InputXML' };
   return data;
+}
+
+function updateSelectionHelper(object) {
+  removeSelectionHelper();
+  const box = new THREE.Box3().setFromObject(object);
+  if (!Number.isFinite(box.min.x)) return;
+  state.selectionHelper = new THREE.Box3Helper(box, 0xffd166);
+  state.selectionHelper.name = 'SELECTION_BOX_HELPER';
+  state.selectionHelper.renderOrder = 60;
+  state.selectionHelper.material.depthTest = false;
+  scene.add(state.selectionHelper);
+}
+
+function removeSelectionHelper() {
+  if (!state.selectionHelper) return;
+  scene.remove(state.selectionHelper);
+  state.selectionHelper.geometry?.dispose?.();
+  state.selectionHelper.material?.dispose?.();
+  state.selectionHelper = null;
+}
+
+function clearSelection() {
+  state.selected = null;
+  state.selectedData = null;
+  removeSelectionHelper();
+  el('propertiesBody').classList.add('empty-state');
+  el('propertiesBody').textContent = 'Select an object in the viewer.';
+  updateStatusBar();
+}
+
+function clearSelectionAndTool() {
+  clearSelection();
+  clearMeasurement();
+  setActiveTool('select');
 }
 
 function showProperties(data) {
@@ -564,12 +716,6 @@ function colorFromString(value) {
   return palette[Math.abs(hash) % palette.length];
 }
 
-function toggleMeasureTool() {
-  state.activeTool = state.activeTool === 'measure' ? 'select' : 'measure';
-  if (state.activeTool === 'measure') clearMeasurement();
-  updateUiState();
-}
-
 function addMeasurePoint(point) {
   state.measurePoints.push(point.clone());
   if (state.measurePoints.length === 1) {
@@ -606,7 +752,7 @@ function drawMeasurement(a, b) {
   state.measureGroup.add(line);
 
   const distanceScene = a.distanceTo(b);
-  const distanceMm = state.previewMode === 'glb' ? distanceScene / 0.01 : distanceScene;
+  const distanceMm = sceneDistanceToMm(distanceScene);
   const text = `Distance: ${formatNumber(distanceMm)} mm (${formatNumber(distanceMm / 1000)} m)`;
   const label = createTextPlane(text, {
     width: 420,
@@ -637,6 +783,17 @@ function clearMeasurement() {
   state.measureGroup.clear();
   state.measurePoints = [];
   el('measureReadout').hidden = true;
+}
+
+function sceneDistanceToMm(value) {
+  return state.previewMode === 'glb' ? value / 0.01 : value;
+}
+
+function formatPoint(point) {
+  const x = sceneDistanceToMm(point.x);
+  const y = sceneDistanceToMm(point.y);
+  const z = sceneDistanceToMm(point.z);
+  return `${formatNumber(x)}, ${formatNumber(y)}, ${formatNumber(z)} mm`;
 }
 
 function toggleClip() {
@@ -674,11 +831,30 @@ function setPropsDrawer(open) {
 function updateUiState() {
   el('previewGlbBtn').classList.toggle('active', state.previewMode === 'glb');
   el('previewRvmBtn').classList.toggle('active', state.previewMode === 'rvm');
+  el('selectToolBtn').classList.toggle('tool-active', state.activeTool === 'select');
+  el('orbitToolBtn').classList.toggle('tool-active', state.activeTool === 'orbit');
+  el('panToolBtn').classList.toggle('tool-active', state.activeTool === 'pan');
   el('measureBtn').classList.toggle('tool-active', state.activeTool === 'measure');
   el('clipBtn').classList.toggle('tool-active', state.clipEnabled);
-  el('clipBtn').querySelector('span').textContent = state.clipEnabled ? 'CLIP ON' : 'CLIP OFF';
+  el('clipBtn').querySelector('span').textContent = state.clipEnabled ? 'Clip On' : 'Clip Off';
   el('toggleInputBtn').classList.toggle('active', document.body.classList.contains('input-open'));
   el('togglePropsBtn').classList.toggle('active', document.body.classList.contains('props-open'));
+  updateStatusBar();
+}
+
+function updateStatusBar() {
+  el('selectedStatus').textContent = state.selectedData ? `Selected: ${displayTitle(state.selectedData, state.selectedData.TYPE || state.selectedData.type || 'Object')}` : 'Selected: none';
+  el('componentStatus').textContent = `Objects: ${countSelectableObjects()}`;
+}
+
+function countSelectableObjects() {
+  if (!modelRoot) return 0;
+  let count = 0;
+  modelRoot.traverse((object) => {
+    const data = object.userData || {};
+    if ((data.TYPE && data.TYPE !== 'RVM_PRIMITIVE') || (data.type && data.type !== 'RVM_PRIMITIVE')) count += 1;
+  });
+  return count;
 }
 
 function setDownloadButtons(enabled) {
@@ -704,6 +880,7 @@ function clearAll() {
   state.colorBy = 'default';
   el('colorBySelect').value = 'default';
   clearMeasurement();
+  clearSelection();
   renderer.clippingPlanes = [];
 
   if (modelRoot) scene.remove(modelRoot);
@@ -711,8 +888,6 @@ function clearAll() {
   setDownloadButtons(false);
   updateUiState();
   el('hint').style.display = 'block';
-  el('propertiesBody').classList.add('empty-state');
-  el('propertiesBody').textContent = 'Select an object in the viewer.';
   log('Cleared');
   status('Ready');
 }
@@ -770,5 +945,6 @@ function animate() {
   state.measureGroup.traverse((object) => {
     if (object.name === 'MEASURE_LABEL') object.lookAt(camera.position);
   });
+  if (state.selectionHelper && state.selected) updateSelectionHelper(state.selected);
   renderer.render(scene, camera);
 }

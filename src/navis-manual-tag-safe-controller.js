@@ -16,7 +16,6 @@ const state = {
   canvas: null,
   active: false,
   anchor: null,
-  tempLayer: null,
   tempHelper: null,
   counter: 1
 };
@@ -42,8 +41,12 @@ function initManualTagTool() {
 }
 
 function ensureButton() {
-  if (document.getElementById('navisTagBtn')) {
-    document.getElementById('navisTagBtn')?.addEventListener('click', toggleManualTagMode);
+  const existing = document.getElementById('navisTagBtn');
+  if (existing) {
+    if (!existing.dataset.manualTagBound) {
+      existing.dataset.manualTagBound = '1';
+      existing.addEventListener('click', toggleManualTagMode);
+    }
     return;
   }
 
@@ -59,6 +62,7 @@ function ensureButton() {
   btn.className = 'tool-btn';
   btn.title = 'Manual leader annotation: click leader point, then annotation location';
   btn.textContent = 'Tag';
+  btn.dataset.manualTagBound = '1';
   btn.addEventListener('click', toggleManualTagMode);
 
   const isonoteBtn = document.getElementById('navisIsonoteBtn');
@@ -135,8 +139,7 @@ function handlePointer(event) {
 
   createManualTag(state.anchor, point, body.trim(), ctx);
   cancelManualTagMode({ keepToast: true });
-  document.getElementById('navisTagViewsBtn')?.click();
-  window.setTimeout(() => document.getElementById('navisTagViewsBtn')?.click(), 80);
+  openTagViewsPanelIfNeeded();
   toast('Manual tag viewpoint added.');
 }
 
@@ -259,6 +262,13 @@ function ensureManualLayer(scene) {
     scene.add(layer);
   }
   return layer;
+}
+
+function openTagViewsPanelIfNeeded() {
+  const panel = document.getElementById('navisTagViewPanel');
+  if (!panel?.classList.contains('open')) {
+    document.getElementById('navisTagViewsBtn')?.click();
+  }
 }
 
 function setPendingAnchor(enabled) {

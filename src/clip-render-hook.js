@@ -1,6 +1,7 @@
-// Emergency production recovery mode.
-// Keep the core app.js path alive and prevent late optional UI controllers from
-// executing unless they are loaded by the guarded safe-ui-loader.
+// Emergency production recovery guard.
+// Keep the core app.js path alive without monkey-patching THREE.WebGLRenderer.render
+// and without starting optional UI controllers. safe-ui-bootstrap.js is the single
+// owner for optional controller startup.
 //
 // Important: do NOT monkey-patch THREE.WebGLRenderer.prototype.render here.
 // Some Three.js builds define/assign renderer.render as a read-only own property
@@ -24,10 +25,17 @@ const OPTIONAL_CONTROLLER_FRAGMENTS = [
   'toolbar-cleanup-controller.js',
   'professional-ui-shell-controller.js',
   'two-row-ribbon-controller.js',
+  'two-row-icon-ribbon-controller.js',
   'color-by-legend',
   'origin-manager-controller.js',
   'marquee-zoom-controller.js',
   'phase24b-ui-exposure-controller.js',
+  'phase35-ui-cleanup-controller.js',
+  'phase36-input-drawer-fix-controller.js',
+  'phase37-input-drawer-stack-controller.js',
+  'phase38-clipbox-ui-cleanup-controller.js',
+  'phase40-legacy-hint-compat-controller.js',
+  'phase41-tree-clip-controls-controller.js',
   'rvm-compat-validator-controller.js',
   'ui-diagnostics-controller.js'
 ];
@@ -61,12 +69,11 @@ window.__3D_MARKUP_RECORD_RENDER_CONTEXT__ = function recordRenderContext(detail
 
 if (CORE_RECOVERY_MODE) {
   disableOptionalControllerScripts();
-  queueSafeUiLoader();
   window.addEventListener('DOMContentLoaded', () => {
     document.body.classList.add('core-recovery-mode');
     const status = document.getElementById('runtimeStatus');
     if (status && /ready/i.test(status.textContent || '')) status.textContent = 'Core Ready';
-    console.warn('[3DMarkupTool] Core recovery mode: optional UI controllers disabled; guarded UI batch will load after core startup.');
+    console.warn('[3DMarkupTool] Core recovery mode: optional UI scripts in markup are disabled; safe-ui-bootstrap.js owns optional UI startup.');
   }, { once: true });
 }
 
@@ -79,24 +86,4 @@ function disableOptionalControllerScripts() {
     script.type = 'text/plain';
     script.remove();
   }
-}
-
-function queueSafeUiLoader() {
-  const loadSafeUi = () => {
-    if (window.__3D_MARKUP_SAFE_UI_IMPORT_STARTED__) return;
-    window.__3D_MARKUP_SAFE_UI_IMPORT_STARTED__ = true;
-    import('./safe-ui-loader.js?v=phase27-production-cleanup').catch((error) => {
-      console.warn('[3DMarkupTool] Safe UI loader failed to start.', error);
-      const status = document.getElementById('runtimeStatus');
-      if (status) status.textContent = 'Core Ready / UI loader failed';
-    });
-  };
-
-  if (window.__3D_MARKUP_APP_READY__) {
-    window.requestAnimationFrame(loadSafeUi);
-    return;
-  }
-
-  window.addEventListener('markup:app-ready', () => window.requestAnimationFrame(loadSafeUi), { once: true });
-  window.setTimeout(() => loadSafeUi(), 2000);
 }

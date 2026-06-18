@@ -1,81 +1,120 @@
-const BATCH_MODULES = [
+const SAFE_UI_VERSION = 'phase27-production-cleanup';
+
+const ALL_MODULES = [
+  {
+    id: 'uiDiagnostics',
+    label: 'UI diagnostics',
+    src: './ui-diagnostics-controller.js?v=phase27-diagnostics'
+  },
   {
     id: 'shellLayoutRecovery',
     label: 'Shell layout recovery',
-    src: './shell-layout-recovery-controller.js?v=hotfix56-drawer-layout'
+    src: './shell-layout-recovery-controller.js?v=phase27-shell-layout'
+  },
+  {
+    id: 'propertyTabs',
+    label: 'Property tabs',
+    src: './property-tabs-base-controller.js?v=phase27-property-tabs-base'
+  },
+  {
+    id: 'consoleGuard',
+    label: 'Input guard',
+    src: './ui-console-guard.js?v=phase27-console-guard'
   },
   {
     id: 'fit',
     label: 'Fit',
-    src: './fit-controller.js?v=phase26-safe-fit'
+    src: './fit-controller.js?v=phase27-fit'
   },
-  // Grid is intentionally not imported here. index.html still contains the
-  // direct grid-toggle-controller module, and importing it again with a
-  // different cache key creates a duplicate Grid button.
+  {
+    id: 'grid',
+    label: 'Grid toggle',
+    src: './grid-toggle-controller.js?v=phase27-grid'
+  },
+  {
+    id: 'clipAdjuster',
+    label: 'Clip adjuster',
+    src: './clip-adjuster.js?v=phase27-clip-adjuster'
+  },
+  {
+    id: 'clipVisuals',
+    label: 'Clip / axis overlays',
+    src: './clip-visual-overlays.js?v=phase27-clip-visuals'
+  },
   {
     id: 'colorLegend',
     label: 'Color legend',
-    src: './color-by-legend-safe-controller.js?v=phase26-safe-legend'
+    src: './color-by-legend-safe-controller.js?v=phase27-safe-legend'
   },
   {
     id: 'treeVisibility',
     label: 'Tree + visibility',
-    src: './visibility-context-menu.js?v=phase26-safe-tree-visibility'
+    src: './visibility-context-menu.js?v=phase27-tree-visibility'
   },
   {
     id: 'selectionSync',
     label: 'Selection sync',
-    src: './selection-sync-controller.js?v=phase26-safe-selection-sync'
+    src: './selection-sync-controller.js?v=phase27-selection-sync'
   },
   {
     id: 'marqueeZoom',
     label: 'Marquee zoom',
-    src: './marquee-zoom-controller.js?v=phase26-safe-marquee'
+    src: './marquee-zoom-controller.js?v=phase27-marquee'
   },
   {
     id: 'originManager',
     label: 'Origin manager',
-    src: './origin-manager-controller.js?v=phase26-safe-origin'
+    src: './origin-manager-controller.js?v=phase27-origin'
   },
   {
     id: 'rvmQa',
     label: 'RVM QA',
-    src: './rvm-compat-validator-controller.js?v=phase26-safe-rvm-qa'
+    src: './rvm-compat-validator-controller.js?v=phase27-rvm-qa'
   },
   {
     id: 'tagLiteHost',
     label: 'Tag toolbar host',
-    src: './tag-lite-host-controller.js?v=phase26-batch5c-host'
+    src: './tag-lite-host-controller.js?v=phase27-tag-host'
   },
   {
     id: 'tagImportViews',
     label: 'Tag import/views',
-    src: './navis-tag-import-controller.js?v=phase26-batch5a-import'
+    src: './navis-tag-import-controller.js?v=phase27-tag-import'
   },
   {
     id: 'manualTag',
     label: 'Manual tag',
-    src: './navis-manual-tag-safe-controller.js?v=phase26-batch5c-manual'
+    src: './navis-manual-tag-safe-controller.js?v=phase27-manual-tag'
   },
   {
     id: 'tagUsability',
     label: 'Tag usability',
-    src: './navis-tag-usability-safe-controller.js?v=phase26-batch5d-usability'
+    src: './navis-tag-usability-safe-controller.js?v=phase27-tag-usability'
   },
   {
     id: 'tagSession',
     label: 'Tag session',
-    src: './navis-tag-session-safe-controller.js?v=phase26-batch5e-session'
+    src: './navis-tag-session-safe-controller.js?v=phase27-tag-session'
   },
   {
     id: 'tagXmlQa',
     label: 'Tag XML QA',
-    src: './navis-tag-xml-qa-mini-controller.js?v=phase26-batch5f-qa'
+    src: './navis-tag-xml-qa-mini-controller.js?v=phase27-tag-xml-qa'
   }
 ];
 
+const SAFE_MODE = new URLSearchParams(window.location.search).has('safe')
+  || window.localStorage.getItem('3dmarkup.safeUiMode') === 'core';
+
+const BATCH_MODULES = SAFE_MODE
+  ? ALL_MODULES.filter((entry) => entry.id === 'uiDiagnostics')
+  : ALL_MODULES;
+
 const state = {
+  version: SAFE_UI_VERSION,
+  safeMode: SAFE_MODE,
   started: false,
+  modules: BATCH_MODULES,
   results: []
 };
 
@@ -89,16 +128,24 @@ async function bootSafeLoader() {
 
   await waitForCoreApp();
   ensureStatusChip();
-  updateStatusChip('loading', 'UI loading…');
+
+  if (SAFE_MODE) {
+    updateStatusChip('warning', 'UI safe mode');
+  } else {
+    updateStatusChip('loading', 'UI loading…');
+  }
+  dispatchStatus();
 
   for (const entry of BATCH_MODULES) {
     await nextFrame();
     await loadModule(entry);
     updateStatusChip('loading', statusText());
+    dispatchStatus();
   }
 
   const failures = state.results.filter((item) => item.status === 'failed');
-  updateStatusChip(failures.length ? 'warning' : 'ok', statusText());
+  updateStatusChip(failures.length || SAFE_MODE ? 'warning' : 'ok', statusText());
+  dispatchStatus();
 }
 
 function waitForCoreApp(timeoutMs = 5000) {
@@ -123,6 +170,7 @@ async function loadModule(entry) {
 
   const result = { id: entry.id, label: entry.label, status: 'loading' };
   state.results.push(result);
+  dispatchStatus();
 
   try {
     await import(entry.src);
@@ -141,7 +189,10 @@ function nextFrame() {
 function statusText() {
   const loaded = state.results.filter((item) => item.status === 'loaded').length;
   const failed = state.results.filter((item) => item.status === 'failed').length;
-  return failed ? `UI ${loaded}/${BATCH_MODULES.length}, ${failed} failed` : `UI ${loaded}/${BATCH_MODULES.length}`;
+  const suffix = SAFE_MODE ? ' safe' : '';
+  return failed
+    ? `UI ${loaded}/${BATCH_MODULES.length}, ${failed} failed${suffix}`
+    : `UI ${loaded}/${BATCH_MODULES.length}${suffix}`;
 }
 
 function ensureStatusChip() {
@@ -201,4 +252,15 @@ function updateStatusChip(stateName, text) {
   chip.classList.remove('ok', 'warning', 'loading');
   chip.classList.add(stateName);
   chip.textContent = text;
+}
+
+function dispatchStatus() {
+  window.dispatchEvent(new CustomEvent('markup:safe-ui-status', {
+    detail: {
+      version: state.version,
+      safeMode: state.safeMode,
+      modules: state.modules,
+      results: state.results
+    }
+  }));
 }

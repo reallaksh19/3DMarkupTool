@@ -1,6 +1,6 @@
 // Emergency production recovery mode.
 // Keep the core app.js path alive and prevent late optional UI controllers from
-// executing until they can be re-enabled one by one under a guarded loader.
+// executing unless they are loaded by the guarded safe-ui-loader.
 //
 // Important: do NOT monkey-patch THREE.WebGLRenderer.prototype.render here.
 // Some Three.js builds define/assign renderer.render as a read-only own property
@@ -28,7 +28,8 @@ const OPTIONAL_CONTROLLER_FRAGMENTS = [
   'origin-manager-controller.js',
   'marquee-zoom-controller.js',
   'phase24b-ui-exposure-controller.js',
-  'rvm-compat-validator-controller.js'
+  'rvm-compat-validator-controller.js',
+  'ui-diagnostics-controller.js'
 ];
 
 window.__3D_MARKUP_CORE_RECOVERY__ = CORE_RECOVERY_MODE;
@@ -84,7 +85,7 @@ function queueSafeUiLoader() {
   const loadSafeUi = () => {
     if (window.__3D_MARKUP_SAFE_UI_IMPORT_STARTED__) return;
     window.__3D_MARKUP_SAFE_UI_IMPORT_STARTED__ = true;
-    import('./safe-ui-loader.js?v=hotfix57-render-safe-loader').catch((error) => {
+    import('./safe-ui-loader.js?v=phase27-production-cleanup').catch((error) => {
       console.warn('[3DMarkupTool] Safe UI loader failed to start.', error);
       const status = document.getElementById('runtimeStatus');
       if (status) status.textContent = 'Core Ready / UI loader failed';

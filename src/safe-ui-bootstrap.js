@@ -2,7 +2,7 @@
 // This is intentionally separate from clip-render-hook.js so UI recovery does not
 // depend on render-hook cache state or a missed app-ready event.
 
-const SAFE_LOADER_URL = './safe-ui-loader.js?v=hotfix56-drawer-layout-loader';
+const SAFE_LOADER_URL = './safe-ui-loader.js?v=phase27-production-cleanup';
 const MAX_ATTEMPTS = 8;
 
 let attempts = 0;

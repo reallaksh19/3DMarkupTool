@@ -6,4 +6,5 @@ import './navis-tag-usability-controller.js?v=phase23-tag-usability';
 import './navis-tag-xml-qa-controller.js?v=phase24-tag-xml-qa';
 import './navis-tag-session-controller.js?v=phase25-tag-session';
 import './toolbar-cleanup-controller.js?v=phase26-toolbar-tags-menu';
+import './two-row-ribbon-controller.js?v=phase27-two-row-ribbon';
 import './property-tabs-base-controller.js?v=phase20-property-tabs-base';

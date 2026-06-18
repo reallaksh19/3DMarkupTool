@@ -1,25 +1,30 @@
-const SAFE_UI_VERSION = 'phase28-rvm-strict-foundation';
+const SAFE_UI_VERSION = 'hotfix60-conversion-options';
 
 const ALL_MODULES = [
   {
     id: 'uiDiagnostics',
     label: 'UI diagnostics',
-    src: './ui-diagnostics-controller.js?v=phase28-diagnostics'
+    src: './ui-diagnostics-controller.js?v=hotfix60-diagnostics'
   },
   {
     id: 'shellLayoutRecovery',
     label: 'Shell layout recovery',
-    src: './shell-layout-recovery-controller.js?v=phase28-shell-layout'
+    src: './shell-layout-recovery-controller.js?v=hotfix60-shell-layout'
   },
   {
     id: 'propertyTabs',
     label: 'Property tabs',
-    src: './property-tabs-base-controller.js?v=phase28-property-tabs-base'
+    src: './property-tabs-base-controller.js?v=hotfix60-property-tabs-base'
   },
   {
     id: 'consoleGuard',
     label: 'Input guard',
-    src: './ui-console-guard.js?v=phase28-console-guard'
+    src: './ui-console-guard.js?v=hotfix60-console-guard'
+  },
+  {
+    id: 'conversionOptionsCompat',
+    label: 'Conversion options compatibility',
+    src: './conversion-options-compat-controller.js?v=hotfix60-conversion-options'
   },
   {
     id: 'fit',

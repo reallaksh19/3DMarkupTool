@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { GLTFExporter } from 'three/addons/exporters/GLTFExporter.js';
-import { parseInputXml, parseIsonoteExpectedRecords } from './parser.js?v=professional-viewer-3';
+import { parseIsonoteExpectedRecords } from './parser.js?v=professional-viewer-3';
+import { parseMarkupSource } from './source-parser.js?v=20260618-uxml-source-1';
 import {
   COLORS,
   mat,
@@ -28,19 +29,21 @@ const lineMat = mat(COLORS.lineStop, { emissive: 0x3a2500, emissiveIntensity: 0.
 const holdMat = mat(COLORS.holddown, { emissive: 0x330026, emissiveIntensity: 0.18 });
 const springMat = mat(COLORS.spring, { emissive: 0x331021, emissiveIntensity: 0.2 });
 
-export async function convertInputXmlToGlb(xmlText, options = {}) {
-  const model = parseInputXml(xmlText, options);
+export async function convertInputXmlToGlb(sourceText, options = {}) {
+  const model = parseMarkupSource(sourceText, options);
+  const sourceKind = model.sourceKind || 'InputXML';
   const scene = new THREE.Scene();
-  scene.name = 'InputXML_GLTF_SCENE';
+  scene.name = `${sourceKind}_GLTF_SCENE`;
   scene.userData = {
     app: 'inputxml-glb-standalone',
-    converterVersion: '1.0.0',
+    converterVersion: '1.1.0-uxml-source',
+    sourceKind,
     sourceMode: options.supportMode || 'compare',
     generatedAt: new Date().toISOString()
   };
 
   const root = new THREE.Group();
-  root.name = 'INPUTXML_GLB_ROOT';
+  root.name = `${sourceKind}_GLB_ROOT`;
   scene.add(root);
 
   const nodesGroup = new THREE.Group(); nodesGroup.name = 'nodes';
@@ -51,12 +54,16 @@ export async function convertInputXmlToGlb(xmlText, options = {}) {
 
   const elementByNode = buildElementIndex(model);
   const audit = {
+    sourceKind,
+    sourceSchemaVersion: model.sourceSchemaVersion || '',
     componentCount: model.elements.length,
     nodeCount: model.nodes.size,
     inputXmlRestraints: model.restraints.length,
+    actualRestraints: model.restraints.length,
     isonoteRecords: 0,
     supportSymbols: [],
     componentMetadataUpdated: model.elements.length,
+    diagnostics: model.diagnostics || [],
     options: { ...options }
   };
 
@@ -70,12 +77,12 @@ export async function convertInputXmlToGlb(xmlText, options = {}) {
       const sphere = new THREE.Mesh(new THREE.SphereGeometry(0.12, 18, 10), mat(COLORS.node, { emissive: 0x0a3c66, emissiveIntensity: 0.18 }));
       sphere.name = `NODE_MARKER_${node.id}`;
       sphere.position.copy(p);
-      sphere.userData = { TYPE: 'NODE', NODE: node.id, LABEL: `N${node.id}`, SOURCE: 'InputXML', X: node.x, Y: node.y, Z: node.z };
+      sphere.userData = { TYPE: 'NODE', NODE: node.id, LABEL: `N${node.id}`, SOURCE: sourceKind, X: node.x, Y: node.y, Z: node.z };
       const label = createNodeLabel(`N${node.id}`, p.clone().add(new THREE.Vector3(0.35, 0.5, 0.32)), 0.7);
       label.lookAt(new THREE.Vector3(0, 0, 0));
       label.material.depthTest = false;
       label.renderOrder = 15;
-      label.userData = { TYPE: 'NODE', NODE: node.id, LABEL: `N${node.id}`, SOURCE: 'InputXML', X: node.x, Y: node.y, Z: node.z };
+      label.userData = { TYPE: 'NODE', NODE: node.id, LABEL: `N${node.id}`, SOURCE: sourceKind, X: node.x, Y: node.y, Z: node.z };
       nodesGroup.add(sphere, label);
     }
   }
@@ -108,7 +115,7 @@ export async function convertInputXmlToGlb(xmlText, options = {}) {
 function createElementGeometry(element, group, options, elementByNode) {
   const fullA = vectorFrom(element.from, SCALE);
   const fullB = vectorFrom(element.to, SCALE);
-  const od = Number(element.props.bore || 100) * SCALE;
+  const od = numberValue(element.props.bore, 100) * SCALE;
   const radius = Math.max(0.04, (od / 2));
   const { a, b } = trimmedElementEndpoints(element, elementByNode, radius, fullA, fullB);
   const isRigid = element.rawType && element.rawType !== 'PIPE' && element.rawType !== 'BEND';
@@ -175,7 +182,7 @@ function createBendGeometry(element, elementByNode, pipeRadius, userData, option
   tube.userData = {
     ...userData,
     meshRole: 'BEND_ELBOW',
-    bendVisualBasis: element.props.bendRadius ? 'InputXML RADIUS' : 'ASSUMED_1_5D',
+    bendVisualBasis: element.props.bendRadius ? 'SOURCE RADIUS' : 'ASSUMED_1_5D',
     bendCenterlineRadius: bendRadius / SCALE
   };
   return tube;
@@ -191,7 +198,7 @@ function connectedDirectionAtNode(elementByNode, nodeId, currentElement) {
 }
 
 function bendCenterlineRadius(element, pipeRadius) {
-  const explicit = Number(element.props.bendRadius);
+  const explicit = numberValue(element.props.bendRadius, NaN);
   if (Number.isFinite(explicit) && explicit > 0) return explicit * SCALE;
   return pipeRadius * 2 * 1.5;
 }
@@ -212,6 +219,12 @@ function buildComponentUserData(element) {
     fromNode: p.fromNode,
     toNode: p.toNode,
     bore: p.bore,
+    branchBore: p.branchBore,
+    startBore: p.startBore,
+    endBore: p.endBore,
+    uxmlComponentId: p.uxmlComponentId,
+    uxmlSegmentId: p.uxmlSegmentId,
+    uxmlNormalizedType: p.uxmlNormalizedType,
     wallThickness: resolved(p.wallThickness),
     wallThicknessSource: source(p.wallThickness),
     materialThickness: resolved(p.materialThickness),
@@ -232,6 +245,7 @@ function buildComponentUserData(element) {
     rigidWeight: p.rigidWeight,
     bendRadius: p.bendRadius,
     bendAngle: p.bendAngle,
+    rawAttributes: p.rawAttributes,
     source: p.source
   };
 }
@@ -269,16 +283,15 @@ function createIsonoteBoards(model, group, elementByNode) {
 }
 
 function normalizeInputXmlRestraints(model) {
-  // Lightweight generic mapper. For BM_CII benchmark, the ISONOTE expected path is the richer path.
   return model.restraints.map((r) => {
-    const family = classifyByTypeCode(r.typeCode);
+    const family = r.family || classifyByTypeCode(r.typeCode);
     return {
       ...r,
       family,
-      sourceMode: 'ACTUAL_INPUTXML',
-      source: 'InputXML',
-      axis: axisFromCosines(r) || 'PIPE_AXIAL_±',
-      sourceNoteName: ''
+      sourceMode: r.sourceMode || (model.sourceKind === 'UXML' ? 'ACTUAL_UXML' : 'ACTUAL_INPUTXML'),
+      source: r.source || model.sourceKind || 'InputXML',
+      axis: r.axis || axisFromCosines(r) || 'PIPE_AXIAL_±',
+      sourceNoteName: r.sourceNoteName || ''
     };
   });
 }
@@ -290,6 +303,8 @@ function classifyByTypeCode(typeCode) {
   if (t.includes('HANGER') || t.includes('SPRING')) return 'SPRING';
   if (t.includes('LIM') || t.includes('LIMIT')) return 'LIMIT';
   if (t.includes('STOP') || t === '3') return 'LINE_STOP';
+  if (t.includes('REST')) return 'REST';
+  if (t.includes('HOLD')) return 'HOLDDOWN';
   return 'AXIS_RESTRAINT';
 }
 
@@ -408,13 +423,21 @@ function localTangent(elementByNode, nodeId) {
 function localOd(elementByNode, nodeId) {
   const els = elementByNode.get(String(Number(nodeId))) || [];
   if (!els.length) return 100;
-  return Number(els[0].props.bore || 100);
+  return numberValue(els[0].props.bore, 100);
 }
 
 function frameScene(scene) {
   const box = new THREE.Box3().setFromObject(scene);
   const center = box.getCenter(new THREE.Vector3());
   scene.position.sub(center);
+}
+
+function numberValue(value, fallback = 0) {
+  if (value && typeof value === 'object' && 'value' in value) value = value.value;
+  const match = String(value ?? '').match(/-?\d+(?:\.\d+)?/);
+  if (!match) return fallback;
+  const n = Number(match[0]);
+  return Number.isFinite(n) ? n : fallback;
 }
 
 export function exportSceneToGlb(scene) {

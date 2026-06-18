@@ -5,6 +5,11 @@ const IDS = {
   select: 'colorBySelect'
 };
 
+const state = {
+  installed: false,
+  refreshTimer: null
+};
+
 function byId(id) {
   return document.getElementById(id);
 }
@@ -107,6 +112,12 @@ function ensureReviewGroup() {
   return group;
 }
 
+function appendOnce(parent, child) {
+  if (!parent || !child) return;
+  if (child.parentElement === parent) return;
+  parent.appendChild(child);
+}
+
 function ensureOriginButton() {
   let button = byId(IDS.origin);
   if (!button) {
@@ -129,7 +140,7 @@ function ensureOriginButton() {
     });
   }
   button.classList.add('phase24b-attention');
-  ensureReviewGroup().appendChild(button);
+  appendOnce(ensureReviewGroup(), button);
   return button;
 }
 
@@ -144,7 +155,7 @@ function ensureMarqueeButton() {
     button.setAttribute('aria-pressed', 'false');
     button.innerHTML = '<span aria-hidden="true">▣</span><span>Marquee</span>';
   }
-  ensureReviewGroup().appendChild(button);
+  appendOnce(ensureReviewGroup(), button);
   return button;
 }
 
@@ -176,7 +187,8 @@ function refreshLegendExposure() {
   if (legend && legend.textContent.trim()) {
     placeholder.classList.remove('visible');
   } else {
-    placeholder.querySelector('span').textContent = `Color By is set to ${labelForMode(mode)}. Legend data is being prepared from visible objects.`;
+    const span = placeholder.querySelector('span');
+    if (span) span.textContent = `Color By is set to ${labelForMode(mode)}. Legend data is being prepared from visible objects.`;
     placeholder.classList.add('visible');
   }
 }
@@ -200,30 +212,29 @@ function exposePhase24Ui() {
   refreshLegendExposure();
 }
 
+function scheduleExpose(delay = 0) {
+  window.clearTimeout(state.refreshTimer);
+  state.refreshTimer = window.setTimeout(exposePhase24Ui, delay);
+}
+
 function install() {
+  if (state.installed) return;
+  state.installed = true;
+
   exposePhase24Ui();
+
   byId(IDS.select)?.addEventListener('change', () => {
     window.setTimeout(refreshLegendExposure, 80);
     window.setTimeout(refreshLegendExposure, 320);
   }, true);
 
   window.addEventListener('markup:render-context', () => {
-    exposePhase24Ui();
-    window.setTimeout(refreshLegendExposure, 120);
+    scheduleExpose(120);
   });
 
-  const observer = new MutationObserver(() => {
-    exposePhase24Ui();
-  });
-  const toolbar = document.querySelector('.toolbar') || document.body;
-  observer.observe(toolbar, { childList: true, subtree: true });
-
-  let ticks = 0;
-  const timer = window.setInterval(() => {
-    exposePhase24Ui();
-    ticks += 1;
-    if (ticks > 20) window.clearInterval(timer);
-  }, 350);
+  // Bounded startup retries only. Do not observe/mutate the toolbar subtree continuously;
+  // moving buttons while observing the same subtree can create a DOM mutation loop.
+  [250, 900, 1800].forEach((delay) => window.setTimeout(exposePhase24Ui, delay));
 }
 
 if (document.readyState === 'loading') {

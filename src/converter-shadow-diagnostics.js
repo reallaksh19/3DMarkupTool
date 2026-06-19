@@ -1,3 +1,4 @@
+import { stampLegacyFallbackSceneUserData } from './fallback-render-userdata.js';
 import {
   attachPipingContractShadow,
   compactReport,
@@ -14,7 +15,13 @@ export function attachShadowDiagnosticsToGlbResult(glbResult, options = {}) {
   });
   const compact = compactReport(report);
 
-  if (glbResult.scene) attachPipingContractShadow(glbResult.scene, report);
+  if (glbResult.scene) {
+    attachPipingContractShadow(glbResult.scene, report);
+    stampLegacyFallbackSceneUserData(glbResult.scene, {
+      sourceType: glbResult.model?.sourceKind || glbResult.audit?.sourceKind || 'InputXML',
+      fallbackReason: 'legacy renderer output stamped as explicit fallback after contract shadow run'
+    });
+  }
   glbResult.audit = {
     ...(glbResult.audit || {}),
     contractPipeline: {

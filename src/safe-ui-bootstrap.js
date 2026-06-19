@@ -7,6 +7,7 @@ const CLIP_UI_VERSION = 'esc-tools-export-icons-20260619';
 const USABILITY_FIX_VERSION = 'ribbon-usability-fixes-20260619';
 const VISIBLE_DIRECT_FIX_VERSION = 'visible-shell-direct-fixes-20260619';
 const FINAL_REVIEW_FIX_VERSION = 'review-tool-final-fixes-20260619';
+const SELECTION_ACTIONS_VERSION = 'review-selection-actions-20260619';
 const CORE_MODULE_URLS = [
   `./static-shell-core-controller.js?v=${SAFE_UI_VERSION}`,
   `./static-review-ui-polish-controller.js?v=${SAFE_UI_VERSION}`,
@@ -36,7 +37,8 @@ const CORE_MODULE_URLS = [
   `./static-ui-stability-fixes-controller.js?v=${SAFE_UI_VERSION}`,
   `./static-ribbon-usability-fixes-controller.js?v=${USABILITY_FIX_VERSION}`,
   `./static-visible-shell-direct-fixes-controller.js?v=${VISIBLE_DIRECT_FIX_VERSION}`,
-  `./static-review-tool-final-fixes-controller.js?v=${FINAL_REVIEW_FIX_VERSION}`
+  `./static-review-tool-final-fixes-controller.js?v=${FINAL_REVIEW_FIX_VERSION}`,
+  `./static-review-selection-actions-controller.js?v=${SELECTION_ACTIONS_VERSION}`
 ];
 const CLIP_MODULE_URLS = shouldLoadClipTools() ? [
   `./fresh-clip-controller.js?v=${CLIP_UI_VERSION}`,
@@ -79,51 +81,34 @@ function scheduleStart() {
     window.addEventListener('DOMContentLoaded', () => setBootstrapStatus('Core Ready'), { once: true });
     return;
   }
-
+  const start = () => import(SAFE_LOADER_URL)
+    .then((mod) => mod.initSafeUi?.({ version: SAFE_UI_VERSION }))
+    .then(() => setBootstrapStatus('Review Ready'))
+    .catch((err) => {
+      console.error('[3DMarkupTool] Safe UI failed to start', err);
+      attempts += 1;
+      if (attempts < MAX_ATTEMPTS) window.setTimeout(scheduleStart, 300 * attempts);
+      else setBootstrapStatus('Core Ready');
+    });
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', function () { startSoon(0); }, { once: true });
-    return;
+    document.addEventListener('DOMContentLoaded', start, { once: true });
+  } else {
+    start();
   }
-  startSoon(0);
 }
 
 function shouldLoadOptionalUi() {
   const params = new URLSearchParams(window.location.search);
-  return params.has('uiBehavior')
-    || params.has('uiAdvanced')
-    || params.has('uiAcceptance')
-    || params.has('safe')
-    || window.localStorage.getItem('3dmarkup.uiBehavior') === '1'
-    || window.localStorage.getItem('3dmarkup.uiAdvanced') === '1'
-    || window.localStorage.getItem('3dmarkup.uiAcceptance') === '1'
-    || window.localStorage.getItem('3dmarkup.safeUiMode') === 'core';
+  if (params.get('safeUi') === '0' || params.get('coreOnly') === '1') return false;
+  return true;
 }
 
 function shouldLoadClipTools() {
   const params = new URLSearchParams(window.location.search);
-  return params.has('clipTools') || window.localStorage.getItem('3dmarkup.clipTools') === '1';
-}
-
-function startSoon(delayMs) {
-  window.setTimeout(function () {
-    if (window.__3D_MARKUP_SAFE_UI_IMPORT_STARTED__) return;
-
-    if (!window.__3D_MARKUP_APP_READY__ && attempts < 2) {
-      attempts += 1;
-      startSoon(250);
-      return;
-    }
-
-    window.__3D_MARKUP_SAFE_UI_IMPORT_STARTED__ = true;
-    import(SAFE_LOADER_URL).catch(function (error) {
-      console.warn('[3DMarkupTool] Optional UI loader skipped after failed dynamic import.', error);
-      window.__3D_MARKUP_SAFE_UI_IMPORT_STARTED__ = false;
-      window.__3D_MARKUP_SAFE_UI_IMPORT_FAILED__ = true;
-    });
-  }, delayMs);
+  return params.get('clipTools') === '1' || params.get('clip') === '1';
 }
 
 function setBootstrapStatus(text) {
-  const status = document.getElementById('coreStatus') || document.getElementById('uiHealthBadge');
-  if (status) status.textContent = text;
+  const el = document.getElementById('safeUiStatus');
+  if (el) el.textContent = text;
 }

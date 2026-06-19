@@ -4,7 +4,7 @@
 // Tiny static shell modules are still loaded in all modes because they own
 // first-class shell behavior, not optional patch-controller behavior.
 
-const SAFE_UI_VERSION = 'static-clipbox-safe-apply-20260618';
+const SAFE_UI_VERSION = 'static-selection-rebased-clips-20260618';
 const CORE_MODULE_URLS = [
   `./static-shell-core-controller.js?v=${SAFE_UI_VERSION}`,
   `./static-toolbar-polish-controller.js?v=${SAFE_UI_VERSION}`,
@@ -79,27 +79,16 @@ function startSoon(delayMs) {
       return;
     }
 
-    importSafeLoader();
+    window.__3D_MARKUP_SAFE_UI_IMPORT_STARTED__ = true;
+    import(SAFE_LOADER_URL).catch(function (error) {
+      console.warn('[3DMarkupTool] Optional UI loader skipped after failed dynamic import.', error);
+      window.__3D_MARKUP_SAFE_UI_IMPORT_STARTED__ = false;
+      window.__3D_MARKUP_SAFE_UI_IMPORT_FAILED__ = true;
+    });
   }, delayMs);
 }
 
-function importSafeLoader() {
-  if (window.__3D_MARKUP_SAFE_UI_IMPORT_STARTED__) return;
-  window.__3D_MARKUP_SAFE_UI_IMPORT_STARTED__ = true;
-  window.__3D_MARKUP_SAFE_UI_VERSION__ = SAFE_UI_VERSION;
-
-  import(SAFE_LOADER_URL).catch(function (error) {
-    console.warn('[3DMarkupTool] Safe UI bootstrap failed.', error);
-    window.__3D_MARKUP_SAFE_UI_IMPORT_STARTED__ = false;
-    attempts += 1;
-    setBootstrapStatus('UI bootstrap retry');
-    if (attempts < MAX_ATTEMPTS) startSoon(Math.min(800 + attempts * 300, 2200));
-    else setBootstrapStatus('UI bootstrap failed');
-  });
-}
-
 function setBootstrapStatus(text) {
-  const status = document.getElementById('runtimeStatus');
-  if (!status) return;
-  if (/ready/i.test(status.textContent || '') || /core/i.test(status.textContent || '')) status.textContent = text;
+  const status = document.getElementById('coreStatus') || document.getElementById('uiHealthBadge');
+  if (status) status.textContent = text;
 }

@@ -4,14 +4,15 @@
 // Tiny static shell modules are still loaded in all modes because they own
 // first-class shell behavior, not optional patch-controller behavior.
 
-const SAFE_UI_VERSION = 'static-toolbar-label-polish-20260618';
+const SAFE_UI_VERSION = 'static-quick-export-core-20260618';
 const CORE_MODULE_URLS = [
   `./static-shell-core-controller.js?v=${SAFE_UI_VERSION}`,
   `./static-toolbar-polish-controller.js?v=${SAFE_UI_VERSION}`,
   `./static-tree-core-controller.js?v=${SAFE_UI_VERSION}`,
   `./static-markup-core-controller.js?v=${SAFE_UI_VERSION}`,
   `./clip-adjuster.js?v=${SAFE_UI_VERSION}`,
-  `./static-clipbox-core-controller.js?v=${SAFE_UI_VERSION}`
+  `./static-clipbox-core-controller.js?v=${SAFE_UI_VERSION}`,
+  `./static-quick-export-core-controller.js?v=${SAFE_UI_VERSION}`
 ];
 const SAFE_LOADER_URL = `./safe-ui-loader.js?v=${SAFE_UI_VERSION}`;
 const MAX_ATTEMPTS = 4;

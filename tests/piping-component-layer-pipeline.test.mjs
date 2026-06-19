@@ -5,10 +5,10 @@ import { validateGeometryContract } from '../src/piping-component-contract.js';
 import { PIPING_COMPONENT_CATALOG, RENDER_RECIPE_CATALOG } from '../src/piping-component-catalog.js';
 import {
   adaptInputXmlModelToSourceRecords,
-  buildPipingContractPipeline,
   buildRenderInstructions,
   createFallbackLegacyContract
 } from '../src/piping-component-layer.js';
+import { buildInputXmlSafePipingContractPipeline as buildPipingContractPipeline } from '../src/piping-component-inputxml-safe-pipeline.js';
 
 const startedAt = performance.now();
 const model = syntheticInputXmlModel();
@@ -64,19 +64,28 @@ phase('04 unknown remains unknown and unknown restraint remains UNKNOWN_RESTRAIN
   assert.equal(unknownRestraint.componentType, 'UNKNOWN_RESTRAINT');
 });
 
-phase('05 required component classes produce expected geometry contract kinds', () => {
+phase('05 InputXML fittings are classified but delegated to explicit fallback, not invented geometry', () => {
   assertHasKind('PIPE', 'CYLINDER_BETWEEN_NODES');
-  assertHasKind('BEND', 'ELBOW_SWEEP');
-  assertHasKind('ELBOW', 'ELBOW_SWEEP');
-  assertHasKind('TEE', 'TEE_COMPOSITE');
+  assertHasKind('BEND', 'FALLBACK_LEGACY');
+  assertHasKind('ELBOW', 'FALLBACK_LEGACY');
+  assertHasKind('TEE', 'FALLBACK_LEGACY');
   assertHasKind('VALVE', 'VALVE_SYMBOLIC');
   assertHasKind('FLANGE', 'FLANGE_PAIR');
   assertHasKind('REDUCER', 'REDUCER_TRANSITION');
   assertHasKind('RESTRAINT', 'RESTRAINT_SYMBOL');
   assertHasKind('UNKNOWN', 'UNKNOWN_PLACEHOLDER');
+  assertNoInputXmlFittingKind('ELBOW_SWEEP');
+  assertNoInputXmlFittingKind('TEE_COMPOSITE');
 });
 
-phase('06 invalid geometry is rejected before render/export instructions', () => {
+phase('06 richer non-InputXML fitting source may produce explicit fitting contracts', () => {
+  const rich = buildPipingContractPipeline(explicitFittingModel());
+  assert.ok(rich.geometryContracts.some((contract) => contract.componentClass === 'BEND' && contract.geometryKind === 'ELBOW_SWEEP'));
+  assert.ok(rich.geometryContracts.some((contract) => contract.componentClass === 'TEE' && contract.geometryKind === 'TEE_COMPOSITE'));
+  assert.equal(rich.diagnostics.fallbackRendered, 0);
+});
+
+phase('07 invalid geometry is rejected before render/export instructions', () => {
   const pipe = pipeline.geometryContracts.find((contract) => contract.geometryKind === 'CYLINDER_BETWEEN_NODES');
   const invalid = validateGeometryContract({
     ...pipe,
@@ -86,7 +95,7 @@ phase('06 invalid geometry is rejected before render/export instructions', () =>
   assert.ok(invalid.errors.some((issue) => issue.code === 'geometry.zeroLength'));
 });
 
-phase('07 fallback legacy rendering is explicit and counted', () => {
+phase('08 fallback legacy rendering is explicit and counted', () => {
   const pipe = pipeline.components.find((component) => component.componentClass === 'PIPE');
   const fallback = createFallbackLegacyContract(pipe, 'legacy InputXML direct renderer retained as fallback');
   const instructions = buildRenderInstructions([fallback], pipeline.components);
@@ -99,7 +108,7 @@ phase('07 fallback legacy rendering is explicit and counted', () => {
   assert.match(instructions[0].userData.fallbackReason, /legacy InputXML/i);
 });
 
-phase('08 diagnostics report phase counts and acceptance fields', () => {
+phase('09 diagnostics report phase counts, fallback, and delegated InputXML fittings', () => {
   const diagnostics = pipeline.diagnostics;
   assert.equal(diagnostics.sourceRecordsTotal, 10);
   assert.equal(diagnostics.componentsTotal, 10);
@@ -114,8 +123,13 @@ phase('08 diagnostics report phase counts and acceptance fields', () => {
   assert.equal(diagnostics.componentsByClass.UNKNOWN, 1);
   assert.equal(diagnostics.unknownComponents, 2);
   assert.equal(diagnostics.geometryContractsTotal, 10);
-  assert.equal(diagnostics.fallbackRendered, 0);
+  assert.equal(diagnostics.fallbackRendered, 3);
   assert.deepEqual(diagnostics.unrenderableComponents, []);
+  assert.deepEqual([...diagnostics.delegatedTopologyComponents].sort(), [
+    'PE_002_BEND_20_TO_30',
+    'PE_003_ELBOW_30_TO_40',
+    'PE_004_TEE_30_TO_35_TO_40'
+  ].sort());
   assert.equal(diagnostics.phases.renderInstructionsTotal, 10);
 });
 
@@ -124,6 +138,11 @@ console.log(`[piping-layer] completed in ${((performance.now() - startedAt) / 10
 function assertHasKind(componentClass, geometryKind) {
   const match = pipeline.geometryContracts.find((contract) => contract.componentClass === componentClass && contract.geometryKind === geometryKind);
   assert.ok(match, `${componentClass} should produce ${geometryKind}`);
+}
+
+function assertNoInputXmlFittingKind(geometryKind) {
+  const match = pipeline.geometryContracts.find((contract) => ['BEND', 'ELBOW', 'TEE'].includes(contract.componentClass) && contract.geometryKind === geometryKind);
+  assert.equal(match, undefined, `InputXML fitting must not produce ${geometryKind}`);
 }
 
 function phase(name, fn) {
@@ -172,6 +191,25 @@ function syntheticInputXmlModel() {
   };
 }
 
+function explicitFittingModel() {
+  const nodes = new Map([
+    ['A', node('A', 0, 0, 0)],
+    ['B', node('B', 500, 0, 0)],
+    ['C', node('C', 1000, 0, 0)],
+    ['D', node('D', 1000, 500, 0)],
+    ['E', node('E', 1000, 1000, 0)]
+  ]);
+  return {
+    sourceKind: 'PCF',
+    nodes,
+    elements: [
+      element(nodes, 'PCF_BEND_A_B', 'BEND', 'A', 'B', { bendRadius: 200, bendAngle: 90 }),
+      element(nodes, 'PCF_TEE_C_D_E', 'TEE', 'C', 'D', { ports: [{ portId: 'MAIN_A', nodeId: 'C' }, { portId: 'MAIN_B', nodeId: 'D' }, { portId: 'BRANCH', nodeId: 'E' }] })
+    ],
+    restraints: []
+  };
+}
+
 function node(id, x, y, z) {
   return { id, x, y, z };
 }
@@ -197,7 +235,7 @@ function element(nodes, id, rawType, fromNode, toNode, overrides = {}) {
       fromNode,
       toNode,
       bore: 120,
-      source: 'InputXML pipeline test fixture',
+      source: 'pipeline test fixture',
       ...overrides
     }
   };

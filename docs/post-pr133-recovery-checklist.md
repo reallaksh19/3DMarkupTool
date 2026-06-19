@@ -33,9 +33,9 @@ Legend:
 
 | Status | Comment ID | Original feedback | Completion note |
 |---|---|---|---|
-| ⬜ | C1 — Input controls must always remain visible | “This should be always visible.” | Pending. |
-| ⬜ | C2 — Required visible input block | Show always: `No file chosen`, `Choose InputXML`, `Load BM_CII sample`, `Clear All`. | Pending. |
-| ⬜ | C3 — Real browse/sample controls hidden | Input panel choose/browse/load BM not visible. | Pending. |
+| ✅ | C1 — Input controls must always remain visible | “This should be always visible.” | Added a sticky real input-control block at the top of the input drawer and a non-polling controller that keeps the input drawer open. |
+| ✅ | C2 — Required visible input block | Show always: `No file chosen`, `Choose InputXML`, `Load BM_CII sample`, `Clear All`. | The real file status, file chooser label, BM_CII sample button, and Clear All button are now grouped in the always-visible input block. |
+| ✅ | C3 — Real browse/sample controls hidden | Input panel choose/browse/load BM not visible. | The controller uses the real `xmlFile`, `loadSampleBtn`, and `clearBtn` controls and updates status without creating fake duplicates. |
 
 ## Phase 3 — Dropdown / ribbon cleanup
 

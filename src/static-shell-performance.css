@@ -39,13 +39,15 @@
   min-width: 86px;
 }
 
-.markup-ribbon {
+.viewer-topbar .markup-ribbon,
+.viewer-topbar .markup-ribbon:has(.navis-tag-tools:empty) {
   display: flex;
   min-height: 52px;
   align-items: center;
 }
 
-.markup-ribbon .navis-tag-tools {
+.viewer-topbar .markup-ribbon .navis-tag-tools,
+.viewer-topbar .markup-ribbon .navis-tag-tools:empty {
   display: flex;
   min-height: 52px;
 }

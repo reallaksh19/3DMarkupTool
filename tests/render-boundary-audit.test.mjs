@@ -37,13 +37,13 @@ const DIRECT_RENDER_PATTERNS = Object.freeze([
 
 const files = await listJavaScriptFiles(srcRoot);
 
-phase('01 render boundary manifest is explicit and contract-directed', () => {
+await phase('01 render boundary manifest is explicit and contract-directed', () => {
   assert.equal(assertRenderBoundaryManifest(CONTRACT_RENDER_BOUNDARY), true);
   assert.ok(CONTRACT_RENDER_BOUNDARY.legacyFallbackRenderers.length >= 1);
   assert.ok(CONTRACT_RENDER_BOUNDARY.contractEntryPoints.includes('src/piping-component-contract.js'));
 });
 
-phase('02 every manifest fallback path exists and is fallback-only', async () => {
+await phase('02 every manifest fallback path exists and is fallback-only', async () => {
   for (const entry of CONTRACT_RENDER_BOUNDARY.legacyFallbackRenderers) {
     const absolutePath = path.join(repoRoot, entry.path);
     const text = await readFile(absolutePath, 'utf8');
@@ -53,7 +53,7 @@ phase('02 every manifest fallback path exists and is fallback-only', async () =>
   }
 });
 
-phase('03 no new source-specific direct renderer exists outside fallback manifest', async () => {
+await phase('03 no new source-specific direct renderer exists outside fallback manifest', async () => {
   const allowed = legacyFallbackRendererPaths(CONTRACT_RENDER_BOUNDARY);
   const findings = [];
 
@@ -73,7 +73,7 @@ phase('03 no new source-specific direct renderer exists outside fallback manifes
   assert.ok(findings.includes('src/converter.js'), 'existing direct InputXML GLB renderer should be recognized as legacy fallback');
 });
 
-phase('04 contract modules stay mesh-free', async () => {
+await phase('04 contract modules stay mesh-free', async () => {
   for (const repoPath of CONTRACT_RENDER_BOUNDARY.contractEntryPoints) {
     const text = await readFile(path.join(repoRoot, repoPath), 'utf8');
     assert.equal(hasDirectRenderEmission(text), false, `${repoPath} must remain a contract/validator module, not a mesh renderer`);

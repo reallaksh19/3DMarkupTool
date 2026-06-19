@@ -1,11 +1,13 @@
 // Static topbar/ribbon layout controller.
-// Keeps View/Fit/Display expanded while moving Color By into Display and
-// placing Session/Export as topbar menus after Props.
+// Keeps View/Fit/Display expanded while moving Color By/Tag Views into Display and
+// placing Markup/Session/Export as topbar menus after Props.
 
-const VERSION = 'static-topbar-layout-session-export-20260619';
+const VERSION = 'static-topbar-markup-health-bar-20260619';
 
+const MARKUP_IDS = ['staticTagBtn', 'staticIsonoteXmlBtn', 'staticImportXmlBtn'];
 const SESSION_IDS = ['staticSaveSessionBtn', 'staticRestoreSessionBtn', 'staticClearSessionBtn'];
-const EXPORT_IDS = ['downloadGlbBtn', 'downloadRvmBtn', 'downloadAttBtn', 'downloadAuditBtn', 'staticExportXmlBtn'];
+const EXPORT_IDS = ['downloadGlbBtn', 'downloadRvmBtn', 'downloadAttBtn', 'downloadAuditBtn', 'staticXmlQaBtn', 'staticExportXmlBtn'];
+const PROXIED_IDS = [...MARKUP_IDS, ...SESSION_IDS, ...EXPORT_IDS];
 
 runWhenReady(initStaticTopbarLayout);
 
@@ -18,6 +20,7 @@ function initStaticTopbarLayout() {
   injectStyles();
   groupViewFitDisplay();
   moveColorByToDisplay();
+  moveTagViewsToDisplay();
   ensureTopbarMenus();
   improveHealthStatus();
   bindUpdates();
@@ -86,6 +89,18 @@ function injectStyles() {
       color: #fff;
     }
 
+    #staticTagViewsBtn.display-tag-views {
+      width: 86px;
+      min-width: 86px;
+      max-width: 86px;
+      height: 56px;
+      min-height: 56px;
+    }
+
+    .markup-ribbon { display: none !important; }
+    ${PROXIED_IDS.map((id) => `#${id}`).join(', ')} { display: none !important; }
+    #staticTagViewsBtn.display-tag-views { display: inline-flex !important; }
+
     .top-menu-wrap { position: relative; }
     .top-menu-btn {
       min-height: 42px;
@@ -104,7 +119,7 @@ function injectStyles() {
       top: calc(100% + 8px);
       right: 0;
       z-index: 90;
-      min-width: 210px;
+      min-width: 220px;
       display: grid;
       gap: 5px;
       padding: 8px;
@@ -135,28 +150,56 @@ function injectStyles() {
     }
 
     .app-health-pill {
+      min-width: 142px;
       min-height: 42px;
       display: grid;
-      align-content: center;
-      gap: 1px;
-      padding: 6px 12px;
+      grid-template-rows: auto 5px auto;
+      gap: 3px;
+      padding: 6px 10px;
       border-radius: 12px;
       border: 1px solid rgba(39,224,161,.45);
       background: rgba(3, 45, 39, .65);
       color: #dffdf5;
       line-height: 1.05;
       white-space: nowrap;
+      box-sizing: border-box;
     }
-    .app-health-pill strong { font-size: 11px; font-weight: 1000; }
-    .app-health-pill span { font-size: 9.5px; color: rgba(213,255,244,.78); font-weight: 800; }
+    .app-health-top {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 8px;
+    }
+    .app-health-top strong { font-size: 11px; font-weight: 1000; }
+    .app-health-top b { font-size: 12px; font-weight: 1000; color: #39f0bd; }
+    .app-health-bar {
+      position: relative;
+      height: 5px;
+      border-radius: 999px;
+      overflow: hidden;
+      background: rgba(255,255,255,.12);
+    }
+    .app-health-bar span {
+      display: block;
+      height: 100%;
+      width: var(--health-pct, 0%);
+      border-radius: inherit;
+      background: linear-gradient(90deg, #1fa7ff, #28e0a1);
+      transition: width .18s ease;
+    }
+    .app-health-detail { font-size: 9.5px; color: rgba(213,255,244,.78); font-weight: 800; overflow: hidden; text-overflow: ellipsis; }
     .app-health-pill.warn { border-color: rgba(255,171,53,.62); background: rgba(61, 39, 8, .68); color: #ffe6b5; }
+    .app-health-pill.warn .app-health-top b { color: #ffc15d; }
+    .app-health-pill.warn .app-health-bar span { background: linear-gradient(90deg, #ff9d2e, #ffd166); }
     .app-health-pill.bad { border-color: rgba(255,90,110,.62); background: rgba(62, 8, 20, .68); color: #ffd7dc; }
+    .app-health-pill.bad .app-health-top b { color: #ff7f93; }
+    .app-health-pill.bad .app-health-bar span { background: linear-gradient(90deg, #ff4d6d, #ff8fa3); }
     #runtimeStatus, #uiScorePill { display: none !important; }
 
     @media (max-width: 1500px) {
       .display-color-inline { min-width: 150px; }
       .top-menu-btn { padding-inline: 10px; }
-      .app-health-pill { padding-inline: 10px; }
+      .app-health-pill { min-width: 132px; padding-inline: 9px; }
     }
   `;
   document.head.appendChild(style);
@@ -191,15 +234,27 @@ function moveColorByToDisplay() {
   else displayGroup.insertBefore(inline, displayGroup.firstChild);
 }
 
+function moveTagViewsToDisplay() {
+  const displayGroup = document.querySelector('[data-group="display"]');
+  const legend = document.getElementById('colorLegendBtn');
+  const tagViews = document.getElementById('staticTagViewsBtn');
+  if (!displayGroup || !tagViews) return;
+  tagViews.classList.add('display-tag-views');
+  if (legend?.parentElement === displayGroup) legend.after(tagViews);
+  else displayGroup.appendChild(tagViews);
+}
+
 function ensureTopbarMenus() {
   const actions = document.querySelector('.topbar-actions');
   const props = document.getElementById('togglePropsBtn');
   if (!actions || !props) return;
 
+  const markup = ensureMenu('topMarkupMenu', 'Markup', 'tag', MARKUP_IDS, 'Tag, ISONOTE XML, and XML import tools');
   const session = ensureMenu('topSessionMenu', 'Session', 'save', SESSION_IDS, 'Browser session actions');
   const exp = ensureMenu('topExportMenu', 'Export', 'download', EXPORT_IDS, 'Downloads use existing export buttons');
 
-  if (session && session.parentElement !== actions) props.after(session);
+  if (markup && markup.parentElement !== actions) props.after(markup);
+  if (session && session.parentElement !== actions) markup?.after(session);
   if (exp && exp.parentElement !== actions) session?.after(exp);
 }
 
@@ -277,7 +332,7 @@ function improveHealthStatus() {
   health.className = 'app-health-pill warn';
   health.setAttribute('role', 'status');
   health.setAttribute('aria-live', 'polite');
-  health.innerHTML = '<strong>Starting</strong><span>UI loading</span>';
+  health.innerHTML = '<div class="app-health-top"><strong>Starting</strong><b>0%</b></div><div class="app-health-bar"><span></span></div><div class="app-health-detail">UI loading</div>';
   actions.appendChild(health);
 }
 
@@ -296,6 +351,8 @@ function bindUpdates() {
 function refreshLayout() {
   groupViewFitDisplay();
   moveColorByToDisplay();
+  moveTagViewsToDisplay();
+  ensureTopbarMenus();
   refreshTopbarMenus();
   refreshHealth();
   if (window.lucide?.createIcons) {
@@ -319,32 +376,44 @@ function refreshHealth() {
   const enabled = Number(score.enabled || 0);
   const modelReady = modelIsReady();
   const exportsReady = ['downloadGlbBtn', 'downloadRvmBtn', 'downloadAttBtn'].some((id) => !document.getElementById(id)?.disabled);
+  const uiPct = loaded ? Math.max(0, Math.min(100, Math.round((enabled / loaded) * 100))) : 0;
 
   let state = 'Ready';
   let detail = `${enabled}/${loaded || '?'} UI enabled`;
   let cls = 'app-health-pill';
+  let pct = uiPct;
   if (/failed|error/i.test(runtimeText)) {
     state = 'Needs attention';
     detail = runtimeText || detail;
     cls += ' bad';
+    pct = Math.min(uiPct, 45);
   } else if (exportsReady) {
     state = 'Review ready';
-    detail = `Model + exports ready · UI ${enabled}/${loaded || '?'}`;
+    detail = `Exports ready · ${enabled}/${loaded || '?'} UI`;
   } else if (modelReady) {
     state = 'Model ready';
-    detail = `Select / inspect · UI ${enabled}/${loaded || '?'}`;
+    detail = `Inspect / select · ${enabled}/${loaded || '?'} UI`;
+    pct = Math.max(pct, 70);
   } else if (/ready|converted/i.test(runtimeText)) {
     state = 'App ready';
-    detail = `Load or convert · UI ${enabled}/${loaded || '?'}`;
+    detail = `Load or convert · ${enabled}/${loaded || '?'} UI`;
+    pct = Math.max(pct, 55);
   } else {
     state = 'Starting';
     detail = runtimeText || detail;
     cls += ' warn';
+    pct = Math.max(pct, 20);
   }
   health.className = cls;
-  health.innerHTML = `<strong>${escapeHtml(state)}</strong><span>${escapeHtml(detail)}</span>`;
+  health.style.setProperty('--health-pct', `${pct}%`);
+  health.innerHTML = `
+    <div class="app-health-top"><strong>${escapeHtml(state)}</strong><b>${pct}%</b></div>
+    <div class="app-health-bar"><span></span></div>
+    <div class="app-health-detail">${escapeHtml(detail)}</div>
+  `;
   health.title = [
     `Application state: ${state}`,
+    `Health: ${pct}%`,
     `Detail: ${detail}`,
     loaded ? `UI loaded: ${loaded}` : '',
     loaded ? `UI enabled: ${enabled}` : ''

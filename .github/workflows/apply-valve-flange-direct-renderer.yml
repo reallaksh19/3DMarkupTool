@@ -9,28 +9,79 @@ permissions:
   contents: write
 
 jobs:
-  apply:
+  apply-fix:
     if: ${{ !contains(github.event.head_commit.message, 'Fix direct valve flange renderer') }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
           ref: fix/valve-flange-direct-renderer-pr
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
 
-      - name: Apply source patch and package script gate
+      - name: Apply source changes
         run: |
-          git apply .github/valve-flange-direct-renderer-source.patch
-          node - <<'NODE'
+          node <<'NODE'
           const fs = require('node:fs');
+
+          const converterPath = 'src/converter.js';
+          let text = fs.readFileSync(converterPath, 'utf8');
+
+          function mustReplace(pattern, replacement, label) {
+            const next = text.replace(pattern, replacement);
+            if (next === text) throw new Error(`replacement failed: ${label}`);
+            text = next;
+          }
+
+          if (!text.includes('const baseUserData = buildComponentUserData(element);')) {
+            mustReplace(
+              /  const visualSpec = getValveFlangeVisualSpec\(element\);\n  const isValve/,
+              `  const visualSpec = getValveFlangeVisualSpec(element);\n  const baseUserData = buildComponentUserData(element);\n\n  if (visualSpec) {\n    const catalogVisual = createCatalogLinearComponentVisual(element, visualSpec, a, b, radius, baseUserData, options);\n    if (catalogVisual) {\n      group.add(catalogVisual);\n      return;\n    }\n  }\n\n  const isValve`,
+              'direct visual branch'
+            );
+          }
+
+          text = text.replace('  cyl.userData = buildComponentUserData(element);', '  cyl.userData = baseUserData;');
+          mustReplace(
+            /\n  if \(visualSpec\) \{\n    const catalogVisual = createCatalogLinearComponentVisual\(element, visualSpec, a, b, radius, cyl\.userData, options\);\n    if \(catalogVisual\) group\.add\(catalogVisual\);\n  \} else if \(isRigid\) \{/,
+            '\n  if (isRigid) {',
+            'remove catalogue decoration after cylinder'
+          );
+          text = text.replace("    collar1.userData = { ...cyl.userData, meshRole: 'RIGID_MARKER' };", "    collar1.userData = { ...baseUserData, meshRole: 'RIGID_MARKER' };");
+          text = text.replace('    const bend = createBendGeometry(element, elementByNode, radius, cyl.userData, options);', '    const bend = createBendGeometry(element, elementByNode, radius, baseUserData, options);');
+
+          mustReplace(
+            /    if \(primitive\.kind === 'disc'\) \{\n      add\(cylinderAlongAxis\(pointAt\(primitive\.axialOffset\), dir, primitive\.length, primitive\.radius, material, 24, `\$\{element\.id\}_\$\{primitive\.role\}`\), primitive\.role, primitive\);\n    \} else if \(primitive\.role === 'VALVE_BODY'\) \{/,
+            `    if (primitive.kind === 'disc') {\n      if (isTaperedLinearPrimitive(primitive)) {\n        const { radiusStart, radiusEnd } = taperedRadiiForPrimitive(primitive);\n        add(\n          frustumAlongAxis(pointAt(primitive.axialOffset), dir, primitive.length, radiusStart, radiusEnd, material, 24, \`${'${'}element.id}_${'${'}primitive.role}\`),\n          primitive.role,\n          { ...primitive, geometryKind: 'FRUSTUM', radiusStart, radiusEnd }\n        );\n      } else {\n        add(cylinderAlongAxis(pointAt(primitive.axialOffset), dir, primitive.length, primitive.radius, material, 24, \`${'${'}element.id}_${'${'}primitive.role}\`), primitive.role, { ...primitive, geometryKind: 'CYLINDER' });\n      }\n    } else if (primitive.role === 'VALVE_BODY') {`,
+            'disc frustum handling'
+          );
+
+          mustReplace(
+            /        add\(cylinderAlongAxis\(center, dir, primitive\.length, primitive\.radius, material, 18, `\$\{element\.id\}_\$\{role\}`\), role, primitive\);/,
+            `        const radiusAtFlange = Math.max(primitive.radius, pipeRadius * 1.06);\n        const radiusAtPipe = Math.max(pipeRadius * 1.02, 0.004);\n        const radiusStart = role.endsWith('_A') ? radiusAtFlange : radiusAtPipe;\n        const radiusEnd = role.endsWith('_A') ? radiusAtPipe : radiusAtFlange;\n        add(\n          frustumAlongAxis(center, dir, primitive.length, radiusStart, radiusEnd, material, 18, \`${'${'}element.id}_${'${'}role}\`),\n          role,\n          { ...primitive, geometryKind: 'FRUSTUM', radiusStart, radiusEnd }\n        );`,
+            'weld neck frustum handling'
+          );
+
+          if (!text.includes('function frustumAlongAxis(')) {
+            mustReplace(
+              /\nfunction catalogVisualUserData\(baseUserData, spec, meshRole, extra = \{\}\) \{/,
+              `\nfunction isTaperedLinearPrimitive(primitive = {}) {\n  const innerRadius = Number(primitive.innerRadius);\n  const outerRadius = Number(primitive.outerRadius);\n  if (!Number.isFinite(innerRadius) || !Number.isFinite(outerRadius)) return false;\n  if (Math.abs(innerRadius - outerRadius) < 1e-6) return false;\n  return primitive.proportionalShoulder === true || /(?:NECK|SHOULDER)/i.test(String(primitive.role || ''));\n}\n\nfunction taperedRadiiForPrimitive(primitive = {}) {\n  const innerRadius = Math.max(Number(primitive.innerRadius), 0.004);\n  const outerRadius = Math.max(Number(primitive.outerRadius), 0.004);\n  const role = String(primitive.role || '').toUpperCase();\n\n  if (role.endsWith('_B')) {\n    return { radiusStart: outerRadius, radiusEnd: innerRadius };\n  }\n  return { radiusStart: innerRadius, radiusEnd: outerRadius };\n}\n\nfunction frustumAlongAxis(center, dir, length, radiusStart, radiusEnd, material, radialSegments, name) {\n  const safeLength = Math.max(length, 0.0001);\n  const geom = new THREE.CylinderGeometry(\n    Math.max(radiusEnd, 0.004),\n    Math.max(radiusStart, 0.004),\n    safeLength,\n    radialSegments,\n    1,\n    false\n  );\n  const mesh = new THREE.Mesh(geom, material);\n  mesh.name = name;\n  mesh.position.copy(center);\n  mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir.clone().normalize());\n  return mesh;\n}\n\nfunction catalogVisualUserData(baseUserData, spec, meshRole, extra = {}) {`,
+              'frustum helpers'
+            );
+          }
+
+          fs.writeFileSync(converterPath, text);
+
+          fs.writeFileSync('tests/valve-flange-direct-renderer.test.mjs', `import assert from 'node:assert/strict';\nimport { readFile } from 'node:fs/promises';\nimport path from 'node:path';\nimport { fileURLToPath } from 'node:url';\n\nconst repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');\nconst converterSource = await readFile(path.join(repoRoot, 'src', 'converter.js'), 'utf8');\nconst catalogSource = await readFile(path.join(repoRoot, 'src', 'valve-flange-visual-catalog.js'), 'utf8');\n\nconst visualBranchIndex = converterSource.indexOf('const catalogVisual = createCatalogLinearComponentVisual(element, visualSpec, a, b, radius, baseUserData, options);');\nconst legacyCylinderIndex = converterSource.indexOf('const cyl = cylinderBetween(a, b, radius, material');\nassert.notEqual(visualBranchIndex, -1, 'direct catalogue branch must exist');\nassert.notEqual(legacyCylinderIndex, -1, 'legacy fallback cylinder must still exist');\nassert.ok(visualBranchIndex < legacyCylinderIndex, 'catalogue branch must run before legacy fallback cylinder');\nassert.match(converterSource.slice(visualBranchIndex, legacyCylinderIndex), /return;/, 'catalogue branch must return before fallback');\nassert.doesNotMatch(converterSource.slice(visualBranchIndex, legacyCylinderIndex), /group\\.add\\(cyl\\)/, 'catalogue branch must not add a legacy centerline cylinder');\nassert.match(converterSource, /function frustumAlongAxis\\(/, 'renderer must define frustum helper');\nassert.match(converterSource, /geometryKind:\\s*'FRUSTUM'/, 'tapered neck primitives must be tagged as frustums');\nassert.match(converterSource, /WELD_NECK_A[\\s\\S]*WELD_NECK_B[\\s\\S]*frustumAlongAxis/, 'weld-neck primitives must render as frustums');\nassert.match(catalogSource, /role:\\s*'VALVE_NECK_A'[\\s\\S]*innerRadius[\\s\\S]*outerRadius/, 'VALVE_NECK_A must carry taper radii');\nassert.match(catalogSource, /role:\\s*'VALVE_NECK_B'[\\s\\S]*innerRadius[\\s\\S]*outerRadius/, 'VALVE_NECK_B must carry taper radii');\nconst packageJson = JSON.parse(await readFile(path.join(repoRoot, 'package.json'), 'utf8'));\nassert.match(packageJson.scripts.test, /valve-flange-direct-renderer\\.test\\.mjs/, 'npm test must include renderer gate');\nconsole.log('Valve/flange direct renderer gate passed');\n`);
+
           const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
           const marker = 'node tests/valve-flange-visual-catalog.test.mjs && node tests/valve-flange-scene-postprocess.test.mjs';
           const replacement = 'node tests/valve-flange-visual-catalog.test.mjs && node tests/valve-flange-direct-renderer.test.mjs && node tests/valve-flange-scene-postprocess.test.mjs';
           if (!pkg.scripts.test.includes('valve-flange-direct-renderer.test.mjs')) {
-            if (!pkg.scripts.test.includes(marker)) throw new Error('package test script insertion point not found');
+            if (!pkg.scripts.test.includes(marker)) throw new Error('test insertion point not found');
             pkg.scripts.test = pkg.scripts.test.replace(marker, replacement);
           }
           fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n');
@@ -39,17 +90,17 @@ jobs:
       - name: Install dependencies
         run: npm install --no-audit --no-fund
 
-      - name: Validate
+      - name: Validate renderer fix
         run: |
           node tests/valve-flange-direct-renderer.test.mjs
           npm test
           npm run contract:dry-run
 
-      - name: Commit validated source changes
+      - name: Commit source changes
         run: |
-          rm -f .github/workflows/apply-valve-flange-direct-renderer.yml .github/valve-flange-direct-renderer-source.patch
+          git rm -f .github/workflows/apply-valve-flange-direct-renderer.yml .github/valve-flange-direct-renderer-source.patch
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add src/converter.js package.json tests/valve-flange-direct-renderer.test.mjs .github/workflows/apply-valve-flange-direct-renderer.yml .github/valve-flange-direct-renderer-source.patch
+          git add src/converter.js package.json tests/valve-flange-direct-renderer.test.mjs
           git commit -m "Fix direct valve flange renderer"
           git push origin fix/valve-flange-direct-renderer-pr

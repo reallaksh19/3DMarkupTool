@@ -120,6 +120,24 @@ function run() {
   assert.equal(flangeDisc.replacesCenterlinePipe, true);
   assertCoverage(flangePlan, 2.5, 'flange pair visual replacement coverage');
 
+  const weldNeck = getValveFlangeVisualSpec({ rawType: 'WELD_NECK_FLANGE', props: { bore: '200' } });
+  assert.equal(weldNeck.componentType, 'FLANGE_WELD_NECK');
+  const weldNeckPlan = buildLinearVisualPrimitivePlan(weldNeck, { length: 2.5, pipeRadius: 1 });
+  const weldNeckA = weldNeckPlan.find((p) => p.role === 'WELD_NECK_A');
+  const weldNeckB = weldNeckPlan.find((p) => p.role === 'WELD_NECK_B');
+  const weldDiscA = weldNeckPlan.find((p) => p.role === 'FLANGE_DISC_A');
+  const weldDiscB = weldNeckPlan.find((p) => p.role === 'FLANGE_DISC_B');
+  assert.ok(weldNeckA, 'weld-neck flange must emit an explicit left taper primitive');
+  assert.ok(weldNeckB, 'weld-neck flange must emit an explicit right taper primitive');
+  assert.ok(!weldNeckPlan.some((p) => p.role === 'WELD_NECK' && p.kind === 'neck-pair'), 'weld-neck flange must not rely on the old renderer-side neck-pair orientation');
+  assert.equal(weldNeckA.weldNeckPlacement, 'outside-flange-plate');
+  assert.equal(weldNeckB.weldNeckPlacement, 'outside-flange-plate');
+  assert.ok(weldNeckA.axialOffset < weldDiscA.axialOffset, 'left weld neck must sit on the pipe/outboard side of the left flange plate');
+  assert.ok(weldNeckB.axialOffset > weldDiscB.axialOffset, 'right weld neck must sit on the pipe/outboard side of the right flange plate');
+  assert.ok(weldNeckA.innerRadius < weldNeckA.outerRadius, 'left weld neck must taper from pipe radius to flange radius');
+  assert.ok(weldNeckB.innerRadius < weldNeckB.outerRadius, 'right weld neck must taper from pipe radius to flange radius');
+  assertCoverage(weldNeckPlan, 2.5, 'weld-neck flange visual replacement coverage');
+
   const blind = getValveFlangeVisualSpec({ rawType: 'RIGID', props: { rawAttributes: { SKEY: 'FLBL' } } });
   assert.equal(blind.componentType, 'FLANGE_BLIND');
 

@@ -346,6 +346,7 @@ function applyClipBox(source = 'apply') {
   }
 
   if (!renderer) {
+    const selected = selectedObject();
     STATE.enabled = false;
     STATE.lastSource = 'renderer-missing';
     STATE.lastError = 'Renderer is not ready.';
@@ -354,6 +355,8 @@ function applyClipBox(source = 'apply') {
       runtimeKeys: Object.keys(runtime || {}),
       hasViewerRenderer: Boolean(window.__3D_MARKUP_VIEWER_RUNTIME__?.renderer),
       hasClipRenderer: Boolean(window.__3D_MARKUP_CLIP_RUNTIME__?.renderer),
+      selectedId: objectLabel(selected),
+      hasObject: Boolean(selected),
       ranges: rangeState()
     }, 'error');
     reportStatus(`Clip Box apply failed: ${STATE.lastError}`);

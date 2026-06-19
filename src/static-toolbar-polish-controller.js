@@ -2,7 +2,7 @@
 // Keeps the first-class static shell readable without re-enabling legacy toolbar controllers.
 
 const STYLE_ID = 'static-toolbar-polish-style';
-const VERSION = 'static-toolbar-label-polish-selection-resolver-20260618';
+const VERSION = 'static-toolbar-label-polish-selection-merge-20260619';
 
 installToolbarPolish();
 
@@ -182,8 +182,8 @@ function normalizeClipBoxButton() {
 }
 
 function syncRuntimeSelectionFromStatus() {
-  const runtime = window.__3D_MARKUP_VIEWER_RUNTIME__ || window.__3D_MARKUP_CLIP_RUNTIME__ || {};
-  if (runtime.selectedObject && !runtime.selectedObject.isScene) return runtime.selectedObject;
+  const runtime = mergedRuntime();
+  if (runtime.selectedObject && !runtime.selectedObject.isScene && runtime.renderer) return runtime.selectedObject;
 
   const selectedId = selectedIdFromStatusOrProps();
   if (!selectedId) return null;
@@ -195,13 +195,46 @@ function syncRuntimeSelectionFromStatus() {
   runtime.selectedObject = object;
   runtime.selectedData = data;
   runtime.selectedId = selectedId;
-  window.__3D_MARKUP_VIEWER_RUNTIME__ = runtime;
-  window.__3D_MARKUP_CLIP_RUNTIME__ = runtime;
+  publishRuntime(runtime);
 
   window.dispatchEvent(new CustomEvent('viewer:selection-changed', {
     detail: { source: 'static-selection-resolver', object, data, id: selectedId }
   }));
   return object;
+}
+
+function mergedRuntime() {
+  const primary = window.__3D_MARKUP_VIEWER_RUNTIME__ || {};
+  const legacy = window.__3D_MARKUP_CLIP_RUNTIME__ || {};
+  const runtime = primary === legacy ? primary : { ...legacy, ...primary };
+
+  runtime.renderer = primary.renderer || legacy.renderer || runtime.renderer || null;
+  runtime.scene = primary.scene || legacy.scene || runtime.scene || null;
+  runtime.camera = primary.camera || legacy.camera || runtime.camera || null;
+  runtime.controls = primary.controls || legacy.controls || runtime.controls || null;
+  runtime.modelRoot = primary.modelRoot || legacy.modelRoot || runtime.modelRoot || null;
+  runtime.applyClipping = primary.applyClipping || legacy.applyClipping || runtime.applyClipping;
+  runtime.clearClipping = primary.clearClipping || legacy.clearClipping || runtime.clearClipping;
+  runtime.clippingPlanes = primary.clippingPlanes || legacy.clippingPlanes || runtime.clippingPlanes || [];
+  runtime.clippingMode = primary.clippingMode || legacy.clippingMode || runtime.clippingMode || 'none';
+  return runtime;
+}
+
+function publishRuntime(runtime) {
+  window.__3D_MARKUP_VIEWER_RUNTIME__ = runtime;
+  window.__3D_MARKUP_CLIP_RUNTIME__ = runtime;
+  window.__3D_MARKUP_RECORD_RENDER_CONTEXT__?.({
+    renderer: runtime.renderer,
+    scene: runtime.scene,
+    camera: runtime.camera,
+    controls: runtime.controls,
+    modelRoot: runtime.modelRoot,
+    selectedObject: runtime.selectedObject,
+    selectedData: runtime.selectedData,
+    clippingPlanes: runtime.clippingPlanes,
+    clippingMode: runtime.clippingMode,
+    source: 'static-selection-resolver'
+  });
 }
 
 function selectedIdFromStatusOrProps() {
@@ -219,11 +252,11 @@ function findObjectById(id) {
   const normalized = normalizeId(id);
   if (!normalized) return null;
 
-  const treeState = window.__3D_MARKUP_STATIC_TREE__?.state;
+  const treeState = window.__3D_MARKUP_STATIC_TREE__?.state || window.__3D_MARKUP_TREE__?.state;
   const treeMatch = treeState?.objects?.find((item) => objectMatches(item.object, normalized));
   if (treeMatch?.object) return treeMatch.object;
 
-  const runtime = window.__3D_MARKUP_VIEWER_RUNTIME__ || window.__3D_MARKUP_CLIP_RUNTIME__ || {};
+  const runtime = mergedRuntime();
   const root = runtime.modelRoot || runtime.scene;
   let found = null;
   root?.traverse?.((object) => {

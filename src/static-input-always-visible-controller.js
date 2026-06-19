@@ -1,9 +1,9 @@
-// Phase 2 / Phase 4A input always-visible controller.
-// Keeps the real InputXML controls visible without duplicating fake controls.
-// No scene traversal, no polling, no review-tool activation.
+// Deterministic input visibility controller.
+// Static HTML/CSS owns the compact layout; this module only binds real controls
+// and keeps the input drawer open during startup.
+// No scene traversal, no polling, no runtime CSS injection.
 
-const VERSION = 'phase4a-static-input-panel-cleanup-20260619';
-const STYLE_ID = 'inputAlwaysVisiblePhase2Styles';
+const VERSION = 'static-input-deterministic-20260620';
 
 runWhenReady(initInputAlwaysVisible);
 
@@ -16,7 +16,6 @@ function runWhenReady(callback) {
 }
 
 function initInputAlwaysVisible() {
-  injectStyles();
   const section = ensureInputBlock();
   if (!section) return;
 
@@ -43,9 +42,9 @@ function ensureInputBlock() {
   if (!section) return null;
 
   section.dataset.section = 'input';
-  section.dataset.phase2Input = 'always-visible';
-  section.dataset.phase4aInput = 'compact-static';
-  section.classList.add('phase2-input-sticky-section', 'phase4a-input-compact-section');
+  section.dataset.inputVisibility = 'always-visible';
+  section.dataset.staticInput = 'compact';
+  section.classList.add('static-input-compact-section');
 
   const heading = section.querySelector('h3');
   const fileDrop = section.querySelector('.file-drop');
@@ -65,7 +64,6 @@ function ensureInputBlock() {
   }
 
   if (fileDrop) {
-    fileDrop.classList.add('input-file-drop-visible');
     const label = fileDrop.querySelector('span');
     if (label) label.textContent = 'Choose InputXML';
   }
@@ -74,7 +72,7 @@ function ensureInputBlock() {
 
   const loadSampleBtn = document.getElementById('loadSampleBtn');
   if (loadSampleBtn) {
-    loadSampleBtn.title = 'Load BM_CII sample without replacing the file chooser status';
+    loadSampleBtn.title = 'Load BM_CII sample without replacing the local file chooser status';
     loadSampleBtn.setAttribute('aria-label', 'Load BM_CII sample');
   }
 
@@ -107,10 +105,8 @@ function bindFileStatus() {
     loadSampleBtn.dataset.inputAlwaysVisibleBound = '1';
     loadSampleBtn.addEventListener('click', () => {
       loadSampleBtn.dataset.sampleSelected = '1';
-      // Keep this status strictly about the local file chooser.
-      // The sample button state is carried on the button to avoid replacing
-      // the always-visible "No file chosen" file status.
-      window.setTimeout(updateStatusFromInput, 0);
+      // Deliberately do not write to #inputFileStatus. That status reports only
+      // the browser file input, not the built-in BM_CII sample source.
     });
   }
 
@@ -118,7 +114,8 @@ function bindFileStatus() {
     clearBtn.dataset.inputAlwaysVisibleBound = '1';
     clearBtn.addEventListener('click', () => {
       if (loadSampleBtn) delete loadSampleBtn.dataset.sampleSelected;
-      window.setTimeout(() => setStatus('No file chosen'), 0);
+      if (input) input.value = '';
+      setStatus('No file chosen');
     });
   }
 }
@@ -163,100 +160,6 @@ function ensureDrawerOpen() {
   }
 }
 
-function injectStyles() {
-  if (document.getElementById(STYLE_ID)) return;
-
-  const style = document.createElement('style');
-  style.id = STYLE_ID;
-  style.textContent = `
-    #inputDrawer {
-      scroll-padding-top: 128px !important;
-    }
-
-    #inputDrawer .phase2-input-sticky-section,
-    #inputDrawer .panel-section[data-phase2-input="always-visible"] {
-      position: sticky !important;
-      top: 0 !important;
-      z-index: 30 !important;
-      padding: 10px !important;
-      margin: -1px -4px 10px !important;
-      border: 1px solid rgba(72, 153, 255, .44) !important;
-      border-radius: 12px !important;
-      background:
-        linear-gradient(180deg, rgba(12, 31, 56, .99), rgba(7, 20, 37, .985)) !important;
-      box-shadow: 0 12px 24px rgba(0, 0, 0, .3) !important;
-    }
-
-    #inputDrawer .phase2-input-sticky-section h3 {
-      margin-bottom: 6px !important;
-    }
-
-    #inputFileStatus.input-file-status {
-      display: flex !important;
-      align-items: center !important;
-      min-height: 26px !important;
-      margin: 0 0 6px !important;
-      padding: 4px 8px !important;
-      border: 1px solid rgba(83, 125, 176, .36) !important;
-      border-radius: 8px !important;
-      color: #f8fbff !important;
-      background: rgba(4, 14, 28, .68) !important;
-      font-size: 12px !important;
-      font-weight: 850 !important;
-      overflow: hidden !important;
-      text-overflow: ellipsis !important;
-      white-space: nowrap !important;
-    }
-
-    #inputDrawer .phase2-input-sticky-section > .file-drop,
-    #inputDrawer .panel-section[data-phase2-input="always-visible"] > .file-drop {
-      display: flex !important;
-      min-height: 34px !important;
-      margin-bottom: 8px !important;
-      padding: 6px 10px !important;
-      line-height: 1 !important;
-    }
-
-    #inputDrawer .phase2-input-sticky-section > .input-primary-actions,
-    #inputDrawer .panel-section[data-phase2-input="always-visible"] > .input-primary-actions {
-      display: flex !important;
-      align-items: center !important;
-      gap: 8px !important;
-      flex-wrap: nowrap !important;
-    }
-
-    #inputDrawer .phase2-input-sticky-section #loadSampleBtn,
-    #inputDrawer .phase2-input-sticky-section #clearBtn {
-      flex: 1 1 0 !important;
-      min-width: 0 !important;
-      padding: 7px 6px !important;
-      white-space: nowrap !important;
-      font-size: 11px !important;
-    }
-
-    #inputDrawer .phase2-input-sticky-section #loadSampleBtn span,
-    #inputDrawer .phase2-input-sticky-section #clearBtn span {
-      min-width: 0 !important;
-      overflow: hidden !important;
-      text-overflow: ellipsis !important;
-      white-space: nowrap !important;
-    }
-
-    #closeInputBtn[hidden] {
-      display: none !important;
-    }
-
-    body:not(.input-open) .input-drawer {
-      opacity: 1 !important;
-      pointer-events: auto !important;
-      overflow: auto !important;
-      padding: 14px !important;
-      border-width: 1px !important;
-    }
-  `;
-  document.head.appendChild(style);
-}
-
 function checklist() {
   const section = getInputSection();
   const loadSampleBtn = document.getElementById('loadSampleBtn');
@@ -269,7 +172,8 @@ function checklist() {
     loadSampleVisible: Boolean(loadSampleBtn),
     sampleStateSeparateFromFileStatus: true,
     clearAllVisible: Boolean(document.getElementById('clearBtn')),
-    compactStaticInputBlock: Boolean(section?.dataset.phase4aInput === 'compact-static'),
+    compactStaticInputBlock: Boolean(section?.dataset.staticInput === 'compact'),
+    runtimeStyleInjection: false,
     noPolling: true,
     noSceneTraversal: true
   };

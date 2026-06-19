@@ -1,9 +1,7 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { createIcons, icons } from 'lucide';
-import { convertInputXmlToGlb } from './converter.js?v=professional-viewer-3';
-import { convertInputXmlToRvmAtt } from './rvm-converter.js?v=professional-viewer-3';
-import { createRvmPreviewScene } from './rvm-preview.js?v=professional-viewer-3';
+import { runAppConversionController } from './app-run-conversion-controller.js?v=professional-viewer-3';
 import { createTextPlane } from './geometry.js?v=professional-viewer-3';
 import { DEFAULT_ISONOTE, DEFAULT_LINE_NO } from './parser.js?v=professional-viewer-3';
 
@@ -289,45 +287,26 @@ async function loadSample() {
 }
 
 async function runConversion() {
-  try {
-    if (!state.xmlText.trim()) throw new Error('No InputXML loaded. Choose a file or load the BM_CII sample.');
-    status('Converting');
-    el('convertBtn').disabled = true;
-    clearMeasurement();
-    clearSelection();
-
-    const options = collectOptions();
-    log(`Run Conversion mode=${options.supportMode}, singleAxis=${options.singleAxisDecision}`);
-    const glbResult = await convertInputXmlToGlb(state.xmlText, options);
-    const rvmResult = convertInputXmlToRvmAtt(state.xmlText, options);
-
-    state.glb = glbResult.glb;
-    state.rvm = rvmResult.rvm;
-    state.att = rvmResult.att;
-    state.audit = {
-      glb: glbResult.audit,
-      rvmAtt: rvmResult.audit
-    };
-    state.glbScene = glbResult.scene;
-    state.rvmScene = createRvmPreviewScene(rvmResult.exportModel);
-    publishViewerRuntime('conversion:scenes-created');
-
-    setModelScene(state.glbScene, 'glb');
-    setInputDrawer(false);
-    setPropsDrawer(true);
-    setDownloadButtons(true);
-
-    log(`Converted GLB: components=${glbResult.audit.componentCount}, nodes=${glbResult.audit.nodeCount}, supportSymbols=${glbResult.audit.supportSymbols.length}, isonoteRecords=${glbResult.audit.isonoteRecords}`);
-    log(`Converted RVM+ATT: components=${rvmResult.audit.componentCount}, supports=${rvmResult.audit.supportCount}, primitives=${rvmResult.audit.primitiveCount}, annotations=${rvmResult.audit.annotationCount}`);
-    log(`GLB size=${formatBytes(glbResult.glb.byteLength)}, RVM size=${formatBytes(rvmResult.rvm.byteLength)}, ATT size=${formatBytes(rvmResult.audit.attBytes)}`);
-    status('Converted');
-  } catch (err) {
-    console.error(err);
-    log(`ERROR: ${err.message}`);
-    status('Conversion failed');
-  } finally {
-    el('convertBtn').disabled = false;
-  }
+  await runAppConversionController({
+    sourceText: state.xmlText,
+    options: collectOptions(),
+    state,
+    ui: {
+      status,
+      log,
+      onError: (err) => console.error(err),
+      setConvertDisabled: (disabled) => { el('convertBtn').disabled = disabled; },
+      setInputDrawer,
+      setPropsDrawer,
+      setDownloadButtons
+    },
+    actions: {
+      clearMeasurement,
+      clearSelection,
+      publishViewerRuntime,
+      setModelScene
+    }
+  });
 }
 
 function collectOptions() {

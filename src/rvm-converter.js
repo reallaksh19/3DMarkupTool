@@ -1,5 +1,6 @@
 import { parseMarkupSource } from './source-parser.js?v=20260618-uxml-source-1';
 import { buildRvmExportModel } from './export-model.js?v=professional-viewer-3';
+import { assertNavisExportModel } from './navis-export-contract.js?v=navis-contract-1';
 import { writeRvm } from './rvm-writer.js?v=professional-viewer-3';
 import { writeAtt } from './att-writer.js?v=professional-viewer-3';
 
@@ -8,11 +9,13 @@ import { writeAtt } from './att-writer.js?v=professional-viewer-3';
  * Supported sources: CAESAR II InputXML and UXML topology JSON.
  * Parameters: source text and explicit converter options, including sideload text.
  * Output: binary RVM ArrayBuffer, ATT text, audit summary, parsed model, and export tree.
- * Fallback: parsing and writer failures are raised to the caller with actionable messages.
  */
 export function convertInputXmlToRvmAtt(sourceText, options) {
   const model = parseMarkupSource(sourceText, options || {});
   const exportModel = buildRvmExportModel(model, options || {});
+  const navisContract = assertNavisExportModel(exportModel, {
+    sourceKind: model.sourceKind || 'InputXML'
+  });
   const rvm = writeRvm(exportModel);
   const att = writeAtt(exportModel);
   return {
@@ -25,11 +28,14 @@ export function convertInputXmlToRvmAtt(sourceText, options) {
       sourceKind: model.sourceKind || 'InputXML',
       sourceSchemaVersion: model.sourceSchemaVersion || '',
       diagnostics: model.diagnostics || [],
+      navisContract,
       rvmBytes: rvm.byteLength,
       attBytes: new TextEncoder().encode(att).byteLength,
       navisworks: {
         sameBaseNameRequired: true,
-        recommendedBaseName: 'inputxml_converted'
+        recommendedBaseName: 'inputxml_converted',
+        contractSchema: navisContract.schema,
+        targetViewer: navisContract.targetViewer
       }
     }
   };

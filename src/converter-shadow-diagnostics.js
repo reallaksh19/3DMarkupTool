@@ -1,4 +1,5 @@
 import { stampLegacyFallbackSceneUserData } from './fallback-render-userdata.js';
+import { hideCatalogReplacedBaseCylinders } from './valve-flange-scene-postprocess.js';
 import {
   attachPipingContractShadow,
   compactReport,
@@ -14,9 +15,11 @@ export function attachShadowDiagnosticsToGlbResult(glbResult, options = {}) {
     target: options.target || 'VIEWER'
   });
   const compact = compactReport(report);
+  let valveFlangeVisualPostprocess = null;
 
   if (glbResult.scene) {
     attachPipingContractShadow(glbResult.scene, report);
+    valveFlangeVisualPostprocess = hideCatalogReplacedBaseCylinders(glbResult.scene);
     stampLegacyFallbackSceneUserData(glbResult.scene, {
       sourceType: glbResult.model?.sourceKind || glbResult.audit?.sourceKind || 'InputXML',
       fallbackReason: 'legacy renderer output stamped as explicit fallback after contract shadow run'
@@ -32,7 +35,8 @@ export function attachShadowDiagnosticsToGlbResult(glbResult, options = {}) {
       ok: compact.ok,
       counts: { ...(compact.counts || {}) },
       errors: Array.isArray(compact.errors) ? compact.errors.map((error) => ({ ...error })) : []
-    }
+    },
+    valveFlangeVisualPostprocess
   };
 
   return glbResult;

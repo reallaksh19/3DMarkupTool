@@ -50,7 +50,7 @@ window.__3D_MARKUP_CORE_RECOVERY__ = CORE_RECOVERY_MODE;
 window.__3D_MARKUP_INSTALL_STARTUP_FREEZE_GUARD__ = installStartupFreezeGuard;
 if (shouldInstallFreezeGuardImmediately()) installStartupFreezeGuard({ source: 'explicit-early-startup' });
 
-const runtime = window.__3D_MARKUP_CLIP_RUNTIME__ || {
+const runtime = window.__3D_MARKUP_VIEWER_RUNTIME__ || window.__3D_MARKUP_CLIP_RUNTIME__ || {
   renderer: null,
   scene: null,
   camera: null,
@@ -59,21 +59,24 @@ const runtime = window.__3D_MARKUP_CLIP_RUNTIME__ || {
 window.__3D_MARKUP_CLIP_RUNTIME__ = runtime;
 
 // Safe optional API for app.js or future modules to publish render context
-// without patching Three.js internals.
-window.__3D_MARKUP_RECORD_RENDER_CONTEXT__ = function recordRenderContext(detail = {}) {
-  if (detail.renderer) runtime.renderer = detail.renderer;
-  if (detail.scene) runtime.scene = detail.scene;
-  if (detail.camera) runtime.camera = detail.camera;
-  runtime.frame += 1;
-  window.dispatchEvent(new CustomEvent('markup:render-context', {
-    detail: {
-      renderer: runtime.renderer,
-      scene: runtime.scene,
-      camera: runtime.camera,
-      frame: runtime.frame
-    }
-  }));
-};
+// without patching Three.js internals. Do not replace the richer prebridge
+// publisher when this module is deferred until after render-context-prebridge.js.
+if (typeof window.__3D_MARKUP_RECORD_RENDER_CONTEXT__ !== 'function') {
+  window.__3D_MARKUP_RECORD_RENDER_CONTEXT__ = function recordRenderContext(detail = {}) {
+    if (detail.renderer) runtime.renderer = detail.renderer;
+    if (detail.scene) runtime.scene = detail.scene;
+    if (detail.camera) runtime.camera = detail.camera;
+    runtime.frame += 1;
+    window.dispatchEvent(new CustomEvent('markup:render-context', {
+      detail: {
+        renderer: runtime.renderer,
+        scene: runtime.scene,
+        camera: runtime.camera,
+        frame: runtime.frame
+      }
+    }));
+  };
+}
 
 if (CORE_RECOVERY_MODE) {
   disableOptionalControllerScripts();

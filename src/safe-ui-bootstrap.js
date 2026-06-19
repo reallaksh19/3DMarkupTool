@@ -2,7 +2,7 @@
 // index.html owns the professional shell. Default mode focuses on stable
 // model review/export UI. Fresh clipping is loaded as a core renderer tool.
 
-const SAFE_UI_VERSION = 'fresh-clip-box-adjust-20260619';
+const SAFE_UI_VERSION = 'static-color-legend-draggable-20260619';
 const CORE_MODULE_URLS = [
   `./static-shell-core-controller.js?v=${SAFE_UI_VERSION}`,
   `./static-review-ui-polish-controller.js?v=${SAFE_UI_VERSION}`,
@@ -78,7 +78,8 @@ function shouldLoadOptionalUi() {
 }
 
 function shouldLoadClipTools() {
-  return false;
+  const params = new URLSearchParams(window.location.search);
+  return params.has('clipTools') || window.localStorage.getItem('3dmarkup.clipTools') === '1';
 }
 
 function startSoon(delayMs) {

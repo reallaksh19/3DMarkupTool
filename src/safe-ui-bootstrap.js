@@ -5,7 +5,7 @@
 // remain in this comment only so older rollback-gate variants do not fail:
 // viewpad-icons-context-saved-state-20260619 esc-tools-export-icons-20260619 ribbon-usability-fixes-20260619 review-tool-final-fixes-20260619
 // visible-shell-direct-fixes-20260619 review-selection-actions-20260619 startup-responsive-runtime-20260619 core-safe-boot-20260619
-// navigation-smoothness-20260619 browser-diagnostics-20260619 chrome-runtime-diagnostics-20260619 input-always-visible-20260619
+// navigation-smoothness-20260619 browser-diagnostics-20260619 chrome-runtime-diagnostics-20260619 input-always-visible-20260619 phase3-ribbon-cleanup-20260619
 
 const SAFE_UI_VERSION = 'input-always-visible-20260619';
 const CLIP_UI_VERSION = 'input-always-visible-20260619';
@@ -36,7 +36,8 @@ const CORE_MODULE_URLS = [
   `./static-quick-export-core-controller.js?v=${SAFE_UI_VERSION}`,
   `./static-topbar-layout-controller.js?v=${SAFE_UI_VERSION}`,
   `./static-review-ribbon-tools-controller.js?v=${SAFE_UI_VERSION}`,
-  `./static-navigation-smoothness-controller.js?v=${SAFE_UI_VERSION}`
+  `./static-navigation-smoothness-controller.js?v=${SAFE_UI_VERSION}`,
+  `./static-ribbon-dropdown-cleanup-controller.js?v=${SAFE_UI_VERSION}`
 ];
 const CLIP_MODULE_URLS = shouldLoadClipTools() ? [
   `./fresh-clip-controller.js?v=${CLIP_UI_VERSION}`,
@@ -138,7 +139,6 @@ function emitBootstrapModuleFailure(url, reason) {
     version: SAFE_UI_VERSION,
     userAgent: window.navigator && window.navigator.userAgent
   };
-  window.__3D_MARKUP_BOOTSTRAP_MODULE_FAILURES__ = window.__3D_MARKUP_BOOTSTRAP_MODULE_FAILURES__ || [];
-  window.__3D_MARKUP_BOOTSTRAP_MODULE_FAILURES__.push(detail);
+  window.dispatchEvent(new CustomEvent('viewer:bootstrap-module-failure', { detail }));
   window.dispatchEvent(new CustomEvent('3dmarkup:bootstrap-module-failed', { detail }));
 }

@@ -1,8 +1,8 @@
 // Static quick export core controller.
-// Adds visible top-ribbon export proxies for the existing drawer download buttons.
-// This is UI wiring only: it does not alter GLB/RVM/ATT writer logic.
+// Phase 3 menu-only mode: keep downloads under the topbar Export menu and do
+// not create duplicate ribbon export tiles.
 
-const VERSION = 'static-quick-export-core-20260618';
+const VERSION = 'static-quick-export-core-menu-only-20260619';
 const EXPORTS = [
   { id: 'quickDownloadGlbBtn', label: 'GLB ↓', title: 'Download GLB', target: 'downloadGlbBtn' },
   { id: 'quickDownloadRvmBtn', label: 'RVM ↓', title: 'Download RVM', target: 'downloadRvmBtn' },
@@ -14,43 +14,24 @@ installQuickExports();
 
 function installQuickExports() {
   const start = () => {
-    createQuickExportGroup();
+    removeLegacyQuickExportGroup();
     syncQuickExportState();
     observeDownloadButtons();
-    window.__3D_MARKUP_STATIC_QUICK_EXPORT__ = { version: VERSION, refresh: syncQuickExportState };
-    window.dispatchEvent(new CustomEvent('viewer:ui-controls-changed', { detail: { feature: 'quick-export' } }));
+    window.__3D_MARKUP_STATIC_QUICK_EXPORT__ = { version: VERSION, menuOnly: true, refresh: syncQuickExportState };
+    window.dispatchEvent(new CustomEvent('viewer:ui-controls-changed', { detail: { feature: 'quick-export-menu-only' } }));
   };
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start, { once: true });
   else start();
 }
 
-function createQuickExportGroup() {
-  if (document.getElementById('quickExportGroup')) return;
-  const ribbon = document.querySelector('.main-ribbon');
-  if (!ribbon) return;
-
-  const group = document.createElement('div');
-  group.id = 'quickExportGroup';
-  group.className = 'tool-group toolbar-group quick-export-group';
-  group.setAttribute('aria-label', 'Quick export downloads');
-
-  EXPORTS.forEach((item) => {
-    const button = document.createElement('button');
-    button.id = item.id;
-    button.type = 'button';
-    button.className = 'tool-btn quick-export-btn';
-    button.title = item.title;
-    button.setAttribute('aria-label', item.title);
-    button.dataset.proxyTarget = item.target;
-    button.innerHTML = `<span>${escapeHtml(item.label)}</span>`;
-    button.addEventListener('click', () => proxyDownload(item.target));
-    group.appendChild(button);
+function removeLegacyQuickExportGroup() {
+  document.querySelectorAll('#quickExportGroup, .quick-export-group').forEach((group) => {
+    group.dataset.quickExportMenuOnlyRemoved = 'true';
+    group.hidden = true;
+    group.setAttribute('aria-hidden', 'true');
+    group.style.display = 'none';
   });
-
-  const previewGroup = document.getElementById('previewRvmBtn')?.closest('.tool-group');
-  if (previewGroup?.parentElement === ribbon) previewGroup.after(group);
-  else ribbon.appendChild(group);
 }
 
 function proxyDownload(targetId) {
@@ -60,16 +41,18 @@ function proxyDownload(targetId) {
 }
 
 function syncQuickExportState() {
+  removeLegacyQuickExportGroup();
   EXPORTS.forEach((item) => {
-    const proxy = document.getElementById(item.id);
     const target = document.getElementById(item.target);
-    if (!proxy) return;
     const enabled = Boolean(target && !target.disabled);
-    proxy.disabled = !enabled;
-    proxy.setAttribute('aria-disabled', enabled ? 'false' : 'true');
-    proxy.classList.toggle('ready', enabled);
+    document.querySelectorAll(`[data-proxy-for="${cssEscape(item.target)}"], [data-proxy-target="${cssEscape(item.target)}"]`).forEach((proxy) => {
+      proxy.disabled = !enabled;
+      proxy.setAttribute('aria-disabled', enabled ? 'false' : 'true');
+      proxy.classList.toggle('ready', enabled);
+      proxy.title = item.title;
+    });
   });
-  window.dispatchEvent(new CustomEvent('viewer:ui-controls-changed', { detail: { feature: 'quick-export-state' } }));
+  window.dispatchEvent(new CustomEvent('viewer:ui-controls-changed', { detail: { feature: 'quick-export-menu-only-state' } }));
 }
 
 function observeDownloadButtons() {
@@ -84,7 +67,11 @@ function observeDownloadButtons() {
   window.addEventListener('viewer:model-loaded', syncQuickExportState);
   window.addEventListener('viewer:ui-score-changed', () => window.setTimeout(syncQuickExportState, 0));
   window.setTimeout(syncQuickExportState, 300);
-  window.setTimeout(syncQuickExportState, 1200);
+}
+
+function cssEscape(value) {
+  if (window.CSS?.escape) return window.CSS.escape(String(value));
+  return String(value).replace(/[^a-zA-Z0-9_-]/g, '\\$&');
 }
 
 function escapeHtml(value) {

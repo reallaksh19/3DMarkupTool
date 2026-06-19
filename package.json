@@ -7,6 +7,6 @@
   "scripts": {
     "dev": "python3 -m http.server 5173",
     "serve": "python3 -m http.server 5173",
-    "test": "node tests/rvm-export-phase-gates.test.mjs && node tests/navis-export-contract.test.mjs && node tests/piping-component-contract.test.mjs && node tests/render-boundary-audit.test.mjs && node tests/piping-component-layer-pipeline.test.mjs && node tests/piping-contract-shadow-runner.test.mjs && node tests/converter-shadow-diagnostics.test.mjs"
+    "test": "node tests/rvm-export-phase-gates.test.mjs && node tests/navis-export-contract.test.mjs && node tests/piping-component-contract.test.mjs && node tests/render-boundary-audit.test.mjs && node tests/piping-component-layer-pipeline.test.mjs && node tests/piping-contract-shadow-runner.test.mjs && node tests/converter-shadow-diagnostics.test.mjs && node tests/app-conversion-pipeline.test.mjs"
   }
 }

@@ -6,7 +6,7 @@ const bootstrap = readFileSync(new URL('../src/safe-ui-bootstrap.js', import.met
 const pkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
 
 assert.match(bootstrap, /static-component-search-controller\.js\?v=\$\{SAFE_UI_VERSION\}/, 'bootstrap must load the component search viewpad controller');
-assert.match(bootstrap, /explode-review-viewpad-20260619/, 'safe bootstrap cache key must bump for component search');
+assert.match(bootstrap, /viewpad-icons-context-saved-state-20260619/, 'safe bootstrap cache key must bump for component search');
 
 assert.match(controller, /const TOOL_VIEW = 'componentSearch'/, 'controller must define a stable component-search data-view key');
 assert.match(controller, /Search \/ jump to component, node, line, support, or tag/, 'controller must expose a user-facing search tooltip');

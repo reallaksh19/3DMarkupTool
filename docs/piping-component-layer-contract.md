@@ -1,16 +1,15 @@
 # Piping Component Layer Contract
 
-Status: contract / guardrail only. This document does not replace the current renderer by itself.
+Status: contract and implementation guardrail. This document defines the normalized pipeline that must sit between source parsers and render/export adapters. It does not replace the current renderer by itself.
 
 ## Purpose
 
-`3DMarkupTool` must stop treating InputXML as a direct mesh recipe. InputXML, raw RVM+ATT, staged JSON, future UXML, and other sources should all feed a normalized component layer.
+`3DMarkupTool` must stop treating InputXML as a direct mesh recipe. InputXML, raw RVM+ATT, staged JSON, future UXML, PCF, and other sources should all feed a normalized component layer.
 
 The intended flow is:
 
 ```text
-Source file
-→ Source Adapter
+Source Adapter
 → PipingComponent.v1[]
 → PipingGraph.v1
 → GeometryContract.v1[]
@@ -18,16 +17,48 @@ Source file
 → Viewer / GLB / RVM+ATT export
 ```
 
-The current InputXML direct-rendering path remains allowed only as an explicit fallback path.
+The current InputXML direct-rendering path remains available only as an explicit legacy fallback path.
 
 ## Non-negotiable rules
 
 1. Source-specific type codes must be interpreted only in source adapters or classifiers.
 2. Renderers must consume component classes, geometry kinds, and render recipes, not raw InputXML type codes.
 3. Unknown items must remain unknown. They must not silently become `PIPE`, `REST`, or `ANCHOR`.
-4. Every rendered object must carry a stable component link in `userData`.
-5. GLB, RVM+ATT, and the viewer must eventually consume the same geometry contracts.
+4. Every rendered component object must carry stable contract metadata in `userData`.
+5. GLB, RVM+ATT, and the viewer must eventually consume the same `GeometryContract.v1` objects.
 6. Fallback rendering must be explicit and counted in diagnostics.
+7. Invalid geometry must be rejected before render/export instructions are emitted.
+
+## Implementation modules
+
+Current contract-layer entry points:
+
+```text
+src/piping-component-contract.js   validation, enums, diagnostics
+src/piping-component-catalog.js    component catalog + render recipe catalog + source classifiers
+src/piping-component-layer.js      SourceRecord → Component → Graph → GeometryContract → RenderInstruction pipeline
+```
+
+The current legacy visual renderer is listed in `src/render-boundary-manifest.js` as fallback-only.
+
+## SourceRecord.v1
+
+A source adapter may keep raw source details in a source record, but raw source type codes must not pass into renderer decision logic.
+
+```ts
+type SourceRecord = {
+  schemaVersion: 'SourceRecord.v1';
+  sourceType: 'INPUTXML' | 'RVM_ATT' | 'STAGED_JSON' | 'UXML' | 'PCF' | string;
+  sourceId: string;
+  sourceRecordKind: 'ELEMENT' | 'RESTRAINT' | 'SUPPORT' | 'ANNOTATION' | string;
+  rawKind?: string;
+  rawTypeCode?: string;
+  sourceIndex?: number;
+  record?: unknown;
+  props?: Record<string, unknown>;
+  diagnostics: string[];
+};
+```
 
 ## PipingComponent.v1
 
@@ -69,7 +100,7 @@ type PipingComponent = {
 };
 ```
 
-Recommended component classes:
+Required component classes:
 
 ```text
 PIPE
@@ -83,7 +114,7 @@ RESTRAINT
 UNKNOWN
 ```
 
-Recommended restraint/support types:
+Required restraint/support types:
 
 ```text
 REST
@@ -98,6 +129,8 @@ DIRECTIONAL_Y
 DIRECTIONAL_Z
 UNKNOWN_RESTRAINT
 ```
+
+`UNKNOWN_RESTRAINT` is valid only as a preserved unknown restraint/support subtype. It must not be normalized to `REST`, `GUIDE`, `ANCHOR`, or any directional type without an explicit adapter/classifier rule.
 
 ## PipingGraph.v1
 
@@ -118,7 +151,13 @@ type PipingGraph = {
     componentId: string;
   }>;
   components: PipingComponent[];
-  diagnostics: Record<string, unknown>;
+  diagnostics: {
+    nodeCount: number;
+    edgeCount: number;
+    openNodes: string[];
+    duplicateNodes: string[];
+    [key: string]: unknown;
+  };
 };
 ```
 
@@ -126,7 +165,7 @@ This layer is responsible for pipe continuity, branch detection, bend placeholde
 
 ## GeometryContract.v1
 
-A geometry contract is renderable intent. It is not a Three.js mesh.
+A geometry contract is renderable intent. It is not a Three.js mesh and must remain exporter-neutral.
 
 ```ts
 type GeometryContract = {
@@ -162,6 +201,54 @@ type GeometryContract = {
 };
 ```
 
+Minimum geometry kind mapping:
+
+```text
+PIPE       → CYLINDER_BETWEEN_NODES
+ELBOW/BEND → ELBOW_SWEEP
+TEE        → TEE_COMPOSITE
+VALVE      → VALVE_SYMBOLIC
+FLANGE     → FLANGE_PAIR
+REDUCER    → REDUCER_TRANSITION
+SUPPORT    → RESTRAINT_SYMBOL
+RESTRAINT  → RESTRAINT_SYMBOL
+UNKNOWN    → UNKNOWN_PLACEHOLDER
+fallback   → FALLBACK_LEGACY
+```
+
+## RenderRecipe.v1
+
+A render recipe is a stable adapter contract that explains how a geometry kind may be rendered or exported. It is not source-specific.
+
+```ts
+type RenderRecipe = {
+  schemaVersion: 'RenderRecipe.v1';
+  renderRecipeId: string;
+  componentClass: string;
+  geometryKind: string;
+  targets: Array<'VIEWER' | 'GLB' | 'RVM_ATT'>;
+  primitiveStrategy: string;
+  fallbackOnly: boolean;
+  notes: string;
+};
+```
+
+Required recipe skeleton:
+
+```text
+pipe-cylinder-between-nodes.v1
+elbow-sweep.v1
+bend-sweep.v1
+tee-composite.v1
+valve-symbolic.v1
+flange-pair.v1
+reducer-transition.v1
+restraint-symbol.v1
+support-symbol.v1
+unknown-placeholder.v1
+fallback-legacy.v1
+```
+
 ## RenderInstruction.v1
 
 A render instruction converts a geometry contract into viewer/export-specific output.
@@ -189,6 +276,40 @@ type RenderInstruction = {
 
 Render instructions must not contain raw InputXML type-code branches. If raw source details are needed for properties, keep them in metadata/source inspection, not renderer decision logic.
 
+## Catalog skeleton
+
+The catalog must cover at least:
+
+```text
+pipe
+elbow
+bend
+tee
+valve
+flange
+reducer
+support/restraint
+unknown placeholder
+```
+
+Each catalog entry must specify:
+
+```ts
+type PipingComponentCatalogEntry = {
+  schemaVersion: 'PipingComponentCatalogEntry.v1';
+  key: string;
+  componentClass: PipingComponent['componentClass'];
+  componentType: string;
+  geometryKind: GeometryContract['geometryKind'];
+  renderRecipeId: string;
+  requiredTopology: string[];
+  requiredDimensions: string[];
+  aliases: string[];
+};
+```
+
+Source-specific aliases such as InputXML raw rigid types and restraint type codes belong in the adapter/classifier tables, not in renderer code.
+
 ## Fallback policy
 
 Fallback is allowed only when contract rendering is unavailable or invalid.
@@ -208,26 +329,56 @@ Diagnostics must count fallback objects.
 
 Minimum required diagnostics:
 
+```ts
+type PipingContractDiagnostics = {
+  schema: string;
+  sourceRecordsTotal: number;
+  componentsTotal: number;
+  componentsByClass: Record<string, number>;
+  unknownComponents: number;
+  restraintsByKind: Record<string, number>;
+  geometryContractsTotal: number;
+  contractsByGeometryKind: Record<string, number>;
+  fallbackRendered: number;
+  unrenderableComponents: string[];
+  graphNodesTotal?: number;
+  graphEdgesTotal?: number;
+  phases?: {
+    sourceRecordsTotal: number;
+    componentsTotal: number;
+    graphNodesTotal: number;
+    graphEdgesTotal: number;
+    geometryContractsTotal: number;
+    renderInstructionsTotal: number;
+  };
+};
+```
+
+Required acceptance fields:
+
 ```text
 sourceRecordsTotal
 componentsTotal
 componentsByClass
-unknownComponents
-restraintsByKind
 geometryContractsTotal
-contractsByGeometryKind
 fallbackRendered
+unknownComponents
 unrenderableComponents
 ```
 
-## Acceptance for future geometry/catalog work
+## Test gates
 
-1. `npm test` stays green.
-2. Existing RVM/ATT phase gates stay green.
-3. Source records are not dropped silently.
-4. Unknown components and unknown restraints remain explicit.
-5. Pipe contracts use `CYLINDER_BETWEEN_NODES`.
-6. Elbow/bend contracts use `ELBOW_SWEEP`.
-7. Tee contracts use `TEE_COMPOSITE`.
-8. Valve/flange/reducer/support contracts have explicit geometry kinds.
-9. Current direct InputXML rendering remains fallback only until the new contract renderer is complete.
+The contract layer must keep tests for:
+
+```text
+classification does not drop records
+unknown remains unknown
+pipe produces CYLINDER_BETWEEN_NODES contract
+elbow/bend produces ELBOW_SWEEP contract
+tee produces TEE_COMPOSITE contract
+support/restraint produces RESTRAINT_SYMBOL contract
+invalid geometry is rejected
+fallback is explicitly flagged
+existing RVM/ATT phase gates remain green
+no new source-specific direct-render path appears outside the fallback manifest
+```

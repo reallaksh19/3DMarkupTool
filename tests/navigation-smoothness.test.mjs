@@ -6,7 +6,7 @@ const bootstrap = readFileSync(new URL('../src/safe-ui-bootstrap.js', import.met
 const checklist = readFileSync(new URL('../docs/post-pr133-recovery-checklist.md', import.meta.url), 'utf8');
 const pkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
 
-assert.match(bootstrap, /navigation-smoothness-20260619/, 'bootstrap must use the Phase 1 navigation smoothness cache key');
+assert.match(bootstrap, /navigation-smoothness-20260619/, 'bootstrap must retain the Phase 1 navigation smoothness cache marker');
 assert.match(bootstrap, /static-navigation-smoothness-controller\.js\?v=\$\{SAFE_UI_VERSION\}/, 'bootstrap must load the navigation smoothness controller');
 assert.match(bootstrap, /static-review-ribbon-tools-controller[\s\S]*static-navigation-smoothness-controller/, 'navigation tuning must load after restored PR133 ribbon integration');
 
@@ -23,7 +23,7 @@ assert.match(controller, /noIntervalPolling: true/, 'checklist must declare no i
 assert.doesNotMatch(controller, /setInterval\(/, 'navigation smoothness controller must not use setInterval');
 
 assert.match(checklist, /\| ✅ \| B1 — Zoom is not smooth \|/, 'Phase 1 checklist must tick the zoom smoothness comment');
-assert.match(checklist, /\| ⬜ \| C1 — Input controls must always remain visible \|/, 'later phases must remain open until implemented');
+assert.match(checklist, /\| ✅ \| C1 — Input controls must always remain visible \|/, 'Phase 2 may be ticked after the input visibility phase is implemented');
 assert.match(pkg.scripts.test, /navigation-smoothness\.test\.mjs/, 'npm test must include the navigation smoothness gate');
 
 console.log('navigation-smoothness gate passed');

@@ -6,14 +6,19 @@
 // viewpad-icons-context-saved-state-20260619 esc-tools-export-icons-20260619 ribbon-usability-fixes-20260619 review-tool-final-fixes-20260619
 // visible-shell-direct-fixes-20260619 review-selection-actions-20260619 startup-responsive-runtime-20260619 core-safe-boot-20260619
 // navigation-smoothness-20260619 browser-diagnostics-20260619 chrome-runtime-diagnostics-20260619 input-always-visible-20260619 phase3-ribbon-cleanup-20260619
-// phase4-global-esc-lifecycle-20260619 phase4a-static-input-panel-cleanup-20260619
+// phase4-global-esc-lifecycle-20260619 phase4a-static-input-panel-cleanup-20260619 perf-static-shell-20260620
 
-const SAFE_UI_VERSION = 'phase4a-static-input-panel-cleanup-20260619';
-const CLIP_UI_VERSION = 'phase4a-static-input-panel-cleanup-20260619';
-const CORE_MODULE_URLS = [
-  `./static-browser-diagnostics-controller.js?v=${SAFE_UI_VERSION}`,
+const SAFE_UI_VERSION = 'perf-static-shell-20260620';
+const CLIP_UI_VERSION = 'perf-static-shell-20260620';
+
+const EARLY_MODULE_URLS = [
   `./static-shell-core-controller.js?v=${SAFE_UI_VERSION}`,
   `./static-input-always-visible-controller.js?v=${SAFE_UI_VERSION}`,
+  `./static-input-conversion-collapse-controller.js?v=${SAFE_UI_VERSION}`
+];
+
+const DEFERRED_MODULE_URLS = [
+  `./static-browser-diagnostics-controller.js?v=${SAFE_UI_VERSION}`,
   `./static-review-ui-polish-controller.js?v=${SAFE_UI_VERSION}`,
   `./static-toolbar-polish-controller.js?v=${SAFE_UI_VERSION}`,
   `./static-svg-icons-controller.js?v=${SAFE_UI_VERSION}`,
@@ -31,7 +36,6 @@ const CORE_MODULE_URLS = [
   `./static-color-legend-controller.js?v=${SAFE_UI_VERSION}`,
   `./static-workflow-status-controller.js?v=${SAFE_UI_VERSION}`,
   `./static-drawer-summary-controller.js?v=${SAFE_UI_VERSION}`,
-  `./static-input-conversion-collapse-controller.js?v=${SAFE_UI_VERSION}`,
   `./static-help-shortcuts-controller.js?v=${SAFE_UI_VERSION}`,
   `./static-markup-core-controller.js?v=${SAFE_UI_VERSION}`,
   `./static-quick-export-core-controller.js?v=${SAFE_UI_VERSION}`,
@@ -41,15 +45,19 @@ const CORE_MODULE_URLS = [
   `./static-ribbon-dropdown-cleanup-controller.js?v=${SAFE_UI_VERSION}`,
   `./static-global-tool-lifecycle-controller.js?v=${SAFE_UI_VERSION}`
 ];
+
 const CLIP_MODULE_URLS = shouldLoadClipTools() ? [
   `./fresh-clip-controller.js?v=${CLIP_UI_VERSION}`,
   `./fresh-clip-box-adjust-controller.js?v=${CLIP_UI_VERSION}`
 ] : [];
+
 const SAFE_LOADER_URL = `./safe-ui-loader.js?v=${SAFE_UI_VERSION}`;
 const MAX_ATTEMPTS = 4;
+const DEFERRED_IMPORT_BATCH_SIZE = 4;
 
 let attempts = 0;
 let coreShellStarted = false;
+let deferredShellStarted = false;
 
 scheduleCoreShell();
 scheduleStart();
@@ -57,23 +65,19 @@ scheduleStart();
 function scheduleCoreShell() {
   if (coreShellStarted) return;
   coreShellStarted = true;
-  const start = () => {
-    const urls = CORE_MODULE_URLS.concat(CLIP_MODULE_URLS);
-    return Promise.allSettled(urls.map((url) => import(url))).then((results) => {
-      results.forEach((result, index) => {
-        if (result.status === 'rejected') {
-          const url = urls[index];
-          console.warn(`[3DMarkupTool] Static shell core module failed: ${url}`, result.reason);
-          emitBootstrapModuleFailure(url, result.reason);
-        }
-      });
-    });
-  };
+  const start = () => importModuleBatch(EARLY_MODULE_URLS, 'early static shell')
+    .finally(() => scheduleAfterFirstPaint(startDeferredShell));
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', start, { once: true });
   } else {
     start();
   }
+}
+
+function startDeferredShell() {
+  if (deferredShellStarted) return;
+  deferredShellStarted = true;
+  importModuleQueue(DEFERRED_MODULE_URLS.concat(CLIP_MODULE_URLS), 'deferred static shell');
 }
 
 function scheduleStart() {
@@ -127,6 +131,56 @@ function startSoon(delayMs) {
       emitBootstrapModuleFailure(SAFE_LOADER_URL, error);
     });
   }, delayMs);
+}
+
+function importModuleBatch(urls, label) {
+  if (!urls.length) return Promise.resolve([]);
+  return Promise.allSettled(urls.map((url) => import(url))).then((results) => {
+    reportModuleResults(urls, results, label);
+    return results;
+  });
+}
+
+function importModuleQueue(urls, label) {
+  if (!urls.length) return;
+  let index = 0;
+  const loadNextBatch = () => {
+    const batch = urls.slice(index, index + DEFERRED_IMPORT_BATCH_SIZE);
+    index += batch.length;
+    importModuleBatch(batch, label).finally(() => {
+      if (index < urls.length) scheduleIdle(loadNextBatch, 1200);
+    });
+  };
+  scheduleIdle(loadNextBatch, 1200);
+}
+
+function reportModuleResults(urls, results, label) {
+  results.forEach((result, index) => {
+    if (result.status === 'rejected') {
+      const url = urls[index];
+      console.warn(`[3DMarkupTool] ${label} module failed: ${url}`, result.reason);
+      emitBootstrapModuleFailure(url, result.reason);
+    }
+  });
+}
+
+function scheduleAfterFirstPaint(callback) {
+  const run = () => scheduleIdle(callback, 1600);
+  if (typeof window.requestAnimationFrame !== 'function') {
+    run();
+    return;
+  }
+  window.requestAnimationFrame(() => {
+    window.requestAnimationFrame(run);
+  });
+}
+
+function scheduleIdle(callback, timeout = 1200) {
+  if (typeof window.requestIdleCallback === 'function') {
+    window.requestIdleCallback(callback, { timeout });
+    return;
+  }
+  window.setTimeout(callback, 1);
 }
 
 function setBootstrapStatus(text) {

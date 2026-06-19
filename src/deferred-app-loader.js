@@ -1,6 +1,8 @@
 const APP_LOADER_VERSION = 'perf-lcp-deferred-app-20260620';
 const APP_MODULE_URL = `./app.js?v=${APP_LOADER_VERSION}`;
+const FRESH_CLIP_MODULE_URL = `./fresh-clip-controller.js?v=${APP_LOADER_VERSION}`;
 const APP_BOOT_IDLE_TIMEOUT_MS = 900;
+const POST_APP_IDLE_TIMEOUT_MS = 1200;
 
 window.__3D_MARKUP_APP_DEFERRED_BOOT__ = true;
 window.__3D_MARKUP_APP_LOADER_VERSION__ = APP_LOADER_VERSION;
@@ -20,6 +22,7 @@ function startViewerApp() {
       window.dispatchEvent(new CustomEvent('viewer:app-module-loaded', {
         detail: { version: APP_LOADER_VERSION, deferred: true }
       }));
+      scheduleIdle(loadFreshClipController, POST_APP_IDLE_TIMEOUT_MS);
     })
     .catch((error) => {
       console.error('[3DMarkupTool] Deferred app module failed.', error);
@@ -32,6 +35,20 @@ function startViewerApp() {
         }
       }));
     });
+}
+
+function loadFreshClipController() {
+  if (window.__3D_MARKUP_FRESH_CLIP_DEFERRED_IMPORT_STARTED__) return;
+  window.__3D_MARKUP_FRESH_CLIP_DEFERRED_IMPORT_STARTED__ = true;
+  import(FRESH_CLIP_MODULE_URL).catch((error) => {
+    console.warn('[3DMarkupTool] Deferred fresh clip module skipped.', error);
+    window.dispatchEvent(new CustomEvent('viewer:fresh-clip-module-skipped', {
+      detail: {
+        version: APP_LOADER_VERSION,
+        reason: error && (error.message || String(error))
+      }
+    }));
+  });
 }
 
 function scheduleAfterFirstPaint(callback) {

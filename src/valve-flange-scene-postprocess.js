@@ -81,12 +81,8 @@ export function hideCatalogReplacedBaseCylinders(sceneOrGroup, options = {}) {
       if (!stats.replacedComponentIds.includes(componentId)) stats.replacedComponentIds.push(componentId);
     }
 
-    if (correctValveCatalogVisual(visualGroup)) {
-      stats.uprightValveCorrections += 1;
-    }
-    if (correctFlangeCatalogVisual(visualGroup)) {
-      stats.flangeVisualCorrections += 1;
-    }
+    if (correctValveCatalogVisual(visualGroup)) stats.uprightValveCorrections += 1;
+    if (correctFlangeCatalogVisual(visualGroup)) stats.flangeVisualCorrections += 1;
   }
 
   stats.untouchedNonCatalogObjects = Math.max(0, stats.scannedObjects - stats.catalogVisualGroups - stats.hiddenBaseCylinders);
@@ -127,6 +123,7 @@ function correctValveCatalogVisual(visualGroup) {
   const collarA = findChildByRole(visualGroup, 'END_COLLAR_A');
   const collarB = findChildByRole(visualGroup, 'END_COLLAR_B');
   if (!body || !collarA || !collarB) return false;
+  if (!body.position?.clone || !collarA.position?.clone || !collarB.position?.clone || typeof visualGroup.add !== 'function') return false;
 
   const axis = collarB.position.clone().sub(collarA.position);
   if (axis.lengthSq() < 1e-8) return false;
@@ -150,21 +147,15 @@ function correctValveCatalogVisual(visualGroup) {
       hiddenByUprightValveCorrection: true,
       hiddenByUprightValveCorrectionSchema: VALVE_FLANGE_SCENE_POSTPROCESS_SCHEMA
     };
-    const shell = new THREE.Mesh(
-      new THREE.SphereGeometry(Math.max(bodyRadius * 0.88, 0.08), 28, 16),
-      bodyMaterial
-    );
+    const shell = new THREE.Mesh(new THREE.SphereGeometry(Math.max(bodyRadius * 0.88, 0.08), 28, 16), bodyMaterial);
     shell.name = `${visualGroup.name || componentIdentity(visualGroup)}_VALVE_BODY_UPRIGHT`;
     shell.position.copy(center);
-    shell.scale.set(1.12, 0.92, 1.12);
-    shell.userData = {
-      ...(body.userData || data),
-      meshRole: 'VALVE_BODY',
+    shell.scale.set(1.1, 0.92, 1.1);
+    shell.userData = correctedUserData(visualGroup, 'VALVE_BODY', {
       uprightValveCorrection: true,
       catalogOrientationCorrection: true,
-      uprightValveCorrectionSchema: VALVE_FLANGE_SCENE_POSTPROCESS_SCHEMA,
       uprightValveCorrectionReason: 'valve must read as a body with operator, not horizontal pipe barrel'
-    };
+    });
     visualGroup.add(shell);
   }
 
@@ -190,42 +181,46 @@ function correctValveCatalogVisual(visualGroup) {
 }
 
 function addValveContinuityNecks(visualGroup, center, dir, body, collarA, collarB, bodyRadius, material) {
-  if (visualGroup.userData?.valveContinuityCorrectionApplied) return false;
+  const hasExisting = findChildByRole(visualGroup, 'VALVE_NECK_A') && findChildByRole(visualGroup, 'VALVE_NECK_B');
+  if (hasExisting) {
+    visualGroup.userData = {
+      ...visualGroup.userData,
+      valveContinuityCorrectionApplied: true,
+      valveContinuityCorrectionSchema: VALVE_FLANGE_SCENE_POSTPROCESS_SCHEMA,
+      valveContinuityBasis: 'catalog-direct-neck-fillers'
+    };
+    return false;
+  }
 
-  const collarRadius = Math.max(cylinderRadius(collarA) || 0, cylinderRadius(collarB) || 0, bodyRadius * 0.72);
-  const collarALength = cylinderLength(collarA) || userNumber(collarA.userData?.length, bodyRadius * 0.45);
-  const collarBLength = cylinderLength(collarB) || userNumber(collarB.userData?.length, bodyRadius * 0.45);
-  const bodyLength = cylinderLength(body) || userNumber(body.userData?.length, bodyRadius * 1.3);
-  const bodyHalf = Math.max(Math.min(bodyLength / 2, collarA.position.distanceTo(collarB.position) * 0.34), bodyRadius * 0.38);
-  const neckRadius = Math.max(Math.min(bodyRadius * 0.36, collarRadius * 0.56), 0.035);
+  const collarRadius = Math.max(cylinderRadius(collarA) || 0, cylinderRadius(collarB) || 0, bodyRadius * 0.7);
+  const collarALength = cylinderLength(collarA) || userNumber(collarA.userData?.length, bodyRadius * 0.28);
+  const collarBLength = cylinderLength(collarB) || userNumber(collarB.userData?.length, bodyRadius * 0.28);
+  const bodyLength = cylinderLength(body) || userNumber(body.userData?.length, bodyRadius * 1.2);
+  const collarDistance = collarA.position.distanceTo(collarB.position);
+  const bodyHalf = Math.min(Math.max(bodyLength / 2, bodyRadius * 0.62), collarDistance * 0.43);
+  const neckRadius = Math.max(Math.min(bodyRadius * 0.62, collarRadius * 0.82), 0.045);
 
   const segments = [
     {
       role: 'VALVE_NECK_A',
-      start: collarA.position.clone().add(dir.clone().multiplyScalar(collarALength / 2)),
-      end: center.clone().sub(dir.clone().multiplyScalar(bodyHalf))
+      start: collarA.position.clone().add(dir.clone().multiplyScalar(collarALength * 0.28)),
+      end: center.clone().sub(dir.clone().multiplyScalar(bodyHalf * 0.92))
     },
     {
       role: 'VALVE_NECK_B',
-      start: center.clone().add(dir.clone().multiplyScalar(bodyHalf)),
-      end: collarB.position.clone().sub(dir.clone().multiplyScalar(collarBLength / 2))
+      start: center.clone().add(dir.clone().multiplyScalar(bodyHalf * 0.92)),
+      end: collarB.position.clone().sub(dir.clone().multiplyScalar(collarBLength * 0.28))
     }
   ];
 
   let added = false;
   for (const segment of segments) {
-    if (segment.start.distanceTo(segment.end) <= Math.max(neckRadius * 0.9, 0.015)) continue;
-    const neck = cylinderBetween(
-      segment.start,
-      segment.end,
-      neckRadius,
-      material,
-      16,
-      `${visualGroup.name || componentIdentity(visualGroup)}_${segment.role}`
-    );
+    if (segment.start.distanceTo(segment.end) <= Math.max(neckRadius * 0.18, 0.012)) continue;
+    const neck = cylinderBetween(segment.start, segment.end, neckRadius, material, 22, `${visualGroup.name || componentIdentity(visualGroup)}_${segment.role}`);
     neck.userData = correctedUserData(visualGroup, segment.role, {
       valveContinuityCorrection: true,
-      valveContinuityCorrectionReason: 'close visual gap between valve body and end flange/collar after centerline pipe is hidden'
+      valveContinuityCorrectionReason: 'close visible shoulder gap between valve body and end flange/collar after centerline pipe is hidden',
+      proportionalShoulder: true
     });
     visualGroup.add(neck);
     added = true;
@@ -235,47 +230,45 @@ function addValveContinuityNecks(visualGroup, center, dir, body, collarA, collar
     visualGroup.userData = {
       ...visualGroup.userData,
       valveContinuityCorrectionApplied: true,
-      valveContinuityCorrectionSchema: VALVE_FLANGE_SCENE_POSTPROCESS_SCHEMA
+      valveContinuityCorrectionSchema: VALVE_FLANGE_SCENE_POSTPROCESS_SCHEMA,
+      valveContinuityBasis: 'postprocess-shoulder-fillers'
     };
   }
   return added;
 }
 
 function addUprightStemAndHandwheel(visualGroup, center, up, bodyRadius, material, type) {
-  const stemLength = Math.max(bodyRadius * (type === 'VALVE_GATE' ? 1.05 : 0.78), 0.18);
-  const stemRadius = Math.max(bodyRadius * 0.055, 0.025);
+  const stemLength = Math.max(bodyRadius * (type === 'VALVE_GATE' ? 1.0 : 0.72), 0.16);
+  const stemRadius = Math.max(bodyRadius * 0.05, 0.022);
   const stemStart = center.clone().add(up.clone().multiplyScalar(bodyRadius * 0.78));
   const stemEnd = stemStart.clone().add(up.clone().multiplyScalar(stemLength));
   const stem = cylinderBetween(stemStart, stemEnd, stemRadius, material, 14, `${visualGroup.name || componentIdentity(visualGroup)}_BONNET_STEM_UPRIGHT`);
   stem.userData = correctedUserData(visualGroup, 'BONNET_STEM');
   visualGroup.add(stem);
 
-  const wheelRadius = Math.max(bodyRadius * 0.38, 0.16);
-  const wheel = new THREE.Mesh(
-    new THREE.TorusGeometry(wheelRadius, Math.max(wheelRadius * 0.06, 0.018), 8, 32),
-    material
-  );
+  const wheelRadius = Math.max(bodyRadius * 0.34, 0.13);
+  const wheel = new THREE.Mesh(new THREE.TorusGeometry(wheelRadius, Math.max(wheelRadius * 0.055, 0.016), 8, 32), material);
   wheel.name = `${visualGroup.name || componentIdentity(visualGroup)}_HANDWHEEL_UPRIGHT`;
-  wheel.position.copy(stemEnd.clone().add(up.clone().multiplyScalar(wheelRadius * 0.18)));
+  wheel.position.copy(stemEnd.clone().add(up.clone().multiplyScalar(wheelRadius * 0.16)));
   wheel.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), up.clone().normalize());
   wheel.userData = correctedUserData(visualGroup, 'HANDWHEEL');
   visualGroup.add(wheel);
 }
 
 function addUprightStemAndLever(visualGroup, center, up, side, bodyRadius, material, type) {
-  const stemLength = Math.max(bodyRadius * 0.52, 0.12);
+  const stemLength = Math.max(bodyRadius * 0.5, 0.11);
   const stemStart = center.clone().add(up.clone().multiplyScalar(bodyRadius * 0.72));
   const stemEnd = stemStart.clone().add(up.clone().multiplyScalar(stemLength));
-  const stem = cylinderBetween(stemStart, stemEnd, Math.max(bodyRadius * 0.045, 0.02), material, 10, `${visualGroup.name || componentIdentity(visualGroup)}_LEVER_STEM_UPRIGHT`);
+  const stem = cylinderBetween(stemStart, stemEnd, Math.max(bodyRadius * 0.04, 0.018), material, 10, `${visualGroup.name || componentIdentity(visualGroup)}_LEVER_STEM_UPRIGHT`);
   stem.userData = correctedUserData(visualGroup, 'BONNET_STEM', { valveOperatorStyle: 'lever-stem' });
   visualGroup.add(stem);
 
-  const leverLength = Math.max(bodyRadius * (type === 'VALVE_BUTTERFLY' ? 1.55 : 1.8), 0.35);
+  const leverLength = Math.max(bodyRadius * (type === 'VALVE_BUTTERFLY' ? 1.35 : 1.6), 0.32);
   const leverCenter = stemEnd.clone().add(up.clone().multiplyScalar(bodyRadius * 0.08));
   const lever = cylinderBetween(
     leverCenter.clone().sub(side.clone().multiplyScalar(leverLength / 2)),
     leverCenter.clone().add(side.clone().multiplyScalar(leverLength / 2)),
-    Math.max(bodyRadius * 0.045, 0.018),
+    Math.max(bodyRadius * 0.04, 0.016),
     material,
     10,
     `${visualGroup.name || componentIdentity(visualGroup)}_LEVER_HANDLE_UPRIGHT`
@@ -285,15 +278,15 @@ function addUprightStemAndLever(visualGroup, center, up, side, bodyRadius, mater
 }
 
 function addUprightStemAndActuator(visualGroup, center, up, side, bodyRadius, material, type) {
-  const stemStart = center.clone().add(up.clone().multiplyScalar(bodyRadius * 0.78));
-  const stemEnd = stemStart.clone().add(up.clone().multiplyScalar(Math.max(bodyRadius * 0.68, 0.18)));
-  const stem = cylinderBetween(stemStart, stemEnd, Math.max(bodyRadius * 0.055, 0.025), material, 12, `${visualGroup.name || componentIdentity(visualGroup)}_ACTUATOR_STEM_UPRIGHT`);
+  const stemStart = center.clone().add(up.clone().multiplyScalar(bodyRadius * 0.76));
+  const stemEnd = stemStart.clone().add(up.clone().multiplyScalar(Math.max(bodyRadius * 0.62, 0.16)));
+  const stem = cylinderBetween(stemStart, stemEnd, Math.max(bodyRadius * 0.05, 0.022), material, 12, `${visualGroup.name || componentIdentity(visualGroup)}_ACTUATOR_STEM_UPRIGHT`);
   stem.userData = correctedUserData(visualGroup, 'BONNET_STEM', { valveOperatorStyle: 'actuator-stem' });
   visualGroup.add(stem);
 
-  const actuatorLength = Math.max(bodyRadius * 1.45, 0.35);
-  const actuatorRadius = Math.max(bodyRadius * 0.42, 0.12);
-  const actuatorCenter = stemEnd.clone().add(up.clone().multiplyScalar(actuatorRadius * 0.38));
+  const actuatorLength = Math.max(bodyRadius * 1.25, 0.32);
+  const actuatorRadius = Math.max(bodyRadius * 0.36, 0.1);
+  const actuatorCenter = stemEnd.clone().add(up.clone().multiplyScalar(actuatorRadius * 0.35));
   const actuator = cylinderBetween(
     actuatorCenter.clone().sub(side.clone().multiplyScalar(actuatorLength / 2)),
     actuatorCenter.clone().add(side.clone().multiplyScalar(actuatorLength / 2)),
@@ -307,11 +300,11 @@ function addUprightStemAndActuator(visualGroup, center, up, side, bodyRadius, ma
 }
 
 function addCheckValveCover(visualGroup, center, up, bodyRadius, material) {
-  const coverCenter = center.clone().add(up.clone().multiplyScalar(bodyRadius * 0.88));
+  const coverCenter = center.clone().add(up.clone().multiplyScalar(bodyRadius * 0.82));
   const cover = cylinderBetween(
-    coverCenter.clone().sub(up.clone().multiplyScalar(bodyRadius * 0.08)),
-    coverCenter.clone().add(up.clone().multiplyScalar(bodyRadius * 0.08)),
-    Math.max(bodyRadius * 0.32, 0.08),
+    coverCenter.clone().sub(up.clone().multiplyScalar(bodyRadius * 0.07)),
+    coverCenter.clone().add(up.clone().multiplyScalar(bodyRadius * 0.07)),
+    Math.max(bodyRadius * 0.26, 0.07),
     material,
     18,
     `${visualGroup.name || componentIdentity(visualGroup)}_CHECK_COVER_UPRIGHT`
@@ -324,44 +317,43 @@ function correctFlangeCatalogVisual(visualGroup) {
   const data = visualGroup?.userData || {};
   if (normalizeRole(data.componentClass) !== 'FLANGE') return false;
   if (visualGroup.userData?.catalogFlangeVisualCorrectionApplied) return false;
+  if (typeof visualGroup.add !== 'function') return false;
 
   const discA = findChildByRole(visualGroup, 'FLANGE_DISC_A');
   const discB = findChildByRole(visualGroup, 'FLANGE_DISC_B');
-  if (!discA || !discB) return false;
+  if (!discA || !discB || !discA.position?.clone || !discB.position?.clone) return false;
   const axis = discB.position.clone().sub(discA.position);
   if (axis.lengthSq() < 1e-8) return false;
   const dir = axis.normalize();
   const mid = discA.position.clone().add(discB.position).multiplyScalar(0.5);
   const radius = Math.max(cylinderRadius(discA) || 0, cylinderRadius(discB) || 0, userNumber(discA.userData?.radius, 0.35));
-  const discALength = cylinderLength(discA) || userNumber(discA.userData?.length, radius * 0.22);
-  const discBLength = cylinderLength(discB) || userNumber(discB.userData?.length, radius * 0.22);
+  const discALength = cylinderLength(discA) || userNumber(discA.userData?.length, radius * 0.16);
+  const discBLength = cylinderLength(discB) || userNumber(discB.userData?.length, radius * 0.16);
   const material = discA.material || discB.material || new THREE.MeshBasicMaterial({ color: 0x77aeda });
 
   const fillStart = discA.position.clone().add(dir.clone().multiplyScalar(discALength / 2));
   const fillEnd = discB.position.clone().sub(dir.clone().multiplyScalar(discBLength / 2));
-  if (fillStart.distanceTo(fillEnd) > Math.max(radius * 0.06, 0.02)) {
-    const boreFill = cylinderBetween(
-      fillStart,
-      fillEnd,
-      Math.max(radius * 0.42, 0.045),
-      material,
-      24,
-      `${visualGroup.name || componentIdentity(visualGroup)}_FLANGE_CENTER_BORE_FILL`
-    );
+  if (!findChildByRole(visualGroup, 'FLANGE_CENTER_BORE_FILL') && fillStart.distanceTo(fillEnd) > Math.max(radius * 0.05, 0.015)) {
+    const boreFill = cylinderBetween(fillStart, fillEnd, Math.max(radius * 0.30, 0.04), material, 24, `${visualGroup.name || componentIdentity(visualGroup)}_FLANGE_CENTER_BORE_FILL`);
     boreFill.userData = correctedUserData(visualGroup, 'FLANGE_CENTER_BORE_FILL', {
       flangeVisualCorrection: true,
-      flangeVisualCorrectionReason: 'close visual gap between flange plates after component base pipe is hidden'
+      flangeVisualCorrectionReason: 'close visual gap between flange plates after component base pipe is hidden',
+      proportionalBoreFill: true
     });
     visualGroup.add(boreFill);
   }
 
-  const gasketMaterial = new THREE.MeshBasicMaterial({ color: 0x1e2632 });
-  const gasket = cylinderAlongAxis(mid, dir, Math.max(radius * 0.09, 0.025), Math.max(radius * 0.78, 0.08), gasketMaterial, 24, `${visualGroup.name || componentIdentity(visualGroup)}_GASKET_CENTER`);
-  gasket.userData = correctedUserData(visualGroup, 'GASKET_CENTER', {
-    flangeVisualCorrection: true,
-    flangeVisualCorrectionReason: 'flange pair needs a visible gasket/face reference after centerline pipe is removed'
-  });
-  visualGroup.add(gasket);
+  if (!findChildByRole(visualGroup, 'GASKET_CENTER')) {
+    const gasketMaterial = new THREE.MeshBasicMaterial({ color: 0x1e2632 });
+    const gasket = cylinderAlongAxis(mid, dir, Math.max(radius * 0.045, 0.018), Math.max(radius * 0.56, 0.06), gasketMaterial, 24, `${visualGroup.name || componentIdentity(visualGroup)}_GASKET_CENTER`);
+    gasket.userData = correctedUserData(visualGroup, 'GASKET_CENTER', {
+      flangeVisualCorrection: true,
+      flangeVisualCorrectionReason: 'flange pair needs a visible gasket/face reference after centerline pipe is removed',
+      proportionalGasket: true
+    });
+    visualGroup.add(gasket);
+  }
+
   visualGroup.userData = {
     ...visualGroup.userData,
     catalogFlangeVisualCorrectionApplied: true,
@@ -402,11 +394,7 @@ function findChildByRole(group, role) {
 
 function preferredValveUpVector(dir) {
   const d = dir.clone().normalize();
-  const candidates = [
-    new THREE.Vector3(0, 1, 0),
-    new THREE.Vector3(0, 0, 1),
-    new THREE.Vector3(1, 0, 0)
-  ];
+  const candidates = [new THREE.Vector3(0, 1, 0), new THREE.Vector3(0, 0, 1), new THREE.Vector3(1, 0, 0)];
   for (const candidate of candidates) {
     const projected = candidate.clone().sub(d.clone().multiplyScalar(candidate.dot(d)));
     if (projected.lengthSq() > 1e-6) return projected.normalize();

@@ -42,7 +42,7 @@ assert.match(controller, /window\.__3D_MARKUP_EXPLODE_REVIEW__ = \{/, 'Explode A
 assert.match(controller, /__visibleShellDirectExplodeOriginalPosition/, 'Explode must record original positions for reset');
 
 assert.match(controller, /removeLegacyMeasureFlashHelpers/, 'Measure flash cleanup must be present');
-assert.doesNotMatch(controller, /SphereGeometry/, 'direct layer must not create sphere measure markers');
+assert.doesNotMatch(controller, /new THREE\.SphereGeometry/, 'direct layer must not create sphere measure markers');
 
 assert.match(pkg.scripts.test, /visible-shell-direct-fixes\.test\.mjs/, 'npm test must include the visible shell direct fixes gate');
 

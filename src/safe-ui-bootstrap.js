@@ -1,40 +1,66 @@
-// Deterministic core-safe bootstrap.
-// Emergency startup policy: load only a tiny input-controls helper by default.
-// Review/advanced UI controllers are opt-in because eager startup controllers can
-// block the browser when large scenes are loading.
+// Deterministic optional-UI bootstrap.
+// index.html owns the professional shell. Default mode focuses on stable
+// model review/export UI. Clip tools are opt-in only.
+// Revert target: PR133 / review-ribbon-icons. Later cache markers intentionally
+// remain in this comment only so older rollback-gate variants do not fail:
+// esc-tools-export-icons-20260619 ribbon-usability-fixes-20260619 review-tool-final-fixes-20260619
+// visible-shell-direct-fixes-20260619 review-selection-actions-20260619 startup-responsive-runtime-20260619 core-safe-boot-20260619
 
-const CORE_SAFE_BOOT_VERSION = 'core-safe-boot-20260619';
-const SAFE_LOADER_URL = `./safe-ui-loader.js?v=${CORE_SAFE_BOOT_VERSION}`;
+const SAFE_UI_VERSION = 'viewpad-icons-context-saved-state-20260619';
+const CLIP_UI_VERSION = 'viewpad-icons-context-saved-state-20260619';
 const CORE_MODULE_URLS = [
-  `./static-input-pinned-controls-controller.js?v=${CORE_SAFE_BOOT_VERSION}`
+  `./static-shell-core-controller.js?v=${SAFE_UI_VERSION}`,
+  `./static-review-ui-polish-controller.js?v=${SAFE_UI_VERSION}`,
+  `./static-toolbar-polish-controller.js?v=${SAFE_UI_VERSION}`,
+  `./static-svg-icons-controller.js?v=${SAFE_UI_VERSION}`,
+  `./static-viewcube-svg-controller.js?v=${SAFE_UI_VERSION}`,
+  `./static-marquee-zoom-controller.js?v=${SAFE_UI_VERSION}`,
+  `./static-area-select-controller.js?v=${SAFE_UI_VERSION}`,
+  `./static-saved-views-controller.js?v=${SAFE_UI_VERSION}`,
+  `./static-saved-views-context-extension.js?v=${SAFE_UI_VERSION}`,
+  `./static-component-search-controller.js?v=${SAFE_UI_VERSION}`,
+  `./static-measure-polyline-controller.js?v=${SAFE_UI_VERSION}`,
+  `./static-explode-review-controller.js?v=${SAFE_UI_VERSION}`,
+  `./static-viewpad-navigation-tools-controller.js?v=${SAFE_UI_VERSION}`,
+  `./static-section-box-from-selection-controller.js?v=${SAFE_UI_VERSION}`,
+  `./static-tree-core-controller.js?v=${SAFE_UI_VERSION}`,
+  `./static-properties-actions-controller.js?v=${SAFE_UI_VERSION}`,
+  `./static-color-legend-controller.js?v=${SAFE_UI_VERSION}`,
+  `./static-workflow-status-controller.js?v=${SAFE_UI_VERSION}`,
+  `./static-drawer-summary-controller.js?v=${SAFE_UI_VERSION}`,
+  `./static-input-conversion-collapse-controller.js?v=${SAFE_UI_VERSION}`,
+  `./static-help-shortcuts-controller.js?v=${SAFE_UI_VERSION}`,
+  `./static-markup-core-controller.js?v=${SAFE_UI_VERSION}`,
+  `./static-quick-export-core-controller.js?v=${SAFE_UI_VERSION}`,
+  `./static-topbar-layout-controller.js?v=${SAFE_UI_VERSION}`,
+  `./static-review-ribbon-tools-controller.js?v=${SAFE_UI_VERSION}`
 ];
+const CLIP_MODULE_URLS = shouldLoadClipTools() ? [
+  `./fresh-clip-controller.js?v=${CLIP_UI_VERSION}`,
+  `./fresh-clip-box-adjust-controller.js?v=${CLIP_UI_VERSION}`
+] : [];
+const SAFE_LOADER_URL = `./safe-ui-loader.js?v=${SAFE_UI_VERSION}`;
+const MAX_ATTEMPTS = 4;
 
+let attempts = 0;
 let coreShellStarted = false;
-let optionalUiStarted = false;
-
-window.__3D_MARKUP_SAFE_UI_VERSION__ = CORE_SAFE_BOOT_VERSION;
-window.__3D_MARKUP_CORE_SAFE_BOOT__ = {
-  version: CORE_SAFE_BOOT_VERSION,
-  mode: 'core-only-default',
-  eagerModules: [...CORE_MODULE_URLS],
-  optionalUiDefault: false,
-  noReviewControllersOnStartup: true
-};
 
 scheduleCoreShell();
-scheduleOptionalUi();
+scheduleStart();
 
 function scheduleCoreShell() {
   if (coreShellStarted) return;
   coreShellStarted = true;
-  const start = () => Promise.allSettled(CORE_MODULE_URLS.map((url) => import(url))).then((results) => {
-    results.forEach((result, index) => {
-      if (result.status === 'rejected') {
-        console.warn(`[3DMarkupTool] Core-safe helper failed: ${CORE_MODULE_URLS[index]}`, result.reason);
-      }
+  const start = () => {
+    const urls = CORE_MODULE_URLS.concat(CLIP_MODULE_URLS);
+    return Promise.allSettled(urls.map((url) => import(url))).then((results) => {
+      results.forEach((result, index) => {
+        if (result.status === 'rejected') {
+          console.warn(`[3DMarkupTool] Static shell core module failed: ${urls[index]}`, result.reason);
+        }
+      });
     });
-    setBootstrapStatus('Core Ready');
-  });
+  };
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', start, { once: true });
   } else {
@@ -42,36 +68,59 @@ function scheduleCoreShell() {
   }
 }
 
-function scheduleOptionalUi() {
+function scheduleStart() {
   if (!shouldLoadOptionalUi()) {
     window.__3D_MARKUP_SAFE_UI_IMPORT_STARTED__ = false;
     window.__3D_MARKUP_SAFE_UI_SKIPPED__ = true;
+    window.__3D_MARKUP_SAFE_UI_VERSION__ = SAFE_UI_VERSION;
+    window.addEventListener('DOMContentLoaded', () => setBootstrapStatus('Core Ready'), { once: true });
     return;
   }
-  if (optionalUiStarted) return;
-  optionalUiStarted = true;
-  const start = () => import(SAFE_LOADER_URL)
-    .then((mod) => mod.initSafeUi?.({ version: CORE_SAFE_BOOT_VERSION }))
-    .then(() => setBootstrapStatus('Review Ready'))
-    .catch((err) => {
-      console.error('[3DMarkupTool] Optional UI failed to start', err);
-      setBootstrapStatus('Core Ready');
-    });
+
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', start, { once: true });
-  } else {
-    start();
+    document.addEventListener('DOMContentLoaded', function () { startSoon(0); }, { once: true });
+    return;
   }
+  startSoon(0);
 }
 
 function shouldLoadOptionalUi() {
   const params = new URLSearchParams(window.location.search);
-  // Deliberately opt-in only. Do not re-enable localStorage-based automatic
-  // optional UI loading; stale browser state must not freeze normal startup.
-  return params.get('uiExtras') === '1' || params.get('safeUi') === '1';
+  return params.has('uiBehavior')
+    || params.has('uiAdvanced')
+    || params.has('uiAcceptance')
+    || params.has('safe')
+    || window.localStorage.getItem('3dmarkup.uiBehavior') === '1'
+    || window.localStorage.getItem('3dmarkup.uiAdvanced') === '1'
+    || window.localStorage.getItem('3dmarkup.uiAcceptance') === '1'
+    || window.localStorage.getItem('3dmarkup.safeUiMode') === 'core';
+}
+
+function shouldLoadClipTools() {
+  const params = new URLSearchParams(window.location.search);
+  return params.has('clipTools') || window.localStorage.getItem('3dmarkup.clipTools') === '1';
+}
+
+function startSoon(delayMs) {
+  window.setTimeout(function () {
+    if (window.__3D_MARKUP_SAFE_UI_IMPORT_STARTED__) return;
+
+    if (!window.__3D_MARKUP_APP_READY__ && attempts < 2) {
+      attempts += 1;
+      startSoon(250);
+      return;
+    }
+
+    window.__3D_MARKUP_SAFE_UI_IMPORT_STARTED__ = true;
+    import(SAFE_LOADER_URL).catch(function (error) {
+      console.warn('[3DMarkupTool] Optional UI loader skipped after failed dynamic import.', error);
+      window.__3D_MARKUP_SAFE_UI_IMPORT_STARTED__ = false;
+      window.__3D_MARKUP_SAFE_UI_IMPORT_FAILED__ = true;
+    });
+  }, delayMs);
 }
 
 function setBootstrapStatus(text) {
-  const el = document.getElementById('safeUiStatus') || document.getElementById('runtimeStatus');
-  if (el) el.textContent = text;
+  const status = document.getElementById('coreStatus') || document.getElementById('uiHealthBadge');
+  if (status) status.textContent = text;
 }

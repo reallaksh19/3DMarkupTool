@@ -1,9 +1,8 @@
 // Static input drawer conversion/sideload collapse controller.
-// Input is always open. Conversion and sideload settings are collapsed by explicit section markers,
-// not by DOM position, because the workflow summary card is also a <section>.
+// Static HTML/CSS owns the collapsed layout. This module only binds explicit
+// section headings and toggles body state; it does not inject runtime styles.
 
-const VERSION = 'phase4a-static-input-panel-cleanup-20260619';
-const STYLE_ID = 'staticInputConversionCollapseStyles';
+const VERSION = 'static-input-deterministic-20260620';
 
 runWhenReady(initConversionCollapse);
 
@@ -16,7 +15,6 @@ function runWhenReady(callback) {
 }
 
 function initConversionCollapse() {
-  injectCollapseStyles();
   ensureInputAlwaysExpanded();
   initConversionSection();
   initSideloadSection();
@@ -29,7 +27,8 @@ function initConversionCollapse() {
     openSideload: () => setSectionExpanded('sideload', true),
     closeSideload: () => setSectionExpanded('sideload', false),
     toggleSideload: () => toggleSection('sideload'),
-    ensureInputAlwaysExpanded
+    ensureInputAlwaysExpanded,
+    staticCssOwned: true
   };
 }
 
@@ -70,64 +69,6 @@ function bindCollapsibleSection(section, name, controlsId) {
       toggleSection(name);
     }
   });
-}
-
-function injectCollapseStyles() {
-  if (document.getElementById(STYLE_ID)) return;
-  const style = document.createElement('style');
-  style.id = STYLE_ID;
-  style.textContent = `
-    /* Input section is never an accordion target. This overrides older cached nth-of-type collapse CSS. */
-    #inputDrawer .panel-section[data-section="input"] > h3::after {
-      content: none !important;
-      display: none !important;
-    }
-
-    #inputDrawer .panel-section[data-section="input"] > h3 {
-      cursor: default !important;
-    }
-
-    #inputDrawer .panel-section[data-section="input"] > .file-drop {
-      display: grid !important;
-    }
-
-    #inputDrawer .panel-section[data-section="input"] > .button-row {
-      display: flex !important;
-    }
-
-    #inputDrawer .panel-section[data-collapsible] > h3 {
-      cursor: pointer !important;
-      user-select: none !important;
-      display: flex !important;
-      align-items: center !important;
-      gap: 8px !important;
-      min-height: 26px !important;
-      margin-bottom: 0 !important;
-    }
-
-    #inputDrawer .panel-section[data-collapsible] > h3::after {
-      content: '▸' !important;
-      margin-left: auto !important;
-      color: rgba(159, 179, 204, .9) !important;
-      font-size: 12px !important;
-    }
-
-    body.conversion-expanded #inputDrawer .panel-section[data-collapsible="conversion"] > h3::after,
-    body.sideload-expanded #inputDrawer .panel-section[data-collapsible="sideload"] > h3::after {
-      content: '▾' !important;
-    }
-
-    body:not(.conversion-expanded) #inputDrawer .panel-section[data-collapsible="conversion"] > .conversion-collapsible-content,
-    body:not(.sideload-expanded) #inputDrawer .panel-section[data-collapsible="sideload"] > .sideload-collapsible-content {
-      display: none !important;
-    }
-
-    #inputDrawer .panel-section[data-collapsible="sideload"] {
-      padding-top: 12px !important;
-      padding-bottom: 12px !important;
-    }
-  `;
-  document.head.appendChild(style);
 }
 
 function ensureInputAlwaysExpanded() {

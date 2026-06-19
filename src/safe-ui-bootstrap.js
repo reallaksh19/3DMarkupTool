@@ -2,8 +2,8 @@
 // index.html owns the professional shell. Default mode focuses on stable
 // model review/export UI. Clip tools are opt-in only.
 
-const SAFE_UI_VERSION = 'marquee-zoom-viewpad-20260619';
-const CLIP_UI_VERSION = 'marquee-zoom-viewpad-20260619';
+const SAFE_UI_VERSION = 'viewpad-nav-tools-20260619';
+const CLIP_UI_VERSION = 'viewpad-nav-tools-20260619';
 const CORE_MODULE_URLS = [
   `./static-shell-core-controller.js?v=${SAFE_UI_VERSION}`,
   `./static-review-ui-polish-controller.js?v=${SAFE_UI_VERSION}`,
@@ -11,6 +11,7 @@ const CORE_MODULE_URLS = [
   `./static-svg-icons-controller.js?v=${SAFE_UI_VERSION}`,
   `./static-viewcube-svg-controller.js?v=${SAFE_UI_VERSION}`,
   `./static-marquee-zoom-controller.js?v=${SAFE_UI_VERSION}`,
+  `./static-viewpad-navigation-tools-controller.js?v=${SAFE_UI_VERSION}`,
   `./static-tree-core-controller.js?v=${SAFE_UI_VERSION}`,
   `./static-properties-actions-controller.js?v=${SAFE_UI_VERSION}`,
   `./static-color-legend-controller.js?v=${SAFE_UI_VERSION}`,

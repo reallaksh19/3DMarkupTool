@@ -38,7 +38,8 @@ function run() {
   assert.equal(flangedValve.componentType, 'VALVE_FLANGED');
   assert.equal(flangedValve.visualRecipeId, 'valve-flanged-symbol.v1');
   assert.equal(flangedValve.visualPolicy.lengthPartitionedSymbol, true);
-  const flangedValvePlan = buildLinearVisualPrimitivePlan(flangedValve, { length: 3.4, pipeRadius: 0.5715 });
+  const flangedPipeRadius = 0.5715;
+  const flangedValvePlan = buildLinearVisualPrimitivePlan(flangedValve, { length: 3.4, pipeRadius: flangedPipeRadius });
   assert.ok(flangedValvePlan.some((p) => p.role === 'VALVE_BODY'), 'flanged valve must include a central valve body');
   assert.ok(flangedValvePlan.some((p) => p.role === 'VALVE_BORE_FILL'), 'flanged valve must include a bore fill so there is no open pipe gap');
   assert.ok(flangedValvePlan.some((p) => p.role === 'END_COLLAR_A'));
@@ -49,6 +50,16 @@ function run() {
   assert.ok(rightNeck, 'right direct valve neck/shoulder filler must close catalogue gap');
   assert.equal(leftNeck.shoulderBasis, 'length-partitioned-valve-neck');
   assert.ok(leftNeck.length >= 0.25, 'valve neck must be a real shoulder span, not a tiny marker');
+  assert.ok(leftNeck.length <= 3.4 * 0.24, 'valve neck must not become a long barrel-like run');
+  assert.ok(leftNeck.outerRadius > leftNeck.innerRadius * 1.15, 'valve neck must remain a visible taper');
+  const valveBoreFill = flangedValvePlan.find((p) => p.role === 'VALVE_BORE_FILL');
+  assert.ok(valveBoreFill.radius <= flangedPipeRadius * 0.8, 'bore fill must stay hidden and not read as a centerline pipe');
+  const endCollar = flangedValvePlan.find((p) => p.role === 'END_COLLAR_A');
+  assert.ok(endCollar.length <= flangedPipeRadius * 0.17, 'flanged valve end collar must read as a thin plate, not a thick washer');
+  assert.equal(endCollar.thinPlate, true);
+  const handwheel = flangedValvePlan.find((p) => p.role === 'HANDWHEEL');
+  assert.ok(handwheel.radius >= flangedPipeRadius * 0.85, 'handwheel must remain large enough to read in the 3D view');
+  assert.equal(handwheel.visualWeight, 'readable-operator');
   assert.ok(!flangedValvePlan.some((p) => p.role === 'FLANGE_DISC_A'), 'flanged valve must not be classified as a loose flange pair');
   assertCoverage(flangedValvePlan, 3.4, 'flanged valve visual replacement coverage');
 
@@ -66,6 +77,8 @@ function run() {
   assert.ok(gateBody.radius >= 0.75 * 1.85, 'gate valve body must visually dominate pipe OD without becoming an oversized barrel');
   assert.ok(gateBody.length >= 4 * 0.42, 'gate valve body must occupy the central body partition');
   assert.equal(gateBody.replacesCenterlinePipe, true);
+  const gateNeck = gatePlan.find((p) => p.role === 'VALVE_NECK_A');
+  assert.ok(gateNeck.length <= 4 * 0.24, 'gate valve shoulder must stay compact');
   assertCoverage(gatePlan, 4, 'gate valve visual replacement coverage');
 
   const ball = getValveFlangeVisualSpec({ rawType: 'BALL VALVE', props: { bore: '100' } });
@@ -83,12 +96,18 @@ function run() {
   assert.equal(flange.visualRecipeId, 'flange-pair-symbol.v1');
   const flangePlan = buildLinearVisualPrimitivePlan(flange, { length: 2.5, pipeRadius: 1 });
   const flangeDisc = flangePlan.find((p) => p.role === 'FLANGE_DISC_A');
+  const raisedFace = flangePlan.find((p) => p.role === 'RAISED_FACE_A');
+  const boltPattern = flangePlan.find((p) => p.role === 'BOLT_PATTERN');
   assert.ok(flangeDisc);
   assert.ok(flangePlan.some((p) => p.role === 'FLANGE_DISC_B'));
-  assert.ok(flangePlan.some((p) => p.role === 'BOLT_PATTERN'));
+  assert.ok(boltPattern);
   assert.ok(flangePlan.some((p) => p.role === 'FLANGE_CENTER_BORE_FILL'), 'flange pair needs direct center bore fill, not detached washers');
   assert.ok(flangeDisc.radius >= 2.0, 'flange disc must read larger than pipe OD');
-  assert.ok(flangeDisc.length <= 0.22, 'flange thickness must stay thin/proportional to bore, not long component span');
+  assert.ok(flangeDisc.length <= 0.14, 'flange thickness must stay thin/proportional to bore, not long component span');
+  assert.equal(flangeDisc.thinPlate, true);
+  assert.ok(raisedFace.length <= flangeDisc.length * 0.2, 'raised face/gasket marker must be a thin visual detail');
+  assert.equal(raisedFace.thinRaisedFace, true);
+  assert.ok(boltPattern.boltRadius <= 0.08, 'bolt pattern must not dominate the thin flange plate');
   assert.equal(flangeDisc.replacesCenterlinePipe, true);
   assertCoverage(flangePlan, 2.5, 'flange pair visual replacement coverage');
 

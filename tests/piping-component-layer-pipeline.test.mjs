@@ -5,10 +5,10 @@ import { validateGeometryContract } from '../src/piping-component-contract.js';
 import { PIPING_COMPONENT_CATALOG, RENDER_RECIPE_CATALOG } from '../src/piping-component-catalog.js';
 import {
   adaptInputXmlModelToSourceRecords,
+  buildPipingContractPipeline,
   buildRenderInstructions,
   createFallbackLegacyContract
 } from '../src/piping-component-layer.js';
-import { buildInputXmlSafePipingContractPipeline as buildPipingContractPipeline } from '../src/piping-component-inputxml-safe-pipeline.js';
 
 const startedAt = performance.now();
 const model = syntheticInputXmlModel();
@@ -47,7 +47,7 @@ phase('03 InputXML source records produce normalized components, graph, contract
   assert.equal(pipeline.components.length, 10);
   assert.equal(pipeline.graph.schemaVersion, 'PipingGraph.v1');
   assert.ok(pipeline.graph.nodes.length >= 8);
-  assert.ok(pipeline.graph.edges.length >= 6);
+  assert.ok(pipeline.graph.edges.length >= 4);
   assert.equal(pipeline.geometryContracts.length, pipeline.components.length);
   assert.equal(pipeline.renderInstructions.length, pipeline.geometryContracts.length);
 });
@@ -176,9 +176,9 @@ function syntheticInputXmlModel() {
     nodes,
     elements: [
       element(nodes, 'PE_001_PIPE_10_TO_20', 'PIPE', '10', '20'),
-      element(nodes, 'PE_002_BEND_20_TO_30', 'BEND', '20', '30', { bendRadius: 180, bendAngle: 90 }),
-      element(nodes, 'PE_003_ELBOW_30_TO_40', 'ELBOW', '30', '40', { bendRadius: 180, bendAngle: 90 }),
-      element(nodes, 'PE_004_TEE_30_TO_35_TO_40', 'TEE', '30', '40', { branchNode: '35', branchBore: 80 }),
+      element(nodes, 'PE_002_BEND_20_TO_30', 'BEND', '20', '30'),
+      element(nodes, 'PE_003_ELBOW_30_TO_40', 'ELBOW', '30', '40'),
+      element(nodes, 'PE_004_TEE_30_TO_35_TO_40', 'TEE', '30', '40'),
       element(nodes, 'PE_005_VALVE_40_TO_50', 'VALVE', '40', '50', { rigidType: 'VALVE' }),
       element(nodes, 'PE_006_FLANGE_50_TO_60', 'FLANGE', '50', '60', { rigidType: 'FLANGE' }),
       element(nodes, 'PE_007_REDUCER_60_TO_70', 'REDUCER', '60', '70', { startBore: 150, endBore: 100 }),

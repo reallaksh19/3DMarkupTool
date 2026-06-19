@@ -1,9 +1,9 @@
 import * as THREE from 'three';
 
-// Publish renderer/scene context for optional UI controllers without touching
+// Publish renderer/scene context for static UI controllers without touching
 // WebGLRenderer.render(). This avoids the read-only render-property regression
-// seen in earlier recovery work while still giving clip/tree tools access to the
-// active renderer and scene.
+// seen in earlier recovery work while still giving clip/tree tools stable access
+// to the active renderer and scene.
 //
 // This prebridge is loaded before src/app.js, so it also owns the few remaining
 // legacy DOM contracts that app.js still reads directly. Keep this list small and
@@ -18,15 +18,22 @@ runtime.modelRoot = runtime.modelRoot || null;
 runtime.selectedObject = runtime.selectedObject || null;
 runtime.selectedData = runtime.selectedData || null;
 runtime.clippingPlanes = runtime.clippingPlanes || [];
+runtime.clippingMode = runtime.clippingMode || 'none';
 runtime.frame = runtime.frame || 0;
 runtime.source = runtime.source || 'prebridge';
+runtime.applyClipping = runtime.applyClipping || applyClipping;
+runtime.clearClipping = runtime.clearClipping || clearClipping;
+runtime.getModelRoot = runtime.getModelRoot || (() => runtime.modelRoot || runtime.scene || null);
 
 window.__3D_MARKUP_VIEWER_RUNTIME__ = runtime;
 window.__3D_MARKUP_CLIP_RUNTIME__ = runtime;
+window.__3D_MARKUP_RECORD_RENDER_CONTEXT__ = recordRenderContext;
 
 ensureLegacyHintElement();
 ensureLegacySupportModeContract();
-installRendererSetSizeHook();
+installRendererMethodHook('setPixelRatio');
+installRendererMethodHook('setSize');
+installRendererMethodHook('setViewport');
 installSceneAddHook();
 
 function ensureLegacyHintElement() {
@@ -134,21 +141,23 @@ function isChecked(id, fallback) {
   return node ? Boolean(node.checked) : Boolean(fallback);
 }
 
-function installRendererSetSizeHook() {
+function installRendererMethodHook(methodName) {
   const proto = THREE.WebGLRenderer?.prototype;
-  if (!proto || proto.__markupContextSetSizeHooked) return;
+  if (!proto) return;
+  const flag = `__markupContext_${methodName}_hooked`;
+  if (proto[flag]) return;
 
-  const original = proto.setSize;
+  const original = proto[methodName];
   if (typeof original !== 'function') return;
 
-  Object.defineProperty(proto, '__markupContextSetSizeHooked', {
+  Object.defineProperty(proto, flag, {
     value: true,
     configurable: true
   });
 
-  proto.setSize = function markupSetSizeContextBridge(...args) {
+  proto[methodName] = function markupRendererContextBridge(...args) {
     runtime.renderer = this;
-    runtime.source = 'renderer.setSize';
+    runtime.source = `renderer.${methodName}`;
     publishContext();
     return original.apply(this, args);
   };
@@ -169,9 +178,48 @@ function installSceneAddHook() {
   proto.add = function markupSceneAddContextBridge(...objects) {
     runtime.scene = this;
     runtime.source = 'scene.add';
+    for (const object of objects) {
+      if (!object) continue;
+      if (object.type === 'PerspectiveCamera' || object.isCamera) runtime.camera = object;
+      if (object.name && !object.userData?.isDisplayHelper && !object.isLight && !object.isCamera) runtime.modelRoot = object;
+    }
     publishContext(objects);
     return original.apply(this, objects);
   };
+}
+
+function recordRenderContext(detail = {}) {
+  if (detail.renderer) runtime.renderer = detail.renderer;
+  if (detail.scene) runtime.scene = detail.scene;
+  if (detail.camera) runtime.camera = detail.camera;
+  if (detail.controls) runtime.controls = detail.controls;
+  if (detail.modelRoot) runtime.modelRoot = detail.modelRoot;
+  if (detail.selectedObject !== undefined) runtime.selectedObject = detail.selectedObject;
+  if (detail.selectedData !== undefined) runtime.selectedData = detail.selectedData;
+  if (Array.isArray(detail.clippingPlanes)) runtime.clippingPlanes = detail.clippingPlanes;
+  if (detail.clippingMode) runtime.clippingMode = detail.clippingMode;
+  runtime.source = detail.source || runtime.source || 'recordRenderContext';
+  publishContext();
+}
+
+function applyClipping(planes = [], detail = {}) {
+  const renderer = runtime.renderer;
+  const safePlanes = Array.isArray(planes) ? planes : [];
+  if (renderer) {
+    renderer.localClippingEnabled = true;
+    renderer.clippingPlanes = safePlanes;
+  }
+  runtime.clippingPlanes = safePlanes;
+  runtime.clippingMode = detail.mode || (safePlanes.length ? 'custom' : 'none');
+  runtime.source = detail.source || 'runtime.applyClipping';
+  publishContext();
+  window.dispatchEvent(new CustomEvent('viewer:clipping-changed', {
+    detail: { mode: runtime.clippingMode, source: runtime.source, planes: safePlanes }
+  }));
+}
+
+function clearClipping(detail = {}) {
+  applyClipping([], { mode: 'none', source: detail.source || 'runtime.clearClipping' });
 }
 
 function publishContext(objects = []) {
@@ -185,6 +233,7 @@ function publishContext(objects = []) {
     selectedObject: runtime.selectedObject,
     selectedData: runtime.selectedData,
     clippingPlanes: runtime.clippingPlanes,
+    clippingMode: runtime.clippingMode,
     source: runtime.source,
     objects,
     frame: runtime.frame

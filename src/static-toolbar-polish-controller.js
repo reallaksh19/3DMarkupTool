@@ -2,22 +2,31 @@
 // Keeps the first-class static shell readable without re-enabling legacy toolbar controllers.
 
 const STYLE_ID = 'static-toolbar-polish-style';
-const VERSION = 'static-toolbar-label-polish-plane-box-20260618';
+const VERSION = 'static-toolbar-label-polish-selection-resolver-20260618';
 
 installToolbarPolish();
 
 function installToolbarPolish() {
   injectToolbarStyle();
   annotateToolButtons();
+  syncRuntimeSelectionFromStatus();
   requestAnimationFrame(function () {
     annotateToolButtons();
     leftAnchorRibbon();
+    syncRuntimeSelectionFromStatus();
   });
   window.addEventListener('viewer:ui-score-changed', annotateToolButtons);
   window.addEventListener('viewer:static-clipbox-ready', annotateToolButtons);
   window.addEventListener('viewer:clipping-changed', annotateToolButtons);
+  window.addEventListener('viewer:static-tree-refreshed', syncRuntimeSelectionFromStatus);
+  window.addEventListener('viewer:selection-changed', syncRuntimeSelectionFromStatus);
+  window.addEventListener('click', () => window.setTimeout(syncRuntimeSelectionFromStatus, 0), true);
   window.addEventListener('resize', leftAnchorRibbon, { passive: true });
-  window.__3D_MARKUP_STATIC_TOOLBAR_POLISH__ = { version: VERSION, refresh: annotateToolButtons };
+  window.__3D_MARKUP_STATIC_TOOLBAR_POLISH__ = {
+    version: VERSION,
+    refresh: annotateToolButtons,
+    syncSelection: syncRuntimeSelectionFromStatus
+  };
 }
 
 function injectToolbarStyle() {
@@ -170,6 +179,86 @@ function normalizeClipBoxButton() {
   button.title = 'Show 3D Clip Box controls';
   button.setAttribute('aria-label', 'Show 3D Clip Box controls');
   button.dataset.extraWideLabel = 'true';
+}
+
+function syncRuntimeSelectionFromStatus() {
+  const runtime = window.__3D_MARKUP_VIEWER_RUNTIME__ || window.__3D_MARKUP_CLIP_RUNTIME__ || {};
+  if (runtime.selectedObject && !runtime.selectedObject.isScene) return runtime.selectedObject;
+
+  const selectedId = selectedIdFromStatusOrProps();
+  if (!selectedId) return null;
+
+  const object = findObjectById(selectedId);
+  if (!object) return null;
+
+  const data = object.userData || {};
+  runtime.selectedObject = object;
+  runtime.selectedData = data;
+  runtime.selectedId = selectedId;
+  window.__3D_MARKUP_VIEWER_RUNTIME__ = runtime;
+  window.__3D_MARKUP_CLIP_RUNTIME__ = runtime;
+
+  window.dispatchEvent(new CustomEvent('viewer:selection-changed', {
+    detail: { source: 'static-selection-resolver', object, data, id: selectedId }
+  }));
+  return object;
+}
+
+function selectedIdFromStatusOrProps() {
+  const statusText = String(document.getElementById('selectedStatus')?.textContent || '').trim();
+  const match = statusText.match(/Selected:\s*([^\s]+)/i);
+  if (match && match[1] && !/^none$/i.test(match[1])) return normalizeId(match[1]);
+
+  const propertyTitle = document.querySelector('.selected-card-title span')?.textContent?.trim();
+  if (propertyTitle && !/^no selection$/i.test(propertyTitle)) return normalizeId(propertyTitle);
+
+  return '';
+}
+
+function findObjectById(id) {
+  const normalized = normalizeId(id);
+  if (!normalized) return null;
+
+  const treeState = window.__3D_MARKUP_STATIC_TREE__?.state;
+  const treeMatch = treeState?.objects?.find((item) => objectMatches(item.object, normalized));
+  if (treeMatch?.object) return treeMatch.object;
+
+  const runtime = window.__3D_MARKUP_VIEWER_RUNTIME__ || window.__3D_MARKUP_CLIP_RUNTIME__ || {};
+  const root = runtime.modelRoot || runtime.scene;
+  let found = null;
+  root?.traverse?.((object) => {
+    if (found || !object || object.isScene) return;
+    if (objectMatches(object, normalized)) found = object;
+  });
+  return found;
+}
+
+function objectMatches(object, normalizedId) {
+  const raw = object?.userData || {};
+  const candidates = [
+    object?.name,
+    raw.ID,
+    raw.id,
+    raw.REF_NO,
+    raw.refNo,
+    raw.LABEL,
+    raw.label,
+    raw.NODE,
+    raw.node,
+    raw.componentId,
+    raw.COMPONENT_ID,
+    raw.title,
+    raw.name
+  ];
+  return candidates.some((value) => normalizeId(value) === normalizedId);
+}
+
+function normalizeId(value) {
+  return String(value || '')
+    .trim()
+    .replace(/^Selected:\s*/i, '')
+    .replace(/[\s,;]+$/g, '')
+    .toUpperCase();
 }
 
 function leftAnchorRibbon() {

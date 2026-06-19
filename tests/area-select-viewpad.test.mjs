@@ -6,7 +6,7 @@ const bootstrap = readFileSync(new URL('../src/safe-ui-bootstrap.js', import.met
 const pkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
 
 assert.match(bootstrap, /static-area-select-controller\.js\?v=\$\{SAFE_UI_VERSION\}/, 'bootstrap must load the area select viewpad controller');
-assert.match(bootstrap, /esc-tools-export-icons-20260619/, 'safe bootstrap cache key must bump for area select and the current ESC/export/icon tool pack');
+assert.match(bootstrap, /viewpad-icons-context-saved-state-20260619/, 'safe bootstrap cache key must bump for area select');
 
 assert.match(controller, /const TOOL_VIEW = 'areaSelect'/, 'controller must define a stable area-select data-view key');
 assert.match(controller, /Area Select: drag a window/, 'controller must expose a user-facing area select tooltip');

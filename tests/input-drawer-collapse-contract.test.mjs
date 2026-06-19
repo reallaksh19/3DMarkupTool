@@ -48,7 +48,7 @@ assert.match(
 
 assert.match(
   bootstrap,
-  /explode-review-viewpad-20260619/,
+  /viewpad-icons-context-saved-state-20260619/,
   'Safe UI bootstrap version must remain cache-busted so browsers fetch fixed drawer and view-pad controllers.'
 );
 

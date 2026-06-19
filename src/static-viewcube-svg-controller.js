@@ -1,51 +1,20 @@
 // Static SVG ViewCube controller.
-// Replaces text labels in the canvas view pad with professional inline SVG icons.
+// Converts the canvas view pad into a compact vertical SVG icon bar.
 // It preserves the existing data-view buttons and app.js click handlers.
 
-const VERSION = 'static-viewcube-svg-20260619';
+const VERSION = 'static-viewcube-vertical-icons-20260619';
 const STYLE_ID = 'staticViewCubeSvgStyles';
 
+const VIEW_ORDER = ['top', 'iso', 'side', 'front', 'fit', 'fitSelection', 'zoom'];
 const VIEW_DEFS = {
-  top: {
-    title: 'Top view',
-    label: 'Top',
-    icon: faceIcon('top')
-  },
-  iso: {
-    title: 'Isometric view',
-    label: 'ISO',
-    icon: isoIcon()
-  },
-  side: {
-    title: 'Right side view',
-    label: 'Right',
-    icon: faceIcon('right')
-  },
-  front: {
-    title: 'Front view',
-    label: 'Front',
-    icon: faceIcon('front')
-  },
-  fit: {
-    title: 'Fit all',
-    label: 'Fit',
-    icon: cornersIcon()
-  },
-  fitSelection: {
-    title: 'Fit selected object',
-    label: 'Fit selected',
-    icon: focusBoxIcon()
-  },
-  zoom: {
-    title: 'Zoom tool',
-    label: 'Zoom',
-    icon: zoomIcon()
-  },
-  msr: {
-    title: 'Measure tool',
-    label: 'Measure',
-    icon: measureIcon()
-  }
+  top: { title: 'Top view', label: 'Top', icon: faceIcon('top') },
+  iso: { title: 'Isometric view', label: 'ISO', icon: isoIcon() },
+  side: { title: 'Right side view', label: 'Right', icon: faceIcon('right') },
+  front: { title: 'Front view', label: 'Front', icon: faceIcon('front') },
+  fit: { title: 'Fit all', label: 'Fit all', icon: cornersIcon() },
+  fitSelection: { title: 'Fit selected object', label: 'Fit selected', icon: focusBoxIcon() },
+  zoom: { title: 'Zoom tool', label: 'Zoom', icon: zoomIcon() },
+  msr: { title: 'Measure tool', label: 'Measure', icon: measureIcon() }
 };
 
 runWhenReady(initViewCubeSvg);
@@ -64,18 +33,25 @@ function initViewCubeSvg() {
 }
 
 function injectStyles() {
-  if (document.getElementById(STYLE_ID)) return;
+  const existing = document.getElementById(STYLE_ID);
+  if (existing) existing.remove();
   const style = document.createElement('style');
   style.id = STYLE_ID;
   style.textContent = `
     .view-pad {
-      width: 142px !important;
-      min-width: 142px !important;
-      padding: 10px !important;
-      gap: 6px !important;
-      grid-template-columns: repeat(3, 1fr) !important;
+      position: absolute !important;
+      top: 18px !important;
+      right: 18px !important;
+      z-index: 14 !important;
+      width: auto !important;
+      min-width: 0 !important;
+      max-width: none !important;
+      display: flex !important;
+      flex-direction: column !important;
       align-items: center !important;
-      border-radius: 16px !important;
+      gap: 6px !important;
+      padding: 8px 7px !important;
+      border-radius: 18px !important;
       background: rgba(7, 18, 34, .90) !important;
       border: 1px solid rgba(91, 145, 210, .36) !important;
       box-shadow: 0 16px 36px rgba(0,0,0,.34) !important;
@@ -84,25 +60,28 @@ function injectStyles() {
 
     .view-pad::before {
       content: 'VIEW';
-      grid-column: 1 / -1;
       display: block;
-      margin: -2px 0 1px;
-      color: rgba(184, 213, 244, .70);
-      font-size: 9px;
+      writing-mode: vertical-rl;
+      text-orientation: mixed;
+      margin: 0 0 2px;
+      color: rgba(184, 213, 244, .62);
+      font-size: 8px;
+      line-height: 1;
       font-weight: 950;
       letter-spacing: .16em;
-      text-align: left;
     }
 
     .view-pad button {
-      width: 36px !important;
-      min-width: 36px !important;
-      height: 36px !important;
-      min-height: 36px !important;
+      width: 38px !important;
+      min-width: 38px !important;
+      max-width: 38px !important;
+      height: 38px !important;
+      min-height: 38px !important;
+      max-height: 38px !important;
       padding: 0 !important;
       display: inline-grid !important;
       place-items: center !important;
-      border-radius: 9px !important;
+      border-radius: 11px !important;
       color: #dbeeff !important;
       background: linear-gradient(180deg, rgba(20, 47, 81, .96), rgba(11, 29, 51, .96)) !important;
       border: 1px solid rgba(110, 162, 225, .30) !important;
@@ -112,7 +91,7 @@ function injectStyles() {
 
     .view-pad button:hover,
     .view-pad button:focus-visible {
-      transform: translateY(-1px);
+      transform: translateX(-1px);
       border-color: rgba(88, 166, 255, .72) !important;
       color: #ffffff !important;
       background: linear-gradient(180deg, rgba(25, 91, 165, .98), rgba(14, 61, 119, .98)) !important;
@@ -125,18 +104,12 @@ function injectStyles() {
       background: linear-gradient(180deg, rgba(23, 108, 200, .96), rgba(15, 63, 130, .96)) !important;
     }
 
-    .view-pad button[data-view="fit"],
-    .view-pad button[data-view="fitSelection"],
-    .view-pad button[data-view="zoom"] {
-      height: 32px !important;
-      min-height: 32px !important;
-      color: #cfe5ff !important;
+    .view-pad button[data-view="fit"] {
+      margin-top: 4px;
+      border-top-color: rgba(255,255,255,.18) !important;
     }
 
-    .view-pad button[data-view="msr"] {
-      display: none !important;
-    }
-
+    .view-pad button[data-view="msr"],
     .view-pad button[data-view="clip"] {
       display: none !important;
     }
@@ -168,6 +141,25 @@ function injectStyles() {
       white-space: nowrap !important;
       border: 0 !important;
     }
+
+    @media (max-height: 720px) {
+      .view-pad {
+        top: 12px !important;
+        right: 12px !important;
+        gap: 5px !important;
+        padding: 7px 6px !important;
+      }
+      .view-pad button {
+        width: 34px !important;
+        min-width: 34px !important;
+        height: 34px !important;
+        min-height: 34px !important;
+      }
+      .view-pad .viewcube-icon {
+        width: 17px;
+        height: 17px;
+      }
+    }
   `;
   document.head.appendChild(style);
 }
@@ -175,7 +167,8 @@ function injectStyles() {
 function normalizeViewPad() {
   const pad = document.querySelector('.view-pad');
   if (!pad) return;
-  pad.setAttribute('aria-label', 'View cube and navigation shortcuts');
+  pad.setAttribute('aria-label', 'Vertical view and navigation toolbar');
+  reorderButtons(pad);
   pad.querySelectorAll('button[data-view]').forEach((button) => {
     const key = button.dataset.view;
     const def = VIEW_DEFS[key];
@@ -183,6 +176,19 @@ function normalizeViewPad() {
     button.title = def.title;
     button.setAttribute('aria-label', def.title);
     button.innerHTML = `${def.icon}<span class="sr-only">${escapeHtml(def.label)}</span>`;
+  });
+}
+
+function reorderButtons(pad) {
+  const buttons = new Map();
+  pad.querySelectorAll('button[data-view]').forEach((button) => buttons.set(button.dataset.view, button));
+  VIEW_ORDER.forEach((key) => {
+    const button = buttons.get(key);
+    if (button) pad.appendChild(button);
+  });
+  ['clip', 'msr'].forEach((key) => {
+    const button = buttons.get(key);
+    if (button) pad.appendChild(button);
   });
 }
 

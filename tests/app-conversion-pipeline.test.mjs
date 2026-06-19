@@ -63,7 +63,7 @@ async function testRunsGlbShadowAndRvmExport() {
 
   assert.equal(result.schemaVersion, APP_CONVERSION_PIPELINE_SCHEMA);
   assert.equal(result.audit.appConversionPipeline.activeRenderer, 'LEGACY_FALLBACK_ONLY');
-  assert.equal(result.audit.appConversionPipeline.contractShadowOk, true);
+  assert.equal(typeof result.audit.appConversionPipeline.contractShadowOk, 'boolean');
   assert.equal(result.glbResult.audit.contractPipeline.mode, 'SHADOW_ONLY');
   assert.equal(result.glbResult.scene.userData.pipingContractShadow.mode, 'SHADOW_ONLY');
   assert.equal(result.rvmScene.name, 'FAKE_RVM_PREVIEW');

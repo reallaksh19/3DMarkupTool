@@ -162,11 +162,11 @@ function syntheticComponents() {
       topology: { ports: [port('MAIN_A', '30'), port('MAIN_B', '40'), port('BRANCH', '35')] },
       geometryKind: 'TEE_COMPOSITE'
     }),
-    component('VALVE_001', 'VALVE', 'VALVE_UNKNOWN', 'SRC_VALVE_001', {
+    component('VALVE_001', 'VALVE', 'VALVE_GENERIC', 'SRC_VALVE_001', {
       topology: { fromNode: '40', toNode: '50' },
       geometryKind: 'VALVE_SYMBOLIC'
     }),
-    component('FLANGE_001', 'FLANGE', 'FLANGE_UNKNOWN', 'SRC_FLANGE_001', {
+    component('FLANGE_001', 'FLANGE', 'FLANGE_GENERIC', 'SRC_FLANGE_001', {
       topology: { fromNode: '50', toNode: '60' },
       geometryKind: 'FLANGE_PAIR'
     }),

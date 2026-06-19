@@ -22,8 +22,8 @@ assert.match(controller, /__3D_MARKUP_NAVIGATION_SMOOTHNESS__/, 'controller must
 assert.match(controller, /noIntervalPolling: true/, 'checklist must declare no interval polling');
 assert.doesNotMatch(controller, /setInterval\(/, 'navigation smoothness controller must not use setInterval');
 
-assert.match(checklist, /✅ B1 — Zoom is not smooth/, 'Phase 1 checklist must tick the zoom smoothness comment');
-assert.match(checklist, /⬜ C1 — Input controls must always remain visible/, 'later phases must remain open until implemented');
+assert.match(checklist, /\| ✅ \| B1 — Zoom is not smooth \|/, 'Phase 1 checklist must tick the zoom smoothness comment');
+assert.match(checklist, /\| ⬜ \| C1 — Input controls must always remain visible \|/, 'later phases must remain open until implemented');
 assert.match(pkg.scripts.test, /navigation-smoothness\.test\.mjs/, 'npm test must include the navigation smoothness gate');
 
 console.log('navigation-smoothness gate passed');

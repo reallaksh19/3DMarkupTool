@@ -6,15 +6,15 @@
   <title>InputXML GLB/RVM Review Viewer</title>
   <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
   <link rel="shortcut icon" href="./favicon.ico" />
-  <link rel="stylesheet" href="./src/styles.css?v=chrome-runtime-diagnostics-20260619" />
-  <link rel="stylesheet" href="./src/clip-adjuster.css?v=chrome-runtime-diagnostics-20260619" />
-  <link rel="stylesheet" href="./src/clip-visual-overlays.css?v=chrome-runtime-diagnostics-20260619" />
+  <link rel="stylesheet" href="./src/styles.css?v=input-always-visible-20260619" />
+  <link rel="stylesheet" href="./src/clip-adjuster.css?v=input-always-visible-20260619" />
+  <link rel="stylesheet" href="./src/clip-visual-overlays.css?v=input-always-visible-20260619" />
   <script type="importmap">
     {
       "imports": {
         "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
         "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/",
-        "lucide": "./src/lucide-safe.js?v=chrome-runtime-diagnostics-20260619"
+        "lucide": "./src/lucide-safe.js?v=input-always-visible-20260619"
       }
     }
   </script>
@@ -94,14 +94,15 @@
         <button id="closeInputBtn" type="button" class="icon-btn" title="Close input panel"><i data-lucide="chevrons-left"></i></button>
       </div>
 
-      <section class="panel-section">
+      <section class="panel-section phase2-input-sticky-section" data-section="input">
         <h3><span class="section-no">1</span> Input</h3>
+        <div id="inputFileStatus" class="input-file-status" aria-live="polite">No file chosen</div>
         <label class="file-drop">
           <input type="file" id="xmlFile" accept=".xml,.txt" />
           <i data-lucide="upload"></i>
           <span>Choose InputXML</span>
         </label>
-        <div class="button-row">
+        <div class="button-row input-primary-actions">
           <button id="loadSampleBtn" type="button" class="primary icon-text"><i data-lucide="folder-open"></i><span>Load BM_CII sample</span></button>
           <button id="clearBtn" type="button" class="ghost icon-text"><i data-lucide="folder-x"></i><span>Clear All</span></button>
         </div>
@@ -231,10 +232,10 @@ Axial restraints: no OD/2 radial contact; tips touch unless gap; positive gap = 
 After engineering contact: visual resolver ODx2/3 applies only to final axial/pipe-parallel symbols</pre>
   </dialog>
 
-  <script type="module" src="./src/clip-render-hook.js?v=chrome-runtime-diagnostics-20260619"></script>
-  <script type="module" src="./src/render-context-prebridge.js?v=chrome-runtime-diagnostics-20260619"></script>
-  <script type="module" src="./src/app.js?v=chrome-runtime-diagnostics-20260619"></script>
-  <script type="module" src="./src/fresh-clip-controller.js?v=chrome-runtime-diagnostics-20260619"></script>
-  <script type="module" src="./src/safe-ui-bootstrap.js?v=chrome-runtime-diagnostics-20260619"></script>
+  <script type="module" src="./src/clip-render-hook.js?v=input-always-visible-20260619"></script>
+  <script type="module" src="./src/render-context-prebridge.js?v=input-always-visible-20260619"></script>
+  <script type="module" src="./src/app.js?v=input-always-visible-20260619"></script>
+  <script type="module" src="./src/fresh-clip-controller.js?v=input-always-visible-20260619"></script>
+  <script type="module" src="./src/safe-ui-bootstrap.js?v=input-always-visible-20260619"></script>
 </body>
 </html>

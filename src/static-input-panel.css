@@ -1,0 +1,121 @@
+/* Deterministic Input / Conversion panel layout.
+   Static CSS owns the final shape so JavaScript does not restyle the panel after load. */
+
+#inputDrawer .static-input-compact-section,
+#inputDrawer .panel-section[data-section="input"] {
+  display: grid;
+  gap: 6px;
+  padding: 8px 0 10px;
+}
+
+#inputDrawer .static-input-compact-section > h3,
+#inputDrawer .panel-section[data-section="input"] > h3 {
+  margin: 0;
+}
+
+#inputFileStatus.input-file-status {
+  min-height: 18px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  color: var(--muted);
+  background: transparent;
+  font-size: 12px;
+  font-weight: 760;
+  line-height: 1.2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#inputDrawer .static-input-compact-section > .file-drop,
+#inputDrawer .panel-section[data-section="input"] > .file-drop {
+  min-height: 32px;
+  margin: 0;
+  padding: 0 10px;
+  border-style: solid;
+  border-radius: 9px;
+  justify-content: center;
+  line-height: 1;
+}
+
+#inputDrawer .static-input-compact-section > .file-drop .lucide,
+#inputDrawer .panel-section[data-section="input"] > .file-drop .lucide {
+  width: 15px;
+  height: 15px;
+}
+
+#inputDrawer .static-input-compact-section > .input-primary-actions,
+#inputDrawer .panel-section[data-section="input"] > .input-primary-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: nowrap;
+}
+
+#inputDrawer .static-input-compact-section #loadSampleBtn,
+#inputDrawer .static-input-compact-section #clearBtn,
+#inputDrawer .panel-section[data-section="input"] #loadSampleBtn,
+#inputDrawer .panel-section[data-section="input"] #clearBtn {
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: 32px;
+  padding: 6px 8px;
+  white-space: nowrap;
+  font-size: 11px;
+}
+
+#inputDrawer .static-input-compact-section #loadSampleBtn span,
+#inputDrawer .static-input-compact-section #clearBtn span,
+#inputDrawer .panel-section[data-section="input"] #loadSampleBtn span,
+#inputDrawer .panel-section[data-section="input"] #clearBtn span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#inputDrawer .panel-section[data-section="input"] > h3::after {
+  content: none;
+  display: none;
+}
+
+#inputDrawer .panel-section[data-section="input"] > h3 {
+  cursor: default;
+}
+
+#inputDrawer .panel-section[data-collapsible] > h3 {
+  cursor: pointer;
+  user-select: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 26px;
+  margin-bottom: 0;
+}
+
+#inputDrawer .panel-section[data-collapsible] > h3::after {
+  content: '▸';
+  margin-left: auto;
+  color: rgba(159, 179, 204, .9);
+  font-size: 12px;
+}
+
+body.conversion-expanded #inputDrawer .panel-section[data-collapsible="conversion"] > h3::after,
+body.sideload-expanded #inputDrawer .panel-section[data-collapsible="sideload"] > h3::after {
+  content: '▾';
+}
+
+body:not(.conversion-expanded) #inputDrawer .panel-section[data-collapsible="conversion"] > .conversion-collapsible-content,
+body:not(.sideload-expanded) #inputDrawer .panel-section[data-collapsible="sideload"] > .sideload-collapsible-content {
+  display: none;
+}
+
+#inputDrawer .panel-section[data-collapsible="sideload"] {
+  padding-top: 12px;
+  padding-bottom: 12px;
+}
+
+#closeInputBtn[hidden] {
+  display: none;
+}

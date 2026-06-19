@@ -9,9 +9,14 @@ const source = await readFile(sourcePath, 'utf8');
 
 assert.match(source, /APP_CONVERSION_PIPELINE_SCHEMA\s*=\s*'AppConversionPipeline\.v1'/);
 assert.match(source, /runAppConversionPipeline/);
+assert.match(source, /resolveAppConversionDeps/);
 assert.match(source, /convertInputXmlToGlbWithPipingShadow/);
 assert.match(source, /convertInputXmlToRvmAtt/);
 assert.match(source, /createRvmPreviewScene/);
+assert.match(source, /await\s+resolveAppConversionDeps\(deps\)/);
+assert.match(source, /import\('\.\/converter\.js\?v=professional-viewer-3'\)/);
+assert.match(source, /import\('\.\/rvm-converter\.js\?v=professional-viewer-3'\)/);
+assert.match(source, /import\('\.\/rvm-preview\.js\?v=professional-viewer-3'\)/);
 assert.match(source, /appConversionPipeline/);
 assert.match(source, /LEGACY_FALLBACK_ONLY/);
 assert.doesNotMatch(source, /activeRenderer:\s*'CONTRACT_RENDERER'/);

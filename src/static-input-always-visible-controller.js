@@ -1,8 +1,8 @@
-// Phase 4A input visibility correction.
-// Keeps the real InputXML controls visible before any generated drawer summary.
+// Phase 2 input always-visible controller.
+// Keeps the real InputXML controls visible without duplicating fake controls.
 // No scene traversal, no polling, no review-tool activation.
 
-const VERSION = 'phase4a-input-visible-20260619';
+const VERSION = 'input-always-visible-20260619';
 const STYLE_ID = 'inputAlwaysVisiblePhase2Styles';
 
 runWhenReady(initInputAlwaysVisible);
@@ -22,13 +22,10 @@ function initInputAlwaysVisible() {
 
   bindFileStatus();
   ensureDrawerOpen();
-  bindInputOrderingRefresh();
-  positionInputSectionFirst();
 
   window.__3D_MARKUP_INPUT_ALWAYS_VISIBLE__ = {
     version: VERSION,
     ensure: initInputAlwaysVisible,
-    positionFirst: positionInputSectionFirst,
     getStatusText: () => getStatusNode()?.textContent || '',
     checklist
   };
@@ -47,8 +44,7 @@ function ensureInputBlock() {
 
   section.dataset.section = 'input';
   section.dataset.phase2Input = 'always-visible';
-  section.dataset.phase4aInput = 'first-visible';
-  section.classList.add('phase2-input-sticky-section', 'phase4a-input-first-section');
+  section.classList.add('phase2-input-sticky-section');
 
   const heading = section.querySelector('h3');
   const fileDrop = section.querySelector('.file-drop');
@@ -82,48 +78,7 @@ function ensureInputBlock() {
     closeInputBtn.tabIndex = -1;
   }
 
-  positionInputSectionFirst();
   return section;
-}
-
-function bindInputOrderingRefresh() {
-  const drawer = document.getElementById('inputDrawer');
-  if (!drawer) return;
-
-  if (drawer.dataset.phase4aInputOrderingBound !== '1') {
-    drawer.dataset.phase4aInputOrderingBound = '1';
-    const observer = new MutationObserver(() => positionInputSectionFirst());
-    observer.observe(drawer, { childList: true });
-    drawer.__phase4aInputOrderingObserver = observer;
-  }
-
-  if (window.__phase4aInputDrawerSummaryBound !== '1') {
-    window.__phase4aInputDrawerSummaryBound = '1';
-    window.addEventListener('viewer:drawer-summary-ready', () => positionInputSectionFirst());
-  }
-}
-
-function positionInputSectionFirst() {
-  const drawer = document.getElementById('inputDrawer');
-  if (!drawer) return false;
-
-  const section = getInputSection();
-  const head = drawer.querySelector('.drawer-head');
-  if (!section || !head) return false;
-
-  const firstAfterHead = head.nextElementSibling;
-  if (firstAfterHead !== section) {
-    drawer.insertBefore(section, head.nextSibling);
-  }
-
-  const summary = document.getElementById('drawerSummaryCard');
-  if (summary && summary.parentElement === drawer && section.nextElementSibling !== summary) {
-    drawer.insertBefore(summary, section.nextSibling);
-  }
-
-  section.dataset.phase4aInput = 'first-visible';
-  drawer.dataset.phase4aInputFirst = '1';
-  return true;
 }
 
 function bindFileStatus() {
@@ -207,7 +162,7 @@ function injectStyles() {
     #inputDrawer .panel-section[data-phase2-input="always-visible"] {
       position: sticky !important;
       top: 0 !important;
-      z-index: 42 !important;
+      z-index: 30 !important;
       padding: 12px !important;
       margin: -1px -4px 12px !important;
       border: 1px solid rgba(72, 153, 255, .44) !important;
@@ -215,10 +170,6 @@ function injectStyles() {
       background:
         linear-gradient(180deg, rgba(12, 31, 56, .99), rgba(7, 20, 37, .985)) !important;
       box-shadow: 0 14px 28px rgba(0, 0, 0, .34) !important;
-    }
-
-    #inputDrawer .phase4a-input-first-section {
-      order: -10 !important;
     }
 
     #inputDrawer .phase2-input-sticky-section h3 {
@@ -263,11 +214,6 @@ function injectStyles() {
       min-width: 0 !important;
     }
 
-    #drawerSummaryCard {
-      position: relative !important;
-      z-index: 1 !important;
-    }
-
     #closeInputBtn[hidden] {
       display: none !important;
     }
@@ -285,9 +231,6 @@ function injectStyles() {
 
 function checklist() {
   const section = getInputSection();
-  const drawer = document.getElementById('inputDrawer');
-  const head = drawer?.querySelector('.drawer-head') || null;
-  const summary = document.getElementById('drawerSummaryCard');
   return {
     version: VERSION,
     drawerOpen: document.body.classList.contains('input-open'),
@@ -296,8 +239,6 @@ function checklist() {
     chooseInputVisible: Boolean(section?.querySelector('.file-drop')),
     loadSampleVisible: Boolean(document.getElementById('loadSampleBtn')),
     clearAllVisible: Boolean(document.getElementById('clearBtn')),
-    inputBeforeSummary: Boolean(section && summary && section.compareDocumentPosition(summary) & Node.DOCUMENT_POSITION_FOLLOWING),
-    inputFirstAfterDrawerHead: Boolean(head && head.nextElementSibling === section),
     noPolling: true,
     noSceneTraversal: true
   };

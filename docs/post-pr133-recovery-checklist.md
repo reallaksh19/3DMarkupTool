@@ -57,12 +57,6 @@ Legend:
 | ✅ | E2 — Clear persistent area selection | Area selection remains forever. | Escape now calls the Area Select clear/deactivate API where present and removes transient area-select overlays as a DOM fallback. |
 | ✅ | E3 — Reassemble exploded view | Once exploded, how to reassemble/undo? | Escape now calls the Explode Review reset API where present and closes the explode panel, providing a shared reassemble/undo exit path. |
 
-## Phase 4A — Input visibility corrective fix
-
-| Status | Comment ID | Original feedback | Completion note |
-|---|---|---|---|
-| ✅ | C4 — Input block still not practically visible | The visible left panel still did not show the required input block in practice because the workflow summary could appear above it. | The input controller now keeps the real input section first after the drawer header and moves the workflow summary after the input block using event-driven drawer-summary and child-list hooks. |
-
 ## Phase 5 — Selection resolver foundation
 
 | Status | Comment ID | Original feedback | Completion note |

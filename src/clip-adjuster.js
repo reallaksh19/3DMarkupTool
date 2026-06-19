@@ -200,12 +200,16 @@ function stepClip(delta) {
 function applyClipToRenderer(renderer) {
   if (!renderer) return;
 
+  const api = runtime();
   const active = isToolbarClipActive() || state.forceActive;
   renderer.localClippingEnabled = true;
 
-  const api = runtime();
-
   if (!active) {
+    if (!clipAdjusterOwnsRuntimeClip(api, renderer)) {
+      state.active = false;
+      return;
+    }
+
     state.applyingRuntimeClip = true;
     try {
       if (typeof api?.clearClipping === 'function') {
@@ -235,6 +239,14 @@ function applyClipToRenderer(renderer) {
   }
 
   state.active = true;
+}
+
+function clipAdjusterOwnsRuntimeClip(api = runtime(), renderer = state.lastRenderer || api?.renderer) {
+  const mode = String(api?.clippingMode || '').toLowerCase();
+  const source = String(api?.source || '').toLowerCase();
+  if (mode === 'plane' || source === 'clip-adjuster' || source === 'app-toolbar') return true;
+  const planes = renderer?.clippingPlanes;
+  return Array.isArray(planes) && planes.length === 1 && planes[0] === managedPlane;
 }
 
 function isToolbarClipActive() {
@@ -307,9 +319,10 @@ function syncUi() {
   if (!state.uiReady) return;
 
   updateBounds(currentModelRoot());
-  const renderer = state.lastRenderer || runtime()?.renderer;
-  const planesActive = Boolean(renderer?.clippingPlanes?.length);
-  state.active = isToolbarClipActive() || state.forceActive || planesActive;
+  const api = runtime();
+  const renderer = state.lastRenderer || api?.renderer;
+  const planeActive = Boolean(renderer?.clippingPlanes?.length) && clipAdjusterOwnsRuntimeClip(api, renderer);
+  state.active = isToolbarClipActive() || state.forceActive || planeActive;
 
   ui.panel.classList.toggle('clip-active', state.active);
   ui.axis.value = state.axis;

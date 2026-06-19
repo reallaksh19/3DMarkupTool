@@ -2,7 +2,7 @@
 // Converts the canvas view pad into a compact vertical SVG icon bar.
 // It preserves the existing data-view buttons and app.js click handlers.
 
-const VERSION = 'static-viewcube-vertical-icons-20260619';
+const VERSION = 'static-viewcube-vertical-clean-20260619';
 const STYLE_ID = 'staticViewCubeSvgStyles';
 
 const VIEW_ORDER = ['top', 'iso', 'side', 'front', 'fit', 'fitSelection', 'zoom'];
@@ -40,73 +40,78 @@ function injectStyles() {
   style.textContent = `
     .view-pad {
       position: absolute !important;
-      top: 18px !important;
-      right: 18px !important;
+      top: 16px !important;
+      right: 16px !important;
       z-index: 14 !important;
-      width: auto !important;
-      min-width: 0 !important;
-      max-width: none !important;
+      width: 50px !important;
+      min-width: 50px !important;
+      max-width: 50px !important;
       display: flex !important;
       flex-direction: column !important;
       align-items: center !important;
-      gap: 6px !important;
-      padding: 8px 7px !important;
-      border-radius: 18px !important;
-      background: rgba(7, 18, 34, .90) !important;
-      border: 1px solid rgba(91, 145, 210, .36) !important;
-      box-shadow: 0 16px 36px rgba(0,0,0,.34) !important;
+      gap: 7px !important;
+      padding: 8px 6px !important;
+      border-radius: 16px !important;
+      background: rgba(6, 17, 32, .84) !important;
+      border: 1px solid rgba(91, 145, 210, .34) !important;
+      box-shadow: 0 14px 34px rgba(0,0,0,.34), inset 0 1px 0 rgba(255,255,255,.04) !important;
       backdrop-filter: blur(10px);
     }
 
     .view-pad::before {
-      content: 'VIEW';
-      display: block;
-      writing-mode: vertical-rl;
-      text-orientation: mixed;
-      margin: 0 0 2px;
-      color: rgba(184, 213, 244, .62);
-      font-size: 8px;
-      line-height: 1;
-      font-weight: 950;
-      letter-spacing: .16em;
+      content: none !important;
+      display: none !important;
     }
 
     .view-pad button {
-      width: 38px !important;
-      min-width: 38px !important;
-      max-width: 38px !important;
-      height: 38px !important;
-      min-height: 38px !important;
-      max-height: 38px !important;
+      position: relative;
+      width: 36px !important;
+      min-width: 36px !important;
+      max-width: 36px !important;
+      height: 36px !important;
+      min-height: 36px !important;
+      max-height: 36px !important;
       padding: 0 !important;
       display: inline-grid !important;
       place-items: center !important;
-      border-radius: 11px !important;
+      border-radius: 10px !important;
       color: #dbeeff !important;
-      background: linear-gradient(180deg, rgba(20, 47, 81, .96), rgba(11, 29, 51, .96)) !important;
+      background: linear-gradient(180deg, rgba(20, 47, 81, .96), rgba(10, 27, 48, .96)) !important;
       border: 1px solid rgba(110, 162, 225, .30) !important;
-      box-shadow: inset 0 1px 0 rgba(255,255,255,.05);
-      transition: transform .12s ease, border-color .12s ease, background .12s ease, color .12s ease;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.055), 0 2px 8px rgba(0,0,0,.18) !important;
+      transition: transform .12s ease, border-color .12s ease, background .12s ease, color .12s ease, box-shadow .12s ease;
     }
 
     .view-pad button:hover,
     .view-pad button:focus-visible {
       transform: translateX(-1px);
-      border-color: rgba(88, 166, 255, .72) !important;
+      border-color: rgba(88, 166, 255, .74) !important;
       color: #ffffff !important;
       background: linear-gradient(180deg, rgba(25, 91, 165, .98), rgba(14, 61, 119, .98)) !important;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.08), 0 0 0 2px rgba(88,166,255,.12), 0 4px 12px rgba(0,0,0,.25) !important;
       outline: none;
     }
 
     .view-pad button[data-view="iso"] {
       color: #ffffff !important;
-      border-color: rgba(88, 166, 255, .72) !important;
-      background: linear-gradient(180deg, rgba(23, 108, 200, .96), rgba(15, 63, 130, .96)) !important;
+      border-color: rgba(88, 166, 255, .80) !important;
+      background: linear-gradient(180deg, rgba(23, 108, 200, .98), rgba(15, 63, 130, .98)) !important;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.10), 0 0 0 1px rgba(88,166,255,.08), 0 8px 18px rgba(16, 82, 164, .22) !important;
     }
 
     .view-pad button[data-view="fit"] {
-      margin-top: 4px;
-      border-top-color: rgba(255,255,255,.18) !important;
+      margin-top: 8px;
+    }
+
+    .view-pad button[data-view="fit"]::before {
+      content: '';
+      position: absolute;
+      top: -8px;
+      left: 4px;
+      right: 4px;
+      height: 1px;
+      background: rgba(159, 195, 231, .22);
+      pointer-events: none;
     }
 
     .view-pad button[data-view="msr"],
@@ -115,8 +120,8 @@ function injectStyles() {
     }
 
     .view-pad .viewcube-icon {
-      width: 19px;
-      height: 19px;
+      width: 18px;
+      height: 18px;
       display: block;
       pointer-events: none;
     }
@@ -146,8 +151,12 @@ function injectStyles() {
       .view-pad {
         top: 12px !important;
         right: 12px !important;
-        gap: 5px !important;
-        padding: 7px 6px !important;
+        width: 46px !important;
+        min-width: 46px !important;
+        max-width: 46px !important;
+        gap: 6px !important;
+        padding: 7px 5px !important;
+        border-radius: 15px !important;
       }
       .view-pad button {
         width: 34px !important;

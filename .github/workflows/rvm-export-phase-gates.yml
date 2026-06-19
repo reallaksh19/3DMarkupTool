@@ -1,0 +1,37 @@
+name: RVM Export Phase Gates
+
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - ci/phase-gates-rvm-export
+  workflow_dispatch:
+
+jobs:
+  phase-gates:
+    name: RVM/ATT phase gates
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Start CI timer
+        run: echo "CI_PHASE_START=$(date +%s)" >> "$GITHUB_ENV"
+
+      - name: Run phase-gate tests
+        run: npm test
+
+      - name: Finish CI timer
+        if: always()
+        run: |
+          END=$(date +%s)
+          ELAPSED=$((END - CI_PHASE_START))
+          echo "RVM/ATT phase gates finished in ${ELAPSED}s"

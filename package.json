@@ -6,6 +6,7 @@
   "description": "Standalone browser app for CAESAR II InputXML to GLB conversion with support and ISONOTE overlays.",
   "scripts": {
     "dev": "python3 -m http.server 5173",
-    "serve": "python3 -m http.server 5173"
+    "serve": "python3 -m http.server 5173",
+    "test": "node tests/rvm-export-phase-gates.test.mjs"
   }
 }

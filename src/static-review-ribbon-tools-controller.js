@@ -1,14 +1,14 @@
 // Ribbon-first review tool integration.
-// Keeps the GLB/RVM Review shell icon grammar: ribbon icon tiles, top Review menu,
-// and canvas right-click menu all come from one registry. The older text-only
-// view-pad shortcut buttons remain hidden implementation hooks only.
+// Keeps the GLB/RVM Review shell icon grammar: ribbon icon tiles, a top Review
+// menu, and a canvas right-click menu all come from one registry. Older text-only
+// view-pad shortcut buttons are hidden implementation hooks only.
 
 const VERSION = 'review-ribbon-icons-20260619';
 const STYLE_ID = 'staticReviewRibbonToolsStyle';
 const RIBBON_GROUP_ID = 'staticReviewRibbonGroup';
 const TOP_MENU_ID = 'topReviewMenu';
 const CONTEXT_MENU_ID = 'staticReviewContextMenu';
-const RETRY_MS = 180;
+const RETRY_MS = 220;
 const MAX_RETRIES = 35;
 
 const REVIEW_TOOL_REGISTRY = [
@@ -28,11 +28,9 @@ const REVIEW_TOOL_REGISTRY = [
 ];
 
 const HIDDEN_VIEWPAD_KEYS = REVIEW_TOOL_REGISTRY.filter((tool) => tool.key).map((tool) => tool.key);
-
 let contextMenu;
-let retryCount = 0;
 let attachedContextTarget;
-let ribbonObserver;
+let retryCount = 0;
 
 runWhenReady(initReviewRibbonTools);
 
@@ -43,10 +41,10 @@ function runWhenReady(callback) {
 
 function initReviewRibbonTools() {
   injectStyles();
+  installApi();
   refreshIntegration();
   attachContextMenu();
-  installApi();
-  attachObservers();
+  attachRefreshEvents();
   retryRefresh();
 }
 
@@ -54,6 +52,7 @@ function refreshIntegration() {
   hideShortcutViewpadButtons();
   ensureRibbonGroup();
   ensureTopReviewMenu();
+  attachContextMenu();
   return Boolean(document.getElementById(RIBBON_GROUP_ID) && document.getElementById(TOP_MENU_ID));
 }
 
@@ -69,22 +68,22 @@ function ensureRibbonGroup() {
     group.dataset.expandedLabel = 'Review';
     group.setAttribute('aria-label', 'Review tools');
   }
-
   renderRibbonButtons(group);
   const display = document.querySelector('[data-group="display"]');
   const preview = document.querySelector('[aria-label="Preview mode"]');
-  if (display?.parentElement === ribbon) display.after(group);
-  else if (preview?.parentElement === ribbon) ribbon.insertBefore(group, preview);
-  else ribbon.appendChild(group);
+  if (display?.parentElement === ribbon && group.previousElementSibling !== display) display.after(group);
+  else if (!display && preview?.parentElement === ribbon && group.nextElementSibling !== preview) ribbon.insertBefore(group, preview);
+  else if (!group.parentElement) ribbon.appendChild(group);
   return group;
 }
 
 function renderRibbonButtons(group) {
-  const currentKeys = new Set(tools().filter((tool) => tool.ribbon).map((tool) => tool.key));
+  const ribbonTools = tools().filter((tool) => tool.ribbon);
+  const expected = new Set(ribbonTools.map((tool) => tool.key));
   Array.from(group.querySelectorAll('[data-review-tool]')).forEach((button) => {
-    if (!currentKeys.has(button.dataset.reviewTool)) button.remove();
+    if (!expected.has(button.dataset.reviewTool)) button.remove();
   });
-  tools().filter((tool) => tool.ribbon).forEach((tool) => {
+  ribbonTools.forEach((tool) => {
     let button = group.querySelector(`[data-review-tool="${cssEscape(tool.key)}"]`);
     if (!button) {
       button = document.createElement('button');
@@ -104,9 +103,12 @@ function renderRibbonButtons(group) {
 }
 
 function decorateToolButton(button, tool) {
+  const renderKey = `${tool.icon}|${tool.label}|${tool.title}`;
   button.title = tool.title;
   button.setAttribute('aria-label', tool.title);
   button.dataset.reviewToolIcon = tool.icon;
+  if (button.dataset.reviewToolRendered === renderKey) return;
+  button.dataset.reviewToolRendered = renderKey;
   button.replaceChildren(iconNode(tool.icon, 'review-ribbon-tool-icon'), textNode('span', tool.label));
 }
 
@@ -119,34 +121,31 @@ function ensureTopReviewMenu() {
     wrap = document.createElement('div');
     wrap.id = TOP_MENU_ID;
     wrap.className = 'top-menu-wrap review-top-menu-wrap';
-    wrap.innerHTML = `
-      <button type="button" class="top-menu-btn panel-toggle review-top-menu-btn" aria-expanded="false"></button>
-      <div class="top-menu-popover review-top-menu-popover" hidden role="menu" aria-label="Review tools"></div>
-    `;
-    const btn = wrap.querySelector('.review-top-menu-btn');
-    btn?.addEventListener('click', (event) => {
+    wrap.innerHTML = '<button type="button" class="top-menu-btn panel-toggle review-top-menu-btn" aria-expanded="false"></button><div class="top-menu-popover review-top-menu-popover" hidden role="menu" aria-label="Review tools"></div>';
+    wrap.querySelector('.review-top-menu-btn')?.addEventListener('click', (event) => {
       event.preventDefault();
       event.stopPropagation();
       toggleTopReviewMenu(wrap);
     });
   }
   const button = wrap.querySelector('.review-top-menu-btn');
-  if (button) {
+  if (button && button.dataset.reviewRendered !== VERSION) {
     button.title = 'Review tools';
+    button.dataset.reviewRendered = VERSION;
     button.replaceChildren(iconNode('review-menu', 'review-menu-button-icon'), textNode('span', 'Review'));
   }
   renderTopReviewMenu(wrap);
-
   const markup = document.getElementById('topMarkupMenu');
-  if (markup?.parentElement === actions) actions.insertBefore(wrap, markup);
-  else if (props.parentElement === actions) props.after(wrap);
-  else actions.appendChild(wrap);
+  if (markup?.parentElement === actions && wrap.nextElementSibling !== markup) actions.insertBefore(wrap, markup);
+  else if (!markup && props.parentElement === actions && props.nextElementSibling !== wrap) props.after(wrap);
+  else if (!wrap.parentElement) actions.appendChild(wrap);
   return wrap;
 }
 
 function renderTopReviewMenu(wrap) {
   const pop = wrap.querySelector('.review-top-menu-popover');
-  if (!pop) return;
+  if (!pop || pop.dataset.reviewMenuRendered === VERSION) return;
+  pop.dataset.reviewMenuRendered = VERSION;
   pop.innerHTML = '';
   REVIEW_TOOL_REGISTRY.forEach((tool) => {
     if (tool.divider) {
@@ -172,7 +171,6 @@ function toggleTopReviewMenu(wrap) {
   const willOpen = pop?.hidden;
   closeTopReviewMenus();
   if (!pop || !willOpen) return;
-  renderTopReviewMenu(wrap);
   pop.hidden = false;
   btn?.setAttribute('aria-expanded', 'true');
 }
@@ -211,10 +209,8 @@ function showContextMenu(x, y) {
   panel.hidden = false;
   panel.setAttribute('aria-hidden', 'false');
   const margin = 10;
-  const left = Math.max(margin, Math.min(x, window.innerWidth - panel.offsetWidth - margin));
-  const top = Math.max(margin, Math.min(y, window.innerHeight - panel.offsetHeight - margin));
-  panel.style.left = `${left}px`;
-  panel.style.top = `${top}px`;
+  panel.style.left = `${Math.max(margin, Math.min(x, window.innerWidth - panel.offsetWidth - margin))}px`;
+  panel.style.top = `${Math.max(margin, Math.min(y, window.innerHeight - panel.offsetHeight - margin))}px`;
   dispatchReviewTools('context-open', { x, y, itemCount: tools().length });
 }
 
@@ -313,15 +309,13 @@ function hideShortcutViewpadButtons() {
   });
 }
 
-function attachObservers() {
-  if (ribbonObserver) return;
-  ribbonObserver = new MutationObserver(() => refreshIntegration());
-  ribbonObserver.observe(document.body, { childList: true, subtree: true });
+function attachRefreshEvents() {
   window.addEventListener('click', (event) => {
     if (!event.target?.closest?.('.review-top-menu-wrap')) closeTopReviewMenus();
   });
   ['markup:app-ready', 'viewer:model-loaded', 'viewer:selection-changed', 'viewer:ui-score-changed']
     .forEach((eventName) => window.addEventListener(eventName, refreshIntegration));
+  window.setInterval(refreshIntegration, 1800);
 }
 
 function retryRefresh() {
@@ -428,88 +422,24 @@ function injectStyles() {
   const style = document.createElement('style');
   style.id = STYLE_ID;
   style.textContent = `
-    #${RIBBON_GROUP_ID}.review-ribbon-group {
-      max-width: 420px;
-      overflow-x: auto;
-      overflow-y: hidden;
-      scrollbar-width: none;
-      scroll-snap-type: x proximity;
-      padding-right: 6px;
-    }
+    #${RIBBON_GROUP_ID}.review-ribbon-group { max-width: 420px; overflow-x: auto; overflow-y: hidden; scrollbar-width: none; scroll-snap-type: x proximity; padding-right: 6px; }
     #${RIBBON_GROUP_ID}.review-ribbon-group::-webkit-scrollbar { display: none; }
-    #${RIBBON_GROUP_ID} .review-ribbon-tool-btn {
-      min-width: 56px;
-      width: 56px;
-      max-width: 56px;
-      scroll-snap-align: start;
-    }
-    #${RIBBON_GROUP_ID} .review-ribbon-tool-btn span {
-      max-width: 48px;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
+    #${RIBBON_GROUP_ID} .review-ribbon-tool-btn { min-width: 56px; width: 56px; max-width: 56px; scroll-snap-align: start; }
+    #${RIBBON_GROUP_ID} .review-ribbon-tool-btn span { max-width: 48px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .review-tool-svg { width: 17px; height: 17px; display: block; color: currentColor; }
     .review-ribbon-tool-icon { margin-bottom: 2px; color: #d9ecff; }
     .review-top-menu-btn .review-menu-button-icon { width: 16px; height: 16px; }
     .review-menu-divider { height: 1px; margin: 4px 2px; background: rgba(148, 163, 184, .22); }
     .top-menu-review-item svg { width: 15px; height: 15px; color: #bfdbfe; }
     .review-shortcut-hidden-hook,
-    .view-pad ${HIDDEN_VIEWPAD_KEYS.map((key) => `[data-view="${key}"]`).join(', .view-pad ')} {
-      display: none !important;
-    }
-    .review-context-menu {
-      position: fixed;
-      z-index: 1200;
-      min-width: 246px;
-      max-width: 300px;
-      padding: 7px;
-      border: 1px solid rgba(125, 168, 224, .45);
-      border-radius: 12px;
-      background: rgba(8, 14, 27, .97);
-      color: #eaf4ff;
-      box-shadow: 0 22px 54px rgba(0,0,0,.45);
-      backdrop-filter: blur(12px);
-      font: 12px/1.3 system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-    }
+    .view-pad ${HIDDEN_VIEWPAD_KEYS.map((key) => `[data-view="${key}"]`).join(', .view-pad ')} { display: none !important; }
+    .review-context-menu { position: fixed; z-index: 1200; min-width: 246px; max-width: 300px; padding: 7px; border: 1px solid rgba(125, 168, 224, .45); border-radius: 12px; background: rgba(8, 14, 27, .97); color: #eaf4ff; box-shadow: 0 22px 54px rgba(0,0,0,.45); backdrop-filter: blur(12px); font: 12px/1.3 system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
     .review-context-menu[hidden] { display: none !important; }
-    .review-context-menu__header {
-      padding: 6px 8px 7px;
-      color: #93c5fd;
-      font-weight: 900;
-      text-transform: uppercase;
-      letter-spacing: .08em;
-      font-size: 10px;
-    }
+    .review-context-menu__header { padding: 6px 8px 7px; color: #93c5fd; font-weight: 900; text-transform: uppercase; letter-spacing: .08em; font-size: 10px; }
     .review-context-menu__divider { height: 1px; margin: 5px 4px; background: rgba(148, 163, 184, .22); }
-    .review-context-menu__item {
-      width: 100%;
-      min-height: 34px;
-      display: grid;
-      grid-template-columns: 28px 1fr;
-      align-items: center;
-      gap: 8px;
-      border: 0;
-      border-radius: 9px;
-      background: transparent;
-      color: inherit;
-      padding: 7px 8px;
-      text-align: left;
-      cursor: pointer;
-    }
-    .review-context-menu__item:hover,
-    .review-context-menu__item:focus-visible { background: rgba(37, 99, 169, .42); outline: none; }
-    .review-context-menu__item__icon {
-      width: 22px;
-      height: 22px;
-      padding: 3px;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      border-radius: 7px;
-      background: rgba(30, 64, 120, .62);
-      color: #bfdbfe;
-    }
+    .review-context-menu__item { width: 100%; min-height: 34px; display: grid; grid-template-columns: 28px 1fr; align-items: center; gap: 8px; border: 0; border-radius: 9px; background: transparent; color: inherit; padding: 7px 8px; text-align: left; cursor: pointer; }
+    .review-context-menu__item:hover, .review-context-menu__item:focus-visible { background: rgba(37, 99, 169, .42); outline: none; }
+    .review-context-menu__item__icon { width: 22px; height: 22px; padding: 3px; display: inline-flex; align-items: center; justify-content: center; border-radius: 7px; background: rgba(30, 64, 120, .62); color: #bfdbfe; }
     .review-context-menu__item__label { font-weight: 750; }
     @media (max-width: 1500px) {
       #${RIBBON_GROUP_ID}.review-ribbon-group { max-width: 330px; }

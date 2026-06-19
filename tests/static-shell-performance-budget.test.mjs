@@ -17,7 +17,8 @@ assert.match(index, /class="tool-group toolbar-group navis-tag-tools tag-lite-ho
 assert.match(index, /data-collapsible="conversion"/, 'Conversion section must be marked collapsible in raw HTML.');
 assert.match(index, /data-collapsible="sideload"/, 'Sideload section must be marked collapsible in raw HTML.');
 
-assert.match(perfCss, /\.markup-ribbon\s*\{[\s\S]*min-height:\s*52px/, 'Markup ribbon row must reserve first-paint height.');
+assert.match(perfCss, /\.viewer-topbar \.markup-ribbon[\s\S]*min-height:\s*52px/, 'Markup ribbon row must reserve first-paint height.');
+assert.match(perfCss, /\.viewer-topbar \.markup-ribbon:has\(\.navis-tag-tools:empty\)[\s\S]*display:\s*flex/, 'Static performance CSS must override the base hidden-empty markup row rule.');
 assert.match(perfCss, /#staticReviewRibbonGroup:empty[\s\S]*min-width:\s*116px/, 'Review ribbon placeholder must reserve first-paint width.');
 assert.match(perfCss, /\.topbar-actions \.top-menu-wrap[\s\S]*min-width:\s*86px/, 'Top Review menu must reserve first-paint width.');
 assert.doesNotMatch(perfCss, /\.markup-ribbon:has\(\.navis-tag-tools:empty\)\s*\{\s*display:\s*none/, 'Markup ribbon must not be hidden while waiting for JS.');

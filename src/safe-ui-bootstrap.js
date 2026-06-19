@@ -3,6 +3,8 @@
 // model review/export UI. Fresh clipping is loaded as a core renderer tool.
 
 const SAFE_UI_VERSION = 'static-color-legend-draggable-20260619';
+const FRESH_CLIP_VERSION = 'fresh-clip-core-20260619';
+const FRESH_BOX_ADJUST_VERSION = 'fresh-clip-box-adjust-20260619';
 const CORE_MODULE_URLS = [
   `./static-shell-core-controller.js?v=${SAFE_UI_VERSION}`,
   `./static-review-ui-polish-controller.js?v=${SAFE_UI_VERSION}`,
@@ -12,8 +14,8 @@ const CORE_MODULE_URLS = [
   `./static-color-legend-controller.js?v=${SAFE_UI_VERSION}`,
   `./static-markup-core-controller.js?v=${SAFE_UI_VERSION}`,
   `./static-quick-export-core-controller.js?v=${SAFE_UI_VERSION}`,
-  `./fresh-clip-controller.js?v=${SAFE_UI_VERSION}`,
-  `./fresh-clip-box-adjust-controller.js?v=${SAFE_UI_VERSION}`
+  `./fresh-clip-controller.js?v=${FRESH_CLIP_VERSION}`,
+  `./fresh-clip-box-adjust-controller.js?v=${FRESH_BOX_ADJUST_VERSION}`
 ];
 // Legacy clip controllers are intentionally not loaded. They used multiple
 // competing code paths and could intercept clicks before the renderer-based
@@ -78,8 +80,7 @@ function shouldLoadOptionalUi() {
 }
 
 function shouldLoadClipTools() {
-  const params = new URLSearchParams(window.location.search);
-  return params.has('clipTools') || window.localStorage.getItem('3dmarkup.clipTools') === '1';
+  return false;
 }
 
 function startSoon(delayMs) {

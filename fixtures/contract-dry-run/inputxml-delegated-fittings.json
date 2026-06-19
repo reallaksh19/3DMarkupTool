@@ -1,0 +1,46 @@
+{
+  "sourceKind": "INPUTXML",
+  "nodePositions": {
+    "10": { "x": 0, "y": 0, "z": 0 },
+    "20": { "x": 1000, "y": 0, "z": 0 },
+    "30": { "x": 1000, "y": 1000, "z": 0 },
+    "40": { "x": 2000, "y": 1000, "z": 0 }
+  },
+  "elements": [
+    {
+      "id": "PIPE_10_20",
+      "type": "PIPE",
+      "fromNode": "10",
+      "toNode": "20",
+      "props": { "id": "PIPE_10_20", "outerDiameter": 100 }
+    },
+    {
+      "id": "BEND_20_30",
+      "type": "BEND",
+      "fromNode": "20",
+      "toNode": "30",
+      "props": { "id": "BEND_20_30" }
+    },
+    {
+      "id": "TEE_30_40",
+      "type": "TEE",
+      "fromNode": "30",
+      "toNode": "40",
+      "props": { "id": "TEE_30_40" }
+    },
+    {
+      "id": "UNMAPPED_1",
+      "type": "NOT_A_REAL_COMPONENT",
+      "props": { "id": "UNMAPPED_1" }
+    }
+  ],
+  "restraints": [
+    {
+      "id": "GUIDE_20",
+      "typeCode": "GUIDE",
+      "node": "20",
+      "axis": "Y",
+      "gapMm": 5
+    }
+  ]
+}

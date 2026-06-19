@@ -1,11 +1,10 @@
 import * as THREE from 'three';
 
 // Static/core Clip Box.
-// This is deliberately separate from the old advanced clip-box controller stack.
-// It adds one Clip Box button, one compact viewer panel, a visible live ghost helper,
-// and applies renderer clipping planes through the lightweight runtime bridge.
+// Opens instantly. Expensive bounds/helper work is only done on Apply/Base line,
+// never on the toolbar click. This avoids locking large converted scenes.
 
-const VERSION = 'static-core-clip-box-live-preview-20260618';
+const VERSION = 'static-core-clip-box-safe-apply-20260618';
 const HELPER_NAME = 'STATIC_CLIP_BOX_HELPER';
 const STATE = {
   open: false,
@@ -19,7 +18,7 @@ const STATE = {
   helper: null,
   baselineBox: null,
   baselineLabel: '',
-  lastSource: 'none',
+  lastSource: 'idle',
   previewVisible: false
 };
 
@@ -140,6 +139,10 @@ function ensureButton() {
   let button = document.getElementById('clipBoxToggleBtn');
   if (button) {
     normalizeButton(button);
+    if (!button.__staticClipBoxBound) {
+      button.addEventListener('click', togglePanel);
+      button.__staticClipBoxBound = true;
+    }
     return button;
   }
 
@@ -157,6 +160,7 @@ function ensureButton() {
   else displayGroup.appendChild(button);
 
   button.addEventListener('click', togglePanel);
+  button.__staticClipBoxBound = true;
   if (window.lucide?.createIcons) {
     try { window.lucide.createIcons(); } catch { /* text fallback */ }
   }
@@ -190,10 +194,10 @@ function ensurePanel() {
     ${axisRow('z', 'Z')}
     <div class="static-clipbox-actions">
       <button id="staticClipBoxBaselineBtn" type="button" title="Use selected geometry as clip box baseline">Base line</button>
-      <button id="staticClipBoxApplyBtn" type="button" title="Apply clipping to the live ghost box">Apply</button>
+      <button id="staticClipBoxApplyBtn" type="button" title="Create helper and apply clipping">Apply</button>
       <button id="staticClipBoxResetBtn" type="button">Reset</button>
     </div>
-    <div id="staticClipBoxReadout" class="static-clipbox-readout">Open Clip Box to preview a ghost helper.</div>
+    <div id="staticClipBoxReadout" class="static-clipbox-readout">Clip Box ready. Select geometry and click Base line, or click Apply.</div>
   `;
   viewer.appendChild(panel);
 
@@ -209,14 +213,12 @@ function ensurePanel() {
   panel.querySelectorAll('input[data-clipbox-axis]').forEach((input) => {
     input.addEventListener('input', () => {
       readInputs();
-      if (STATE.enabled) applyClipBox();
-      else previewClipBox();
+      if (STATE.enabled || STATE.helper) applyClipBox();
       updateUi();
     });
     input.addEventListener('change', () => {
       readInputs();
-      if (STATE.enabled) applyClipBox();
-      else previewClipBox();
+      if (STATE.enabled || STATE.helper) applyClipBox();
       updateUi();
     });
   });
@@ -233,12 +235,11 @@ function axisRow(axis, label) {
 }
 
 function bindRuntimeEvents() {
+  // Do not recompute box bounds on runtime-context events. Those events can be
+  // frequent during scene updates; recomputing large model bounds here caused
+  // browser lockups. Update only cheap UI state.
   ['markup:render-context', 'viewer:runtime-context', 'viewer:selection-changed', 'viewer:static-tree-refreshed'].forEach((name) => {
-    window.addEventListener(name, () => {
-      if (STATE.open && !STATE.enabled) previewClipBox();
-      if (STATE.enabled) applyClipBox();
-      updateUi();
-    });
+    window.addEventListener(name, updateUi);
   });
 }
 
@@ -249,7 +250,7 @@ function installApi() {
     close: closePanel,
     toggle: togglePanel,
     apply: () => { STATE.enabled = true; applyClipBox(); updateUi(); },
-    preview: previewClipBox,
+    preview: () => { STATE.enabled = false; return applyClipBox({ previewOnly: true }); },
     reset: resetClipBox,
     baseline: captureBaseline,
     state: STATE
@@ -266,8 +267,7 @@ function openPanel() {
   STATE.open = true;
   panel.hidden = false;
   readInputs();
-  if (STATE.enabled) applyClipBox();
-  else previewClipBox();
+  STATE.lastSource = STATE.enabled ? STATE.lastSource : 'idle';
   updateUi();
 }
 
@@ -290,13 +290,12 @@ function resetClipBox() {
     zMax: 100,
     baselineBox: null,
     baselineLabel: '',
-    lastSource: 'none',
+    lastSource: 'idle',
     previewVisible: false
   });
   clearHelper();
   clearRendererClipping();
   writeInputs();
-  if (STATE.open) previewClipBox();
   updateUi();
 }
 
@@ -306,14 +305,12 @@ function captureBaseline() {
   const box = selected ? objectBounds(selected) : null;
   if (!isValidBox(box)) {
     STATE.lastSource = 'baseline-missing';
-    previewClipBox();
     updateUi();
     return false;
   }
   STATE.baselineBox = box.clone();
   STATE.baselineLabel = selected?.name || selected?.userData?.ID || selected?.userData?.id || 'selected geometry';
-  if (STATE.enabled) applyClipBox();
-  else previewClipBox();
+  applyClipBox({ previewOnly: !STATE.enabled });
   updateUi();
   return true;
 }
@@ -336,29 +333,11 @@ function writeInputs() {
   });
 }
 
-function previewClipBox() {
-  const runtime = getRuntime();
-  const scene = runtime.scene || runtime.modelRoot?.parent || null;
-  const resolved = resolveBounds(runtime, scene);
-  if (!resolved?.box || !scene) {
-    STATE.lastSource = 'model-missing';
-    STATE.previewVisible = false;
-    clearHelper();
-    return false;
-  }
-  const box = percentBox(resolved.box);
-  STATE.lastSource = resolved.source;
-  STATE.previewVisible = true;
-  showHelper(scene, box, resolved.source, { preview: true });
-  requestRender(runtime);
-  return true;
-}
-
-function applyClipBox() {
+function applyClipBox(options = {}) {
   const runtime = getRuntime();
   const scene = runtime.scene || runtime.modelRoot?.parent || null;
   const renderer = runtime.renderer;
-  const resolved = resolveBounds(runtime, scene);
+  const resolved = resolveBounds(runtime);
 
   if (!resolved?.box) {
     STATE.lastSource = 'model-missing';
@@ -369,13 +348,19 @@ function applyClipBox() {
   const box = percentBox(resolved.box);
   STATE.lastSource = resolved.source;
   STATE.previewVisible = true;
-  if (scene) showHelper(scene, box, resolved.source, { preview: false });
+  if (scene) showHelper(scene, box, resolved.source, { preview: options.previewOnly });
+
+  if (options.previewOnly) {
+    requestRender(runtime);
+    return true;
+  }
 
   if (!renderer) {
     requestRender(runtime);
     return false;
   }
 
+  STATE.enabled = true;
   const planes = planesForBox(box);
   if (typeof runtime.applyClipping === 'function') {
     runtime.applyClipping(planes, { mode: 'box', source: 'static-clipbox' });
@@ -404,38 +389,22 @@ function clearRendererClipping() {
   requestRender(runtime);
 }
 
-function resolveBounds(runtime, scene) {
+function resolveBounds(runtime) {
   if (isValidBox(STATE.baselineBox)) return { box: STATE.baselineBox.clone(), source: 'baseline' };
 
   const selected = runtime.selectedObject || window.__3D_MARKUP_STATIC_TREE__?.state?.selectedObject || null;
   const selectedBox = selected ? objectBounds(selected) : null;
   if (isValidBox(selectedBox)) return { box: selectedBox, source: 'selected' };
 
-  const modelRoot = runtime.getModelRoot?.() || runtime.modelRoot || null;
+  const modelRoot = runtime.modelRoot && !runtime.modelRoot.isScene ? runtime.modelRoot : null;
   const modelBox = modelRoot ? objectBounds(modelRoot) : null;
   if (isValidBox(modelBox)) return { box: modelBox, source: 'model' };
 
-  const sceneBox = sceneBounds(scene || runtime.scene);
-  if (isValidBox(sceneBox)) return { box: sceneBox, source: 'model' };
   return null;
 }
 
-function sceneBounds(scene) {
-  const box = new THREE.Box3();
-  const temp = new THREE.Box3();
-  let count = 0;
-  scene?.traverse?.((object) => {
-    if (shouldSkip(object) || !object.geometry) return;
-    temp.setFromObject(object);
-    if (!isValidBox(temp)) return;
-    box.union(temp);
-    count += 1;
-  });
-  return count ? box : null;
-}
-
 function objectBounds(object) {
-  if (!object || shouldSkip(object)) return null;
+  if (!object || object.isScene || shouldSkip(object)) return null;
   const box = new THREE.Box3().setFromObject(object);
   return isValidBox(box) ? box : null;
 }
@@ -483,7 +452,7 @@ function showHelper(scene, box, source, options = {}) {
   const fillMaterial = new THREE.MeshBasicMaterial({
     color,
     transparent: true,
-    opacity: options.preview ? 0.18 : 0.24,
+    opacity: options.preview ? 0.16 : 0.24,
     depthTest: false,
     depthWrite: false,
     side: THREE.DoubleSide
@@ -514,7 +483,7 @@ function showHelper(scene, box, source, options = {}) {
 
 function addCornerMarkers(group, size, color) {
   const radius = Math.max(Math.min(size.x, size.y, size.z) * 0.018, 0.025);
-  const markerGeometry = new THREE.SphereGeometry(radius, 10, 8);
+  const markerGeometry = new THREE.SphereGeometry(radius, 8, 6);
   const markerMaterial = new THREE.MeshBasicMaterial({
     color,
     transparent: true,
@@ -561,8 +530,9 @@ function updateUi() {
 }
 
 function readoutText() {
+  if (STATE.lastSource === 'idle') return 'Clip Box ready. Select geometry and click Base line, or click Apply.';
   if (STATE.lastSource === 'baseline-missing') return 'Select geometry first, then click Base line.';
-  if (STATE.lastSource === 'model-missing') return 'Load or convert a model first.';
+  if (STATE.lastSource === 'model-missing') return 'No clip reference found. Select geometry and click Base line.';
   const scope = STATE.lastSource === 'baseline'
     ? `baseline: ${STATE.baselineLabel || 'selected geometry'}`
     : STATE.lastSource === 'selected'

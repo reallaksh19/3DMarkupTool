@@ -2,7 +2,7 @@
 // Keeps the first-class static shell readable without re-enabling legacy toolbar controllers.
 
 const STYLE_ID = 'static-toolbar-polish-style';
-const VERSION = 'static-toolbar-label-polish-20260618';
+const VERSION = 'static-toolbar-label-polish-clipbox-20260618';
 
 installToolbarPolish();
 
@@ -14,6 +14,7 @@ function installToolbarPolish() {
     leftAnchorRibbon();
   });
   window.addEventListener('viewer:ui-score-changed', annotateToolButtons);
+  window.addEventListener('viewer:static-clipbox-ready', annotateToolButtons);
   window.addEventListener('resize', leftAnchorRibbon, { passive: true });
   window.__3D_MARKUP_STATIC_TOOLBAR_POLISH__ = { version: VERSION, refresh: annotateToolButtons };
 }
@@ -51,6 +52,12 @@ function injectToolbarStyle() {
       max-width: 76px;
     }
 
+    .main-ribbon .tool-btn[data-extra-wide-label="true"] {
+      width: 84px;
+      min-width: 84px;
+      max-width: 84px;
+    }
+
     .main-ribbon .tool-btn span {
       display: block;
       max-width: 100%;
@@ -84,6 +91,11 @@ function injectToolbarStyle() {
         min-width: 72px;
         max-width: 72px;
       }
+      .main-ribbon .tool-btn[data-extra-wide-label="true"] {
+        width: 80px;
+        min-width: 80px;
+        max-width: 80px;
+      }
       .main-ribbon .tool-btn span {
         font-size: 10.5px;
       }
@@ -93,6 +105,8 @@ function injectToolbarStyle() {
 }
 
 function annotateToolButtons() {
+  normalizeClipBoxButton();
+
   const buttons = Array.from(document.querySelectorAll('.main-ribbon .tool-btn'));
   buttons.forEach((button) => {
     const label = button.querySelector('span')?.textContent?.trim() || button.textContent?.trim() || button.id;
@@ -103,7 +117,24 @@ function annotateToolButtons() {
     if (/measure|front|fit all|fit sel|clip off|grid off/i.test(label || '')) {
       button.dataset.wideLabel = 'true';
     }
+    if (/clip box/i.test(label || '') || button.id === 'clipBoxToggleBtn') {
+      button.dataset.extraWideLabel = 'true';
+    }
   });
+}
+
+function normalizeClipBoxButton() {
+  const button = document.getElementById('clipBoxToggleBtn');
+  if (!button) return;
+  let span = button.querySelector('span');
+  if (!span) {
+    span = document.createElement('span');
+    button.appendChild(span);
+  }
+  span.textContent = 'Clip Box';
+  button.title = 'Show 3D Clip Box controls';
+  button.setAttribute('aria-label', 'Show 3D Clip Box controls');
+  button.dataset.extraWideLabel = 'true';
 }
 
 function leftAnchorRibbon() {

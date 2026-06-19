@@ -4,6 +4,7 @@
 
 const SAFE_UI_VERSION = 'esc-tools-export-icons-20260619';
 const CLIP_UI_VERSION = 'esc-tools-export-icons-20260619';
+const USABILITY_FIX_VERSION = 'ribbon-usability-fixes-20260619';
 const CORE_MODULE_URLS = [
   `./static-shell-core-controller.js?v=${SAFE_UI_VERSION}`,
   `./static-review-ui-polish-controller.js?v=${SAFE_UI_VERSION}`,
@@ -30,7 +31,8 @@ const CORE_MODULE_URLS = [
   `./static-quick-export-core-controller.js?v=${SAFE_UI_VERSION}`,
   `./static-topbar-layout-controller.js?v=${SAFE_UI_VERSION}`,
   `./static-review-ribbon-tools-controller.js?v=${SAFE_UI_VERSION}`,
-  `./static-ui-stability-fixes-controller.js?v=${SAFE_UI_VERSION}`
+  `./static-ui-stability-fixes-controller.js?v=${SAFE_UI_VERSION}`,
+  `./static-ribbon-usability-fixes-controller.js?v=${USABILITY_FIX_VERSION}`
 ];
 const CLIP_MODULE_URLS = shouldLoadClipTools() ? [
   `./fresh-clip-controller.js?v=${CLIP_UI_VERSION}`,

@@ -7,14 +7,16 @@
 const GRID_DEFAULT_VISIBLE = false;
 const GRID_POLL_LIMIT = 24;
 const GRID_POLL_DELAY_MS = 120;
-const UI_SCORE_TOTAL = 9;
-const VERSION = 'static-shell-left-anchor-20260618';
+const UI_COUNT_SELECTOR = 'button[id], select[id], input[id], [role="button"][id]';
+const VERSION = 'static-shell-ui-loaded-enabled-20260618';
 
 const state = {
   gridUserSet: false,
   gridVisible: GRID_DEFAULT_VISIBLE,
   gridPollCount: 0,
   ready: false,
+  uiLoaded: 0,
+  uiEnabled: 0,
   uiScore: 0,
   uiScoreChecks: [],
   ribbonAnchorUntil: 0
@@ -56,7 +58,7 @@ function ensureCoreStyles() {
   const style = document.createElement('style');
   style.id = 'staticShellCoreStyles';
   style.textContent = `
-    .ui-score-pill { min-width: 76px; border-color: rgba(55,216,255,.46); color: #74e6ff; background: rgba(5, 32, 46, .74); }
+    .ui-score-pill { min-width: 86px; border-color: rgba(55,216,255,.46); color: #74e6ff; background: rgba(5, 32, 46, .74); }
     .ui-score-pill.score-ok { border-color: rgba(39,224,161,.48); color: #2df0ae; }
     .ui-score-pill.score-warn { border-color: rgba(255,171,53,.56); color: #ffc86d; }
 
@@ -83,8 +85,8 @@ function ensureUiScoreBadge() {
   badge.className = 'status-pill ui-score-pill score-warn';
   badge.setAttribute('role', 'status');
   badge.setAttribute('aria-live', 'polite');
-  badge.title = 'Static UI score pending';
-  badge.textContent = `UI 0/${UI_SCORE_TOTAL}`;
+  badge.title = 'UI loaded / UI enabled';
+  badge.textContent = 'UI 0/0';
   runtimeStatus?.after(badge) || host.appendChild(badge);
   return badge;
 }
@@ -237,23 +239,42 @@ function updateUiScoreSoon() {
 }
 
 function updateUiScore() {
-  const checks = uiChecks();
-  const score = checks.filter((check) => check.ok).length;
-  state.uiScore = score;
-  state.uiScoreChecks = checks;
+  const controls = getCountableUiControls();
+  const loaded = controls.length;
+  const enabledControls = controls.filter(isUiControlEnabled);
+  const enabled = enabledControls.length;
+  const disabled = controls
+    .filter((control) => !isUiControlEnabled(control))
+    .map(getControlLabel)
+    .filter(Boolean);
+
+  state.uiLoaded = loaded;
+  state.uiEnabled = enabled;
+  state.uiScore = loaded;
+  state.uiScoreChecks = controls.map((control) => ({
+    id: control.id || '',
+    label: getControlLabel(control),
+    loaded: true,
+    enabled: isUiControlEnabled(control)
+  }));
 
   const badge = ensureUiScoreBadge();
   if (badge) {
-    badge.textContent = `UI ${score}/${UI_SCORE_TOTAL}`;
-    badge.title = checks.map((check) => `${check.ok ? '✓' : '×'} ${check.label}`).join('\n');
-    badge.classList.toggle('score-ok', score === UI_SCORE_TOTAL);
-    badge.classList.toggle('score-warn', score !== UI_SCORE_TOTAL);
+    badge.textContent = `UI ${loaded}/${enabled}`;
+    badge.title = [
+      `UI loaded: ${loaded}`,
+      `UI enabled: ${enabled}`,
+      disabled.length ? `Disabled: ${disabled.join(', ')}` : 'Disabled: none'
+    ].join('\n');
+    badge.classList.toggle('score-ok', loaded > 0 && loaded === enabled);
+    badge.classList.toggle('score-warn', loaded !== enabled);
   }
 
   window.__3D_MARKUP_UI_SCORE__ = {
-    score,
-    total: UI_SCORE_TOTAL,
-    checks,
+    loaded,
+    enabled,
+    disabled,
+    controls: state.uiScoreChecks,
     version: VERSION
   };
   window.dispatchEvent(new CustomEvent('viewer:ui-score-changed', {
@@ -261,24 +282,27 @@ function updateUiScore() {
   }));
 }
 
-function uiChecks() {
-  return [
-    check('Static shell body', document.body.classList.contains('pro-shell')),
-    check('Viewer canvas mounted', Boolean(document.getElementById('viewer')?.querySelector('canvas'))),
-    check('Input drawer controls', Boolean(document.getElementById('inputDrawer') && document.getElementById('toggleInputBtn') && document.getElementById('closeInputBtn'))),
-    check('Props drawer controls', Boolean(document.getElementById('propertiesPanel') && document.getElementById('togglePropsBtn') && document.getElementById('closePropsBtn'))),
-    check('Main viewer toolbar', ['selectToolBtn', 'orbitToolBtn', 'panToolBtn', 'measureBtn'].every(byId)),
-    check('Display/status controls', Boolean(document.getElementById('colorBySelect') && document.getElementById('runtimeStatus'))),
-    check('Grid control', Boolean(document.getElementById('gridToggleBtn'))),
-    check('Static tree control', Boolean(document.getElementById('treeToggleBtn') && window.__3D_MARKUP_TREE__)),
-    check('Preview/export controls', ['previewGlbBtn', 'previewRvmBtn', 'downloadGlbBtn', 'downloadRvmBtn', 'downloadAttBtn'].every(byId))
-  ];
+function getCountableUiControls() {
+  const root = document.querySelector('.pro-shell') || document.body;
+  return Array.from(root.querySelectorAll(UI_COUNT_SELECTOR))
+    .filter((control) => control.id)
+    .filter((control) => control.id !== 'supportMode')
+    .filter((control) => control.type !== 'hidden')
+    .filter((control) => !control.closest('[data-ui-count="ignore"], .ui-count-ignore, .sr-only'));
 }
 
-function check(label, ok) {
-  return { label, ok: Boolean(ok) };
+function isUiControlEnabled(control) {
+  if (!control) return false;
+  if (control.disabled) return false;
+  if (control.getAttribute('aria-disabled') === 'true') return false;
+  return true;
 }
 
-function byId(id) {
-  return Boolean(document.getElementById(id));
+function getControlLabel(control) {
+  if (!control) return '';
+  return control.getAttribute('aria-label')
+    || control.title
+    || control.textContent?.replace(/\s+/g, ' ').trim()
+    || control.id
+    || control.tagName;
 }

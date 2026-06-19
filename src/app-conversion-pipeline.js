@@ -7,7 +7,7 @@ export async function runAppConversionPipeline(sourceText, options = {}, deps = 
     convertInputXmlToGlb,
     convertInputXmlToRvmAtt,
     createRvmPreviewScene
-  } = deps;
+  } = await resolveAppConversionDeps(deps);
 
   if (typeof convertInputXmlToGlb !== 'function') {
     throw new Error('convertInputXmlToGlb dependency is required');
@@ -64,4 +64,25 @@ export function assertAppConversionPipelineResult(result) {
     throw new Error('App conversion pipeline must keep legacy renderer active until contract renderer is explicitly enabled');
   }
   return true;
+}
+
+async function resolveAppConversionDeps(deps = {}) {
+  const resolved = { ...deps };
+
+  if (typeof resolved.convertInputXmlToGlb !== 'function') {
+    const mod = await import('./converter.js?v=professional-viewer-3');
+    resolved.convertInputXmlToGlb = mod.convertInputXmlToGlb;
+  }
+
+  if (typeof resolved.convertInputXmlToRvmAtt !== 'function') {
+    const mod = await import('./rvm-converter.js?v=professional-viewer-3');
+    resolved.convertInputXmlToRvmAtt = mod.convertInputXmlToRvmAtt;
+  }
+
+  if (typeof resolved.createRvmPreviewScene !== 'function') {
+    const mod = await import('./rvm-preview.js?v=professional-viewer-3');
+    resolved.createRvmPreviewScene = mod.createRvmPreviewScene;
+  }
+
+  return resolved;
 }

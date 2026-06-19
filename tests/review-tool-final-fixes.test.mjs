@@ -33,8 +33,9 @@ assert.match(controller, /renderer\.clippingPlanes = planes/, 'Section Box must 
 assert.match(controller, /window\.__3D_MARKUP_VIEWPAD_TOOLS__ = \{/, 'Visibility tools API must be patched');
 assert.match(controller, /hideSelected/, 'Hide Selected must be implemented');
 assert.match(controller, /Hide skipped: selection is the full model/, 'Hide must refuse to hide the full model root');
-assert.doesNotMatch(controller, /object\?\.name\s*\|\|\s*''\s*\)/, 'component-root resolver must not treat every object name as component metadata');
-assert.match(controller, /hasStrongComponentData/, 'component-root resolver must use explicit metadata, not arbitrary names');
+const strongResolver = controller.match(/function hasStrongComponentData\(object\) \{[\s\S]*?\n\}/)?.[0] || '';
+assert.doesNotMatch(strongResolver, /object\?\.name/, 'strong component metadata resolver must not treat arbitrary object names as component metadata');
+assert.match(strongResolver, /componentId[\s\S]*COMPONENT_ID[\s\S]*componentClass[\s\S]*componentType/, 'strong component metadata resolver must use explicit component metadata');
 
 assert.match(controller, /window\.__3D_MARKUP_EXPLODE_REVIEW__ = \{/, 'Explode API must be replaced');
 assert.match(controller, /applyExplode/, 'Explode must apply directly from ribbon/menu');

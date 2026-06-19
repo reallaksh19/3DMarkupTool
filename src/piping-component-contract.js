@@ -46,6 +46,7 @@ const RESTRAINT_TYPE_SET = new Set(RESTRAINT_TYPES);
 const GEOMETRY_KIND_SET = new Set(GEOMETRY_KINDS);
 const RENDER_TARGET_SET = new Set(RENDER_TARGETS);
 const UNKNOWN_SOURCE_RE = /(?:^|[^A-Z0-9])(UNKNOWN|UNRESOLVED|UNMAPPED)(?:[^A-Z0-9]|$)/i;
+const DELEGATED_TO_LEGACY_RENDERER = 'DELEGATED_TO_LEGACY_RENDERER';
 const DISALLOWED_RENDER_KEYS = new Set([
   'rawKind',
   'rawType',
@@ -78,13 +79,8 @@ export function validatePipingComponent(component, options = {}) {
 
   validateSourceRef(report, component.sourceRef, '$.sourceRef');
 
-  if (!isPlainObject(component.topology)) {
-    addError(report, '$.topology', 'topology must be an object', 'component.topology');
-  }
-
-  if (!isPlainObject(component.geometryIntent)) {
-    addError(report, '$.geometryIntent', 'geometryIntent must be an object', 'component.geometryIntent');
-  }
+  if (!isPlainObject(component.topology)) addError(report, '$.topology', 'topology must be an object', 'component.topology');
+  if (!isPlainObject(component.geometryIntent)) addError(report, '$.geometryIntent', 'geometryIntent must be an object', 'component.geometryIntent');
 
   if (!isPlainObject(component.renderIntent)) {
     addError(report, '$.renderIntent', 'renderIntent must be an object', 'component.renderIntent');
@@ -95,13 +91,8 @@ export function validatePipingComponent(component, options = {}) {
     }
   }
 
-  if (!isPlainObject(component.metadata)) {
-    addError(report, '$.metadata', 'metadata must be an object', 'component.metadata');
-  }
-
-  if (!Array.isArray(component.diagnostics)) {
-    addError(report, '$.diagnostics', 'diagnostics must be an array', 'component.diagnostics');
-  }
+  if (!isPlainObject(component.metadata)) addError(report, '$.metadata', 'metadata must be an object', 'component.metadata');
+  if (!Array.isArray(component.diagnostics)) addError(report, '$.diagnostics', 'diagnostics must be an array', 'component.diagnostics');
 
   validateComponentTopology(report, component);
   validateUnknownSourcePolicy(report, component);
@@ -304,18 +295,26 @@ function validateComponentTopology(report, component) {
   }
 
   if (componentClass === 'ELBOW' || componentClass === 'BEND') {
+    if (isDelegatedLegacyTopology(component)) return;
     const hasPorts = Array.isArray(topology.ports) && topology.ports.length >= 2;
     if (!hasPorts && !(topology.inNode && topology.outNode)) {
-      addError(report, '$.topology', 'ELBOW/BEND requires at least two ports or inNode/outNode', 'topology.elbowPorts');
+      addError(report, '$.topology', 'ELBOW/BEND requires explicit contract ports or delegated legacy fallback topology', 'topology.elbowPorts');
     }
   }
 
   if (componentClass === 'TEE') {
+    if (isDelegatedLegacyTopology(component)) return;
     const hasThreePorts = Array.isArray(topology.ports) && topology.ports.length >= 3;
     if (!hasThreePorts) {
-      addError(report, '$.topology.ports', 'TEE requires at least three ports', 'topology.teePorts');
+      addError(report, '$.topology.ports', 'TEE requires explicit contract ports or delegated legacy fallback topology', 'topology.teePorts');
     }
   }
+}
+
+function isDelegatedLegacyTopology(component) {
+  return component.topology?.topologyStatus === DELEGATED_TO_LEGACY_RENDERER
+    && component.geometryIntent?.geometryKind === 'FALLBACK_LEGACY'
+    && component.renderIntent?.fallbackAllowed === true;
 }
 
 function validateUnknownSourcePolicy(report, component) {
@@ -325,21 +324,14 @@ function validateUnknownSourcePolicy(report, component) {
     component.sourceRef?.rawTypeCode,
     component.metadata?.rawKind,
     component.metadata?.rawTypeCode
-  ]
-    .filter(Boolean)
-    .join(' ');
+  ].filter(Boolean).join(' ');
 
   if (!UNKNOWN_SOURCE_RE.test(rawText)) return;
 
   const componentType = normalizeType(component.componentType);
   const allowedUnknown = component.componentClass === 'UNKNOWN' || componentType === 'UNKNOWN_RESTRAINT';
   if (!allowedUnknown) {
-    addError(
-      report,
-      '$.componentClass',
-      'unknown/unresolved source records must remain UNKNOWN or UNKNOWN_RESTRAINT',
-      'unknown.silentConversion'
-    );
+    addError(report, '$.componentClass', 'unknown/unresolved source records must remain UNKNOWN or UNKNOWN_RESTRAINT', 'unknown.silentConversion');
   }
 }
 
@@ -404,9 +396,7 @@ function validateGeometryKindSpecifics(report, contract) {
       break;
 
     case 'FALLBACK_LEGACY':
-      if (contract.fallbackRendered !== true) {
-        addError(report, '$.fallbackRendered', 'FALLBACK_LEGACY requires fallbackRendered=true', 'geometry.fallbackFlag');
-      }
+      if (contract.fallbackRendered !== true) addError(report, '$.fallbackRendered', 'FALLBACK_LEGACY requires fallbackRendered=true', 'geometry.fallbackFlag');
       if (!Array.isArray(contract.diagnostics) || contract.diagnostics.length === 0) {
         addError(report, '$.diagnostics', 'FALLBACK_LEGACY requires diagnostic reason', 'geometry.fallbackReason');
       }
@@ -477,13 +467,7 @@ function scanDisallowedRendererKeys(report, value, path) {
 }
 
 function createReport(scope) {
-  return {
-    schema: PIPING_COMPONENT_CONTRACT_SCHEMA,
-    scope,
-    ok: true,
-    errors: [],
-    warnings: []
-  };
+  return { schema: PIPING_COMPONENT_CONTRACT_SCHEMA, scope, ok: true, errors: [], warnings: [] };
 }
 
 function addError(report, path, message, code) {
@@ -501,12 +485,8 @@ function finalize(report) {
 }
 
 function mergeChildReport(report, childReport, prefix) {
-  for (const issue of childReport.errors) {
-    addError(report, `${prefix}${issue.path.slice(1)}`, issue.message, issue.code);
-  }
-  for (const issue of childReport.warnings) {
-    addWarning(report, `${prefix}${issue.path.slice(1)}`, issue.message, issue.code);
-  }
+  for (const issue of childReport.errors) addError(report, `${prefix}${issue.path.slice(1)}`, issue.message, issue.code);
+  for (const issue of childReport.warnings) addWarning(report, `${prefix}${issue.path.slice(1)}`, issue.message, issue.code);
 }
 
 function assertEqual(report, path, actual, expected) {
@@ -514,9 +494,7 @@ function assertEqual(report, path, actual, expected) {
 }
 
 function assertNonEmptyString(report, path, value) {
-  if (typeof value !== 'string' || value.trim() === '') {
-    addError(report, path, 'expected non-empty string', 'contract.nonEmptyString');
-  }
+  if (typeof value !== 'string' || value.trim() === '') addError(report, path, 'expected non-empty string', 'contract.nonEmptyString');
 }
 
 function assertEnum(report, path, value, allowed) {

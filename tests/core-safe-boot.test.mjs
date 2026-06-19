@@ -1,10 +1,13 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
+const index = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
 const bootstrap = readFileSync(new URL('../src/safe-ui-bootstrap.js', import.meta.url), 'utf8');
 const helper = readFileSync(new URL('../src/static-input-pinned-controls-controller.js', import.meta.url), 'utf8');
 const pkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
 
+assert.match(index, /safe-ui-bootstrap\.js\?v=core-safe-boot-20260619/, 'index must bust the safe-ui-bootstrap cache for the emergency startup fix');
+assert.match(index, /id="coreSafeFileStatus"[^>]*>No file chosen/, 'input status must be visible in static HTML before JS helpers run');
 assert.match(bootstrap, /CORE_SAFE_BOOT_VERSION = 'core-safe-boot-20260619'/, 'bootstrap must use the core-safe boot cache key');
 assert.match(bootstrap, /static-input-pinned-controls-controller\.js\?v=\$\{CORE_SAFE_BOOT_VERSION\}/, 'only the tiny input helper should load in the default core startup path');
 assert.match(bootstrap, /optionalUiDefault: false/, 'optional UI must be disabled by default');

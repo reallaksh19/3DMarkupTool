@@ -36,6 +36,7 @@ phase('03 collisions after sanitizing become unique safe names', () => {
     ...model.root.children[1].children[0].primitives[0],
     name: 'ACTUAL_35_AXIS_RESTRAINT_PLUS_Y_STEM'
   });
+  model.audit.primitiveCount = 3;
 
   const normalized = normalizeNavisExportModelNames(model);
   const primitiveNames = normalized.root.children[1].children[0].primitives.map((primitive) => primitive.name);

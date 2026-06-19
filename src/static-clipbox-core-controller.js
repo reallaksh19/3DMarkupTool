@@ -4,7 +4,7 @@ import * as THREE from 'three';
 // Selection-baseline only: no ghost/helper geometry and no model/scene fallback.
 // Select geometry, click Base line, and current ranges are applied relative to that selected bounds.
 
-const VERSION = 'static-core-clip-box-baseline-applies-20260619';
+const VERSION = 'static-core-clip-box-runtime-merge-20260619';
 const LOG_PREFIX = '[3DMarkupTool:clipbox]';
 const STATE = {
   open: false,
@@ -349,7 +349,13 @@ function applyClipBox(source = 'apply') {
     STATE.enabled = false;
     STATE.lastSource = 'renderer-missing';
     STATE.lastError = 'Renderer is not ready.';
-    clipLog('apply.fail.renderer', { source, runtimeKeys: Object.keys(runtime || {}), ranges: rangeState() }, 'warn');
+    clipLog('apply.fail.renderer', {
+      source,
+      runtimeKeys: Object.keys(runtime || {}),
+      hasViewerRenderer: Boolean(window.__3D_MARKUP_VIEWER_RUNTIME__?.renderer),
+      hasClipRenderer: Boolean(window.__3D_MARKUP_CLIP_RUNTIME__?.renderer),
+      ranges: rangeState()
+    }, 'error');
     reportStatus(`Clip Box apply failed: ${STATE.lastError}`);
     return false;
   }
@@ -406,6 +412,7 @@ function clearRendererClipping() {
   if (renderer) renderer.clippingPlanes = [];
   runtime.clippingPlanes = [];
   runtime.clippingMode = 'none';
+  publishRuntime(runtime);
   window.dispatchEvent(new CustomEvent('viewer:clipping-changed', { detail: { mode: 'none', source: 'static-clipbox' } }));
   requestRender(runtime);
 }
@@ -421,7 +428,7 @@ function selectedObject() {
   const diagnosticsSelected = window.__3D_MARKUP_CLIP_DIAGNOSTICS__?.selectedObject?.();
   if (diagnosticsSelected && !diagnosticsSelected.isScene) return diagnosticsSelected;
   const runtime = getRuntime();
-  return runtime.selectedObject || window.__3D_MARKUP_STATIC_TREE__?.state?.selectedObject || window.__3D_MARKUP_TREE__?.state?.selectedObject || null;
+  return runtime.selectedObject || window.__3D_MARKUP_TREE__?.state?.selectedObject || window.__3D_MARKUP_STATIC_TREE__?.state?.selectedObject || null;
 }
 
 function objectBounds(object) {
@@ -477,7 +484,7 @@ function readoutText() {
   if (STATE.lastError) return STATE.lastError;
   if (STATE.lastSource === 'idle') return 'Select geometry and click Base line. Clip Box uses selection bounds only; no ghost/helper box is drawn.';
   if (STATE.lastSource === 'baseline-missing') return 'Select geometry first, then click Base line or Apply.';
-  if (STATE.lastSource === 'renderer-missing') return 'Renderer is not ready yet. Run conversion first.';
+  if (STATE.lastSource === 'renderer-missing') return 'Renderer is not ready yet. Check console for runtime keys.';
   if (STATE.lastSource === 'box-invalid') return 'Calculated clip box is invalid. Check min/max ranges.';
   const scope = STATE.lastSource === 'baseline'
     ? `baseline: ${STATE.baselineLabel || 'selected geometry'}`
@@ -499,11 +506,27 @@ function shouldSkip(object) {
 }
 
 function getRuntime() {
-  const primary = window.__3D_MARKUP_VIEWER_RUNTIME__;
-  const legacy = window.__3D_MARKUP_CLIP_RUNTIME__;
-  if (primary?.renderer || primary?.scene || primary?.modelRoot) return primary;
-  if (legacy?.renderer || legacy?.scene || legacy?.modelRoot) return legacy;
-  return primary || legacy || {};
+  const primary = window.__3D_MARKUP_VIEWER_RUNTIME__ || {};
+  const legacy = window.__3D_MARKUP_CLIP_RUNTIME__ || {};
+  const runtime = primary === legacy ? primary : { ...legacy, ...primary };
+  runtime.renderer = primary.renderer || legacy.renderer || runtime.renderer || null;
+  runtime.scene = primary.scene || legacy.scene || runtime.scene || null;
+  runtime.camera = primary.camera || legacy.camera || runtime.camera || null;
+  runtime.controls = primary.controls || legacy.controls || runtime.controls || null;
+  runtime.modelRoot = primary.modelRoot || legacy.modelRoot || runtime.modelRoot || null;
+  runtime.selectedObject = primary.selectedObject || legacy.selectedObject || runtime.selectedObject || window.__3D_MARKUP_TREE__?.state?.selectedObject || null;
+  runtime.selectedData = primary.selectedData || legacy.selectedData || runtime.selectedData || null;
+  runtime.applyClipping = primary.applyClipping || legacy.applyClipping || runtime.applyClipping;
+  runtime.clearClipping = primary.clearClipping || legacy.clearClipping || runtime.clearClipping;
+  runtime.clippingPlanes = primary.clippingPlanes || legacy.clippingPlanes || runtime.clippingPlanes || [];
+  runtime.clippingMode = primary.clippingMode || legacy.clippingMode || runtime.clippingMode || 'none';
+  publishRuntime(runtime);
+  return runtime;
+}
+
+function publishRuntime(runtime) {
+  window.__3D_MARKUP_VIEWER_RUNTIME__ = runtime;
+  window.__3D_MARKUP_CLIP_RUNTIME__ = runtime;
 }
 
 function requestRender(runtime) {

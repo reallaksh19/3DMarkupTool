@@ -53,9 +53,9 @@ Legend:
 
 | Status | Comment ID | Original feedback | Completion note |
 |---|---|---|---|
-| ⬜ | E1 — Global Esc | Make `Esc` global for escaping any tool and exiting. | Pending. |
-| ⬜ | E2 — Clear persistent area selection | Area selection remains forever. | Pending. |
-| ⬜ | E3 — Reassemble exploded view | Once exploded, how to reassemble/undo? | Pending. |
+| ✅ | E1 — Global Esc | Make `Esc` global for escaping any tool and exiting. | Added a global event-driven lifecycle controller that handles Escape across active tools, floating panels, and temporary review state without startup polling or scene traversal. |
+| ✅ | E2 — Clear persistent area selection | Area selection remains forever. | Escape now calls the Area Select clear/deactivate API where present and removes transient area-select overlays as a DOM fallback. |
+| ✅ | E3 — Reassemble exploded view | Once exploded, how to reassemble/undo? | Escape now calls the Explode Review reset API where present and closes the explode panel, providing a shared reassemble/undo exit path. |
 
 ## Phase 5 — Selection resolver foundation
 

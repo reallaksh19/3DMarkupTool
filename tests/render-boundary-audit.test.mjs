@@ -14,13 +14,12 @@ const startedAt = performance.now();
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const srcRoot = path.join(repoRoot, 'src');
 
-const SOURCE_SPECIFIC_PATTERNS = Object.freeze([
+const SOURCE_CLASSIFIER_PATTERNS = Object.freeze([
   /parseMarkupSource\s*\(/,
-  /\bInputXML\b/i,
-  /\bUXML\b/,
-  /\brawType(Code)?\b/,
-  /\btypeCode\b/,
-  /\bfromNode\b|\btoNode\b/
+  /normalizeInputXmlRestraints\s*\(/,
+  /classifyByTypeCode\s*\(/,
+  /sourceKind\s*=\s*model\.sourceKind/,
+  /ACTUAL_INPUTXML/
 ]);
 
 const DIRECT_RENDER_PATTERNS = Object.freeze([
@@ -53,14 +52,14 @@ await phase('02 every manifest fallback path exists and is fallback-only', async
   }
 });
 
-await phase('03 no new source-specific direct renderer exists outside fallback manifest', async () => {
+await phase('03 no new source-classifier direct renderer exists outside fallback manifest', async () => {
   const allowed = legacyFallbackRendererPaths(CONTRACT_RENDER_BOUNDARY);
   const findings = [];
 
   for (const file of files) {
     const repoPath = toRepoPath(file);
     const text = await readFile(file, 'utf8');
-    if (!hasSourceSpecificDecision(text) || !hasDirectRenderEmission(text)) continue;
+    if (!hasSourceClassifierDecision(text) || !hasDirectRenderEmission(text)) continue;
     findings.push(repoPath);
   }
 
@@ -68,12 +67,18 @@ await phase('03 no new source-specific direct renderer exists outside fallback m
   assert.deepEqual(
     unauthorized,
     [],
-    `source-specific direct renderers must be contract adapters or explicitly listed fallback renderers: ${unauthorized.join(', ')}`
+    `source-classifier direct renderers must be contract adapters or explicitly listed fallback renderers: ${unauthorized.join(', ')}`
   );
   assert.ok(findings.includes('src/converter.js'), 'existing direct InputXML GLB renderer should be recognized as legacy fallback');
 });
 
-await phase('04 contract modules stay mesh-free', async () => {
+await phase('04 export-model preview renderer is not mistaken for raw-source renderer', async () => {
+  const text = await readFile(path.join(repoRoot, 'src/rvm-preview.js'), 'utf8');
+  assert.equal(hasSourceClassifierDecision(text), false, 'RVM preview consumes generated export-model primitives, not raw InputXML classifiers');
+  assert.equal(hasDirectRenderEmission(text), true, 'RVM preview is still a renderer and should remain visible to this audit');
+});
+
+await phase('05 contract modules stay mesh-free', async () => {
   for (const repoPath of CONTRACT_RENDER_BOUNDARY.contractEntryPoints) {
     const text = await readFile(path.join(repoRoot, repoPath), 'utf8');
     assert.equal(hasDirectRenderEmission(text), false, `${repoPath} must remain a contract/validator module, not a mesh renderer`);
@@ -106,8 +111,8 @@ async function listJavaScriptFiles(root) {
   return out.sort();
 }
 
-function hasSourceSpecificDecision(text) {
-  return SOURCE_SPECIFIC_PATTERNS.some((pattern) => pattern.test(text));
+function hasSourceClassifierDecision(text) {
+  return SOURCE_CLASSIFIER_PATTERNS.some((pattern) => pattern.test(text));
 }
 
 function hasDirectRenderEmission(text) {

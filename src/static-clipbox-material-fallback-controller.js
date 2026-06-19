@@ -1,8 +1,8 @@
 import * as THREE from 'three';
 
-// Clip Box fallback for the current static shell.
-// It intentionally does not need runtime.renderer. app.js already enables
-// renderer.localClippingEnabled, so material.clippingPlanes is sufficient.
+// Clip Box fallback for legacy recovery only.
+// The normal path is renderer-based clipping from app.js runtime.
+// When the real renderer is published, this module must not capture Clip Box clicks.
 
 const VERSION = 'static-clipbox-material-fallback-20260619';
 const LOG_PREFIX = '[3DMarkupTool:clipbox-fallback]';
@@ -16,12 +16,17 @@ const state = {
 install();
 
 function install() {
+  window.__3D_MARKUP_STATIC_CLIPBOX_MATERIAL_FALLBACK__ = { version: VERSION, apply, reset, disabled: rendererReady() };
+  if (rendererReady()) {
+    log('disabled.renderer-ready', { version: VERSION });
+    return;
+  }
   document.addEventListener('click', onClickCapture, true);
-  window.__3D_MARKUP_STATIC_CLIPBOX_MATERIAL_FALLBACK__ = { version: VERSION, apply, reset };
   log('ready', { version: VERSION });
 }
 
 function onClickCapture(event) {
+  if (rendererReady()) return;
   const button = event.target?.closest?.('#staticClipBoxBaselineBtn, #staticClipBoxApplyBtn, #staticClipBoxResetBtn');
   if (!button) return;
 
@@ -61,6 +66,7 @@ function captureBaseline() {
 }
 
 function apply(source = 'apply') {
+  if (rendererReady()) return false;
   const object = selectedObject();
   const base = validBox(state.baselineBox) ? state.baselineBox.clone() : object ? boundsOf(object) : null;
   const ranges = readRanges();
@@ -110,6 +116,7 @@ function apply(source = 'apply') {
 }
 
 function reset(source = 'reset') {
+  if (rendererReady()) return;
   clearMaterials();
   state.baselineBox = null;
   state.baselineLabel = '';
@@ -289,6 +296,10 @@ function validBox(box) {
     && box.max.x >= box.min.x
     && box.max.y >= box.min.y
     && box.max.z >= box.min.z;
+}
+
+function rendererReady() {
+  return Boolean(window.__3D_MARKUP_VIEWER_RUNTIME__?.renderer || window.__3D_MARKUP_CLIP_RUNTIME__?.renderer);
 }
 
 function lerp(min, max, t) {

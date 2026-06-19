@@ -40,6 +40,8 @@ function bindEvents() {
     }));
 
   window.addEventListener('click', (event) => {
+    aliasTreeApi();
+    syncSelection('click-capture');
     window.setTimeout(() => {
       aliasTreeApi();
       const selected = syncSelection('click');

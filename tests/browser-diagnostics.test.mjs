@@ -7,11 +7,13 @@ const controller = readFileSync(new URL('../src/static-browser-diagnostics-contr
 const checklist = readFileSync(new URL('../docs/post-pr133-recovery-checklist.md', import.meta.url), 'utf8');
 const pkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
 
-assert.match(index, /input-always-visible-20260619|phase4-global-esc-lifecycle-20260619/, 'index must use the Phase 2 or newer shell cache key');
-assert.doesNotMatch(index, /fresh-clip-core-20260619/, 'index must not reference stale fresh-clip-core shell assets');
-assert.match(index, /safe-ui-bootstrap\.js\?v=(input-always-visible-20260619|phase4-global-esc-lifecycle-20260619)/, 'outer bootstrap script must use the Phase 2 or newer shell cache key');
+const phaseKeyPattern = /input-always-visible-20260619|phase4-global-esc-lifecycle-20260619|phase4a-static-input-panel-cleanup-20260619/;
 
-assert.match(bootstrap, /input-always-visible-20260619|phase4-global-esc-lifecycle-20260619/, 'bootstrap must use the Phase 2 or newer cache key');
+assert.match(index, phaseKeyPattern, 'index must use the Phase 2 or newer shell cache key');
+assert.doesNotMatch(index, /fresh-clip-core-20260619/, 'index must not reference stale fresh-clip-core shell assets');
+assert.match(index, /safe-ui-bootstrap\.js\?v=(input-always-visible-20260619|phase4-global-esc-lifecycle-20260619|phase4a-static-input-panel-cleanup-20260619)/, 'outer bootstrap script must use the Phase 2 or newer shell cache key');
+
+assert.match(bootstrap, phaseKeyPattern, 'bootstrap must use the Phase 2 or newer cache key');
 assert.match(bootstrap, /static-browser-diagnostics-controller\.js\?v=\$\{SAFE_UI_VERSION\}/, 'bootstrap must load browser diagnostics controller');
 assert.doesNotMatch(bootstrap, /static-properties-actions-controller\.js/, 'bootstrap must not import the missing static properties controller');
 assert.match(bootstrap, /emitBootstrapModuleFailure\(url, result\.reason\)/, 'bootstrap must emit diagnostics for module failures');

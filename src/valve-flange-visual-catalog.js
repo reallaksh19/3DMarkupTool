@@ -10,6 +10,9 @@ export const VALVE_FLANGE_VISUAL_CATALOG = deepFreeze({
     VALVE_GENERIC: valveEntry('VALVE_GENERIC', 'valve-generic-symbol.v1', 'generic-valve', {
       bodyShape: 'capsule', bodyDiameterFactor: 3.0, bodyLengthFactor: 0.66, endCollarDiameterFactor: 2.18, endCollarLengthFactor: 0.14, bonnetHeightFactor: 1.45, handwheelRadiusFactor: 0.95, handleStyle: 'handwheel'
     }),
+    VALVE_FLANGED: valveEntry('VALVE_FLANGED', 'valve-flanged-symbol.v1', 'flanged-valve', {
+      bodyShape: 'capsule', bodyDiameterFactor: 3.2, bodyLengthFactor: 0.58, endCollarDiameterFactor: 2.85, endCollarLengthFactor: 0.18, bonnetHeightFactor: 1.55, handwheelRadiusFactor: 0.95, handleStyle: 'handwheel'
+    }),
     VALVE_GATE: valveEntry('VALVE_GATE', 'valve-gate-symbol.v1', 'gate-valve', {
       bodyShape: 'wedge-body', bodyDiameterFactor: 3.25, bodyLengthFactor: 0.72, endCollarDiameterFactor: 2.28, endCollarLengthFactor: 0.14, bonnetHeightFactor: 2.15, handwheelRadiusFactor: 1.05, handleStyle: 'handwheel'
     }),
@@ -43,6 +46,7 @@ export const VALVE_FLANGE_VISUAL_CATALOG = deepFreeze({
 });
 
 const VALVE_ALIAS_MAP = new Map([
+  ['FLANGED_VALVE', 'VALVE_FLANGED'], ['FLANGEDVALVE', 'VALVE_FLANGED'], ['VALVE_FLANGED', 'VALVE_FLANGED'], ['FLANGED', 'VALVE_FLANGED'], ['VFLG', 'VALVE_FLANGED'], ['VFLS', 'VALVE_FLANGED'],
   ['GATE_VALVE', 'VALVE_GATE'], ['GATEVALVE', 'VALVE_GATE'], ['VALVE_GATE', 'VALVE_GATE'], ['GATE', 'VALVE_GATE'], ['VGAT', 'VALVE_GATE'], ['VGATE', 'VALVE_GATE'],
   ['GLOBE_VALVE', 'VALVE_GLOBE'], ['GLOBEVALVE', 'VALVE_GLOBE'], ['VALVE_GLOBE', 'VALVE_GLOBE'], ['GLOBE', 'VALVE_GLOBE'], ['VGLB', 'VALVE_GLOBE'], ['VGLO', 'VALVE_GLOBE'],
   ['BALL_VALVE', 'VALVE_BALL'], ['BALLVALVE', 'VALVE_BALL'], ['VALVE_BALL', 'VALVE_BALL'], ['BALL', 'VALVE_BALL'], ['VBAL', 'VALVE_BALL'], ['VBLL', 'VALVE_BALL'],
@@ -61,11 +65,20 @@ const FLANGE_ALIAS_MAP = new Map([
 export function getValveFlangeVisualSpec(element = {}) {
   const props = element.props || {};
   const tokens = candidateTypeTokens(element, props);
-  const flangeType = findMappedType(tokens, FLANGE_ALIAS_MAP, 'FLANGE');
-  if (flangeType) return buildFlangeSpec(flangeType, element, props, tokens);
 
-  const valveType = findMappedType(tokens, VALVE_ALIAS_MAP, 'VALVE');
+  // Valve-vs-flange precedence matters. Tokens such as FLANGED_VALVE contain
+  // both words, but the component is a valve with flanged ends, not a loose flange pair.
+  const exactValveType = findExactMappedType(tokens, VALVE_ALIAS_MAP);
+  if (exactValveType) return buildValveSpec(exactValveType, element, props, tokens);
+
+  const exactFlangeType = findExactMappedType(tokens, FLANGE_ALIAS_MAP);
+  if (exactFlangeType) return buildFlangeSpec(exactFlangeType, element, props, tokens);
+
+  const valveType = findContainsMappedType(tokens, VALVE_ALIAS_MAP, 'VALVE');
   if (valveType) return buildValveSpec(valveType, element, props, tokens);
+
+  const flangeType = findContainsMappedType(tokens, FLANGE_ALIAS_MAP, 'FLANGE');
+  if (flangeType) return buildFlangeSpec(flangeType, element, props, tokens);
 
   return null;
 }
@@ -167,15 +180,19 @@ function candidateTypeTokens(element, props) {
   return out;
 }
 
-function findMappedType(tokens, aliasMap, containsNeedle) {
+function findExactMappedType(tokens, aliasMap) {
   for (const token of tokens) {
     if (aliasMap.has(token)) return aliasMap.get(token);
   }
+  return null;
+}
+
+function findContainsMappedType(tokens, aliasMap, containsNeedle) {
   for (const token of tokens) {
     if (token.includes(containsNeedle)) {
       const direct = aliasMap.get(token);
       if (direct) return direct;
-      if (containsNeedle === 'VALVE') return 'VALVE_GENERIC';
+      if (containsNeedle === 'VALVE') return token.includes('FLANGED') ? 'VALVE_FLANGED' : 'VALVE_GENERIC';
       if (containsNeedle === 'FLANGE') return 'FLANGE_GENERIC';
     }
   }

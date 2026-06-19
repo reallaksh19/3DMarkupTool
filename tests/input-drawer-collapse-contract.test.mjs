@@ -48,8 +48,8 @@ assert.match(
 
 assert.match(
   bootstrap,
-  /viewpad-icons-context-saved-state-20260619/,
-  'Safe UI bootstrap version must remain cache-busted so browsers fetch fixed drawer and view-pad controllers.'
+  /esc-tools-export-icons-20260619/,
+  'Safe UI bootstrap version must remain cache-busted so browsers fetch fixed drawer, view-pad, ESC, export, and icon controllers.'
 );
 
 console.log('input drawer collapse contract passed');

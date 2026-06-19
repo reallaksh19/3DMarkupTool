@@ -2,7 +2,7 @@
 // Keeps the first-class static shell readable without re-enabling legacy toolbar controllers.
 
 const STYLE_ID = 'static-toolbar-polish-style';
-const VERSION = 'static-toolbar-label-polish-clipbox-20260618';
+const VERSION = 'static-toolbar-label-polish-plane-box-20260618';
 
 installToolbarPolish();
 
@@ -15,6 +15,7 @@ function installToolbarPolish() {
   });
   window.addEventListener('viewer:ui-score-changed', annotateToolButtons);
   window.addEventListener('viewer:static-clipbox-ready', annotateToolButtons);
+  window.addEventListener('viewer:clipping-changed', annotateToolButtons);
   window.addEventListener('resize', leftAnchorRibbon, { passive: true });
   window.__3D_MARKUP_STATIC_TOOLBAR_POLISH__ = { version: VERSION, refresh: annotateToolButtons };
 }
@@ -53,9 +54,9 @@ function injectToolbarStyle() {
     }
 
     .main-ribbon .tool-btn[data-extra-wide-label="true"] {
-      width: 84px;
-      min-width: 84px;
-      max-width: 84px;
+      width: 88px;
+      min-width: 88px;
+      max-width: 88px;
     }
 
     .main-ribbon .tool-btn span {
@@ -76,6 +77,20 @@ function injectToolbarStyle() {
       flex: 0 0 auto;
     }
 
+    .main-ribbon #clipBtn::before {
+      content: '◩';
+      display: block;
+      font-size: 18px;
+      line-height: 18px;
+      color: currentColor;
+      margin-bottom: -2px;
+    }
+
+    .main-ribbon #clipBtn > .lucide,
+    .main-ribbon #clipBtn > svg {
+      display: none !important;
+    }
+
     .topbar-actions .status-pill {
       white-space: nowrap;
     }
@@ -92,9 +107,9 @@ function injectToolbarStyle() {
         max-width: 72px;
       }
       .main-ribbon .tool-btn[data-extra-wide-label="true"] {
-        width: 80px;
-        min-width: 80px;
-        max-width: 80px;
+        width: 84px;
+        min-width: 84px;
+        max-width: 84px;
       }
       .main-ribbon .tool-btn span {
         font-size: 10.5px;
@@ -105,6 +120,7 @@ function injectToolbarStyle() {
 }
 
 function annotateToolButtons() {
+  normalizeClipPlaneButton();
   normalizeClipBoxButton();
 
   const buttons = Array.from(document.querySelectorAll('.main-ribbon .tool-btn'));
@@ -114,13 +130,32 @@ function annotateToolButtons() {
       button.title = button.title || label;
       button.setAttribute('aria-label', button.getAttribute('aria-label') || label);
     }
-    if (/measure|front|fit all|fit sel|clip off|grid off/i.test(label || '')) {
+    if (/measure|front|fit all|fit sel|grid off/i.test(label || '')) {
       button.dataset.wideLabel = 'true';
     }
-    if (/clip box/i.test(label || '') || button.id === 'clipBoxToggleBtn') {
+    if (/clip plane|plane on|clip box/i.test(label || '') || button.id === 'clipBtn' || button.id === 'clipBoxToggleBtn') {
       button.dataset.extraWideLabel = 'true';
     }
   });
+}
+
+function normalizeClipPlaneButton() {
+  const button = document.getElementById('clipBtn');
+  if (!button) return;
+  let span = button.querySelector('span');
+  if (!span) {
+    span = document.createElement('span');
+    button.appendChild(span);
+  }
+  const active = button.classList.contains('tool-active') || /clip\s+on|plane\s+on/i.test(span.textContent || '');
+  span.textContent = active ? 'Plane On' : 'Clip Plane';
+  button.title = 'Enable Clip Plane controls';
+  button.setAttribute('aria-label', active ? 'Disable Clip Plane' : 'Enable Clip Plane');
+  button.dataset.extraWideLabel = 'true';
+  if (button.dataset.boundClipPlanePolish !== '1') {
+    button.dataset.boundClipPlanePolish = '1';
+    button.addEventListener('click', () => window.setTimeout(annotateToolButtons, 0));
+  }
 }
 
 function normalizeClipBoxButton() {

@@ -1,3 +1,29 @@
+/* Critical review-shell prepaint rules.
+   This file is linked in <head>, so these rules run before JS controllers load. */
+.view-pad {
+  display: none !important;
+}
+
+body:not(.conversion-expanded) #inputDrawer .panel-section:nth-of-type(2) > :not(h3) {
+  display: none !important;
+}
+
+#inputDrawer .panel-section:nth-of-type(2) > h3 {
+  cursor: pointer;
+  user-select: none;
+}
+
+#inputDrawer .panel-section:nth-of-type(2) > h3::after {
+  content: '▸';
+  margin-left: auto;
+  color: rgba(159, 179, 204, .9);
+  font-size: 12px;
+}
+
+body.conversion-expanded #inputDrawer .panel-section:nth-of-type(2) > h3::after {
+  content: '▾';
+}
+
 .clip-adjust-panel {
   position: absolute;
   left: 18px;

@@ -5,10 +5,10 @@
 // remain in this comment only so older rollback-gate variants do not fail:
 // viewpad-icons-context-saved-state-20260619 esc-tools-export-icons-20260619 ribbon-usability-fixes-20260619 review-tool-final-fixes-20260619
 // visible-shell-direct-fixes-20260619 review-selection-actions-20260619 startup-responsive-runtime-20260619 core-safe-boot-20260619
-// navigation-smoothness-20260619 browser-diagnostics-20260619
+// navigation-smoothness-20260619 browser-diagnostics-20260619 chrome-runtime-diagnostics-20260619
 
-const SAFE_UI_VERSION = 'browser-diagnostics-20260619';
-const CLIP_UI_VERSION = 'browser-diagnostics-20260619';
+const SAFE_UI_VERSION = 'chrome-runtime-diagnostics-20260619';
+const CLIP_UI_VERSION = 'chrome-runtime-diagnostics-20260619';
 const CORE_MODULE_URLS = [
   `./static-browser-diagnostics-controller.js?v=${SAFE_UI_VERSION}`,
   `./static-shell-core-controller.js?v=${SAFE_UI_VERSION}`,

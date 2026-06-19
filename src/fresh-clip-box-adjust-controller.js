@@ -7,6 +7,8 @@ const VERSION = 'fresh-clip-box-adjust-20260619';
 const LOG_PREFIX = '[3DMarkupTool:fresh-clip-box-adjust]';
 const BOX_AXIS_VALUE = 'box';
 const BOX_ORIGINAL_PERCENT = 50;
+const BOX_MIN_PERCENT = 0;
+const BOX_MAX_PERCENT = 500;
 const BOX_STEP = 5;
 
 runWhenDomReady(() => waitForFreshClip(initBoxAdjust));
@@ -59,7 +61,7 @@ function initBoxAdjust() {
     debug: () => debugSnapshot()
   };
 
-  console.info(LOG_PREFIX, { event: 'ready', version: VERSION });
+  console.info(LOG_PREFIX, { event: 'ready', version: VERSION, maxPercent: BOX_MAX_PERCENT });
 }
 
 function installStyles() {
@@ -157,7 +159,7 @@ function handleBoxPercentInput(event, source) {
   event.stopImmediatePropagation();
 
   const state = getState();
-  const percent = clamp(Number(event.target?.value), 0, 100);
+  const percent = clampBoxPercent(Number(event.target?.value));
   state.percent = percent;
   state.boxPercent = percent;
   state.axis = BOX_AXIS_VALUE;
@@ -171,7 +173,7 @@ function stepBox(event, delta) {
   event.stopImmediatePropagation();
 
   const state = getState();
-  const percent = clamp(Number(state.boxPercent ?? state.percent ?? BOX_ORIGINAL_PERCENT) + delta, 0, 100);
+  const percent = clampBoxPercent(Number(state.boxPercent ?? state.percent ?? BOX_ORIGINAL_PERCENT) + delta);
   state.percent = percent;
   state.boxPercent = percent;
   state.axis = BOX_AXIS_VALUE;
@@ -203,7 +205,7 @@ function applyAdjustedBox({ source = 'box-adjust' } = {}) {
     return false;
   }
 
-  const percent = clamp(Number(state.boxPercent ?? state.percent ?? BOX_ORIGINAL_PERCENT), 0, 100);
+  const percent = clampBoxPercent(Number(state.boxPercent ?? state.percent ?? BOX_ORIGINAL_PERCENT));
   state.percent = percent;
   state.boxPercent = percent;
   state.axis = BOX_AXIS_VALUE;
@@ -257,7 +259,8 @@ function adjustedBoxFromPercent(box, percent) {
   const size = new THREE.Vector3();
   base.getSize(size);
 
-  // 50 = exact selected-object bounds. 0 shrinks to the center. 100 expands to 2x size.
+  // 50 = exact selected-object bounds. 0 shrinks to the center.
+  // Values above 100 continue expanding the box beyond 2x selected-object size.
   const factor = (percent - BOX_ORIGINAL_PERCENT) / BOX_ORIGINAL_PERCENT;
   const delta = new THREE.Vector3(
     Math.max(size.x, 0.000001) * 0.5 * factor,
@@ -310,7 +313,7 @@ function refreshBoxUi(reason = 'ui') {
       invert.checked = false;
       invert.disabled = true;
     }
-    if (positionLabel) positionLabel.textContent = 'Box Size';
+    if (positionLabel) positionLabel.textContent = `Box Size (0-${BOX_MAX_PERCENT})`;
     if (mode) mode.textContent = 'BOX';
     if (readout) readout.textContent = boxReadoutText();
   } else {
@@ -348,11 +351,21 @@ function ensurePlaneAxisOptions(axis) {
 }
 
 function syncPercentControls(percent, changedId = '') {
-  const value = String(clamp(Number(percent), 0, 100));
+  const value = String(clampBoxPercent(Number(percent)));
   const slider = document.getElementById('freshClipSlider');
   const input = document.getElementById('freshClipOffsetInput');
-  if (slider && changedId !== 'freshClipSlider') slider.value = value;
-  if (input && changedId !== 'freshClipOffsetInput') input.value = value;
+  if (slider) {
+    slider.min = String(BOX_MIN_PERCENT);
+    slider.max = String(BOX_MAX_PERCENT);
+    slider.step = String(BOX_STEP);
+    if (changedId !== 'freshClipSlider') slider.value = value;
+  }
+  if (input) {
+    input.min = String(BOX_MIN_PERCENT);
+    input.max = String(BOX_MAX_PERCENT);
+    input.step = String(BOX_STEP);
+    if (changedId !== 'freshClipOffsetInput') input.value = value;
+  }
 }
 
 function boxReadoutText() {
@@ -360,7 +373,7 @@ function boxReadoutText() {
   const runtime = getRuntime();
   const renderer = runtime.renderer;
   const planeCount = Array.isArray(renderer?.clippingPlanes) ? renderer.clippingPlanes.length : 0;
-  const percent = clamp(Number(state.boxPercent ?? state.percent ?? BOX_ORIGINAL_PERCENT), 0, 100);
+  const percent = clampBoxPercent(Number(state.boxPercent ?? state.percent ?? BOX_ORIGINAL_PERCENT));
   if (state.lastError) return state.lastError;
   return `Box clip active. Mode BOX, box size ${percent}% where 50% = selected bounds. Renderer planes: ${planeCount}.`;
 }
@@ -424,11 +437,17 @@ function debugSnapshot() {
     mode: state.mode,
     axis: state.axis,
     boxPercent: state.boxPercent,
+    boxMinPercent: BOX_MIN_PERCENT,
+    boxMaxPercent: BOX_MAX_PERCENT,
     baselineLabel: state.baselineLabel,
     baselineBox: boxSummary(state.baselineBox),
     rendererPlaneCount: Array.isArray(renderer?.clippingPlanes) ? renderer.clippingPlanes.length : 0,
     rendererLocalClipping: Boolean(renderer?.localClippingEnabled)
   };
+}
+
+function clampBoxPercent(value) {
+  return clamp(value, BOX_MIN_PERCENT, BOX_MAX_PERCENT);
 }
 
 function clamp(value, min, max) {

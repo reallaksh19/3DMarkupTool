@@ -1,8 +1,8 @@
-// Static input drawer conversion collapse controller.
-// Input is always open. Conversion settings are collapsed by explicit section marker,
+// Static input drawer conversion/sideload collapse controller.
+// Input is always open. Conversion and sideload settings are collapsed by explicit section markers,
 // not by DOM position, because the workflow summary card is also a <section>.
 
-const VERSION = 'static-input-conversion-collapse-input-always-open-20260619';
+const VERSION = 'phase4a-static-input-panel-cleanup-20260619';
 const STYLE_ID = 'staticInputConversionCollapseStyles';
 
 runWhenReady(initConversionCollapse);
@@ -18,38 +18,58 @@ function runWhenReady(callback) {
 function initConversionCollapse() {
   injectCollapseStyles();
   ensureInputAlwaysExpanded();
-
-  const section = getConversionSection();
-  if (!section) return;
-  const heading = section.querySelector('h3');
-  if (!heading || heading.dataset.boundConversionCollapse === '1') return;
-
-  section.dataset.collapsible = 'conversion';
-  section.dataset.section = 'conversion';
-  heading.dataset.boundConversionCollapse = '1';
-  heading.setAttribute('role', 'button');
-  heading.setAttribute('tabindex', '0');
-  heading.setAttribute('aria-controls', 'conversion-options-body');
-
-  const content = Array.from(section.children).filter((child) => child !== heading);
-  content.forEach((child) => child.classList.add('conversion-collapsible-content'));
-  setConversionExpanded(false);
-
-  heading.addEventListener('click', toggleConversion);
-  heading.addEventListener('keydown', (event) => {
-    if (event.key === 'Enter' || event.key === ' ') {
-      event.preventDefault();
-      toggleConversion();
-    }
-  });
+  initConversionSection();
+  initSideloadSection();
 
   window.__3D_MARKUP_CONVERSION_COLLAPSE__ = {
     version: VERSION,
-    open: () => setConversionExpanded(true),
-    close: () => setConversionExpanded(false),
-    toggle: toggleConversion,
+    open: () => setSectionExpanded('conversion', true),
+    close: () => setSectionExpanded('conversion', false),
+    toggle: () => toggleSection('conversion'),
+    openSideload: () => setSectionExpanded('sideload', true),
+    closeSideload: () => setSectionExpanded('sideload', false),
+    toggleSideload: () => toggleSection('sideload'),
     ensureInputAlwaysExpanded
   };
+}
+
+function initConversionSection() {
+  const section = getConversionSection();
+  if (!section) return;
+  bindCollapsibleSection(section, 'conversion', 'conversion-options-body');
+  setSectionExpanded('conversion', false);
+}
+
+function initSideloadSection() {
+  const section = getSideloadSection();
+  if (!section) return;
+  bindCollapsibleSection(section, 'sideload', 'sideload-options-body');
+  setSectionExpanded('sideload', false);
+}
+
+function bindCollapsibleSection(section, name, controlsId) {
+  const heading = section.querySelector('h3');
+  if (!heading) return;
+
+  section.dataset.collapsible = name;
+  section.dataset.section = name;
+  heading.setAttribute('role', 'button');
+  heading.setAttribute('tabindex', '0');
+  heading.setAttribute('aria-controls', controlsId);
+
+  Array.from(section.children).forEach((child) => {
+    if (child !== heading) child.classList.add(`${name}-collapsible-content`);
+  });
+
+  if (heading.dataset.boundCollapseSection === name) return;
+  heading.dataset.boundCollapseSection = name;
+  heading.addEventListener('click', () => toggleSection(name));
+  heading.addEventListener('keydown', (event) => {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      toggleSection(name);
+    }
+  });
 }
 
 function injectCollapseStyles() {
@@ -75,27 +95,36 @@ function injectCollapseStyles() {
       display: flex !important;
     }
 
-    #inputDrawer .panel-section[data-collapsible="conversion"] > h3 {
+    #inputDrawer .panel-section[data-collapsible] > h3 {
       cursor: pointer !important;
       user-select: none !important;
       display: flex !important;
       align-items: center !important;
       gap: 8px !important;
+      min-height: 26px !important;
+      margin-bottom: 0 !important;
     }
 
-    #inputDrawer .panel-section[data-collapsible="conversion"] > h3::after {
+    #inputDrawer .panel-section[data-collapsible] > h3::after {
       content: '▸' !important;
       margin-left: auto !important;
       color: rgba(159, 179, 204, .9) !important;
       font-size: 12px !important;
     }
 
-    body.conversion-expanded #inputDrawer .panel-section[data-collapsible="conversion"] > h3::after {
+    body.conversion-expanded #inputDrawer .panel-section[data-collapsible="conversion"] > h3::after,
+    body.sideload-expanded #inputDrawer .panel-section[data-collapsible="sideload"] > h3::after {
       content: '▾' !important;
     }
 
-    body:not(.conversion-expanded) #inputDrawer .panel-section[data-collapsible="conversion"] > .conversion-collapsible-content {
+    body:not(.conversion-expanded) #inputDrawer .panel-section[data-collapsible="conversion"] > .conversion-collapsible-content,
+    body:not(.sideload-expanded) #inputDrawer .panel-section[data-collapsible="sideload"] > .sideload-collapsible-content {
       display: none !important;
+    }
+
+    #inputDrawer .panel-section[data-collapsible="sideload"] {
+      padding-top: 12px !important;
+      padding-bottom: 12px !important;
     }
   `;
   document.head.appendChild(style);
@@ -105,17 +134,21 @@ function ensureInputAlwaysExpanded() {
   const section = getInputSection();
   if (!section) return;
   section.dataset.section = 'input';
-  if (section.dataset.collapsible === 'conversion') delete section.dataset.collapsible;
+  if (section.dataset.collapsible) delete section.dataset.collapsible;
 
   const heading = section.querySelector('h3');
   heading?.removeAttribute('role');
   heading?.removeAttribute('tabindex');
   heading?.removeAttribute('aria-controls');
   heading?.removeAttribute('aria-expanded');
+  delete heading?.dataset.boundCollapseSection;
   delete heading?.dataset.boundConversionCollapse;
 
   Array.from(section.children).forEach((child) => {
-    if (child !== heading) child.classList.remove('conversion-collapsible-content');
+    if (child !== heading) {
+      child.classList.remove('conversion-collapsible-content');
+      child.classList.remove('sideload-collapsible-content');
+    }
   });
 }
 
@@ -131,14 +164,21 @@ function getConversionSection() {
   return Array.from(drawer.querySelectorAll(':scope > .panel-section')).find((section) => /\bConversion\b/i.test(section.querySelector('h3')?.textContent || '')) || null;
 }
 
-function toggleConversion() {
-  setConversionExpanded(!document.body.classList.contains('conversion-expanded'));
+function getSideloadSection() {
+  const drawer = document.getElementById('inputDrawer');
+  if (!drawer) return null;
+  return Array.from(drawer.querySelectorAll(':scope > .panel-section')).find((section) => /\bSideload Data\b/i.test(section.querySelector('h3')?.textContent || '')) || null;
 }
 
-function setConversionExpanded(open) {
-  document.body.classList.toggle('conversion-expanded', Boolean(open));
+function toggleSection(name) {
+  setSectionExpanded(name, !document.body.classList.contains(`${name}-expanded`));
+}
+
+function setSectionExpanded(name, open) {
+  document.body.classList.toggle(`${name}-expanded`, Boolean(open));
   ensureInputAlwaysExpanded();
-  const heading = getConversionSection()?.querySelector('h3');
+  const section = name === 'conversion' ? getConversionSection() : getSideloadSection();
+  const heading = section?.querySelector('h3');
   heading?.setAttribute('aria-expanded', open ? 'true' : 'false');
   window.__3D_MARKUP_STATIC_SHELL_CORE__?.updateUiScore?.();
 }

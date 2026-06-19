@@ -12,13 +12,13 @@ assert.match(
 
 assert.match(
   collapseController,
-  /section\.dataset\.section\s*=\s*['"]input['"]/,
+  /section\.dataset\.section\s*=\s*['"]input['"]/, 
   'Input section must be tagged as data-section="input" for non-positional CSS overrides.'
 );
 
 assert.match(
   collapseController,
-  /section\.dataset\.collapsible\s*=\s*['"]conversion['"]/,
+  /section\.dataset\.collapsible\s*=\s*['"]conversion['"]/, 
   'Conversion section must be tagged explicitly as the only collapsible drawer section.'
 );
 
@@ -48,7 +48,7 @@ assert.match(
 
 assert.match(
   bootstrap,
-  /component-search-viewpad-20260619/,
+  /measure-polyline-viewpad-20260619/,
   'Safe UI bootstrap version must remain cache-busted so browsers fetch fixed drawer and view-pad controllers.'
 );
 

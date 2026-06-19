@@ -1,5 +1,28 @@
 export const VALVE_FLANGE_SCENE_POSTPROCESS_SCHEMA = 'ValveFlangeScenePostprocess.v1';
 
+const BASE_CYLINDER_ALLOWED_ROLES = new Set([
+  '',
+  'PIPE',
+  'FLANGED VALVE',
+  'FLANGED_VALVE',
+  'VALVE',
+  'FLANGE',
+  'FLANGE PAIR',
+  'FLANGE_PAIR',
+  'GATE VALVE',
+  'GATE_VALVE',
+  'BALL VALVE',
+  'BALL_VALVE',
+  'GLOBE VALVE',
+  'GLOBE_VALVE',
+  'CHECK VALVE',
+  'CHECK_VALVE',
+  'BUTTERFLY VALVE',
+  'BUTTERFLY_VALVE',
+  'CONTROL VALVE',
+  'CONTROL_VALVE'
+]);
+
 export function hideCatalogReplacedBaseCylinders(sceneOrGroup, options = {}) {
   if (!sceneOrGroup || typeof sceneOrGroup !== 'object') throw new Error('sceneOrGroup is required');
 
@@ -67,9 +90,20 @@ export function isLegacyBaseCylinderForComponent(object, componentId) {
   if (data.visualCatalogSchema) return false;
   if (data.hiddenByVisualCatalog) return false;
   if (data.TYPE && data.TYPE !== 'COMPONENT') return false;
-  if (data.meshRole && data.meshRole !== 'PIPE' && data.meshRole !== undefined && data.meshRole !== null && data.meshRole !== '') return false;
   const id = componentIdentity(object);
-  return Boolean(id && id === componentId);
+  if (!id || id !== componentId) return false;
+  return hasLegacyBaseCylinderRole(data);
+}
+
+export function hasLegacyBaseCylinderRole(data = {}) {
+  const role = normalizeRole(data.meshRole);
+  if (BASE_CYLINDER_ALLOWED_ROLES.has(role)) return true;
+  const typeText = normalizeRole(firstNonEmpty(data.engineeringType, data.rigidType, data.componentType, data.TYPE));
+  return typeText.includes('VALVE') || typeText.includes('FLANGE');
+}
+
+function normalizeRole(value) {
+  return String(value ?? '').trim().replace(/[\s-]+/g, '_').toUpperCase();
 }
 
 function componentIdentity(object) {

@@ -6,10 +6,10 @@
 // viewpad-icons-context-saved-state-20260619 esc-tools-export-icons-20260619 ribbon-usability-fixes-20260619 review-tool-final-fixes-20260619
 // visible-shell-direct-fixes-20260619 review-selection-actions-20260619 startup-responsive-runtime-20260619 core-safe-boot-20260619
 // navigation-smoothness-20260619 browser-diagnostics-20260619 chrome-runtime-diagnostics-20260619 input-always-visible-20260619 phase3-ribbon-cleanup-20260619
-// phase4-global-esc-lifecycle-20260619 topbar-menu-label-text-20260619 phase4a-input-visible-20260619
+// phase4-global-esc-lifecycle-20260619 topbar-menu-label-text-20260619
 
-const SAFE_UI_VERSION = 'phase4a-input-visible-20260619';
-const CLIP_UI_VERSION = 'phase4a-input-visible-20260619';
+const SAFE_UI_VERSION = 'phase4-global-esc-lifecycle-20260619';
+const CLIP_UI_VERSION = 'phase4-global-esc-lifecycle-20260619';
 const CORE_MODULE_URLS = [
   `./static-browser-diagnostics-controller.js?v=${SAFE_UI_VERSION}`,
   `./static-shell-core-controller.js?v=${SAFE_UI_VERSION}`,
@@ -119,31 +119,29 @@ function startSoon(delayMs) {
       startSoon(250);
       return;
     }
-    startSafeUi();
+
+    window.__3D_MARKUP_SAFE_UI_IMPORT_STARTED__ = true;
+    import(SAFE_LOADER_URL).catch(function (error) {
+      console.warn('[3DMarkupTool] Optional UI loader skipped after failed dynamic import.', error);
+      window.__3D_MARKUP_SAFE_UI_IMPORT_STARTED__ = false;
+      window.__3D_MARKUP_SAFE_UI_IMPORT_FAILED__ = true;
+      emitBootstrapModuleFailure(SAFE_LOADER_URL, error);
+    });
   }, delayMs);
 }
 
-function startSafeUi() {
-  window.__3D_MARKUP_SAFE_UI_IMPORT_STARTED__ = true;
-  window.__3D_MARKUP_SAFE_UI_VERSION__ = SAFE_UI_VERSION;
-  import(SAFE_LOADER_URL)
-    .then((module) => {
-      if (typeof module.startSafeUi === 'function') module.startSafeUi({ version: SAFE_UI_VERSION });
-    })
-    .catch((error) => {
-      console.warn('[3DMarkupTool] Safe UI loader failed:', error);
-      emitBootstrapModuleFailure(SAFE_LOADER_URL, error);
-      setBootstrapStatus('Core Ready');
-    });
-}
-
 function setBootstrapStatus(text) {
-  const el = document.getElementById('runtimeStatus');
-  if (el) el.textContent = text;
+  const status = document.getElementById('coreStatus') || document.getElementById('uiHealthBadge');
+  if (status) status.textContent = text;
 }
 
 function emitBootstrapModuleFailure(url, reason) {
-  const detail = { url, reason: reason?.message || String(reason || '') };
+  const detail = {
+    url,
+    reason: reason && (reason.message || String(reason)),
+    version: SAFE_UI_VERSION,
+    userAgent: window.navigator && window.navigator.userAgent
+  };
   window.dispatchEvent(new CustomEvent('viewer:bootstrap-module-failure', { detail }));
   window.dispatchEvent(new CustomEvent('3dmarkup:bootstrap-module-failed', { detail }));
 }

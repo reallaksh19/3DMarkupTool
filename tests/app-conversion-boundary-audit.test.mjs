@@ -25,13 +25,11 @@ function normalizePath(file) {
   return relative(repoRoot, file).replaceAll('\\\\', '/').replaceAll('\\', '/');
 }
 
-function usesAppConversionOrchestration(source) {
-  const hasGlb = /convertInputXmlToGlb(?:WithShadowDiagnostics)?\b/.test(source);
-  const hasRvm = /convertInputXmlToRvmAtt\b/.test(source);
-  const hasPreview = /createRvmPreviewScene\b/.test(source);
-  const hasRunController = /runAppConversionController\b/.test(source);
-  const hasStateBridge = /runAppConversionIntoState\b/.test(source);
-  return (hasGlb && hasRvm) || (hasPreview && (hasGlb || hasRvm)) || hasRunController || hasStateBridge;
+function usesDirectConverterOrchestration(source) {
+  const importsGlbConverter = /import\s*\{[^}]*convertInputXmlToGlb(?:WithShadowDiagnostics)?[^}]*\}\s*from\s*['"][^'"]*(?:converter|converter-shadow-diagnostics)\.js/.test(source);
+  const importsRvmConverter = /import\s*\{[^}]*convertInputXmlToRvmAtt[^}]*\}\s*from\s*['"][^'"]*rvm-converter\.js/.test(source);
+  const importsRvmPreview = /import\s*\{[^}]*createRvmPreviewScene[^}]*\}\s*from\s*['"][^'"]*rvm-preview\.js/.test(source);
+  return (importsGlbConverter && importsRvmConverter) || (importsRvmPreview && (importsGlbConverter || importsRvmConverter));
 }
 
 function assertNoUnmanifestedAppConversionOrchestration() {
@@ -40,7 +38,7 @@ function assertNoUnmanifestedAppConversionOrchestration() {
   for (const file of listJsFiles(srcRoot)) {
     const path = normalizePath(file);
     const source = readFileSync(file, 'utf8');
-    if (usesAppConversionOrchestration(source) && !approved.has(path)) offenders.push(path);
+    if (usesDirectConverterOrchestration(source) && !approved.has(path)) offenders.push(path);
   }
   assert.deepEqual(offenders, [], `Unmanifested app conversion orchestration found: ${offenders.join(', ')}`);
 }

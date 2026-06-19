@@ -6,7 +6,7 @@ const bootstrap = readFileSync('src/safe-ui-bootstrap.js', 'utf8');
 const pkg = JSON.parse(readFileSync('package.json', 'utf8'));
 
 assert.match(bootstrap, /static-marquee-zoom-controller\.js/, 'safe bootstrap must load marquee zoom controller');
-assert.match(bootstrap, /component-search-viewpad-20260619/, 'safe bootstrap cache key must bump for the current view pad tool pack');
+assert.match(bootstrap, /measure-polyline-viewpad-20260619/, 'safe bootstrap cache key must bump for the current view pad tool pack');
 
 assert.match(controller, /button\.dataset\.view = TOOL_VIEW/, 'controller must create a view-pad button with a data-view marker');
 assert.match(controller, /Marquee Zoom: drag a window/, 'controller must expose a user-facing marquee zoom tooltip');

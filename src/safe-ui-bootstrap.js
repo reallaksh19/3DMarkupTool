@@ -4,10 +4,7 @@
 
 const SAFE_UI_VERSION = 'esc-tools-export-icons-20260619';
 const CLIP_UI_VERSION = 'esc-tools-export-icons-20260619';
-const USABILITY_FIX_VERSION = 'ribbon-usability-fixes-20260619';
-const VISIBLE_DIRECT_FIX_VERSION = 'visible-shell-direct-fixes-20260619';
-const FINAL_REVIEW_FIX_VERSION = 'review-tool-final-fixes-20260619';
-const SELECTION_ACTIONS_VERSION = 'review-selection-actions-20260619';
+const STARTUP_RESPONSIVE_VERSION = 'startup-responsive-runtime-20260619';
 const CORE_MODULE_URLS = [
   `./static-shell-core-controller.js?v=${SAFE_UI_VERSION}`,
   `./static-review-ui-polish-controller.js?v=${SAFE_UI_VERSION}`,
@@ -34,11 +31,10 @@ const CORE_MODULE_URLS = [
   `./static-quick-export-core-controller.js?v=${SAFE_UI_VERSION}`,
   `./static-topbar-layout-controller.js?v=${SAFE_UI_VERSION}`,
   `./static-review-ribbon-tools-controller.js?v=${SAFE_UI_VERSION}`,
-  `./static-ui-stability-fixes-controller.js?v=${SAFE_UI_VERSION}`,
-  `./static-ribbon-usability-fixes-controller.js?v=${USABILITY_FIX_VERSION}`,
-  `./static-visible-shell-direct-fixes-controller.js?v=${VISIBLE_DIRECT_FIX_VERSION}`,
-  `./static-review-tool-final-fixes-controller.js?v=${FINAL_REVIEW_FIX_VERSION}`,
-  `./static-review-selection-actions-controller.js?v=${SELECTION_ACTIONS_VERSION}`
+  // One event-driven runtime stabilizer replaces the old stacked late-fix
+  // controllers. Do not re-add polling controllers here; they can freeze large
+  // scenes during loading.
+  `./static-startup-responsive-runtime-controller.js?v=${STARTUP_RESPONSIVE_VERSION}`
 ];
 const CLIP_MODULE_URLS = shouldLoadClipTools() ? [
   `./fresh-clip-controller.js?v=${CLIP_UI_VERSION}`,

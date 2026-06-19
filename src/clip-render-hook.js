@@ -7,6 +7,11 @@
 // Some Three.js builds define/assign renderer.render as a read-only own property
 // during WebGLRenderer construction; patching the prototype can make
 // new WebGLRenderer() throw "Cannot assign to read only property 'render'".
+//
+// LCP note: this module must stay light. The rAF throttle/freeze guard is exposed
+// for the deferred app loader and is installed immediately only when explicitly
+// requested by URL/localStorage. That keeps the initial text paint free of guard
+// setup and wrapper self-time.
 
 const CORE_RECOVERY_MODE = true;
 const DEFAULT_FRAME_MS = 66; // ~15 FPS; enough for review UI and prevents browser hangs on weak WebGL paths.
@@ -42,7 +47,8 @@ const OPTIONAL_CONTROLLER_FRAGMENTS = [
 ];
 
 window.__3D_MARKUP_CORE_RECOVERY__ = CORE_RECOVERY_MODE;
-installStartupFreezeGuard();
+window.__3D_MARKUP_INSTALL_STARTUP_FREEZE_GUARD__ = installStartupFreezeGuard;
+if (shouldInstallFreezeGuardImmediately()) installStartupFreezeGuard({ source: 'explicit-early-startup' });
 
 const runtime = window.__3D_MARKUP_CLIP_RUNTIME__ || {
   renderer: null,
@@ -79,11 +85,16 @@ if (CORE_RECOVERY_MODE) {
   }, { once: true });
 }
 
-function installStartupFreezeGuard() {
-  if (window.__3D_MARKUP_RAF_THROTTLE_INSTALLED__) return;
+function shouldInstallFreezeGuardImmediately() {
   const params = new URLSearchParams(window.location.search);
-  if (params.has('fullFps') || window.localStorage.getItem('3dmarkup.fullFps') === '1') return;
-  if (typeof window.requestAnimationFrame !== 'function') return;
+  return params.has('earlyFreezeGuard') || window.localStorage.getItem('3dmarkup.earlyFreezeGuard') === '1';
+}
+
+function installStartupFreezeGuard(meta = {}) {
+  if (window.__3D_MARKUP_RAF_THROTTLE_INSTALLED__) return false;
+  const params = new URLSearchParams(window.location.search);
+  if (params.has('fullFps') || window.localStorage.getItem('3dmarkup.fullFps') === '1') return false;
+  if (typeof window.requestAnimationFrame !== 'function') return false;
 
   const originalRequestAnimationFrame = window.requestAnimationFrame.bind(window);
   const originalCancelAnimationFrame = typeof window.cancelAnimationFrame === 'function'
@@ -132,6 +143,8 @@ function installStartupFreezeGuard() {
 
   window.__3D_MARKUP_RAF_THROTTLE_INSTALLED__ = true;
   window.__3D_MARKUP_RAF_THROTTLE_MS__ = DEFAULT_FRAME_MS;
+  window.__3D_MARKUP_RAF_THROTTLE_SOURCE__ = meta.source || 'deferred';
+  return true;
 }
 
 function disableOptionalControllerScripts() {

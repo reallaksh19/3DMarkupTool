@@ -106,7 +106,13 @@ export function buildLinearVisualPrimitivePlan(spec, metrics = {}) {
     primitives.push({ role: 'FLANGE_GASKET_SEAM_A', kind: 'seam-ring', axialOffset: -seamOffset, radius: pipeRadius * Math.max(spec.profile.raisedFaceDiameterFactor * 1.03, 1.18), length: seamThickness, darkSeam: true, visualBoundary: 'raised-face-gasket' });
     primitives.push({ role: 'FLANGE_GASKET_SEAM_B', kind: 'seam-ring', axialOffset: seamOffset, radius: pipeRadius * Math.max(spec.profile.raisedFaceDiameterFactor * 1.03, 1.18), length: seamThickness, darkSeam: true, visualBoundary: 'raised-face-gasket' });
     primitives.push({ role: 'BOLT_PATTERN', kind: 'bolt-pattern', boltCount: spec.profile.boltCount, boltCircleRadius: pipeRadius * spec.profile.boltCircleFactor, boltRadius: pipeRadius * spec.profile.boltDiameterFactor });
-    if (spec.profile.neckLengthFactor) primitives.push({ role: 'WELD_NECK', kind: 'neck-pair', radius: pipeRadius * spec.profile.neckDiameterFactor, length: Math.min(length * 0.18, pipeRadius * spec.profile.neckLengthFactor * 2) });
+    if (spec.profile.neckLengthFactor) {
+      const neckLength = Math.min(length * 0.18, pipeRadius * spec.profile.neckLengthFactor * 2);
+      const neckOuterRadius = Math.max(pipeRadius * spec.profile.neckDiameterFactor, pipeRadius * 1.06);
+      const neckCenterOffset = flangeOffset + flangeThickness / 2 + neckLength / 2;
+      primitives.push({ role: 'WELD_NECK_A', kind: 'disc', axialOffset: -neckCenterOffset, radius: neckOuterRadius, innerRadius: pipeRadius * 1.02, outerRadius: neckOuterRadius, length: neckLength, replacesCenterlinePipe: true, continuityFiller: true, proportionalShoulder: true, weldNeckPlacement: 'outside-flange-plate' });
+      primitives.push({ role: 'WELD_NECK_B', kind: 'disc', axialOffset: neckCenterOffset, radius: neckOuterRadius, innerRadius: pipeRadius * 1.02, outerRadius: neckOuterRadius, length: neckLength, replacesCenterlinePipe: true, continuityFiller: true, proportionalShoulder: true, weldNeckPlacement: 'outside-flange-plate' });
+    }
     if (spec.profile.blindCap) primitives.push({ role: 'BLIND_CAP', kind: 'cap', axialOffset: 0, radius: pipeRadius * spec.profile.raisedFaceDiameterFactor, length: Math.min(length * 0.075, pipeRadius * 0.18), replacesCenterlinePipe: true });
     return primitives;
   }

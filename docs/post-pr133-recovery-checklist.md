@@ -23,6 +23,12 @@ Legend:
 |---|---|---|---|
 | ✅ | X1 — Chrome-only erratic response | Erratic response appears only in Chrome, not Edge. Console showed a missing dynamic import: `static-properties-actions-controller.js` 404. | Removed the missing startup import and added a browser diagnostic banner/API that detects Chrome/module-load failures and gives Ctrl+F5 / disable-cache / clear-site-data guidance. |
 
+## Phase 1B — Chrome runtime/cache diagnostics
+
+| Status | Comment ID | Original feedback | Completion note |
+|---|---|---|---|
+| ✅ | X2 — Chrome runtime/cache diagnostics | Chrome still felt erratic after the missing-module fix. Console showed no module failures but still showed the old outer `fresh-clip-core-20260619` shell key. | Bumped visible shell asset keys to `chrome-runtime-diagnostics-20260619`, added stale-shell detection, WebGL/GPU capture, bounded frame-time sampling, wheel-latency diagnostics, and a visible Chrome help banner only when mismatch/lag is detected. |
+
 ## Phase 2 — Input panel always-visible block
 
 | Status | Comment ID | Original feedback | Completion note |

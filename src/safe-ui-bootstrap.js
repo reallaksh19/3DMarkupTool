@@ -8,8 +8,10 @@
 // navigation-smoothness-20260619 browser-diagnostics-20260619 chrome-runtime-diagnostics-20260619 input-always-visible-20260619 phase3-ribbon-cleanup-20260619
 // phase4-global-esc-lifecycle-20260619 phase4a-static-input-panel-cleanup-20260619 perf-static-shell-20260620 perf-lcp-deferred-app-20260620
 
-const SAFE_UI_VERSION = 'perf-idle-diagnostics-20260620';
-const CLIP_UI_VERSION = 'perf-idle-diagnostics-20260620';
+const SAFE_UI_VERSION = 'perf-static-drawer-bundle-20260620';
+const CLIP_UI_VERSION = 'perf-static-drawer-bundle-20260620';
+const BUNDLED_ASSETS = window.__3D_MARKUP_BUNDLED_ASSETS__ || {};
+const STATIC_SHELL_BUNDLE_URL = BUNDLED_ASSETS.shell || '';
 
 const EARLY_MODULE_URLS = [
   `./static-shell-core-controller.js?v=${SAFE_UI_VERSION}`,
@@ -34,7 +36,6 @@ const DEFERRED_MODULE_URLS = [
   `./static-tree-core-controller.js?v=${SAFE_UI_VERSION}`,
   `./static-color-legend-controller.js?v=${SAFE_UI_VERSION}`,
   `./static-workflow-status-controller.js?v=${SAFE_UI_VERSION}`,
-  `./static-drawer-summary-controller.js?v=${SAFE_UI_VERSION}`,
   `./static-help-shortcuts-controller.js?v=${SAFE_UI_VERSION}`,
   `./static-markup-core-controller.js?v=${SAFE_UI_VERSION}`,
   `./static-quick-export-core-controller.js?v=${SAFE_UI_VERSION}`,
@@ -70,6 +71,12 @@ scheduleStart();
 function scheduleCoreShell() {
   if (coreShellStarted) return;
   coreShellStarted = true;
+
+  if (STATIC_SHELL_BUNDLE_URL) {
+    scheduleAfterFirstPaint(startBundledStaticShell);
+    return;
+  }
+
   const start = () => importModuleBatch(EARLY_MODULE_URLS, 'early static shell')
     .finally(() => scheduleAfterFirstPaint(startDeferredShell));
   if (document.readyState === 'loading') {
@@ -77,6 +84,26 @@ function scheduleCoreShell() {
   } else {
     start();
   }
+}
+
+function startBundledStaticShell() {
+  if (deferredShellStarted) return;
+  deferredShellStarted = true;
+  window.__3D_MARKUP_STATIC_SHELL_BUNDLED_IMPORT_STARTED__ = true;
+  import(STATIC_SHELL_BUNDLE_URL)
+    .then(() => {
+      window.__3D_MARKUP_STATIC_SHELL_BUNDLED_IMPORT_COMPLETE__ = true;
+      window.dispatchEvent(new CustomEvent('viewer:static-shell-bundle-loaded', {
+        detail: { version: SAFE_UI_VERSION, url: STATIC_SHELL_BUNDLE_URL }
+      }));
+    })
+    .catch((error) => {
+      console.warn('[3DMarkupTool] Static shell bundle failed; falling back to source modules.', error);
+      window.__3D_MARKUP_STATIC_SHELL_BUNDLED_IMPORT_FAILED__ = true;
+      importModuleBatch(EARLY_MODULE_URLS, 'early static shell fallback')
+        .finally(() => importModuleQueue(DEFERRED_MODULE_URLS.concat(CLIP_MODULE_URLS), 'deferred static shell fallback'));
+    })
+    .finally(scheduleLateIdleShell);
 }
 
 function startDeferredShell() {

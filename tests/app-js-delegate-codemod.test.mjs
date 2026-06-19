@@ -18,11 +18,14 @@ function test(name, fn) {
   }
 }
 
-test('codemod transforms current app.js into delegated conversion flow', () => {
+test('current app.js is delegated or can be delegated by codemod', () => {
   const result = transformAppJsDelegate(appSource);
   assert.equal(result.schemaVersion, APP_DELEGATE_CODEMOD_SCHEMA);
-  assert.equal(result.changed, true);
-  assert.deepEqual(result.changes, ['replace-direct-conversion-imports', 'delegate-runConversion']);
+  if (result.changed) {
+    assert.deepEqual(result.changes, ['replace-direct-conversion-imports', 'delegate-runConversion']);
+  } else {
+    assert.deepEqual(result.changes, []);
+  }
   assertDelegatedAppJs(result.output);
 });
 

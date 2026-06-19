@@ -100,10 +100,113 @@ let modelRoot = null;
 const raycaster = new THREE.Raycaster();
 const mouse = new THREE.Vector2();
 
+publishViewerRuntime('app:renderer-created');
 initUi();
+publishViewerRuntime('app:ui-ready');
 window.__3D_MARKUP_APP_READY__ = true;
+publishViewerRuntime('app:ready');
 window.dispatchEvent(new CustomEvent('markup:app-ready', { detail: { recoveryMode: Boolean(window.__3D_MARKUP_CORE_RECOVERY__) } }));
 animate();
+
+function publishViewerRuntime(reason = 'app') {
+  const runtime = window.__3D_MARKUP_VIEWER_RUNTIME__ || window.__3D_MARKUP_CLIP_RUNTIME__ || {};
+  const selectedData = state.selectedData || state.selected?.userData || null;
+  const selectedId = selectedData ? displayTitle(selectedData, selectedData.TYPE || selectedData.type || 'Object') : '';
+  const existingPlanes = Array.isArray(renderer.clippingPlanes) ? renderer.clippingPlanes : [];
+
+  Object.assign(runtime, {
+    renderer,
+    scene,
+    camera,
+    controls,
+    modelRoot: modelRoot || state.scene || scene,
+    selectedObject: state.selected || null,
+    selectedData,
+    selectedId,
+    clippingPlanes: existingPlanes,
+    clippingMode: runtime.clippingMode || (existingPlanes.length ? (state.clipEnabled ? 'plane' : 'custom') : 'none'),
+    source: reason,
+    applyClipping(planes, meta = {}) {
+      if (!renderer) {
+        console.error('[3DMarkupTool:runtime] applyClipping failed: renderer missing', { ...meta, reason });
+        return false;
+      }
+      const safePlanes = Array.isArray(planes) ? planes : [];
+      renderer.localClippingEnabled = safePlanes.length > 0;
+      renderer.clippingPlanes = safePlanes;
+      runtime.clippingPlanes = renderer.clippingPlanes;
+      runtime.clippingMode = meta.mode || (safePlanes.length ? 'custom' : 'none');
+      runtime.source = meta.source || reason || 'runtime.applyClipping';
+      requestRender(meta.source || 'runtime.applyClipping');
+      window.dispatchEvent(new CustomEvent('viewer:clipping-changed', {
+        detail: { ...meta, mode: runtime.clippingMode, planes: runtime.clippingPlanes, rendererReady: true }
+      }));
+      return true;
+    },
+    clearClipping(meta = {}) {
+      if (renderer) {
+        renderer.clippingPlanes = [];
+        renderer.localClippingEnabled = false;
+      }
+      runtime.clippingPlanes = [];
+      runtime.clippingMode = 'none';
+      runtime.source = meta.source || reason || 'runtime.clearClipping';
+      requestRender(meta.source || 'runtime.clearClipping');
+      window.dispatchEvent(new CustomEvent('viewer:clipping-changed', {
+        detail: { ...meta, mode: 'none', planes: [], rendererReady: Boolean(renderer) }
+      }));
+      return true;
+    },
+    renderOnce(renderReason = 'runtime') {
+      requestRender(renderReason);
+    },
+    getModelRoot() {
+      return modelRoot || state.scene || scene || null;
+    }
+  });
+
+  window.__3D_MARKUP_VIEWER_RUNTIME__ = runtime;
+  window.__3D_MARKUP_CLIP_RUNTIME__ = runtime;
+
+  const detail = {
+    reason,
+    renderer,
+    scene,
+    camera,
+    controls,
+    modelRoot: runtime.modelRoot,
+    selectedObject: runtime.selectedObject,
+    selectedData: runtime.selectedData,
+    selectedId: runtime.selectedId,
+    clippingPlanes: runtime.clippingPlanes,
+    clippingMode: runtime.clippingMode,
+    rendererReady: Boolean(renderer)
+  };
+
+  window.dispatchEvent(new CustomEvent('viewer:runtime-context', { detail }));
+  window.dispatchEvent(new CustomEvent('markup:render-context', { detail }));
+  return runtime;
+}
+
+function requestRender(reason = 'app') {
+  if (!renderer || !scene || !camera) return false;
+  controls?.update?.();
+  renderer.render(scene, camera);
+  return true;
+}
+
+function dispatchSelectionChanged(reason = 'selection') {
+  const runtime = publishViewerRuntime(reason);
+  window.dispatchEvent(new CustomEvent('viewer:selection-changed', {
+    detail: {
+      reason,
+      selectedObject: runtime.selectedObject,
+      selectedData: runtime.selectedData,
+      selectedId: runtime.selectedId,
+      rendererReady: Boolean(runtime.renderer)
+    }
+  }));
+}
 
 function initUi() {
   createIcons({ icons });
@@ -154,6 +257,7 @@ function initUi() {
   renderer.domElement.addEventListener('contextmenu', (event) => event.preventDefault());
   window.addEventListener('keydown', onKeyDown);
   window.addEventListener('resize', onResize);
+  window.addEventListener('viewer:request-render', (event) => requestRender(event.detail?.reason || event.detail?.source || 'viewer:request-render'));
   updateUiState();
   updateStatusBar();
 }
@@ -206,6 +310,7 @@ async function runConversion() {
     };
     state.glbScene = glbResult.scene;
     state.rvmScene = createRvmPreviewScene(rvmResult.exportModel);
+    publishViewerRuntime('conversion:scenes-created');
 
     setModelScene(state.glbScene, 'glb');
     setInputDrawer(false);
@@ -254,6 +359,14 @@ function setModelScene(newScene, mode) {
   applyColorBy();
   el('hint').style.display = 'none';
   updateStatusBar();
+  const runtime = publishViewerRuntime(`model:${state.previewMode}`);
+  window.dispatchEvent(new CustomEvent('viewer:model-loaded', {
+    detail: {
+      mode: state.previewMode,
+      modelRoot,
+      rendererReady: Boolean(runtime.renderer)
+    }
+  }));
 }
 
 function fitView() {
@@ -291,6 +404,7 @@ function fitBox(box, direction) {
   controls.target.copy(center);
   controls.update();
   updateClipPlane();
+  publishViewerRuntime('camera:fit-box');
 }
 
 function modelBox() {
@@ -315,6 +429,7 @@ function zoomCamera(factor) {
   const target = controls.target.clone();
   camera.position.copy(target.clone().add(camera.position.clone().sub(target).multiplyScalar(factor)));
   controls.update();
+  publishViewerRuntime('camera:zoom');
 }
 
 function setActiveTool(tool) {
@@ -323,6 +438,7 @@ function setActiveTool(tool) {
   applyControlMode(tool);
   updateUiState();
   status(tool === 'measure' ? 'Measure' : `${tool[0].toUpperCase()}${tool.slice(1)} mode`);
+  publishViewerRuntime(`tool:${tool}`);
 }
 
 function applyControlMode(tool) {
@@ -407,6 +523,7 @@ function selectHit(hit) {
   showProperties(data);
   updateSelectionHelper(selectable);
   updateStatusBar();
+  dispatchSelectionChanged('selection:select');
 }
 
 function findSelectableObject(obj) {
@@ -467,6 +584,7 @@ function clearSelection() {
   el('propertiesBody').classList.add('empty-state');
   el('propertiesBody').textContent = 'Select an object in the viewer.';
   updateStatusBar();
+  dispatchSelectionChanged('selection:clear');
 }
 
 function clearSelectionAndTool() {
@@ -801,8 +919,11 @@ function formatPoint(point) {
 function toggleClip() {
   state.clipEnabled = !state.clipEnabled;
   updateClipPlane();
-  renderer.clippingPlanes = state.clipEnabled ? [CLIP_PLANE] : [];
+  const runtime = publishViewerRuntime('clip-toolbar:before-toggle');
+  if (state.clipEnabled) runtime.applyClipping([CLIP_PLANE], { mode: 'plane', source: 'app-toolbar' });
+  else runtime.clearClipping({ source: 'app-toolbar' });
   updateUiState();
+  publishViewerRuntime('clip-toolbar:after-toggle');
 }
 
 function updateClipPlane() {
@@ -884,12 +1005,15 @@ function clearAll() {
   clearMeasurement();
   clearSelection();
   renderer.clippingPlanes = [];
+  renderer.localClippingEnabled = false;
 
   if (modelRoot) scene.remove(modelRoot);
   modelRoot = null;
   setDownloadButtons(false);
   updateUiState();
   el('hint').style.display = 'block';
+  publishViewerRuntime('app:clear');
+  window.dispatchEvent(new CustomEvent('viewer:model-loaded', { detail: { mode: 'clear', modelRoot: null, rendererReady: Boolean(renderer) } }));
   log('Cleared');
   status('Ready');
 }
@@ -936,6 +1060,7 @@ function onResize() {
   renderer.setSize(rect.width, rect.height);
   camera.aspect = rect.width / rect.height;
   camera.updateProjectionMatrix();
+  publishViewerRuntime('resize');
 }
 
 function animate() {

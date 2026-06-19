@@ -34,13 +34,13 @@ export const VALVE_FLANGE_VISUAL_CATALOG = deepFreeze({
   },
   flangeTypes: {
     FLANGE_GENERIC: flangeEntry('FLANGE_GENERIC', 'flange-pair-symbol.v1', 'flange-pair', {
-      flangeDiameterFactor: 2.05, flangeThicknessFactor: 0.075, raisedFaceDiameterFactor: 1.32, raisedFaceThicknessFactor: 0.014, boltCircleFactor: 1.72, boltDiameterFactor: 0.055, boltCount: 8
+      flangeDiameterFactor: 2.05, flangeThicknessFactor: 0.075, raisedFaceDiameterFactor: 1.32, raisedFaceThicknessFactor: 0.014, boltCircleFactor: 1.72, boltDiameterFactor: 0.055, boltCount: 8, neckDiameterFactor: 1.08, neckLengthFactor: 0.40
     }),
     FLANGE_WELD_NECK: flangeEntry('FLANGE_WELD_NECK', 'flange-weld-neck-symbol.v1', 'weld-neck-flange-pair', {
       flangeDiameterFactor: 2.14, flangeThicknessFactor: 0.08, raisedFaceDiameterFactor: 1.34, raisedFaceThicknessFactor: 0.015, boltCircleFactor: 1.82, boltDiameterFactor: 0.055, boltCount: 8, neckDiameterFactor: 1.12, neckLengthFactor: 0.72
     }),
     FLANGE_BLIND: flangeEntry('FLANGE_BLIND', 'flange-blind-symbol.v1', 'blind-flange', {
-      flangeDiameterFactor: 2.18, flangeThicknessFactor: 0.09, raisedFaceDiameterFactor: 1.38, raisedFaceThicknessFactor: 0.016, boltCircleFactor: 1.88, boltDiameterFactor: 0.055, boltCount: 8, blindCap: true
+      flangeDiameterFactor: 2.18, flangeThicknessFactor: 0.09, raisedFaceDiameterFactor: 1.38, raisedFaceThicknessFactor: 0.016, boltCircleFactor: 1.88, boltDiameterFactor: 0.055, boltCount: 8, neckDiameterFactor: 1.08, neckLengthFactor: 0.32, blindCap: true
     })
   }
 });
@@ -88,61 +88,189 @@ export function buildLinearVisualPrimitivePlan(spec, metrics = {}) {
   const length = positiveNumber(metrics.length, positiveNumber(spec.dimensions.faceToFaceLength, 1));
   const pipeRadius = positiveNumber(metrics.pipeRadius, positiveNumber(spec.dimensions.bore, 100) / 2);
   const half = length / 2;
+
+  if (spec.componentClass === 'FLANGE') return buildFlangePrimitivePlan(spec, length, pipeRadius, half);
+  if (spec.componentClass === 'VALVE') return buildValvePrimitivePlan(spec, length, pipeRadius, half);
+  return [];
+}
+
+export function primitiveLocalSpan(primitive = {}) {
+  if (Number.isFinite(primitive.localAxisStart) && Number.isFinite(primitive.localAxisEnd)) {
+    return [primitive.localAxisStart, primitive.localAxisEnd];
+  }
+  const length = positiveNumber(primitive.length, 0);
+  const center = Number.isFinite(primitive.axialOffset) ? primitive.axialOffset : 0;
+  return [center - length / 2, center + length / 2];
+}
+
+export function validateLinearVisualPrimitiveContinuity(plan, length, options = {}) {
+  const tolerance = positiveNumber(options.tolerance, Math.max(length * 1e-4, 1e-5));
+  const half = length / 2;
+  const spans = plan
+    .filter((p) => p.replacesCenterlinePipe && !p.overlayOnly && !p.hiddenBoreFill && Number.isFinite(p.length))
+    .map((p) => ({ role: p.role, span: primitiveLocalSpan(p) }))
+    .sort((a, b) => a.span[0] - b.span[0]);
+
+  const gaps = [];
+  const overlaps = [];
+  let cursor = -half;
+  for (const entry of spans) {
+    const [start, end] = entry.span;
+    if (start > cursor + tolerance) gaps.push({ from: cursor, to: start, beforeRole: entry.role });
+    if (start < cursor - tolerance) overlaps.push({ from: start, to: cursor, role: entry.role });
+    cursor = Math.max(cursor, end);
+  }
+  if (cursor < half - tolerance) gaps.push({ from: cursor, to: half, beforeRole: 'END' });
+
+  return {
+    ok: gaps.length === 0,
+    length,
+    tolerance,
+    spans,
+    gaps,
+    overlaps
+  };
+}
+
+function buildFlangePrimitivePlan(spec, length, pipeRadius, half) {
+  const flangeThickness = clamp(pipeRadius * spec.profile.flangeThicknessFactor, pipeRadius * 0.028, Math.min(length * 0.045, pipeRadius * 0.10));
+  const raisedFaceThickness = clamp(pipeRadius * spec.profile.raisedFaceThicknessFactor, pipeRadius * 0.004, Math.min(flangeThickness * 0.14, length * 0.012));
+  const gasketThickness = clamp(pipeRadius * 0.018, pipeRadius * 0.006, Math.min(flangeThickness * 0.22, length * 0.018));
+  const plateRadius = pipeRadius * spec.profile.flangeDiameterFactor;
+  const raisedFaceRadius = pipeRadius * spec.profile.raisedFaceDiameterFactor;
+  const neckOuterRadius = Math.max(pipeRadius * positiveNumber(spec.profile.neckDiameterFactor, 1.08), pipeRadius * 1.06);
+  const innerLeft = -gasketThickness / 2;
+  const innerRight = gasketThickness / 2;
+  const leftPlateStart = innerLeft - flangeThickness;
+  const leftPlateEnd = innerLeft;
+  const rightPlateStart = innerRight;
+  const rightPlateEnd = innerRight + flangeThickness;
   const primitives = [];
 
-  if (spec.componentClass === 'FLANGE') {
-    const flangeThickness = clamp(pipeRadius * spec.profile.flangeThicknessFactor, pipeRadius * 0.028, Math.min(length * 0.032, pipeRadius * 0.10));
-    const raisedFaceThickness = clamp(pipeRadius * spec.profile.raisedFaceThicknessFactor, pipeRadius * 0.004, flangeThickness * 0.14);
-    const flangeOffset = Math.max(0, half - flangeThickness / 2);
-    const raisedFaceOffset = Math.max(0, half - flangeThickness - raisedFaceThickness / 2);
-    const innerGap = Math.max(0, length - (flangeThickness + raisedFaceThickness) * 2);
-    primitives.push({ role: 'FLANGE_CENTER_BORE_FILL', kind: 'disc', axialOffset: 0, radius: pipeRadius * 0.94, length: Math.max(innerGap, pipeRadius * 0.05), replacesCenterlinePipe: true, continuityFiller: true, hiddenBoreFill: true });
-    primitives.push({ role: 'FLANGE_DISC_A', kind: 'disc', axialOffset: -flangeOffset, radius: pipeRadius * spec.profile.flangeDiameterFactor, length: flangeThickness, replacesCenterlinePipe: true, proportionalFlangeThickness: true, thinPlate: true });
-    primitives.push({ role: 'FLANGE_DISC_B', kind: 'disc', axialOffset: flangeOffset, radius: pipeRadius * spec.profile.flangeDiameterFactor, length: flangeThickness, replacesCenterlinePipe: true, proportionalFlangeThickness: true, thinPlate: true });
-    primitives.push({ role: 'RAISED_FACE_A', kind: 'disc', axialOffset: -raisedFaceOffset, radius: pipeRadius * spec.profile.raisedFaceDiameterFactor, length: raisedFaceThickness, replacesCenterlinePipe: true, thinRaisedFace: true });
-    primitives.push({ role: 'RAISED_FACE_B', kind: 'disc', axialOffset: raisedFaceOffset, radius: pipeRadius * spec.profile.raisedFaceDiameterFactor, length: raisedFaceThickness, replacesCenterlinePipe: true, thinRaisedFace: true });
-    primitives.push({ role: 'BOLT_PATTERN', kind: 'bolt-pattern', boltCount: spec.profile.boltCount, boltCircleRadius: pipeRadius * spec.profile.boltCircleFactor, boltRadius: pipeRadius * spec.profile.boltDiameterFactor });
-    if (spec.profile.neckLengthFactor) {
-      const neckLength = Math.min(length * 0.18, pipeRadius * spec.profile.neckLengthFactor * 2);
-      const neckOuterRadius = Math.max(pipeRadius * spec.profile.neckDiameterFactor, pipeRadius * 1.06);
-      const neckCenterOffset = flangeOffset + flangeThickness / 2 + neckLength / 2;
-      primitives.push({ role: 'WELD_NECK_A', kind: 'disc', axialOffset: -neckCenterOffset, radius: neckOuterRadius, innerRadius: pipeRadius * 1.02, outerRadius: neckOuterRadius, length: neckLength, replacesCenterlinePipe: true, continuityFiller: true, proportionalShoulder: true, weldNeckPlacement: 'outside-flange-plate' });
-      primitives.push({ role: 'WELD_NECK_B', kind: 'disc', axialOffset: neckCenterOffset, radius: neckOuterRadius, innerRadius: pipeRadius * 1.02, outerRadius: neckOuterRadius, length: neckLength, replacesCenterlinePipe: true, continuityFiller: true, proportionalShoulder: true, weldNeckPlacement: 'outside-flange-plate' });
-    }
-    if (spec.profile.blindCap) primitives.push({ role: 'BLIND_CAP', kind: 'cap', axialOffset: 0, radius: pipeRadius * spec.profile.raisedFaceDiameterFactor, length: Math.min(length * 0.075, pipeRadius * 0.18), replacesCenterlinePipe: true });
-    return primitives;
+  primitives.push(segmentPrimitive('WELD_NECK_A', 'disc', -half, leftPlateStart, {
+    radius: neckOuterRadius,
+    innerRadius: pipeRadius * 1.02,
+    outerRadius: neckOuterRadius,
+    radiusStart: pipeRadius * 1.02,
+    radiusEnd: neckOuterRadius,
+    replacesCenterlinePipe: true,
+    continuityFiller: true,
+    proportionalShoulder: true,
+    weldNeckPlacement: 'inside-component-before-left-plate'
+  }));
+  primitives.push(segmentPrimitive('FLANGE_DISC_A', 'disc', leftPlateStart, leftPlateEnd, {
+    radius: plateRadius,
+    replacesCenterlinePipe: true,
+    proportionalFlangeThickness: true,
+    thinPlate: true
+  }));
+  primitives.push(segmentPrimitive('FLANGE_CENTER_BORE_FILL', 'disc', innerLeft, innerRight, {
+    radius: pipeRadius * 0.46,
+    replacesCenterlinePipe: true,
+    continuityFiller: true,
+    visibleBoreFill: true,
+    subtleCenterFill: true
+  }));
+  primitives.push(segmentPrimitive('GASKET_CENTER', 'disc', innerLeft, innerRight, {
+    radius: pipeRadius * 1.08,
+    replacesCenterlinePipe: false,
+    overlayOnly: true,
+    subtleGasket: true,
+    visualMaterial: 'gasket'
+  }));
+  primitives.push(segmentPrimitive('FLANGE_DISC_B', 'disc', rightPlateStart, rightPlateEnd, {
+    radius: plateRadius,
+    replacesCenterlinePipe: true,
+    proportionalFlangeThickness: true,
+    thinPlate: true
+  }));
+  primitives.push(segmentPrimitive('WELD_NECK_B', 'disc', rightPlateEnd, half, {
+    radius: neckOuterRadius,
+    innerRadius: pipeRadius * 1.02,
+    outerRadius: neckOuterRadius,
+    radiusStart: neckOuterRadius,
+    radiusEnd: pipeRadius * 1.02,
+    replacesCenterlinePipe: true,
+    continuityFiller: true,
+    proportionalShoulder: true,
+    weldNeckPlacement: 'inside-component-after-right-plate'
+  }));
+  primitives.push(segmentPrimitive('RAISED_FACE_A', 'disc', innerLeft - raisedFaceThickness, innerLeft, {
+    radius: raisedFaceRadius,
+    replacesCenterlinePipe: false,
+    overlayOnly: true,
+    thinRaisedFace: true,
+    visualMaterial: 'raised-face'
+  }));
+  primitives.push(segmentPrimitive('RAISED_FACE_B', 'disc', innerRight, innerRight + raisedFaceThickness, {
+    radius: raisedFaceRadius,
+    replacesCenterlinePipe: false,
+    overlayOnly: true,
+    thinRaisedFace: true,
+    visualMaterial: 'raised-face'
+  }));
+  primitives.push({
+    role: 'BOLT_PATTERN',
+    kind: 'bolt-pattern',
+    boltCount: spec.profile.boltCount,
+    boltCircleRadius: pipeRadius * spec.profile.boltCircleFactor,
+    boltRadius: pipeRadius * spec.profile.boltDiameterFactor,
+    flangeRoles: ['FLANGE_DISC_A', 'FLANGE_DISC_B']
+  });
+  if (spec.profile.blindCap) {
+    primitives.push(segmentPrimitive('BLIND_CAP', 'cap', -gasketThickness / 2, gasketThickness / 2, {
+      radius: pipeRadius * spec.profile.raisedFaceDiameterFactor,
+      replacesCenterlinePipe: false,
+      overlayOnly: true
+    }));
   }
+  return primitives;
+}
 
-  if (spec.componentClass === 'VALVE') {
-    const collarLength = clamp(length * spec.profile.endCollarLengthFactor, pipeRadius * 0.035, Math.min(length * 0.045, pipeRadius * 0.12));
-    const bodyRadius = pipeRadius * spec.profile.bodyDiameterFactor;
-    const collarRadius = pipeRadius * spec.profile.endCollarDiameterFactor;
-    const bodyEnvelopeTarget = Math.max(
-      length * spec.profile.bodyLengthFactor / 2,
-      Math.min(bodyRadius * 0.96, half - collarLength - pipeRadius * 0.22)
-    );
-    const bodyEnvelopeHalf = clamp(bodyEnvelopeTarget, pipeRadius * 0.62, Math.max(pipeRadius * 0.82, half - collarLength - pipeRadius * 0.08));
-    const bodyLength = bodyEnvelopeHalf * 2;
-    const collarOffset = Math.max(0, half - collarLength / 2);
-    const leftInnerFace = -half + collarLength;
-    const rightInnerFace = half - collarLength;
-    const shoulderOverlap = Math.max(pipeRadius * 0.055, length * 0.010);
-    const boreFillRadius = pipeRadius * 0.44;
-    const shoulderOuterRadius = Math.max(pipeRadius * 1.28, Math.min(bodyRadius * 0.82, collarRadius * 0.76));
+function buildValvePrimitivePlan(spec, length, pipeRadius, half) {
+  const collarLength = clamp(length * spec.profile.endCollarLengthFactor, pipeRadius * 0.035, Math.min(length * 0.045, pipeRadius * 0.12));
+  const bodyRadius = pipeRadius * spec.profile.bodyDiameterFactor;
+  const collarRadius = pipeRadius * spec.profile.endCollarDiameterFactor;
+  const innerLength = Math.max(length - collarLength * 2, pipeRadius * 0.2);
+  const bodyLength = clamp(length * spec.profile.bodyLengthFactor, pipeRadius * 0.95, Math.max(pipeRadius * 1.05, innerLength * 0.74));
+  const bodyHalf = Math.min(bodyLength / 2, half - collarLength);
+  const shoulderOuterRadius = Math.max(pipeRadius * 1.28, Math.min(bodyRadius * 0.82, collarRadius * 0.76));
+  const boreFillRadius = pipeRadius * 0.44;
+  const leftCollarEnd = -half + collarLength;
+  const rightCollarStart = half - collarLength;
+  const primitives = [];
 
-    primitives.push({ role: 'VALVE_BORE_FILL', kind: 'disc', axialOffset: 0, radius: boreFillRadius, length: Math.max(length - collarLength * 2, pipeRadius * 0.18), replacesCenterlinePipe: true, continuityFiller: true, hiddenBoreFill: true });
-    primitives.push({ role: 'VALVE_BODY', kind: spec.profile.bodyShape, axialOffset: 0, radius: bodyRadius, length: bodyLength, envelopeHalfLength: bodyEnvelopeHalf, replacesCenterlinePipe: true });
-    addValveShoulderPrimitive(primitives, 'VALVE_NECK_A', leftInnerFace, -bodyEnvelopeHalf, -1, pipeRadius * 1.02, shoulderOuterRadius, shoulderOverlap);
-    addValveShoulderPrimitive(primitives, 'VALVE_NECK_B', bodyEnvelopeHalf, rightInnerFace, 1, pipeRadius * 1.02, shoulderOuterRadius, shoulderOverlap);
-    primitives.push({ role: 'END_COLLAR_A', kind: 'disc', axialOffset: -collarOffset, radius: collarRadius, length: collarLength, replacesCenterlinePipe: true, proportionalFlangeThickness: true, thinPlate: true });
-    primitives.push({ role: 'END_COLLAR_B', kind: 'disc', axialOffset: collarOffset, radius: collarRadius, length: collarLength, replacesCenterlinePipe: true, proportionalFlangeThickness: true, thinPlate: true });
-    if (spec.profile.bonnetHeightFactor > 0) primitives.push({ role: 'BONNET_STEM', kind: 'stem', radialOffset: bodyRadius * 0.62, length: pipeRadius * spec.profile.bonnetHeightFactor });
-    if (spec.profile.handleStyle === 'handwheel') primitives.push({ role: 'HANDWHEEL', kind: 'torus', radius: pipeRadius * spec.profile.handwheelRadiusFactor, visualWeight: 'readable-operator' });
-    if (spec.profile.handleStyle === 'lever') primitives.push({ role: 'LEVER_HANDLE', kind: 'lever', length: pipeRadius * 2.35 });
-    if (spec.profile.handleStyle === 'flow-arrow') primitives.push({ role: 'FLOW_ARROW', kind: 'arrow', length: bodyLength * 0.72 });
-    if (spec.profile.handleStyle === 'actuator') primitives.push({ role: 'ACTUATOR', kind: 'actuator-cylinder', radius: pipeRadius * 0.86, length: pipeRadius * 1.12 });
-  }
-
+  primitives.push(segmentPrimitive('VALVE_BORE_FILL', 'disc', -half, half, {
+    radius: boreFillRadius,
+    replacesCenterlinePipe: true,
+    continuityFiller: true,
+    hiddenBoreFill: true
+  }));
+  primitives.push(segmentPrimitive('END_COLLAR_A', 'disc', -half, leftCollarEnd, {
+    radius: collarRadius,
+    replacesCenterlinePipe: true,
+    proportionalFlangeThickness: true,
+    thinPlate: true
+  }));
+  addValveShoulderPrimitive(primitives, 'VALVE_NECK_A', leftCollarEnd, -bodyHalf, pipeRadius * 1.02, shoulderOuterRadius);
+  primitives.push(segmentPrimitive('VALVE_BODY', spec.profile.bodyShape, -bodyHalf, bodyHalf, {
+    radius: bodyRadius,
+    envelopeHalfLength: bodyHalf,
+    replacesCenterlinePipe: true,
+    bodyVisual: 'compact-rounded-body'
+  }));
+  addValveShoulderPrimitive(primitives, 'VALVE_NECK_B', bodyHalf, rightCollarStart, shoulderOuterRadius, pipeRadius * 1.02);
+  primitives.push(segmentPrimitive('END_COLLAR_B', 'disc', rightCollarStart, half, {
+    radius: collarRadius,
+    replacesCenterlinePipe: true,
+    proportionalFlangeThickness: true,
+    thinPlate: true
+  }));
+  if (spec.profile.bonnetHeightFactor > 0) primitives.push({ role: 'BONNET_STEM', kind: 'stem', radialOffset: bodyRadius * 0.62, length: pipeRadius * spec.profile.bonnetHeightFactor });
+  if (spec.profile.handleStyle === 'handwheel') primitives.push({ role: 'HANDWHEEL', kind: 'torus', radius: pipeRadius * spec.profile.handwheelRadiusFactor, visualWeight: 'readable-operator' });
+  if (spec.profile.handleStyle === 'lever') primitives.push({ role: 'LEVER_HANDLE', kind: 'lever', length: pipeRadius * 2.35 });
+  if (spec.profile.handleStyle === 'flow-arrow') primitives.push({ role: 'FLOW_ARROW', kind: 'arrow', length: bodyLength * 0.72 });
+  if (spec.profile.handleStyle === 'actuator') primitives.push({ role: 'ACTUATOR', kind: 'actuator-cylinder', radius: pipeRadius * 0.86, length: pipeRadius * 1.12 });
   return primitives;
 }
 
@@ -150,24 +278,35 @@ export function normalizeVisualType(value) {
   return String(value || '').trim().toUpperCase().replace(/[^A-Z0-9]+/g, '_').replace(/^_+|_+$/g, '');
 }
 
-function addValveShoulderPrimitive(primitives, role, start, end, sign, innerRadius, outerRadius, overlap) {
-  const rawLength = Math.abs(end - start);
-  if (rawLength <= overlap * 0.35) return;
-  const length = rawLength + overlap * 2;
-  const center = (start + end) / 2 + sign * overlap * 0.08;
-  primitives.push({
+function segmentPrimitive(role, kind, start, end, extra = {}) {
+  const orderedStart = Math.min(start, end);
+  const orderedEnd = Math.max(start, end);
+  const length = Math.max(orderedEnd - orderedStart, 0);
+  return {
     role,
-    kind: 'disc',
-    axialOffset: center,
-    radius: outerRadius,
+    kind,
+    localAxisStart: orderedStart,
+    localAxisEnd: orderedEnd,
+    axialOffset: (orderedStart + orderedEnd) / 2,
     length,
-    innerRadius,
-    outerRadius,
+    ...extra
+  };
+}
+
+function addValveShoulderPrimitive(primitives, role, start, end, radiusStart, radiusEnd) {
+  const rawLength = Math.abs(end - start);
+  if (rawLength <= 1e-6) return;
+  primitives.push(segmentPrimitive(role, 'disc', start, end, {
+    radius: Math.max(radiusStart, radiusEnd),
+    innerRadius: Math.min(radiusStart, radiusEnd),
+    outerRadius: Math.max(radiusStart, radiusEnd),
+    radiusStart,
+    radiusEnd,
     replacesCenterlinePipe: true,
     continuityFiller: true,
     proportionalShoulder: true,
-    shoulderBasis: 'length-partitioned-valve-neck'
-  });
+    shoulderBasis: 'continuous-length-partitioned-valve-neck'
+  }));
 }
 
 function buildValveSpec(type, element, props, tokens) {
@@ -196,7 +335,8 @@ function buildSpec({ componentClass, componentType, profile, element, props, tok
       pipeShouldNotPassThroughBody: true,
       proportionalFallback: true,
       continuityFillersRequired: true,
-      lengthPartitionedSymbol: true
+      lengthPartitionedSymbol: true,
+      continuousAxialAssembly: true
     },
     dimensions: {
       bore,

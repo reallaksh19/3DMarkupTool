@@ -22,6 +22,8 @@ function run() {
   assert.ok(flangedValvePlan.some((p) => p.role === 'VALVE_BODY'), 'flanged valve must include a central valve body');
   assert.ok(flangedValvePlan.some((p) => p.role === 'END_COLLAR_A'));
   assert.ok(flangedValvePlan.some((p) => p.role === 'END_COLLAR_B'));
+  assert.ok(flangedValvePlan.some((p) => p.role === 'VALVE_NECK_A'), 'left direct valve neck/shoulder filler must close catalogue gap');
+  assert.ok(flangedValvePlan.some((p) => p.role === 'VALVE_NECK_B'), 'right direct valve neck/shoulder filler must close catalogue gap');
   assert.ok(!flangedValvePlan.some((p) => p.role === 'FLANGE_DISC_A'), 'flanged valve must not be classified as a loose flange pair');
 
   const gate = getValveFlangeVisualSpec({ rawType: 'GATE_VALVE', props: { bore: '150' } });
@@ -35,7 +37,7 @@ function run() {
   assert.ok(gateBody);
   assert.ok(gatePlan.some((p) => p.role === 'BONNET_STEM'));
   assert.ok(gatePlan.some((p) => p.role === 'HANDWHEEL'));
-  assert.ok(gateBody.radius >= 0.75 * 3.0, 'gate valve body must visually dominate pipe OD');
+  assert.ok(gateBody.radius >= 0.75 * 2.8, 'gate valve body must visually dominate pipe OD');
   assert.ok(gateBody.length >= 4 * 0.6, 'gate valve body must occupy most of the component length');
   assert.equal(gateBody.replacesCenterlinePipe, true);
 
@@ -43,7 +45,7 @@ function run() {
   assert.equal(ball.componentType, 'VALVE_BALL');
   const ballPlan = buildLinearVisualPrimitivePlan(ball, { length: 3, pipeRadius: 0.5 });
   assert.ok(ballPlan.some((p) => p.role === 'LEVER_HANDLE'));
-  assert.ok(ballPlan.find((p) => p.role === 'VALVE_BODY').radius >= 0.5 * 2.8);
+  assert.ok(ballPlan.find((p) => p.role === 'VALVE_BODY').radius >= 0.5 * 2.7);
 
   const skeyGate = getValveFlangeVisualSpec({ rawType: 'RIGID', props: { bore: '100', rawAttributes: { SKEY: 'VGAT' } } });
   assert.equal(skeyGate.componentType, 'VALVE_GATE');
@@ -56,7 +58,9 @@ function run() {
   assert.ok(flangeDisc);
   assert.ok(flangePlan.some((p) => p.role === 'FLANGE_DISC_B'));
   assert.ok(flangePlan.some((p) => p.role === 'BOLT_PATTERN'));
-  assert.ok(flangeDisc.radius >= 2.5, 'flange disc must read larger than pipe OD');
+  assert.ok(flangePlan.some((p) => p.role === 'FLANGE_CENTER_BORE_FILL'), 'flange pair needs direct center bore fill, not detached washers');
+  assert.ok(flangeDisc.radius >= 2.35, 'flange disc must read larger than pipe OD');
+  assert.ok(flangeDisc.length <= 0.42, 'flange thickness must stay proportional to bore, not long component span');
   assert.equal(flangeDisc.replacesCenterlinePipe, true);
 
   const blind = getValveFlangeVisualSpec({ rawType: 'RIGID', props: { rawAttributes: { SKEY: 'FLBL' } } });

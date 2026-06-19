@@ -199,7 +199,7 @@ function orientSingleFlangeFromPipeEndpoint(visualGroup, topology, options = {})
   }
 
   const id = componentIdentity(visualGroup);
-  const neck = createFrustumSegment(axis, spans.neck, dims.pipeRadius, dims.neckOuterRadius, material, `${id}_WELD_NECK_PIPE_SIDE`);
+  const neck = createFrustumSegment(axis, spans.neck, dims.pipeRadius, dims.neckOuterRadius, faceAtTo, material, `${id}_WELD_NECK_PIPE_SIDE`);
   const plate = createCylinderSegment(axis, spans.plate, dims.plateRadius, material, `${id}_FLANGE_PLATE`);
   const raisedFace = createCylinderSegment(axis, spans.raisedFace, dims.raisedFaceRadius, material, `${id}_RAISED_FACE`);
 
@@ -221,7 +221,7 @@ function orientSingleFlangeFromPipeEndpoint(visualGroup, topology, options = {})
     raisedFaceSide: true
   });
 
-  addBoltMarkers(visualGroup, axis, spans.plate, dims, material, id, topology, options);
+  const boltCount = addBoltMarkers(visualGroup, axis, spans.plate, dims, material, id, topology, options);
   visualGroup.add(neck, plate, raisedFace);
   visualGroup.userData = {
     ...(visualGroup.userData || {}),
@@ -231,7 +231,7 @@ function orientSingleFlangeFromPipeEndpoint(visualGroup, topology, options = {})
     raisedFaceEndpoint: topology.raisedFaceEndpoint
   };
 
-  return { ok: true, addedGeometry: 3 };
+  return { ok: true, addedGeometry: 3 + boltCount };
 }
 
 function inferLocalAxisFromCatalogChildren(group) {
@@ -309,10 +309,9 @@ function createCylinderSegment(axis, span, radius, material, name) {
   return mesh;
 }
 
-function createFrustumSegment(axis, span, pipeRadius, neckOuterRadius, material, name) {
+function createFrustumSegment(axis, span, pipeRadius, neckOuterRadius, faceAtTo, material, name) {
   const center = pointAt(axis, (span.start + span.end) / 2);
   const length = Math.max(span.end - span.start, 0.0001);
-  const faceAtTo = span.start < 0;
   const radiusStart = faceAtTo ? pipeRadius : neckOuterRadius;
   const radiusEnd = faceAtTo ? neckOuterRadius : pipeRadius;
   const mesh = new THREE.Mesh(
@@ -326,7 +325,7 @@ function createFrustumSegment(axis, span, pipeRadius, neckOuterRadius, material,
 }
 
 function addBoltMarkers(group, axis, plateSpan, dims, material, id, topology, options = {}) {
-  if (options.flangeTopologyBoltMarkers === false) return;
+  if (options.flangeTopologyBoltMarkers === false) return 0;
   const count = 8;
   const centerOffset = (plateSpan.start + plateSpan.end) / 2;
   const up = orthogonal(axis.dir);
@@ -349,6 +348,7 @@ function addBoltMarkers(group, axis, plateSpan, dims, material, id, topology, op
     });
     group.add(bolt);
   }
+  return count;
 }
 
 function stampSingleFlangeMesh(mesh, group, role, span, topology, extra = {}) {

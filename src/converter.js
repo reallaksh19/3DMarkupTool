@@ -25,6 +25,7 @@ const rigidMat = mat(COLORS.rigid, { roughness: 0.58, metalness: 0.14 });
 const valveMat = mat(COLORS.valve, { roughness: 0.54, metalness: 0.12, emissive: 0x12091f, emissiveIntensity: 0.08 });
 const flangeMat = mat(COLORS.rigid, { roughness: 0.52, metalness: 0.18, emissive: 0x101a2c, emissiveIntensity: 0.05 });
 const boltMat = mat(0xd9e7f3, { roughness: 0.5, metalness: 0.22 });
+const seamMat = mat(0x1b2328, { roughness: 0.72, metalness: 0.05, emissive: 0x050607, emissiveIntensity: 0.1 });
 const bendMat = mat(COLORS.bend, { roughness: 0.6, metalness: 0.1, emissive: 0x032533, emissiveIntensity: 0.1 });
 const restMat = mat(COLORS.rest, { emissive: 0x063244, emissiveIntensity: 0.18 });
 const guideMat = mat(COLORS.guide, { emissive: 0x063322, emissiveIntensity: 0.16 });
@@ -227,6 +228,23 @@ function createCatalogLinearComponentVisual(element, spec, a, b, pipeRadius, bas
   const pointAt = (offset) => mid.clone().add(dir.clone().multiplyScalar(offset || 0));
 
   for (const primitive of primitives) {
+    if (primitive.hiddenBoreFill) continue;
+    if (primitive.kind === 'seam-ring') {
+      add(
+        cylinderAlongAxis(
+          pointAt(primitive.axialOffset),
+          dir,
+          primitive.length,
+          Math.max(primitive.radius || pipeRadius * 1.08, pipeRadius * 1.04),
+          seamMat,
+          24,
+          `${element.id}_${primitive.role}`
+        ),
+        primitive.role,
+        { ...primitive, geometryKind: 'SEAM_RING' }
+      );
+      continue;
+    }
     if (primitive.kind === 'disc') {
       if (isTaperedLinearPrimitive(primitive)) {
         const { radiusStart, radiusEnd } = taperedRadiiForPrimitive(primitive);

@@ -54,8 +54,12 @@ export async function convertInputXmlToGlbWithPipingShadow(sourceText, options =
   const shouldReexport = Boolean(
     glbResult.scene
     && postprocess
-    && postprocess.hiddenBaseCylinders > 0
     && options.reexportGlbAfterVisualPostprocess !== false
+    && (
+      postprocess.hiddenBaseCylinders > 0
+      || postprocess.flangeVisualCorrections > 0
+      || postprocess.flangeTopologyCorrections > 0
+    )
   );
 
   if (shouldReexport) {

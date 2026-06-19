@@ -2,10 +2,10 @@ import * as THREE from 'three';
 
 // Static/core Clip Box.
 // This is deliberately separate from the old advanced clip-box controller stack.
-// It adds one Clip Box button, one compact viewer panel, a visible ghost helper,
+// It adds one Clip Box button, one compact viewer panel, a visible live ghost helper,
 // and applies renderer clipping planes through the lightweight runtime bridge.
 
-const VERSION = 'static-core-clip-box-helper-baseline-20260618';
+const VERSION = 'static-core-clip-box-live-preview-20260618';
 const HELPER_NAME = 'STATIC_CLIP_BOX_HELPER';
 const STATE = {
   open: false,
@@ -19,7 +19,8 @@ const STATE = {
   helper: null,
   baselineBox: null,
   baselineLabel: '',
-  lastSource: 'none'
+  lastSource: 'none',
+  previewVisible: false
 };
 
 runWhenReady(initStaticClipBoxCore);
@@ -189,10 +190,10 @@ function ensurePanel() {
     ${axisRow('z', 'Z')}
     <div class="static-clipbox-actions">
       <button id="staticClipBoxBaselineBtn" type="button" title="Use selected geometry as clip box baseline">Base line</button>
-      <button id="staticClipBoxApplyBtn" type="button">Apply</button>
+      <button id="staticClipBoxApplyBtn" type="button" title="Apply clipping to the live ghost box">Apply</button>
       <button id="staticClipBoxResetBtn" type="button">Reset</button>
     </div>
-    <div id="staticClipBoxReadout" class="static-clipbox-readout">Clip Box is off.</div>
+    <div id="staticClipBoxReadout" class="static-clipbox-readout">Open Clip Box to preview a ghost helper.</div>
   `;
   viewer.appendChild(panel);
 
@@ -206,9 +207,16 @@ function ensurePanel() {
   });
   panel.querySelector('#staticClipBoxResetBtn')?.addEventListener('click', resetClipBox);
   panel.querySelectorAll('input[data-clipbox-axis]').forEach((input) => {
+    input.addEventListener('input', () => {
+      readInputs();
+      if (STATE.enabled) applyClipBox();
+      else previewClipBox();
+      updateUi();
+    });
     input.addEventListener('change', () => {
       readInputs();
       if (STATE.enabled) applyClipBox();
+      else previewClipBox();
       updateUi();
     });
   });
@@ -227,6 +235,7 @@ function axisRow(axis, label) {
 function bindRuntimeEvents() {
   ['markup:render-context', 'viewer:runtime-context', 'viewer:selection-changed', 'viewer:static-tree-refreshed'].forEach((name) => {
     window.addEventListener(name, () => {
+      if (STATE.open && !STATE.enabled) previewClipBox();
       if (STATE.enabled) applyClipBox();
       updateUi();
     });
@@ -240,6 +249,7 @@ function installApi() {
     close: closePanel,
     toggle: togglePanel,
     apply: () => { STATE.enabled = true; applyClipBox(); updateUi(); },
+    preview: previewClipBox,
     reset: resetClipBox,
     baseline: captureBaseline,
     state: STATE
@@ -255,6 +265,9 @@ function openPanel() {
   if (!panel) return;
   STATE.open = true;
   panel.hidden = false;
+  readInputs();
+  if (STATE.enabled) applyClipBox();
+  else previewClipBox();
   updateUi();
 }
 
@@ -262,6 +275,7 @@ function closePanel() {
   const panel = document.getElementById('staticClipBoxPanel');
   STATE.open = false;
   if (panel) panel.hidden = true;
+  if (!STATE.enabled) clearHelper();
   updateUi();
 }
 
@@ -276,27 +290,30 @@ function resetClipBox() {
     zMax: 100,
     baselineBox: null,
     baselineLabel: '',
-    lastSource: 'none'
+    lastSource: 'none',
+    previewVisible: false
   });
   clearHelper();
   clearRendererClipping();
   writeInputs();
+  if (STATE.open) previewClipBox();
   updateUi();
 }
 
 function captureBaseline() {
   const runtime = getRuntime();
-  const selected = runtime.selectedObject;
+  const selected = runtime.selectedObject || window.__3D_MARKUP_STATIC_TREE__?.state?.selectedObject || null;
   const box = selected ? objectBounds(selected) : null;
   if (!isValidBox(box)) {
     STATE.lastSource = 'baseline-missing';
+    previewClipBox();
     updateUi();
     return false;
   }
   STATE.baselineBox = box.clone();
   STATE.baselineLabel = selected?.name || selected?.userData?.ID || selected?.userData?.id || 'selected geometry';
-  STATE.enabled = true;
-  applyClipBox();
+  if (STATE.enabled) applyClipBox();
+  else previewClipBox();
   updateUi();
   return true;
 }
@@ -319,6 +336,24 @@ function writeInputs() {
   });
 }
 
+function previewClipBox() {
+  const runtime = getRuntime();
+  const scene = runtime.scene || runtime.modelRoot?.parent || null;
+  const resolved = resolveBounds(runtime, scene);
+  if (!resolved?.box || !scene) {
+    STATE.lastSource = 'model-missing';
+    STATE.previewVisible = false;
+    clearHelper();
+    return false;
+  }
+  const box = percentBox(resolved.box);
+  STATE.lastSource = resolved.source;
+  STATE.previewVisible = true;
+  showHelper(scene, box, resolved.source, { preview: true });
+  requestRender(runtime);
+  return true;
+}
+
 function applyClipBox() {
   const runtime = getRuntime();
   const scene = runtime.scene || runtime.modelRoot?.parent || null;
@@ -333,9 +368,11 @@ function applyClipBox() {
 
   const box = percentBox(resolved.box);
   STATE.lastSource = resolved.source;
-  if (scene) showHelper(scene, box, resolved.source);
+  STATE.previewVisible = true;
+  if (scene) showHelper(scene, box, resolved.source, { preview: false });
 
   if (!renderer) {
+    requestRender(runtime);
     return false;
   }
 
@@ -349,6 +386,7 @@ function applyClipBox() {
     runtime.clippingMode = 'box';
     window.dispatchEvent(new CustomEvent('viewer:clipping-changed', { detail: { mode: 'box', source: 'static-clipbox', planes } }));
   }
+  requestRender(runtime);
   return true;
 }
 
@@ -363,12 +401,13 @@ function clearRendererClipping() {
   runtime.clippingPlanes = [];
   runtime.clippingMode = 'none';
   window.dispatchEvent(new CustomEvent('viewer:clipping-changed', { detail: { mode: 'none', source: 'static-clipbox' } }));
+  requestRender(runtime);
 }
 
 function resolveBounds(runtime, scene) {
   if (isValidBox(STATE.baselineBox)) return { box: STATE.baselineBox.clone(), source: 'baseline' };
 
-  const selected = runtime.selectedObject;
+  const selected = runtime.selectedObject || window.__3D_MARKUP_STATIC_TREE__?.state?.selectedObject || null;
   const selectedBox = selected ? objectBounds(selected) : null;
   if (isValidBox(selectedBox)) return { box: selectedBox, source: 'selected' };
 
@@ -429,27 +468,29 @@ function planesForBox(box) {
   ];
 }
 
-function showHelper(scene, box, source) {
+function showHelper(scene, box, source, options = {}) {
   clearHelper();
-  const color = source === 'baseline' || source === 'selected' ? 0xf7b75c : 0x65d5ff;
+  const color = source === 'baseline' || source === 'selected' ? 0xffb84d : 0x65d5ff;
   const size = box.getSize(new THREE.Vector3());
   const center = box.getCenter(new THREE.Vector3());
   const group = new THREE.Group();
   group.name = HELPER_NAME;
-  group.renderOrder = 1500;
+  group.renderOrder = 100000;
   group.userData = { isDisplayHelper: true, ignoreBounds: true };
 
-  const fillGeometry = new THREE.BoxGeometry(Math.max(size.x, 1e-6), Math.max(size.y, 1e-6), Math.max(size.z, 1e-6));
+  const safeSize = new THREE.Vector3(Math.max(size.x, 1e-6), Math.max(size.y, 1e-6), Math.max(size.z, 1e-6));
+  const fillGeometry = new THREE.BoxGeometry(safeSize.x, safeSize.y, safeSize.z);
   const fillMaterial = new THREE.MeshBasicMaterial({
     color,
     transparent: true,
-    opacity: 0.12,
+    opacity: options.preview ? 0.18 : 0.24,
     depthTest: false,
     depthWrite: false,
     side: THREE.DoubleSide
   });
   const fill = new THREE.Mesh(fillGeometry, fillMaterial);
   fill.name = `${HELPER_NAME}_GHOST`;
+  fill.renderOrder = group.renderOrder;
 
   const edgeGeometry = new THREE.EdgesGeometry(fillGeometry);
   const edgeMaterial = new THREE.LineBasicMaterial({
@@ -461,12 +502,36 @@ function showHelper(scene, box, source) {
   });
   const edges = new THREE.LineSegments(edgeGeometry, edgeMaterial);
   edges.name = `${HELPER_NAME}_EDGES`;
+  edges.renderOrder = group.renderOrder + 1;
 
   group.add(fill);
   group.add(edges);
+  addCornerMarkers(group, safeSize, color);
   group.position.copy(center);
   scene.add(group);
   STATE.helper = group;
+}
+
+function addCornerMarkers(group, size, color) {
+  const radius = Math.max(Math.min(size.x, size.y, size.z) * 0.018, 0.025);
+  const markerGeometry = new THREE.SphereGeometry(radius, 10, 8);
+  const markerMaterial = new THREE.MeshBasicMaterial({
+    color,
+    transparent: true,
+    opacity: 1,
+    depthTest: false,
+    depthWrite: false
+  });
+  const hx = size.x / 2;
+  const hy = size.y / 2;
+  const hz = size.z / 2;
+  [-1, 1].forEach((x) => [-1, 1].forEach((y) => [-1, 1].forEach((z) => {
+    const marker = new THREE.Mesh(markerGeometry.clone(), markerMaterial.clone());
+    marker.name = `${HELPER_NAME}_CORNER`;
+    marker.position.set(x * hx, y * hy, z * hz);
+    marker.renderOrder = group.renderOrder + 2;
+    group.add(marker);
+  })));
 }
 
 function clearHelper() {
@@ -478,13 +543,14 @@ function clearHelper() {
   });
   STATE.helper.parent?.remove?.(STATE.helper);
   STATE.helper = null;
+  STATE.previewVisible = false;
 }
 
 function updateUi() {
   const button = document.getElementById('clipBoxToggleBtn');
   if (button) {
     button.classList.toggle('active', STATE.open);
-    button.classList.toggle('tool-active', STATE.enabled);
+    button.classList.toggle('tool-active', STATE.enabled || STATE.previewVisible);
     button.setAttribute('aria-pressed', STATE.enabled ? 'true' : 'false');
   }
   const baseline = document.getElementById('staticClipBoxBaselineBtn');
@@ -496,16 +562,16 @@ function updateUi() {
 
 function readoutText() {
   if (STATE.lastSource === 'baseline-missing') return 'Select geometry first, then click Base line.';
-  if (!STATE.enabled) return 'Clip Box is off. Set range and Apply to show a 3D helper box.';
   if (STATE.lastSource === 'model-missing') return 'Load or convert a model first.';
-  const runtime = getRuntime();
-  const clipState = runtime.renderer ? '' : ' Helper visible; renderer clipping context is still warming up.';
   const scope = STATE.lastSource === 'baseline'
     ? `baseline: ${STATE.baselineLabel || 'selected geometry'}`
     : STATE.lastSource === 'selected'
       ? 'selected object bounds'
-      : 'full model bounds';
-  return `Using ${scope}: X ${STATE.xMin}-${STATE.xMax}%, Y ${STATE.yMin}-${STATE.yMax}%, Z ${STATE.zMin}-${STATE.zMax}%.${clipState}`;
+      : STATE.lastSource === 'model'
+        ? 'full model bounds'
+        : 'clip bounds';
+  const mode = STATE.enabled ? 'Clipping applied' : 'Preview only';
+  return `${mode}. Ghost box uses ${scope}: X ${STATE.xMin}-${STATE.xMax}%, Y ${STATE.yMin}-${STATE.yMax}%, Z ${STATE.zMin}-${STATE.zMax}%.`;
 }
 
 function shouldSkip(object) {
@@ -526,6 +592,14 @@ function getRuntime() {
   if (primary?.renderer || primary?.scene || primary?.modelRoot) return primary;
   if (legacy?.renderer || legacy?.scene || legacy?.modelRoot) return legacy;
   return primary || legacy || {};
+}
+
+function requestRender(runtime) {
+  if (typeof runtime?.renderOnce === 'function') {
+    runtime.renderOnce('static-clipbox');
+    return;
+  }
+  window.dispatchEvent(new CustomEvent('viewer:request-render', { detail: { source: 'static-clipbox' } }));
 }
 
 function isValidBox(box) {

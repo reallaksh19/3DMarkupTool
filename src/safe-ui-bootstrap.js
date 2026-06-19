@@ -2,8 +2,8 @@
 // index.html owns the professional shell. Default mode focuses on stable
 // model review/export UI. Clip tools are opt-in only.
 
-const SAFE_UI_VERSION = 'viewpad-icons-context-saved-state-20260619';
-const CLIP_UI_VERSION = 'viewpad-icons-context-saved-state-20260619';
+const SAFE_UI_VERSION = 'esc-tools-export-icons-20260619';
+const CLIP_UI_VERSION = 'esc-tools-export-icons-20260619';
 const CORE_MODULE_URLS = [
   `./static-shell-core-controller.js?v=${SAFE_UI_VERSION}`,
   `./static-review-ui-polish-controller.js?v=${SAFE_UI_VERSION}`,
@@ -29,7 +29,8 @@ const CORE_MODULE_URLS = [
   `./static-markup-core-controller.js?v=${SAFE_UI_VERSION}`,
   `./static-quick-export-core-controller.js?v=${SAFE_UI_VERSION}`,
   `./static-topbar-layout-controller.js?v=${SAFE_UI_VERSION}`,
-  `./static-review-ribbon-tools-controller.js?v=${SAFE_UI_VERSION}`
+  `./static-review-ribbon-tools-controller.js?v=${SAFE_UI_VERSION}`,
+  `./static-ui-stability-fixes-controller.js?v=${SAFE_UI_VERSION}`
 ];
 const CLIP_MODULE_URLS = shouldLoadClipTools() ? [
   `./fresh-clip-controller.js?v=${CLIP_UI_VERSION}`,

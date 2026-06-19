@@ -6,7 +6,7 @@ const bootstrap = readFileSync(new URL('../src/safe-ui-bootstrap.js', import.met
 const pkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
 
 assert.match(bootstrap, /static-saved-views-controller\.js\?v=\$\{SAFE_UI_VERSION\}/, 'bootstrap must load the saved views viewpad controller');
-assert.match(bootstrap, /component-search-viewpad-20260619/, 'safe bootstrap cache key must bump for the current view pad tool pack');
+assert.match(bootstrap, /measure-polyline-viewpad-20260619/, 'safe bootstrap cache key must bump for the current view pad tool pack');
 
 assert.match(controller, /const TOOL_VIEW = 'savedViews'/, 'controller must define a stable saved-views data-view key');
 assert.match(controller, /Saved Views: save\/restore camera and clipping/, 'controller must expose a user-facing saved views tooltip');

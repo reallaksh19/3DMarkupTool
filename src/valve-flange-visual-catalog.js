@@ -265,16 +265,19 @@ function flangeEntry(componentType, visualRecipeId, visualKey, profile) {
 }
 
 function positiveNumber(value, fallback) {
-  const n = Number(value);
+  if (value && typeof value === 'object' && 'value' in value) value = value.value;
+  const match = String(value ?? '').match(/-?\d+(?:\.\d+)?/);
+  if (!match) return fallback;
+  const n = Number(match[0]);
   return Number.isFinite(n) && n > 0 ? n : fallback;
 }
 
 function clamp(value, min, max) {
-  return Math.min(max, Math.max(min, value));
+  return Math.max(min, Math.min(max, value));
 }
 
 function deepFreeze(value) {
-  if (!value || typeof value !== 'object' || Object.isFrozen(value)) return value;
+  if (!value || typeof value !== 'object') return value;
   Object.freeze(value);
   for (const child of Object.values(value)) deepFreeze(child);
   return value;

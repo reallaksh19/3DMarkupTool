@@ -1,0 +1,194 @@
+/* Static shell performance guard.
+ *
+ * This file owns first-paint geometry for the review shell. It intentionally
+ * pre-sizes rows and panels that later controllers decorate so post-bootstrap
+ * UI does not push the LCP text or workspace around.
+ */
+
+.viewer-topbar {
+  grid-template-rows: auto auto auto;
+}
+
+.main-ribbon .tool-group,
+.main-ribbon .toolbar-group {
+  min-height: 68px;
+}
+
+.main-ribbon #staticReviewRibbonGroup:empty,
+.main-ribbon .shell-reserved-group:empty {
+  min-width: 116px;
+  justify-content: center;
+}
+
+.main-ribbon #staticReviewRibbonGroup:empty::before,
+.main-ribbon .shell-reserved-group:empty::before {
+  content: 'Review';
+  color: rgba(159, 179, 204, .72);
+  font-size: 12px;
+  font-weight: 850;
+  letter-spacing: .03em;
+}
+
+.topbar-actions .top-menu-wrap {
+  position: relative;
+  flex: 0 0 auto;
+  min-width: 86px;
+}
+
+.topbar-actions .top-menu-btn {
+  min-width: 86px;
+}
+
+.markup-ribbon {
+  display: flex;
+  min-height: 52px;
+  align-items: center;
+}
+
+.markup-ribbon .navis-tag-tools {
+  display: flex;
+  min-height: 52px;
+}
+
+.markup-ribbon .navis-tag-tools:empty::before {
+  content: 'Markup / XML tools';
+  color: rgba(159, 179, 204, .58);
+  font-size: 12px;
+  font-weight: 850;
+  letter-spacing: .03em;
+  padding: 0 6px;
+}
+
+#inputDrawer {
+  scroll-padding-top: 8px;
+}
+
+#inputDrawer .phase2-input-sticky-section,
+#inputDrawer .phase4a-input-compact-section,
+#inputDrawer .panel-section[data-phase2-input="always-visible"] {
+  position: static;
+  padding: 10px 0 12px;
+  margin: 0;
+  border-top: 1px solid rgba(83, 125, 176, .18);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+#inputDrawer .phase2-input-sticky-section h3,
+#inputDrawer .phase4a-input-compact-section h3 {
+  margin-bottom: 6px;
+}
+
+#inputFileStatus.input-file-status {
+  display: flex;
+  align-items: center;
+  min-height: 24px;
+  margin: 0 0 6px;
+  padding: 3px 8px;
+  border: 1px solid rgba(83, 125, 176, .34);
+  border-radius: 8px;
+  color: #f8fbff;
+  background: rgba(4, 14, 28, .55);
+  font-size: 12px;
+  font-weight: 850;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#inputDrawer .phase2-input-sticky-section > .file-drop,
+#inputDrawer .phase4a-input-compact-section > .file-drop,
+#inputDrawer .panel-section[data-phase2-input="always-visible"] > .file-drop {
+  display: flex;
+  min-height: 34px;
+  margin-bottom: 8px;
+  padding: 6px 10px;
+  line-height: 1;
+}
+
+#inputDrawer .phase2-input-sticky-section > .input-primary-actions,
+#inputDrawer .phase4a-input-compact-section > .input-primary-actions,
+#inputDrawer .panel-section[data-phase2-input="always-visible"] > .input-primary-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: nowrap;
+}
+
+#inputDrawer .phase2-input-sticky-section #loadSampleBtn,
+#inputDrawer .phase2-input-sticky-section #clearBtn,
+#inputDrawer .phase4a-input-compact-section #loadSampleBtn,
+#inputDrawer .phase4a-input-compact-section #clearBtn {
+  flex: 1 1 0;
+  min-width: 0;
+  padding: 7px 6px;
+  white-space: nowrap;
+  font-size: 11px;
+}
+
+#inputDrawer .phase2-input-sticky-section #loadSampleBtn span,
+#inputDrawer .phase2-input-sticky-section #clearBtn span,
+#inputDrawer .phase4a-input-compact-section #loadSampleBtn span,
+#inputDrawer .phase4a-input-compact-section #clearBtn span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#closeInputBtn[hidden] {
+  display: none;
+}
+
+#inputDrawer .panel-section[data-section="input"] > h3::after {
+  content: none;
+  display: none;
+}
+
+#inputDrawer .panel-section[data-section="input"] > h3 {
+  cursor: default;
+}
+
+#inputDrawer .panel-section[data-collapsible] > h3 {
+  cursor: pointer;
+  user-select: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 26px;
+  margin-bottom: 0;
+}
+
+#inputDrawer .panel-section[data-collapsible] > h3::after {
+  content: '▸';
+  margin-left: auto;
+  color: rgba(159, 179, 204, .9);
+  font-size: 12px;
+}
+
+body.conversion-expanded #inputDrawer .panel-section[data-collapsible="conversion"] > h3::after,
+body.sideload-expanded #inputDrawer .panel-section[data-collapsible="sideload"] > h3::after {
+  content: '▾';
+}
+
+body:not(.conversion-expanded) #inputDrawer .panel-section[data-collapsible="conversion"] > .conversion-collapsible-content,
+body:not(.sideload-expanded) #inputDrawer .panel-section[data-collapsible="sideload"] > .sideload-collapsible-content {
+  display: none;
+}
+
+#inputDrawer .panel-section[data-collapsible="sideload"] {
+  padding-top: 12px;
+  padding-bottom: 12px;
+}
+
+.property-drawer,
+.input-drawer,
+.viewer-shell,
+.app-workspace {
+  min-height: 0;
+}
+
+.properties-body.empty-state {
+  min-height: 65%;
+}

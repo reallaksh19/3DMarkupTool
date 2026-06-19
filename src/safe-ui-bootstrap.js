@@ -140,4 +140,5 @@ function emitBootstrapModuleFailure(url, reason) {
     userAgent: window.navigator && window.navigator.userAgent
   };
   window.dispatchEvent(new CustomEvent('viewer:bootstrap-module-failure', { detail }));
+  window.dispatchEvent(new CustomEvent('3dmarkup:bootstrap-module-failed', { detail }));
 }

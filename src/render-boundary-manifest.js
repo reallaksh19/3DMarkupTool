@@ -7,7 +7,8 @@ export const CONTRACT_RENDER_BOUNDARY = Object.freeze({
     'src/piping-component-contract.js',
     'src/piping-component-catalog.js',
     'src/piping-component-layer.js',
-    'src/render-plan-adapter.js'
+    'src/render-plan-adapter.js',
+    'src/export-plan-adapter.js'
   ]),
   legacyFallbackRenderers: Object.freeze([
     Object.freeze({

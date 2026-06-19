@@ -1,5 +1,6 @@
 import { parseMarkupSource } from './source-parser.js?v=20260618-uxml-source-1';
 import { buildRvmExportModel } from './export-model.js?v=professional-viewer-3';
+import { normalizeNavisExportModelNames } from './navis-safe-export-model.js?v=navis-safe-names-1';
 import { assertNavisExportModel } from './navis-export-contract.js?v=navis-contract-1';
 import { writeRvm } from './rvm-writer.js?v=professional-viewer-3';
 import { writeAtt } from './att-writer.js?v=professional-viewer-3';
@@ -12,7 +13,7 @@ import { writeAtt } from './att-writer.js?v=professional-viewer-3';
  */
 export function convertInputXmlToRvmAtt(sourceText, options) {
   const model = parseMarkupSource(sourceText, options || {});
-  const exportModel = buildRvmExportModel(model, options || {});
+  const exportModel = normalizeNavisExportModelNames(buildRvmExportModel(model, options || {}));
   const navisContract = assertNavisExportModel(exportModel, {
     sourceKind: model.sourceKind || 'InputXML'
   });

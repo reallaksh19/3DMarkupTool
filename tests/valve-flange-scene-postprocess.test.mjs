@@ -2,7 +2,8 @@ import assert from 'node:assert/strict';
 import {
   hideCatalogReplacedBaseCylinders,
   isCatalogVisualGroup,
-  isLegacyBaseCylinderForComponent
+  isLegacyBaseCylinderForComponent,
+  hasLegacyBaseCylinderRole
 } from '../src/valve-flange-scene-postprocess.js';
 
 function object(name, userData = {}, children = []) {
@@ -38,7 +39,39 @@ function run() {
   assert.equal(valveBaseCylinder.userData.hiddenByVisualCatalog, true);
   assert.equal(adjacentPipe.visible, true, 'adjacent pipe component must remain visible');
 
-  const flangeBaseCylinder = object('F-200', { TYPE: 'COMPONENT', ID: 'F-200', id: 'F-200' });
+  const flangedValveBaseCylinder = object('PE_007_FLANGED_VALVE_83_TO_86', {
+    TYPE: 'COMPONENT',
+    ID: 'PE_007_FLANGED_VALVE_83_TO_86',
+    id: 'PE_007_FLANGED_VALVE_83_TO_86',
+    meshRole: 'Flanged Valve',
+    engineeringType: 'FLANGED_VALVE'
+  });
+  const flangedValveVisualGroup = object('PE_007_FLANGED_VALVE_83_TO_86_valve-flanged', {
+    TYPE: 'COMPONENT',
+    ID: 'PE_007_FLANGED_VALVE_83_TO_86',
+    id: 'PE_007_FLANGED_VALVE_83_TO_86',
+    meshRole: 'CATALOG_VISUAL_GROUP',
+    componentClass: 'VALVE',
+    componentType: 'FLANGED_VALVE',
+    visualCatalogSchema: 'valve-flange-visual-catalog/v1'
+  });
+  const flangedValveAdjacentPipe = object('PE_006_PIPE_80_TO_83', {
+    TYPE: 'COMPONENT',
+    ID: 'PE_006_PIPE_80_TO_83',
+    id: 'PE_006_PIPE_80_TO_83',
+    meshRole: 'PIPE'
+  });
+  const flangedValveScene = object('scene', {}, [
+    object('plant.geometry', {}, [flangedValveAdjacentPipe, flangedValveBaseCylinder, flangedValveVisualGroup])
+  ]);
+  assert.equal(hasLegacyBaseCylinderRole(flangedValveBaseCylinder.userData), true, 'Flanged Valve meshRole must be treated as the replaceable legacy base cylinder');
+  assert.equal(isLegacyBaseCylinderForComponent(flangedValveBaseCylinder, 'PE_007_FLANGED_VALVE_83_TO_86'), true);
+  const flangedValveStats = hideCatalogReplacedBaseCylinders(flangedValveScene);
+  assert.equal(flangedValveStats.hiddenBaseCylinders, 1);
+  assert.equal(flangedValveBaseCylinder.visible, false, 'selected flanged valve base cylinder must not remain visible through the catalogue body');
+  assert.equal(flangedValveAdjacentPipe.visible, true, 'adjacent pipe before the flanged valve must remain visible');
+
+  const flangeBaseCylinder = object('F-200', { TYPE: 'COMPONENT', ID: 'F-200', id: 'F-200', meshRole: 'Flange Pair' });
   const flangeVisualGroup = object('F-200_flange-pair', {
     TYPE: 'COMPONENT',
     ID: 'F-200',

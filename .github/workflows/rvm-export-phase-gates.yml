@@ -144,3 +144,4 @@ assert.ok(converter.includes('new THREE.TorusGeometry'), 'renderer must draw sea
           END=$(date +%s)
           ELAPSED=$((END - CI_PHASE_START))
           echo "RVM/ATT phase gates finished in ${ELAPSED}s"
+# trigger: seam-ring-torus

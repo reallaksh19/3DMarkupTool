@@ -23,6 +23,9 @@ jobs:
         with:
           node-version: '20'
 
+      - name: Install Node dependencies
+        run: npm install --no-audit --no-fund
+
       - name: Start CI timer
         run: echo "CI_PHASE_START=$(date +%s)" >> "$GITHUB_ENV"
 

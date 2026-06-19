@@ -6,7 +6,7 @@ const bootstrap = readFileSync(new URL('../src/safe-ui-bootstrap.js', import.met
 const pkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
 
 assert.match(bootstrap, /static-explode-review-controller\.js\?v=\$\{SAFE_UI_VERSION\}/, 'bootstrap must load the explode review viewpad controller');
-assert.match(bootstrap, /viewpad-icons-context-saved-state-20260619/, 'safe bootstrap cache key must bump for explode review');
+assert.match(bootstrap, /esc-tools-export-icons-20260619/, 'safe bootstrap cache key must bump for explode review and the current ESC/export/icon tool pack');
 
 assert.match(controller, /const TOOL_VIEW = 'explodeReview'/, 'controller must define a stable explode-review data-view key');
 assert.match(controller, /Explode Review: separate components by type or line number/, 'controller must expose a user-facing explode tooltip');

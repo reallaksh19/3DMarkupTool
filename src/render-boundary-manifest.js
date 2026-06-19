@@ -4,7 +4,9 @@ export const CONTRACT_RENDER_BOUNDARY = Object.freeze({
   schemaVersion: RENDER_BOUNDARY_SCHEMA,
   policy: 'source adapters and component contracts own classification; renderers must consume geometry contracts',
   contractEntryPoints: Object.freeze([
-    'src/piping-component-contract.js'
+    'src/piping-component-contract.js',
+    'src/piping-component-catalog.js',
+    'src/piping-component-layer.js'
   ]),
   legacyFallbackRenderers: Object.freeze([
     Object.freeze({

@@ -42,6 +42,50 @@ function sampleScene() {
   };
 }
 
+function sampleValveScene() {
+  return {
+    type: 'Scene',
+    userData: {},
+    children: [{
+      name: 'plant.geometry',
+      userData: {},
+      children: [
+        {
+          type: 'Mesh',
+          isMesh: true,
+          name: 'V-100',
+          visible: true,
+          userData: { TYPE: 'COMPONENT', ID: 'V-100', id: 'V-100' },
+          children: []
+        },
+        {
+          type: 'Group',
+          name: 'V-100_gate-valve',
+          visible: true,
+          userData: {
+            TYPE: 'COMPONENT',
+            ID: 'V-100',
+            id: 'V-100',
+            meshRole: 'CATALOG_VISUAL_GROUP',
+            componentClass: 'VALVE',
+            visualCatalogSchema: 'valve-flange-visual-catalog/v1',
+            visualRecipeId: 'valve-gate-symbol.v1'
+          },
+          children: []
+        },
+        {
+          type: 'Mesh',
+          isMesh: true,
+          name: 'P-101',
+          visible: true,
+          userData: { TYPE: 'COMPONENT', ID: 'P-101', id: 'P-101', meshRole: 'PIPE' },
+          children: []
+        }
+      ]
+    }]
+  };
+}
+
 function assertShadowAudit(result) {
   assert.equal(result.audit.contractPipeline.schemaVersion, CONVERTER_SHADOW_DIAGNOSTICS_SCHEMA);
   assert.equal(result.audit.contractPipeline.mode, 'SHADOW_ONLY');
@@ -49,6 +93,7 @@ function assertShadowAudit(result) {
   assert.equal(result.audit.contractPipeline.ok, true);
   assert.equal(result.audit.contractPipeline.counts.componentsTotal, 1);
   assert.equal(result.audit.contractPipeline.counts.geometryContractsTotal, 1);
+  assert.ok(result.audit.valveFlangeVisualPostprocess);
 }
 
 {
@@ -68,7 +113,24 @@ function assertShadowAudit(result) {
   assert.equal(scene.children[0].userData.componentId, 'PIPE_10_20');
   assert.equal(scene.children[0].userData.componentClass, 'PIPE');
   assert.equal(scene.children[0].userData.fallbackRendered, true);
+  assert.equal(result.audit.valveFlangeVisualPostprocess.hiddenBaseCylinders, 0);
   assertShadowAudit(result);
+}
+
+{
+  const scene = sampleValveScene();
+  const result = attachShadowDiagnosticsToGlbResult({
+    scene,
+    glb: new ArrayBuffer(0),
+    audit: { componentCount: 1 },
+    model: sampleModel()
+  });
+  const [valveBase, valveVisual, adjacentPipe] = scene.children[0].children;
+  assert.equal(result.audit.valveFlangeVisualPostprocess.hiddenBaseCylinders, 1);
+  assert.equal(valveBase.visible, false, 'visual catalogue must hide same-component pipe-through cylinder');
+  assert.equal(valveBase.userData.hiddenByVisualCatalog, true);
+  assert.equal(valveVisual.visible, true);
+  assert.equal(adjacentPipe.visible, true, 'adjacent pipe remains visible');
 }
 
 {

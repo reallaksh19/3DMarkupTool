@@ -1,4 +1,4 @@
-import { buildPipingContractPipeline } from './piping-component-layer.js';
+import { buildInputXmlSafePipingContractPipeline } from './piping-component-inputxml-safe-pipeline.js';
 
 export const PIPING_CONTRACT_SHADOW_SCHEMA = 'PipingContractShadow.v1';
 
@@ -6,7 +6,7 @@ export function runPipingContractShadow(model, options = {}) {
   const startedAt = performanceNow();
   const sourceKind = String(model?.sourceKind || options.sourceKind || 'UNKNOWN_SOURCE');
   try {
-    const pipeline = buildPipingContractPipeline(model, {
+    const pipeline = buildInputXmlSafePipingContractPipeline(model, {
       ...options,
       target: options.target || 'VIEWER'
     });
@@ -99,6 +99,7 @@ function sanitizeDiagnostics(diagnostics = {}) {
     'geometryContractsTotal',
     'fallbackRendered',
     'unrenderableComponents',
+    'delegatedTopologyComponents',
     'graphNodesTotal',
     'graphEdgesTotal',
     'phases'

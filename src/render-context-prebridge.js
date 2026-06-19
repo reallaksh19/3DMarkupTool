@@ -1,13 +1,12 @@
-import * as THREE from 'three';
-
 // Publish renderer/scene context for static UI controllers without touching
 // WebGLRenderer.render(). This avoids the read-only render-property regression
 // seen in earlier recovery work while still giving clip/tree tools stable access
 // to the active renderer and scene.
 //
-// This prebridge is loaded before src/app.js, so it also owns the few remaining
-// legacy DOM contracts that app.js still reads directly. Keep this list small and
-// explicit; do not use this file as a general patch-controller.
+// LCP note: this prebridge intentionally does not import three. app.js publishes
+// the concrete renderer/scene/camera after deferred boot; this file only creates
+// the lightweight runtime object and the few DOM compatibility contracts app.js
+// still reads directly.
 
 const runtime = window.__3D_MARKUP_VIEWER_RUNTIME__ || window.__3D_MARKUP_CLIP_RUNTIME__ || {};
 runtime.renderer = runtime.renderer || null;
@@ -31,10 +30,6 @@ window.__3D_MARKUP_RECORD_RENDER_CONTEXT__ = recordRenderContext;
 
 ensureLegacyHintElement();
 ensureLegacySupportModeContract();
-installRendererMethodHook('setPixelRatio');
-installRendererMethodHook('setSize');
-installRendererMethodHook('setViewport');
-installSceneAddHook();
 
 function ensureLegacyHintElement() {
   if (typeof document === 'undefined') return;
@@ -139,53 +134,6 @@ function ensureHiddenSelect(root, id, values, defaultValue) {
 function isChecked(id, fallback) {
   const node = document.getElementById(id);
   return node ? Boolean(node.checked) : Boolean(fallback);
-}
-
-function installRendererMethodHook(methodName) {
-  const proto = THREE.WebGLRenderer?.prototype;
-  if (!proto) return;
-  const flag = `__markupContext_${methodName}_hooked`;
-  if (proto[flag]) return;
-
-  const original = proto[methodName];
-  if (typeof original !== 'function') return;
-
-  Object.defineProperty(proto, flag, {
-    value: true,
-    configurable: true
-  });
-
-  proto[methodName] = function markupRendererContextBridge(...args) {
-    runtime.renderer = this;
-    runtime.source = `renderer.${methodName}`;
-    publishContext();
-    return original.apply(this, args);
-  };
-}
-
-function installSceneAddHook() {
-  const proto = THREE.Scene?.prototype;
-  if (!proto || proto.__markupContextSceneAddHooked) return;
-
-  const original = proto.add;
-  if (typeof original !== 'function') return;
-
-  Object.defineProperty(proto, '__markupContextSceneAddHooked', {
-    value: true,
-    configurable: true
-  });
-
-  proto.add = function markupSceneAddContextBridge(...objects) {
-    runtime.scene = this;
-    runtime.source = 'scene.add';
-    for (const object of objects) {
-      if (!object) continue;
-      if (object.type === 'PerspectiveCamera' || object.isCamera) runtime.camera = object;
-      if (object.name && !object.userData?.isDisplayHelper && !object.isLight && !object.isCamera) runtime.modelRoot = object;
-    }
-    publishContext(objects);
-    return original.apply(this, objects);
-  };
 }
 
 function recordRenderContext(detail = {}) {

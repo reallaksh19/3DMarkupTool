@@ -18,14 +18,32 @@ assert.match(
 
 assert.match(
   collapseController,
-  /section\.dataset\.collapsible\s*=\s*['"]conversion['"]/, 
-  'Conversion section must be tagged explicitly as the only collapsible drawer section.'
+  /bindCollapsibleSection\(section, 'conversion'/,
+  'Conversion section must be tagged explicitly as a collapsible drawer section.'
 );
 
 assert.match(
   collapseController,
-  /setConversionExpanded\(false\)/,
+  /setSectionExpanded\('conversion', false\)/,
   'Conversion settings must initialize collapsed.'
+);
+
+assert.match(
+  collapseController,
+  /initSideloadSection/,
+  'Sideload section must have an explicit collapse initializer.'
+);
+
+assert.match(
+  collapseController,
+  /bindCollapsibleSection\(section, 'sideload'/,
+  'Sideload section must be tagged explicitly as a collapsible drawer section.'
+);
+
+assert.match(
+  collapseController,
+  /setSectionExpanded\('sideload', false\)/,
+  'Sideload Data must initialize collapsed so it does not consume the input drawer.'
 );
 
 assert.doesNotMatch(
@@ -47,8 +65,14 @@ assert.match(
 );
 
 assert.match(
+  collapseController,
+  /data-collapsible="sideload"\]\s*>\s*\.sideload-collapsible-content[\s\S]*display:\s*none\s*!important/,
+  'Sideload fields must be hidden through explicit sideload marker while collapsed.'
+);
+
+assert.match(
   bootstrap,
-  /esc-tools-export-icons-20260619/,
+  /phase4a-static-input-panel-cleanup-20260619|phase4-global-esc-lifecycle-20260619|esc-tools-export-icons-20260619/,
   'Safe UI bootstrap version must remain cache-busted so browsers fetch fixed drawer, view-pad, ESC, export, and icon controllers.'
 );
 

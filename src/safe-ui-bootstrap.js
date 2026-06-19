@@ -1,8 +1,8 @@
 // Deterministic optional-UI bootstrap.
 // index.html owns the professional shell. Default mode focuses on stable
-// model review/export UI. Experimental clip behavior is opt-in only.
+// model review/export UI. Fresh clipping is loaded as a core renderer tool.
 
-const SAFE_UI_VERSION = 'static-color-legend-review-20260619';
+const SAFE_UI_VERSION = 'fresh-clip-core-20260619';
 const CORE_MODULE_URLS = [
   `./static-shell-core-controller.js?v=${SAFE_UI_VERSION}`,
   `./static-review-ui-polish-controller.js?v=${SAFE_UI_VERSION}`,
@@ -11,14 +11,13 @@ const CORE_MODULE_URLS = [
   `./static-properties-actions-controller.js?v=${SAFE_UI_VERSION}`,
   `./static-color-legend-controller.js?v=${SAFE_UI_VERSION}`,
   `./static-markup-core-controller.js?v=${SAFE_UI_VERSION}`,
-  `./static-quick-export-core-controller.js?v=${SAFE_UI_VERSION}`
+  `./static-quick-export-core-controller.js?v=${SAFE_UI_VERSION}`,
+  `./fresh-clip-controller.js?v=${SAFE_UI_VERSION}`
 ];
-const CLIP_MODULE_URLS = [
-  `./static-clip-diagnostics-controller.js?v=${SAFE_UI_VERSION}`,
-  `./clip-adjuster.js?v=${SAFE_UI_VERSION}`,
-  `./static-clipbox-core-controller.js?v=${SAFE_UI_VERSION}`,
-  `./static-clipbox-material-fallback-controller.js?v=${SAFE_UI_VERSION}`
-];
+// Legacy clip controllers are intentionally not loaded. They used multiple
+// competing code paths and could intercept clicks before the renderer-based
+// flow. Fresh clipping is owned by fresh-clip-controller.js.
+const CLIP_MODULE_URLS = [];
 const SAFE_LOADER_URL = `./safe-ui-loader.js?v=${SAFE_UI_VERSION}`;
 const MAX_ATTEMPTS = 4;
 
@@ -32,7 +31,7 @@ function scheduleCoreShell() {
   if (coreShellStarted) return;
   coreShellStarted = true;
   const start = () => {
-    const urls = shouldLoadClipTools() ? CORE_MODULE_URLS.concat(CLIP_MODULE_URLS) : CORE_MODULE_URLS;
+    const urls = CORE_MODULE_URLS.concat(CLIP_MODULE_URLS);
     return Promise.allSettled(urls.map((url) => import(url))).then((results) => {
       results.forEach((result, index) => {
         if (result.status === 'rejected') {
@@ -77,8 +76,7 @@ function shouldLoadOptionalUi() {
 }
 
 function shouldLoadClipTools() {
-  const params = new URLSearchParams(window.location.search);
-  return params.has('clipTools') || window.localStorage.getItem('3dmarkup.clipTools') === '1';
+  return false;
 }
 
 function startSoon(delayMs) {

@@ -1,20 +1,20 @@
 // Static SVG ViewCube controller.
-// Converts the canvas view pad into a compact vertical SVG icon bar.
-// It preserves the existing data-view buttons and app.js click handlers.
+// Builds a clean floating vertical icon bar and proxies clicks to the original app.js view buttons.
+// The original .view-pad is kept only as a hidden action source; it is not restyled into a bar.
 
-const VERSION = 'static-viewcube-vertical-clean-20260619';
+const VERSION = 'static-viewcube-floating-icons-20260619';
 const STYLE_ID = 'staticViewCubeSvgStyles';
+const BAR_ID = 'staticViewCubeBar';
 
 const VIEW_ORDER = ['top', 'iso', 'side', 'front', 'fit', 'fitSelection', 'zoom'];
 const VIEW_DEFS = {
   top: { title: 'Top view', label: 'Top', icon: faceIcon('top') },
-  iso: { title: 'Isometric view', label: 'ISO', icon: isoIcon() },
+  iso: { title: 'Isometric view', label: 'ISO', icon: isoIcon(), active: true },
   side: { title: 'Right side view', label: 'Right', icon: faceIcon('right') },
   front: { title: 'Front view', label: 'Front', icon: faceIcon('front') },
-  fit: { title: 'Fit all', label: 'Fit all', icon: cornersIcon() },
-  fitSelection: { title: 'Fit selected object', label: 'Fit selected', icon: focusBoxIcon() },
-  zoom: { title: 'Zoom tool', label: 'Zoom', icon: zoomIcon() },
-  msr: { title: 'Measure tool', label: 'Measure', icon: measureIcon() }
+  fit: { title: 'Fit all', label: 'Fit all', icon: cornersIcon(), group: 'nav' },
+  fitSelection: { title: 'Fit selected object', label: 'Fit selected', icon: focusBoxIcon(), group: 'nav' },
+  zoom: { title: 'Zoom tool', label: 'Zoom', icon: zoomIcon(), group: 'nav' }
 };
 
 runWhenReady(initViewCubeSvg);
@@ -26,10 +26,10 @@ function runWhenReady(callback) {
 
 function initViewCubeSvg() {
   injectStyles();
-  normalizeViewPad();
-  window.addEventListener('viewer:ui-score-changed', normalizeViewPad);
-  window.addEventListener('resize', normalizeViewPad, { passive: true });
-  window.__3D_MARKUP_STATIC_VIEWCUBE_SVG__ = { version: VERSION, refresh: normalizeViewPad };
+  ensureFloatingBar();
+  window.addEventListener('viewer:ui-score-changed', ensureFloatingBar);
+  window.addEventListener('resize', ensureFloatingBar, { passive: true });
+  window.__3D_MARKUP_STATIC_VIEWCUBE_SVG__ = { version: VERSION, refresh: ensureFloatingBar };
 }
 
 function injectStyles() {
@@ -38,104 +38,87 @@ function injectStyles() {
   const style = document.createElement('style');
   style.id = STYLE_ID;
   style.textContent = `
+    /* Old square view pad remains in DOM only so app.js handlers stay available. */
     .view-pad {
-      position: absolute !important;
-      top: 16px !important;
-      right: 16px !important;
-      z-index: 14 !important;
-      width: 50px !important;
-      min-width: 50px !important;
-      max-width: 50px !important;
-      display: flex !important;
-      flex-direction: column !important;
-      align-items: center !important;
-      gap: 7px !important;
-      padding: 8px 6px !important;
-      border-radius: 16px !important;
-      background: rgba(6, 17, 32, .84) !important;
-      border: 1px solid rgba(91, 145, 210, .34) !important;
-      box-shadow: 0 14px 34px rgba(0,0,0,.34), inset 0 1px 0 rgba(255,255,255,.04) !important;
-      backdrop-filter: blur(10px);
-    }
-
-    .view-pad::before {
-      content: none !important;
       display: none !important;
     }
 
-    .view-pad button {
-      position: relative;
-      width: 36px !important;
-      min-width: 36px !important;
-      max-width: 36px !important;
-      height: 36px !important;
-      min-height: 36px !important;
-      max-height: 36px !important;
-      padding: 0 !important;
-      display: inline-grid !important;
-      place-items: center !important;
-      border-radius: 10px !important;
-      color: #dbeeff !important;
-      background: linear-gradient(180deg, rgba(20, 47, 81, .96), rgba(10, 27, 48, .96)) !important;
-      border: 1px solid rgba(110, 162, 225, .30) !important;
-      box-shadow: inset 0 1px 0 rgba(255,255,255,.055), 0 2px 8px rgba(0,0,0,.18) !important;
-      transition: transform .12s ease, border-color .12s ease, background .12s ease, color .12s ease, box-shadow .12s ease;
-    }
-
-    .view-pad button:hover,
-    .view-pad button:focus-visible {
-      transform: translateX(-1px);
-      border-color: rgba(88, 166, 255, .74) !important;
-      color: #ffffff !important;
-      background: linear-gradient(180deg, rgba(25, 91, 165, .98), rgba(14, 61, 119, .98)) !important;
-      box-shadow: inset 0 1px 0 rgba(255,255,255,.08), 0 0 0 2px rgba(88,166,255,.12), 0 4px 12px rgba(0,0,0,.25) !important;
-      outline: none;
-    }
-
-    .view-pad button[data-view="iso"] {
-      color: #ffffff !important;
-      border-color: rgba(88, 166, 255, .80) !important;
-      background: linear-gradient(180deg, rgba(23, 108, 200, .98), rgba(15, 63, 130, .98)) !important;
-      box-shadow: inset 0 1px 0 rgba(255,255,255,.10), 0 0 0 1px rgba(88,166,255,.08), 0 8px 18px rgba(16, 82, 164, .22) !important;
-    }
-
-    .view-pad button[data-view="fit"] {
-      margin-top: 8px;
-    }
-
-    .view-pad button[data-view="fit"]::before {
-      content: '';
+    .static-viewcube-bar {
       position: absolute;
-      top: -8px;
-      left: 4px;
-      right: 4px;
-      height: 1px;
-      background: rgba(159, 195, 231, .22);
+      top: 18px;
+      right: 18px;
+      z-index: 18;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 7px;
+      padding: 0;
+      background: transparent;
+      border: 0;
+      box-shadow: none;
       pointer-events: none;
     }
 
-    .view-pad button[data-view="msr"],
-    .view-pad button[data-view="clip"] {
-      display: none !important;
+    .static-viewcube-btn {
+      width: 36px;
+      height: 36px;
+      min-width: 36px;
+      min-height: 36px;
+      padding: 0;
+      display: inline-grid;
+      place-items: center;
+      border-radius: 10px;
+      border: 1px solid rgba(110, 162, 225, .38);
+      color: #dcefff;
+      background: linear-gradient(180deg, rgba(20, 47, 81, .96), rgba(10, 27, 48, .96));
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.055), 0 3px 10px rgba(0,0,0,.24);
+      cursor: pointer;
+      pointer-events: auto;
+      transition: transform .12s ease, border-color .12s ease, background .12s ease, color .12s ease, box-shadow .12s ease;
     }
 
-    .view-pad .viewcube-icon {
+    .static-viewcube-btn:hover,
+    .static-viewcube-btn:focus-visible {
+      transform: translateX(-1px);
+      border-color: rgba(88, 166, 255, .80);
+      color: #ffffff;
+      background: linear-gradient(180deg, rgba(25, 91, 165, .98), rgba(14, 61, 119, .98));
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.08), 0 0 0 2px rgba(88,166,255,.12), 0 6px 14px rgba(0,0,0,.28);
+      outline: none;
+    }
+
+    .static-viewcube-btn.is-active {
+      color: #ffffff;
+      border-color: rgba(88, 166, 255, .88);
+      background: linear-gradient(180deg, rgba(23, 108, 200, .98), rgba(15, 63, 130, .98));
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.10), 0 0 0 1px rgba(88,166,255,.10), 0 8px 18px rgba(16, 82, 164, .28);
+    }
+
+    .static-viewcube-btn[data-group="nav"] {
+      margin-top: 7px;
+    }
+
+    .static-viewcube-btn[data-group="nav"] + .static-viewcube-btn[data-group="nav"] {
+      margin-top: 0;
+    }
+
+    .static-viewcube-icon {
       width: 18px;
       height: 18px;
       display: block;
       pointer-events: none;
     }
 
-    .view-pad .viewcube-icon path,
-    .view-pad .viewcube-icon rect,
-    .view-pad .viewcube-icon polygon,
-    .view-pad .viewcube-icon circle,
-    .view-pad .viewcube-icon line,
-    .view-pad .viewcube-icon polyline {
+    .static-viewcube-icon path,
+    .static-viewcube-icon rect,
+    .static-viewcube-icon polygon,
+    .static-viewcube-icon circle,
+    .static-viewcube-icon line,
+    .static-viewcube-icon polyline {
       vector-effect: non-scaling-stroke;
     }
 
-    .view-pad .sr-only {
+    .static-viewcube-sr {
       position: absolute !important;
       width: 1px !important;
       height: 1px !important;
@@ -148,23 +131,19 @@ function injectStyles() {
     }
 
     @media (max-height: 720px) {
-      .view-pad {
-        top: 12px !important;
-        right: 12px !important;
-        width: 46px !important;
-        min-width: 46px !important;
-        max-width: 46px !important;
-        gap: 6px !important;
-        padding: 7px 5px !important;
-        border-radius: 15px !important;
+      .static-viewcube-bar {
+        top: 12px;
+        right: 12px;
+        gap: 6px;
       }
-      .view-pad button {
-        width: 34px !important;
-        min-width: 34px !important;
-        height: 34px !important;
-        min-height: 34px !important;
+      .static-viewcube-btn {
+        width: 34px;
+        height: 34px;
+        min-width: 34px;
+        min-height: 34px;
+        border-radius: 9px;
       }
-      .view-pad .viewcube-icon {
+      .static-viewcube-icon {
         width: 17px;
         height: 17px;
       }
@@ -173,36 +152,65 @@ function injectStyles() {
   document.head.appendChild(style);
 }
 
-function normalizeViewPad() {
-  const pad = document.querySelector('.view-pad');
-  if (!pad) return;
-  pad.setAttribute('aria-label', 'Vertical view and navigation toolbar');
-  reorderButtons(pad);
-  pad.querySelectorAll('button[data-view]').forEach((button) => {
-    const key = button.dataset.view;
+function ensureFloatingBar() {
+  const viewer = document.getElementById('viewer') || document.querySelector('.viewer-shell') || document.body;
+  if (!viewer) return null;
+
+  const oldPad = document.querySelector('.view-pad');
+  if (oldPad) oldPad.setAttribute('aria-hidden', 'true');
+
+  let bar = document.getElementById(BAR_ID);
+  if (!bar) {
+    bar = document.createElement('nav');
+    bar.id = BAR_ID;
+    bar.className = 'static-viewcube-bar';
+    bar.setAttribute('aria-label', 'View and navigation shortcuts');
+    viewer.appendChild(bar);
+  }
+
+  renderBar(bar);
+  return bar;
+}
+
+function renderBar(bar) {
+  const existing = new Map(Array.from(bar.querySelectorAll('[data-viewcube-proxy]')).map((button) => [button.dataset.viewcubeProxy, button]));
+  VIEW_ORDER.forEach((key) => {
     const def = VIEW_DEFS[key];
     if (!def) return;
+    let button = existing.get(key);
+    if (!button) {
+      button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'static-viewcube-btn';
+      button.dataset.viewcubeProxy = key;
+      button.addEventListener('click', () => triggerSourceView(key));
+    }
     button.title = def.title;
     button.setAttribute('aria-label', def.title);
-    button.innerHTML = `${def.icon}<span class="sr-only">${escapeHtml(def.label)}</span>`;
+    button.dataset.group = def.group || 'view';
+    button.classList.toggle('is-active', Boolean(def.active));
+    button.innerHTML = `${def.icon}<span class="static-viewcube-sr">${escapeHtml(def.label)}</span>`;
+    bar.appendChild(button);
   });
 }
 
-function reorderButtons(pad) {
-  const buttons = new Map();
-  pad.querySelectorAll('button[data-view]').forEach((button) => buttons.set(button.dataset.view, button));
-  VIEW_ORDER.forEach((key) => {
-    const button = buttons.get(key);
-    if (button) pad.appendChild(button);
-  });
-  ['clip', 'msr'].forEach((key) => {
-    const button = buttons.get(key);
-    if (button) pad.appendChild(button);
-  });
+function triggerSourceView(key) {
+  const source = document.querySelector(`.view-pad button[data-view="${cssEscape(key)}"]`)
+    || document.querySelector(`button[data-view="${cssEscape(key)}"]`);
+  if (source && source !== document.activeElement) {
+    source.click();
+    return;
+  }
+  if (source) source.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, view: window }));
+}
+
+function cssEscape(value) {
+  if (window.CSS?.escape) return window.CSS.escape(value);
+  return String(value).replace(/"/g, '\\"');
 }
 
 function svg(content, viewBox = '0 0 24 24') {
-  return `<svg class="viewcube-icon" viewBox="${viewBox}" aria-hidden="true" focusable="false" fill="none" xmlns="http://www.w3.org/2000/svg">${content}</svg>`;
+  return `<svg class="static-viewcube-icon" viewBox="${viewBox}" aria-hidden="true" focusable="false" fill="none" xmlns="http://www.w3.org/2000/svg">${content}</svg>`;
 }
 
 function faceIcon(face) {
@@ -255,13 +263,6 @@ function zoomIcon() {
     <circle cx="10.5" cy="10.5" r="5.4" stroke="currentColor" stroke-width="1.8"/>
     <path d="M15 15l5 5" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/>
     <path d="M8.3 10.5h4.4M10.5 8.3v4.4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" opacity=".7"/>
-  `);
-}
-
-function measureIcon() {
-  return svg(`
-    <path d="M5 17l12-12 2 2L7 19 5 17z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
-    <path d="M9 15l-1-1M12 12l-1-1M15 9l-1-1" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
   `);
 }
 

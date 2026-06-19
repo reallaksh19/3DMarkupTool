@@ -48,7 +48,7 @@ assert.match(perfCss, /body:not\(\.sideload-expanded\)[\s\S]*sideload-collapsibl
 
 assert.match(collapseController, /initSideloadSection/, 'Sideload section must have an explicit collapse path.');
 assert.match(collapseController, /sideload-expanded/, 'Sideload section must be collapsed by default and expandable on demand.');
-assert.match(collapseController, /data\.collapsible = name/, 'Sideload collapse must be marker-based, not positional.');
+assert.match(collapseController, /dataset\.collapsible = name/, 'Sideload collapse must be marker-based, not positional.');
 assert.match(collapseController, /layoutOwner: 'static-css'/, 'Collapse controller must declare static CSS ownership.');
 assert.doesNotMatch(collapseController, /MutationObserver/, 'Sideload collapse must not use MutationObserver.');
 assert.doesNotMatch(collapseController, /setInterval\(/, 'Sideload collapse must not poll.');

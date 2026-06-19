@@ -6,15 +6,15 @@
   <title>InputXML GLB/RVM Review Viewer</title>
   <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
   <link rel="shortcut icon" href="./favicon.ico" />
-  <link rel="stylesheet" href="./src/styles.css?v=static-clip-entry-runtime-20260619" />
-  <link rel="stylesheet" href="./src/clip-adjuster.css?v=static-clip-entry-runtime-20260619" />
-  <link rel="stylesheet" href="./src/clip-visual-overlays.css?v=static-clip-entry-runtime-20260619" />
+  <link rel="stylesheet" href="./src/styles.css?v=fresh-clip-core-20260619" />
+  <link rel="stylesheet" href="./src/clip-adjuster.css?v=fresh-clip-core-20260619" />
+  <link rel="stylesheet" href="./src/clip-visual-overlays.css?v=fresh-clip-core-20260619" />
   <script type="importmap">
     {
       "imports": {
         "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
         "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/",
-        "lucide": "./src/lucide-safe.js?v=static-clip-entry-runtime-20260619"
+        "lucide": "./src/lucide-safe.js?v=fresh-clip-core-20260619"
       }
     }
   </script>
@@ -65,8 +65,11 @@
         <button id="fitSelectionBtn" type="button" class="tool-btn"><i data-lucide="scan-search"></i><span>Fit Sel</span></button>
       </div>
 
-      <div class="tool-group toolbar-group two-row-command-group" data-group="display" aria-label="Display tools">
-        <button id="clipBtn" type="button" class="tool-btn"><i data-lucide="split-square-horizontal"></i><span>Clip Off</span></button>
+      <div class="tool-group toolbar-group two-row-command-group" data-group="display" aria-label="Display and clipping tools">
+        <button id="clipBtn" type="button" class="tool-btn" hidden aria-hidden="true" tabindex="-1"><i data-lucide="split-square-horizontal"></i><span>Clip Off</span></button>
+        <button id="freshClipPlaneBtn" type="button" class="tool-btn fresh-clip-btn" title="Clip selected geometry with a single adjustable plane"><span class="fresh-clip-glyph" aria-hidden="true">◧</span><span>Plane</span></button>
+        <button id="freshClipBoxBtn" type="button" class="tool-btn fresh-clip-btn" title="Clip to selected geometry bounds with six renderer planes"><span class="fresh-clip-glyph" aria-hidden="true">▣</span><span>Box</span></button>
+        <button id="freshClipClearBtn" type="button" class="tool-btn fresh-clip-btn" title="Clear renderer clipping planes"><span class="fresh-clip-glyph" aria-hidden="true">×</span><span>Clear Clip</span></button>
         <button id="clearSelectionBtn" type="button" class="tool-btn"><i data-lucide="eraser"></i><span>Clear</span></button>
       </div>
 
@@ -177,14 +180,14 @@
         </div>
 
         <div class="measure-readout" id="measureReadout" hidden></div>
-        <div class="clip-adjust-panel" id="clipAdjustPanel" aria-live="polite">
+        <div class="clip-adjust-panel" id="clipAdjustPanel" aria-live="polite" hidden aria-hidden="true">
           <div class="clip-adjust-head"><span>Clip Adjust</span><button type="button" id="clipAdjustToggleBtn">Enable Clip</button></div>
           <div class="clip-adjust-row"><label for="clipAxisSelect">Axis</label><select id="clipAxisSelect"><option value="x">X</option><option value="y">Y</option><option value="z">Z</option></select></div>
           <div class="clip-adjust-row"><label for="clipSlider">Position</label><input id="clipSlider" type="range" min="0" max="100" value="50" step="1" /></div>
           <div class="clip-adjust-row compact"><button type="button" id="clipStepDownBtn" title="Move clip plane backward">−</button><input id="clipOffsetInput" type="number" min="0" max="100" value="50" step="1" /><button type="button" id="clipStepUpBtn" title="Move clip plane forward">+</button></div>
           <label class="clip-adjust-check"><input id="clipInvertCheck" type="checkbox" /><span>Invert side</span></label>
           <button type="button" id="clipCenterBtn" class="clip-center-btn">Center / Reset</button>
-          <p id="clipAdjustHint" class="clip-adjust-hint">Load or convert a model, then enable clip.</p>
+          <p id="clipAdjustHint" class="clip-adjust-hint">Legacy clip panel disabled. Use Fresh Clip.</p>
         </div>
       </div>
       <footer class="viewer-statusbar">
@@ -228,9 +231,10 @@ Axial restraints: no OD/2 radial contact; tips touch unless gap; positive gap = 
 After engineering contact: visual resolver ODx2/3 applies only to final axial/pipe-parallel symbols</pre>
   </dialog>
 
-  <script type="module" src="./src/clip-render-hook.js?v=static-clip-entry-runtime-20260619"></script>
-  <script type="module" src="./src/render-context-prebridge.js?v=static-clip-entry-runtime-20260619"></script>
-  <script type="module" src="./src/app.js?v=static-clip-entry-runtime-20260619"></script>
-  <script type="module" src="./src/safe-ui-bootstrap.js?v=static-clip-entry-runtime-20260619"></script>
+  <script type="module" src="./src/clip-render-hook.js?v=fresh-clip-core-20260619"></script>
+  <script type="module" src="./src/render-context-prebridge.js?v=fresh-clip-core-20260619"></script>
+  <script type="module" src="./src/app.js?v=fresh-clip-core-20260619"></script>
+  <script type="module" src="./src/fresh-clip-controller.js?v=fresh-clip-core-20260619"></script>
+  <script type="module" src="./src/safe-ui-bootstrap.js?v=fresh-clip-core-20260619"></script>
 </body>
 </html>

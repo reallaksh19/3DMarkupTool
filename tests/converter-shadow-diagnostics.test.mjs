@@ -143,6 +143,31 @@ function assertShadowAudit(result) {
   const result = await convertInputXmlToGlbWithPipingShadow('<INPUTXML/>', { supportMode: 'compare' }, legacyConvert);
   assertShadowAudit(result);
   assert.equal(isContractStampedFallback(result.scene.children[0]), true);
+  assert.equal(result.audit.valveFlangeVisualPostprocess.glbReexportedAfterVisualPostprocess, undefined);
+}
+
+{
+  let exporterCalled = false;
+  const reexported = new TextEncoder().encode('reexported-after-visual-postprocess').buffer;
+  const legacyConvert = async () => ({
+    scene: sampleValveScene(),
+    glb: new TextEncoder().encode('old-glb-before-postprocess').buffer,
+    audit: { componentCount: 1 },
+    model: sampleModel()
+  });
+  const result = await convertInputXmlToGlbWithPipingShadow('<INPUTXML/>', {
+    supportMode: 'compare',
+    exportSceneToGlb: async (scene) => {
+      exporterCalled = true;
+      assert.equal(scene.children[0].children[0].visible, false, 'scene must be postprocessed before re-export');
+      return reexported;
+    }
+  }, legacyConvert);
+
+  assert.equal(exporterCalled, true, 'GLB must be re-exported after hiding pipe-through-valve cylinder');
+  assert.equal(result.glb, reexported);
+  assert.equal(result.audit.valveFlangeVisualPostprocess.hiddenBaseCylinders, 1);
+  assert.equal(result.audit.valveFlangeVisualPostprocess.glbReexportedAfterVisualPostprocess, true);
 }
 
 {

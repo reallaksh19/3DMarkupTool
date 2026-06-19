@@ -19,7 +19,6 @@ assert.match(controller, /controls\.target\.copy\(center\)/, 'controller must ce
 assert.match(controller, /new THREE\.BoxHelper/, 'controller must highlight focused search results');
 assert.match(controller, /viewer:component-search/, 'component search must dispatch diagnostics');
 assert.match(controller, /__3D_MARKUP_COMPONENT_SEARCH__/, 'controller must publish a small runtime API for diagnostics');
-assert.match(controller, /localStorage\./, 'component search must not persist private search terms');
 assert.doesNotMatch(controller, /localStorage\.(setItem|removeItem)/, 'component search must not write search terms to localStorage');
 
 assert.match(pkg.scripts.test, /component-search-viewpad\.test\.mjs/, 'npm test must include component search viewpad gate');

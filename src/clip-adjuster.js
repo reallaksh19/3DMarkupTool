@@ -253,24 +253,12 @@ function updateBounds(root) {
     return;
   }
 
-  if (!root) return;
+  // Keep the legacy model-wide plane behavior, but only for non-scene modelRoot.
+  // Scene-wide traversal is deliberately avoided because it can freeze large scenes.
+  if (!root || root.isScene) return;
 
-  const box = new THREE.Box3();
-  const scratch = new THREE.Box3();
-  let count = 0;
-
-  root.updateMatrixWorld?.(true);
-  root.traverse?.((object) => {
-    if (shouldSkip(object)) return;
-    if (!object.geometry) return;
-
-    scratch.setFromObject(object);
-    if (!Number.isFinite(scratch.min.x)) return;
-    box.union(scratch);
-    count += 1;
-  });
-
-  if (!count || !Number.isFinite(box.min.x)) return;
+  const box = objectBounds(root);
+  if (!isValidBox(box)) return;
 
   const signature = ['x', 'y', 'z'].map((axis) => `${box.min[axis].toFixed(4)}:${box.max[axis].toFixed(4)}`).join('|');
   if (signature !== state.lastSignature) {
@@ -341,7 +329,7 @@ function syncUi() {
   });
 
   if (!state.bounds) {
-    ui.readout.textContent = state.active ? 'Clip waiting for model bounds.' : 'Clip plane is waiting for model. Load BM_CII sample and run conversion.';
+    ui.readout.textContent = 'Select geometry and click Base line to clip from local reference.';
     return;
   }
 
@@ -362,30 +350,25 @@ function syncUi() {
 }
 
 function selectedReferenceBounds() {
-  const api = runtime() || {};
-  const selectedBox = objectBounds(api.selectedObject);
-  if (isValidBox(selectedBox)) return selectedBox;
+  const selected = selectedObject();
+  return selected ? objectBounds(selected) : null;
+}
 
-  const scene = api.scene || state.lastScene;
-  let helperBox = null;
-  scene?.traverse?.((object) => {
-    if (helperBox) return;
-    const name = String(object?.name || '').toLowerCase();
-    if (!name.includes('selection') || !name.includes('helper')) return;
-    const box = new THREE.Box3().setFromObject(object);
-    if (isValidBox(box)) helperBox = box;
-  });
-  return helperBox;
+function selectedObject() {
+  const api = runtime() || {};
+  return api.selectedObject || window.__3D_MARKUP_STATIC_TREE__?.state?.selectedObject || null;
 }
 
 function selectedReferenceLabel() {
   const api = runtime() || {};
-  const data = api.selectedData || api.selectedObject?.userData || {};
-  return data.ID || data.id || data.REF_NO || data.refNo || data.LABEL || data.label || 'selected geometry';
+  const selected = selectedObject();
+  const data = api.selectedData || selected?.userData || {};
+  return data.ID || data.id || data.REF_NO || data.refNo || data.LABEL || data.label || selected?.name || 'selected geometry';
 }
 
 function objectBounds(object) {
-  if (!object) return null;
+  if (!object || shouldSkip(object)) return null;
+  object.updateMatrixWorld?.(true);
   const box = new THREE.Box3().setFromObject(object);
   return isValidBox(box) ? box : null;
 }

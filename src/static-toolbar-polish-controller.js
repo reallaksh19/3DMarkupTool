@@ -2,7 +2,10 @@
 // Keeps the first-class static shell readable without re-enabling legacy toolbar controllers.
 
 const STYLE_ID = 'static-toolbar-polish-style';
-const VERSION = 'static-toolbar-label-polish-selection-merge-20260619';
+const VERSION = 'static-toolbar-label-polish-selection-loop-guard-20260619';
+
+let selectionSyncInProgress = false;
+let lastSelectionSignature = '';
 
 installToolbarPolish();
 
@@ -182,25 +185,42 @@ function normalizeClipBoxButton() {
 }
 
 function syncRuntimeSelectionFromStatus() {
-  const runtime = mergedRuntime();
-  if (runtime.selectedObject && !runtime.selectedObject.isScene && runtime.renderer) return runtime.selectedObject;
+  if (selectionSyncInProgress) {
+    const runtime = mergedRuntime();
+    return runtime.selectedObject && !runtime.selectedObject.isScene ? runtime.selectedObject : null;
+  }
 
-  const selectedId = selectedIdFromStatusOrProps();
-  if (!selectedId) return null;
+  selectionSyncInProgress = true;
+  try {
+    const runtime = mergedRuntime();
+    if (runtime.selectedObject && !runtime.selectedObject.isScene && runtime.renderer) return runtime.selectedObject;
 
-  const object = findObjectById(selectedId);
-  if (!object) return null;
+    const selectedId = selectedIdFromStatusOrProps();
+    if (!selectedId) return null;
 
-  const data = object.userData || {};
-  runtime.selectedObject = object;
-  runtime.selectedData = data;
-  runtime.selectedId = selectedId;
-  publishRuntime(runtime);
+    const object = findObjectById(selectedId);
+    if (!object) return null;
 
-  window.dispatchEvent(new CustomEvent('viewer:selection-changed', {
-    detail: { source: 'static-selection-resolver', object, data, id: selectedId }
-  }));
-  return object;
+    const objectKey = object.uuid || object.id || object.name || selectedId;
+    const signature = `${selectedId}:${objectKey}`;
+    const changed = signature !== lastSelectionSignature || runtime.selectedObject !== object;
+
+    const data = object.userData || {};
+    runtime.selectedObject = object;
+    runtime.selectedData = data;
+    runtime.selectedId = selectedId;
+    publishRuntime(runtime);
+
+    if (changed) {
+      lastSelectionSignature = signature;
+      window.dispatchEvent(new CustomEvent('viewer:selection-changed', {
+        detail: { source: 'static-selection-resolver', object, data, id: selectedId }
+      }));
+    }
+    return object;
+  } finally {
+    selectionSyncInProgress = false;
+  }
 }
 
 function mergedRuntime() {

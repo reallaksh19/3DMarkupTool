@@ -21,7 +21,7 @@ phase('01 shadow runner produces compact diagnostics without rendering geometry'
   assert.equal(report.counts.componentsTotal, 4);
   assert.equal(report.counts.geometryContractsTotal, 4);
   assert.equal(report.counts.renderInstructionsTotal, 4);
-  assert.equal(report.counts.fallbackRendered, 0);
+  assert.equal(report.counts.fallbackRendered, 1, 'InputXML BEND is contract-classified but still delegated to explicit legacy fallback');
   assert.ok(report.counts.graphNodesTotal >= 3);
 });
 
@@ -33,6 +33,7 @@ phase('02 shadow report attaches to scene-style userData only', () => {
   assert.equal(sceneLike.userData.pipingContractShadow.schemaVersion, PIPING_CONTRACT_SHADOW_SCHEMA);
   assert.equal(sceneLike.userData.pipingContractShadow.ok, true);
   assert.equal(sceneLike.userData.pipingContractShadow.counts.componentsTotal, 4);
+  assert.equal(sceneLike.userData.pipingContractShadow.counts.fallbackRendered, 1);
   assert.equal(sceneLike.userData.pipingContractShadow.diagnostics, undefined, 'attached report should stay compact, not carry full pipeline internals');
 });
 

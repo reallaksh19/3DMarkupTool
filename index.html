@@ -6,15 +6,16 @@
   <title>InputXML GLB/RVM Review Viewer</title>
   <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
   <link rel="shortcut icon" href="./favicon.ico" />
-  <link rel="stylesheet" href="./src/styles.css?v=phase4a-static-input-panel-cleanup-20260619" />
-  <link rel="stylesheet" href="./src/clip-adjuster.css?v=phase4a-static-input-panel-cleanup-20260619" />
-  <link rel="stylesheet" href="./src/clip-visual-overlays.css?v=phase4a-static-input-panel-cleanup-20260619" />
+  <link rel="stylesheet" href="./src/styles.css?v=static-input-deterministic-20260620" />
+  <link rel="stylesheet" href="./src/static-input-panel.css?v=static-input-deterministic-20260620" />
+  <link rel="stylesheet" href="./src/clip-adjuster.css?v=static-input-deterministic-20260620" />
+  <link rel="stylesheet" href="./src/clip-visual-overlays.css?v=static-input-deterministic-20260620" />
   <script type="importmap">
     {
       "imports": {
         "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
         "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/",
-        "lucide": "./src/lucide-safe.js?v=phase4a-static-input-panel-cleanup-20260619"
+        "lucide": "./src/lucide-safe.js?v=static-input-deterministic-20260620"
       }
     }
   </script>
@@ -91,10 +92,10 @@
           <h2><i data-lucide="file-input"></i> Input / Export</h2>
           <p>Load InputXML, sideload metadata, convert, then export GLB or RVM+ATT.</p>
         </div>
-        <button id="closeInputBtn" type="button" class="icon-btn" title="Close input panel"><i data-lucide="chevrons-left"></i></button>
+        <button id="closeInputBtn" type="button" class="icon-btn" title="Close input panel" hidden aria-hidden="true" tabindex="-1"><i data-lucide="chevrons-left"></i></button>
       </div>
 
-      <section class="panel-section phase2-input-sticky-section" data-section="input">
+      <section class="panel-section static-input-compact-section" data-section="input" data-static-input="compact">
         <h3><span class="section-no">1</span> Input</h3>
         <div id="inputFileStatus" class="input-file-status" aria-live="polite">No file chosen</div>
         <label class="file-drop">
@@ -108,34 +109,38 @@
         </div>
       </section>
 
-      <section class="panel-section">
-        <h3><span class="section-no">2</span> Conversion</h3>
-        <label class="field"><span>RVM / GLB scale</span><input id="scaleInput" type="number" value="0.001" step="0.0001" /></label>
-        <label class="field"><span>Support visual scale</span><input id="supportScaleInput" type="number" value="1" step="0.1" min="0.1" /></label>
-        <label class="field"><span>Board width</span><input id="boardWidthInput" type="number" value="2.8" step="0.1" min="0.5" /></label>
-        <label class="field"><span>RVM version</span><input id="rvmVersion" type="text" value="3.0" /></label>
-        <label class="field checkbox-field"><input id="renderExpectedSupport" type="checkbox" checked /><span>Render expected supports from ISONOTE</span></label>
-        <label class="field checkbox-field"><input id="renderActualSupport" type="checkbox" checked /><span>Render actual supports from InputXML</span></label>
-        <label class="field checkbox-field"><input id="showSupportLabel" type="checkbox" /><span>Show support labels</span></label>
-        <label class="field"><span>Single-axis unresolved decision</span><select id="singleAxisDecision"><option value="warning" selected>Warning marker only</option><option value="+">Use + axis</option><option value="-">Use - axis</option></select></label>
+      <section class="panel-section" data-section="conversion" data-collapsible="conversion">
+        <h3 role="button" tabindex="0" aria-controls="conversion-options-body" aria-expanded="false"><span class="section-no">2</span> Conversion</h3>
+        <div id="conversion-options-body" class="conversion-collapsible-content">
+          <label class="field"><span>RVM / GLB scale</span><input id="scaleInput" type="number" value="0.001" step="0.0001" /></label>
+          <label class="field"><span>Support visual scale</span><input id="supportScaleInput" type="number" value="1" step="0.1" min="0.1" /></label>
+          <label class="field"><span>Board width</span><input id="boardWidthInput" type="number" value="2.8" step="0.1" min="0.5" /></label>
+          <label class="field"><span>RVM version</span><input id="rvmVersion" type="text" value="3.0" /></label>
+          <label class="field checkbox-field"><input id="renderExpectedSupport" type="checkbox" checked /><span>Render expected supports from ISONOTE</span></label>
+          <label class="field checkbox-field"><input id="renderActualSupport" type="checkbox" checked /><span>Render actual supports from InputXML</span></label>
+          <label class="field checkbox-field"><input id="showSupportLabel" type="checkbox" /><span>Show support labels</span></label>
+          <label class="field"><span>Single-axis unresolved decision</span><select id="singleAxisDecision"><option value="warning" selected>Warning marker only</option><option value="+">Use + axis</option><option value="-">Use - axis</option></select></label>
 
-        <details class="options-expander">
-          <summary>Options</summary>
-          <div class="check-grid">
-            <label><input type="checkbox" id="nodeLabels" checked /> Node labels</label>
-            <label><input type="checkbox" id="isonoteBoards" checked /> ISONOTE boards</label>
-            <label><input type="checkbox" id="supportLabels" /> Support labels</label>
-            <label><input type="checkbox" id="componentText" /> Component text labels</label>
-            <label><input type="checkbox" id="compareColors" checked /> Compare colors</label>
-            <label><input type="checkbox" id="compactMode" checked /> Compact geometry</label>
-          </div>
-        </details>
+          <details class="options-expander">
+            <summary>Options</summary>
+            <div class="check-grid">
+              <label><input type="checkbox" id="nodeLabels" checked /> Node labels</label>
+              <label><input type="checkbox" id="isonoteBoards" checked /> ISONOTE boards</label>
+              <label><input type="checkbox" id="supportLabels" /> Support labels</label>
+              <label><input type="checkbox" id="componentText" /> Component text labels</label>
+              <label><input type="checkbox" id="compareColors" checked /> Compare colors</label>
+              <label><input type="checkbox" id="compactMode" checked /> Compact geometry</label>
+            </div>
+          </details>
+        </div>
       </section>
 
-      <section class="panel-section sideload-section">
-        <h3><span class="section-no">3</span> Sideload Data</h3>
-        <label class="field"><span>Line No sideload CSV</span><textarea id="lineNoText" spellcheck="false" rows="3"></textarea></label>
-        <label class="field"><span>ISONOTE sideload CSV / text</span><textarea id="isonoteText" spellcheck="false" rows="5"></textarea></label>
+      <section class="panel-section sideload-section" data-section="sideload" data-collapsible="sideload">
+        <h3 role="button" tabindex="0" aria-controls="sideload-options-body" aria-expanded="false"><span class="section-no">3</span> Sideload Data</h3>
+        <div id="sideload-options-body" class="sideload-collapsible-content">
+          <label class="field"><span>Line No sideload CSV</span><textarea id="lineNoText" spellcheck="false" rows="3"></textarea></label>
+          <label class="field"><span>ISONOTE sideload CSV / text</span><textarea id="isonoteText" spellcheck="false" rows="5"></textarea></label>
+        </div>
       </section>
 
       <section class="panel-section">
@@ -232,10 +237,10 @@ Axial restraints: no OD/2 radial contact; tips touch unless gap; positive gap = 
 After engineering contact: visual resolver ODx2/3 applies only to final axial/pipe-parallel symbols</pre>
   </dialog>
 
-  <script type="module" src="./src/clip-render-hook.js?v=phase4a-static-input-panel-cleanup-20260619"></script>
-  <script type="module" src="./src/render-context-prebridge.js?v=phase4a-static-input-panel-cleanup-20260619"></script>
-  <script type="module" src="./src/app.js?v=phase4a-static-input-panel-cleanup-20260619"></script>
-  <script type="module" src="./src/fresh-clip-controller.js?v=phase4a-static-input-panel-cleanup-20260619"></script>
-  <script type="module" src="./src/safe-ui-bootstrap.js?v=phase4a-static-input-panel-cleanup-20260619"></script>
+  <script type="module" src="./src/clip-render-hook.js?v=static-input-deterministic-20260620"></script>
+  <script type="module" src="./src/render-context-prebridge.js?v=static-input-deterministic-20260620"></script>
+  <script type="module" src="./src/app.js?v=static-input-deterministic-20260620"></script>
+  <script type="module" src="./src/fresh-clip-controller.js?v=static-input-deterministic-20260620"></script>
+  <script type="module" src="./src/safe-ui-bootstrap.js?v=static-input-deterministic-20260620"></script>
 </body>
 </html>

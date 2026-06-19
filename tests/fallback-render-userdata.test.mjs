@@ -4,6 +4,7 @@ import { performance } from 'node:perf_hooks';
 import {
   createLegacyFallbackUserData,
   isContractStampedFallback,
+  stampLegacyFallbackSceneUserData,
   stampLegacyFallbackUserData
 } from '../src/fallback-render-userdata.js';
 
@@ -67,6 +68,54 @@ phase('03 recursively stamps group and child meshes without changing visual fiel
   }
   assert.equal(group.userData.family, 'GUIDE');
   assert.equal(childA.userData.meshRole, 'GUIDE_ARROW');
+});
+
+phase('04 stamps scene children while preserving component and support identities', () => {
+  const pipeMesh = {
+    type: 'Mesh',
+    isMesh: true,
+    name: 'PIPE_MESH',
+    userData: { TYPE: 'COMPONENT', ID: 'PIPE-10', engineeringType: 'PIPE', meshRole: 'PIPE' },
+    children: []
+  };
+  const supportArrow = {
+    type: 'Mesh',
+    isMesh: true,
+    name: 'guide-arrow',
+    userData: { meshRole: 'GUIDE_ARROW' },
+    children: []
+  };
+  const supportGroup = {
+    type: 'Group',
+    isGroup: true,
+    name: 'ACTUAL_20_GUIDE',
+    userData: { TYPE: 'SUPPORT_RESTRAINT', node: '20', family: 'GUIDE', source: 'InputXML' },
+    children: [supportArrow]
+  };
+  const scene = {
+    type: 'Scene',
+    name: 'legacy-scene',
+    userData: { app: 'inputxml-glb-standalone' },
+    children: [pipeMesh, supportGroup]
+  };
+
+  stampLegacyFallbackSceneUserData(scene, { sourceType: 'InputXML' });
+
+  assert.equal(scene.userData.fallbackRendered, undefined, 'scene root is not a rendered mesh/group by default');
+  assert.equal(isContractStampedFallback(pipeMesh), true);
+  assert.equal(pipeMesh.userData.componentId, 'PIPE-10');
+  assert.equal(pipeMesh.userData.componentClass, 'PIPE');
+  assert.equal(pipeMesh.userData.meshRole, 'PIPE');
+
+  assert.equal(isContractStampedFallback(supportGroup), true);
+  assert.equal(supportGroup.userData.componentId, 'SUPPORT_20_GUIDE');
+  assert.equal(supportGroup.userData.componentClass, 'RESTRAINT');
+  assert.equal(supportGroup.userData.family, 'GUIDE');
+
+  assert.equal(isContractStampedFallback(supportArrow), true);
+  assert.equal(supportArrow.userData.componentId, 'SUPPORT_20_GUIDE');
+  assert.equal(supportArrow.userData.componentClass, 'RESTRAINT');
+  assert.equal(supportArrow.userData.meshRole, 'GUIDE_ARROW');
 });
 
 console.log(`[fallback-userdata] completed in ${((performance.now() - startedAt) / 1000).toFixed(2)} s`);

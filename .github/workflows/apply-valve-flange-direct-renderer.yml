@@ -1,0 +1,55 @@
+name: Apply valve flange direct renderer fix
+
+on:
+  push:
+    branches:
+      - fix/valve-flange-direct-renderer-pr
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    if: ${{ !contains(github.event.head_commit.message, 'Fix direct valve flange renderer') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/valve-flange-direct-renderer-pr
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Apply source patch and package script gate
+        run: |
+          git apply .github/valve-flange-direct-renderer-source.patch
+          node - <<'NODE'
+          const fs = require('node:fs');
+          const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+          const marker = 'node tests/valve-flange-visual-catalog.test.mjs && node tests/valve-flange-scene-postprocess.test.mjs';
+          const replacement = 'node tests/valve-flange-visual-catalog.test.mjs && node tests/valve-flange-direct-renderer.test.mjs && node tests/valve-flange-scene-postprocess.test.mjs';
+          if (!pkg.scripts.test.includes('valve-flange-direct-renderer.test.mjs')) {
+            if (!pkg.scripts.test.includes(marker)) throw new Error('package test script insertion point not found');
+            pkg.scripts.test = pkg.scripts.test.replace(marker, replacement);
+          }
+          fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n');
+          NODE
+
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+
+      - name: Validate
+        run: |
+          node tests/valve-flange-direct-renderer.test.mjs
+          npm test
+          npm run contract:dry-run
+
+      - name: Commit validated source changes
+        run: |
+          rm -f .github/workflows/apply-valve-flange-direct-renderer.yml .github/valve-flange-direct-renderer-source.patch
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/converter.js package.json tests/valve-flange-direct-renderer.test.mjs .github/workflows/apply-valve-flange-direct-renderer.yml .github/valve-flange-direct-renderer-source.patch
+          git commit -m "Fix direct valve flange renderer"
+          git push origin fix/valve-flange-direct-renderer-pr

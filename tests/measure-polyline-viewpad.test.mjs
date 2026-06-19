@@ -6,7 +6,7 @@ const bootstrap = readFileSync(new URL('../src/safe-ui-bootstrap.js', import.met
 const pkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
 
 assert.match(bootstrap, /static-measure-polyline-controller\.js\?v=\$\{SAFE_UI_VERSION\}/, 'bootstrap must load the measure polyline viewpad controller');
-assert.match(bootstrap, /measure-polyline-viewpad-20260619/, 'safe bootstrap cache key must bump for measure polyline');
+assert.match(bootstrap, /explode-review-viewpad-20260619/, 'safe bootstrap cache key must bump for measure polyline');
 
 assert.match(controller, /const TOOL_VIEW = 'measurePolyline'/, 'controller must define a stable measure-polyline data-view key');
 assert.match(controller, /Measure Polyline: click points\/components/, 'controller must expose a user-facing measure tooltip');

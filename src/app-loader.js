@@ -1,7 +1,9 @@
-const APP_LOADER_VERSION = 'perf-idle-diagnostics-20260620';
+const APP_LOADER_VERSION = 'perf-static-drawer-bundle-20260620';
 const APP_MODULE_URL = `./app.js?v=${APP_LOADER_VERSION}`;
 const CLIP_HOOK_MODULE_URL = `./clip-render-hook.js?v=${APP_LOADER_VERSION}`;
 const FRESH_CLIP_MODULE_URL = `./fresh-clip-controller.js?v=${APP_LOADER_VERSION}`;
+const BUNDLED_ASSETS = window.__3D_MARKUP_BUNDLED_ASSETS__ || {};
+const APP_BUNDLE_URL = BUNDLED_ASSETS.app || '';
 const APP_BOOT_IDLE_TIMEOUT_MS = 900;
 const POST_APP_IDLE_TIMEOUT_MS = 1400;
 
@@ -14,6 +16,11 @@ async function startViewerApp() {
   if (window.__3D_MARKUP_APP_BOOT_STARTED__) return;
   window.__3D_MARKUP_APP_BOOT_STARTED__ = true;
 
+  if (APP_BUNDLE_URL) {
+    loadBundledApp();
+    return;
+  }
+
   await loadClipRenderHook();
   const installGuard = window.__3D_MARKUP_INSTALL_STARTUP_FREEZE_GUARD__;
   if (typeof installGuard === 'function') installGuard({ source: 'app-loader' });
@@ -21,23 +28,39 @@ async function startViewerApp() {
 
   import(APP_MODULE_URL)
     .then(() => {
-      window.__3D_MARKUP_APP_BOOT_COMPLETE__ = true;
-      window.dispatchEvent(new CustomEvent('viewer:app-module-loaded', {
-        detail: { version: APP_LOADER_VERSION, deferred: true }
-      }));
+      markAppLoaded({ bundled: false });
       scheduleIdle(loadFreshClipController, POST_APP_IDLE_TIMEOUT_MS);
     })
-    .catch((error) => {
-      console.error('[3DMarkupTool] Deferred app module failed.', error);
-      window.__3D_MARKUP_APP_BOOT_FAILED__ = true;
-      setRuntimeStatus('Viewer Failed');
-      window.dispatchEvent(new CustomEvent('viewer:app-module-failed', {
-        detail: {
-          version: APP_LOADER_VERSION,
-          reason: error && (error.message || String(error))
-        }
-      }));
-    });
+    .catch(handleAppBootError);
+}
+
+function loadBundledApp() {
+  setRuntimeStatus('Viewer Loading');
+  window.__3D_MARKUP_BUNDLED_APP_IMPORT_STARTED__ = true;
+  import(APP_BUNDLE_URL)
+    .then(() => markAppLoaded({ bundled: true }))
+    .catch(handleAppBootError);
+}
+
+function markAppLoaded({ bundled }) {
+  window.__3D_MARKUP_APP_BOOT_COMPLETE__ = true;
+  window.__3D_MARKUP_APP_BOOT_BUNDLED__ = Boolean(bundled);
+  window.dispatchEvent(new CustomEvent('viewer:app-module-loaded', {
+    detail: { version: APP_LOADER_VERSION, deferred: true, bundled: Boolean(bundled) }
+  }));
+}
+
+function handleAppBootError(error) {
+  console.error('[3DMarkupTool] Deferred app module failed.', error);
+  window.__3D_MARKUP_APP_BOOT_FAILED__ = true;
+  setRuntimeStatus('Viewer Failed');
+  window.dispatchEvent(new CustomEvent('viewer:app-module-failed', {
+    detail: {
+      version: APP_LOADER_VERSION,
+      bundled: Boolean(APP_BUNDLE_URL),
+      reason: error && (error.message || String(error))
+    }
+  }));
 }
 
 function loadClipRenderHook() {

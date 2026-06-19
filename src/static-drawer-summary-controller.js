@@ -1,8 +1,8 @@
 // Static input/export drawer summary.
-// Adds a compact review status card without touching conversion/export internals.
+// index.html and static-shell-performance.css own all markup and layout.
+// This controller only binds explicit refresh triggers and updates existing nodes.
 
-const VERSION = 'static-drawer-summary-review-20260619';
-const STYLE_ID = 'staticDrawerSummaryStyles';
+const VERSION = 'static-drawer-summary-static-20260620';
 
 runWhenReady(initDrawerSummary);
 
@@ -15,130 +15,17 @@ function runWhenReady(callback) {
 }
 
 function initDrawerSummary() {
-  injectStyles();
-  ensureSummaryCard();
+  const card = getSummaryCard();
+  if (!card) return;
+
   bindRefreshTriggers();
   refreshDrawerSummary('init');
   window.__3D_MARKUP_DRAWER_SUMMARY__ = { version: VERSION, refresh: refreshDrawerSummary };
   window.dispatchEvent(new CustomEvent('viewer:drawer-summary-ready', { detail: { version: VERSION } }));
 }
 
-function injectStyles() {
-  if (document.getElementById(STYLE_ID)) return;
-  const style = document.createElement('style');
-  style.id = STYLE_ID;
-  style.textContent = `
-    .drawer-summary-card {
-      margin: 10px 12px 12px;
-      padding: 10px;
-      border: 1px solid rgba(116, 230, 255, .18);
-      border-radius: 14px;
-      background: linear-gradient(180deg, rgba(8, 23, 41, .96), rgba(5, 16, 30, .92));
-      box-shadow: inset 0 1px 0 rgba(255,255,255,.04);
-      display: grid;
-      gap: 9px;
-    }
-    .drawer-summary-title {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 8px;
-      color: #eaf6ff;
-      font-size: 11px;
-      font-weight: 950;
-      text-transform: uppercase;
-      letter-spacing: .07em;
-    }
-    .drawer-summary-title small {
-      color: #8fb2d0;
-      font-size: 10px;
-      font-weight: 800;
-      letter-spacing: 0;
-      text-transform: none;
-      white-space: nowrap;
-    }
-    .drawer-summary-grid {
-      display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
-      gap: 7px;
-    }
-    .drawer-summary-step {
-      min-width: 0;
-      padding: 8px 7px;
-      border: 1px solid rgba(124, 164, 209, .18);
-      border-radius: 11px;
-      background: rgba(13, 31, 53, .72);
-      display: grid;
-      gap: 4px;
-    }
-    .drawer-summary-step strong {
-      color: #f2f8ff;
-      font-size: 11px;
-      line-height: 1.05;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-    .drawer-summary-step span {
-      color: #9fb9d4;
-      font-size: 10px;
-      line-height: 1.2;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-    .drawer-summary-step[data-state="ok"] {
-      border-color: rgba(91, 214, 151, .42);
-      background: rgba(13, 55, 39, .54);
-    }
-    .drawer-summary-step[data-state="warn"] {
-      border-color: rgba(247, 183, 92, .44);
-      background: rgba(65, 42, 12, .46);
-    }
-    .drawer-summary-step[data-state="idle"] {
-      opacity: .86;
-    }
-    .drawer-summary-hint {
-      color: #a8bdd3;
-      font-size: 10.5px;
-      line-height: 1.35;
-      min-height: 14px;
-    }
-  `;
-  document.head.appendChild(style);
-}
-
-function ensureSummaryCard() {
-  const drawer = document.getElementById('inputDrawer');
-  if (!drawer) return null;
-  let card = document.getElementById('drawerSummaryCard');
-  if (card) return card;
-
-  card = document.createElement('section');
-  card.id = 'drawerSummaryCard';
-  card.className = 'drawer-summary-card';
-  card.setAttribute('aria-label', 'Conversion workflow summary');
-  card.innerHTML = `
-    <div class="drawer-summary-title">
-      <span>Review Workflow</span>
-      <small id="drawerSummaryStamp">ready</small>
-    </div>
-    <div class="drawer-summary-grid">
-      ${stepHtml('input', 'Input', 'Waiting')}
-      ${stepHtml('model', 'Model', 'Not converted')}
-      ${stepHtml('export', 'Export', 'Locked')}
-    </div>
-    <div id="drawerSummaryHint" class="drawer-summary-hint">Load InputXML or BM_CII sample to begin.</div>
-  `;
-
-  const head = drawer.querySelector('.drawer-head');
-  if (head?.nextSibling) drawer.insertBefore(card, head.nextSibling);
-  else drawer.prepend(card);
-  return card;
-}
-
-function stepHtml(id, label, value) {
-  return `<div id="drawerSummary_${id}" class="drawer-summary-step" data-state="idle"><strong>${label}</strong><span>${value}</span></div>`;
+function getSummaryCard() {
+  return document.getElementById('drawerSummaryCard');
 }
 
 function bindRefreshTriggers() {
@@ -156,15 +43,20 @@ function bindRefreshTriggers() {
     });
   });
 
-  ['viewer:model-loaded', 'viewer:runtime-context', 'viewer:selection-changed', 'viewer:ui-score-changed', 'viewer:quick-export-ready'].forEach((eventName) => {
+  [
+    'viewer:model-loaded',
+    'viewer:runtime-context',
+    'viewer:selection-changed',
+    'viewer:ui-score-changed',
+    'viewer:quick-export-ready',
+    'viewer:conversion-started',
+    'viewer:conversion-complete',
+    'viewer:conversion-failed',
+    'viewer:log-updated',
+    '3dmarkup:log-updated'
+  ].forEach((eventName) => {
     window.addEventListener(eventName, () => scheduleRefresh(eventName));
   });
-
-  const log = document.getElementById('log');
-  if (log && !log.__drawerSummaryObserver) {
-    log.__drawerSummaryObserver = new MutationObserver(() => scheduleRefresh('log'));
-    log.__drawerSummaryObserver.observe(log, { childList: true, subtree: true, characterData: true });
-  }
 }
 
 function scheduleRefresh(source) {
@@ -173,7 +65,8 @@ function scheduleRefresh(source) {
 }
 
 function refreshDrawerSummary(source = 'manual') {
-  ensureSummaryCard();
+  if (!getSummaryCard()) return;
+
   const input = inputState();
   const model = modelState();
   const exportState = exportsState();
@@ -240,7 +133,7 @@ function summaryHint(input, model, exp) {
 }
 
 function compactStamp(source) {
-  const label = String(source || 'manual').replace(/^viewer:/, '').replace(/-/g, ' ');
+  const label = String(source || 'manual').replace(/^viewer:/, '').replace(/^3dmarkup:/, '').replace(/-/g, ' ');
   return label.length > 18 ? `${label.slice(0, 16)}…` : label;
 }
 

@@ -9,6 +9,8 @@ const perfCss = readFileSync(new URL('../src/static-shell-performance.css', impo
 const checklist = readFileSync(new URL('../docs/post-pr133-recovery-checklist.md', import.meta.url), 'utf8');
 const pkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
 
+const staticKeyPattern = /perf-static-drawer-bundle-20260620|perf-idle-diagnostics-20260620|perf-static-shell-20260620|phase4a-static-input-panel-cleanup-20260619/;
+
 assert.match(index, /<div id="inputFileStatus" class="input-file-status" aria-live="polite">No file chosen<\/div>/, 'Input panel must statically show No file chosen.');
 assert.match(index, /<span>Choose InputXML<\/span>/, 'Input panel must show Choose InputXML.');
 assert.match(index, /id="loadSampleBtn"[\s\S]*Load BM_CII sample/, 'Input panel must expose the real Load BM_CII sample button.');
@@ -16,11 +18,11 @@ assert.match(index, /id="clearBtn"[\s\S]*Clear All/, 'Input panel must expose th
 assert.match(index, /phase2-input-sticky-section/, 'Input section must use the Phase 2 visible block class.');
 assert.match(index, /phase4a-input-compact-section/, 'Input section must use the compact static block class.');
 assert.match(index, /data-phase4a-input="compact-static"/, 'Input section must statically declare the compact layout contract.');
-assert.match(index, /perf-static-shell-20260620|phase4a-static-input-panel-cleanup-20260619/, 'Index must use the performance/static shell cache key or newer cleanup key.');
+assert.match(index, staticKeyPattern, 'Index must use the performance/static shell cache key or newer cleanup key.');
 assert.doesNotMatch(index, /core-safe-boot-20260619/, 'Index must not revert to the emergency core-safe startup shell.');
 
 assert.match(bootstrap, /static-input-always-visible-controller\.js\?v=\$\{SAFE_UI_VERSION\}/, 'Bootstrap must load the input always-visible controller.');
-assert.match(bootstrap, /SAFE_UI_VERSION = '(perf-static-shell-20260620|phase4a-static-input-panel-cleanup-20260619)'/, 'Bootstrap must use the performance/static shell cache key or newer cleanup key.');
+assert.match(bootstrap, /SAFE_UI_VERSION = '(perf-static-drawer-bundle-20260620|perf-idle-diagnostics-20260620|perf-static-shell-20260620|phase4a-static-input-panel-cleanup-20260619)'/, 'Bootstrap must use the performance/static shell cache key or newer cleanup key.');
 
 assert.match(controller, /const VERSION = 'perf-static-shell-20260620'/, 'Controller must declare the performance static-shell version.');
 assert.match(controller, /No file chosen/, 'Controller must preserve No file chosen status.');

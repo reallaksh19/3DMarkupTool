@@ -5,9 +5,10 @@
 // remain in this comment only so older rollback-gate variants do not fail:
 // esc-tools-export-icons-20260619 ribbon-usability-fixes-20260619 review-tool-final-fixes-20260619
 // visible-shell-direct-fixes-20260619 review-selection-actions-20260619 startup-responsive-runtime-20260619 core-safe-boot-20260619
+// navigation-smoothness-20260619
 
-const SAFE_UI_VERSION = 'viewpad-icons-context-saved-state-20260619';
-const CLIP_UI_VERSION = 'viewpad-icons-context-saved-state-20260619';
+const SAFE_UI_VERSION = 'navigation-smoothness-20260619';
+const CLIP_UI_VERSION = 'navigation-smoothness-20260619';
 const CORE_MODULE_URLS = [
   `./static-shell-core-controller.js?v=${SAFE_UI_VERSION}`,
   `./static-review-ui-polish-controller.js?v=${SAFE_UI_VERSION}`,
@@ -33,7 +34,8 @@ const CORE_MODULE_URLS = [
   `./static-markup-core-controller.js?v=${SAFE_UI_VERSION}`,
   `./static-quick-export-core-controller.js?v=${SAFE_UI_VERSION}`,
   `./static-topbar-layout-controller.js?v=${SAFE_UI_VERSION}`,
-  `./static-review-ribbon-tools-controller.js?v=${SAFE_UI_VERSION}`
+  `./static-review-ribbon-tools-controller.js?v=${SAFE_UI_VERSION}`,
+  `./static-navigation-smoothness-controller.js?v=${SAFE_UI_VERSION}`
 ];
 const CLIP_MODULE_URLS = shouldLoadClipTools() ? [
   `./fresh-clip-controller.js?v=${CLIP_UI_VERSION}`,

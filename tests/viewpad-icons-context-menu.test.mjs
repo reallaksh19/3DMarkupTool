@@ -23,7 +23,7 @@ const expectedKeys = [
 assert.match(bootstrap, /static-review-ribbon-tools-controller\.js\?v=\$\{SAFE_UI_VERSION\}/, 'bootstrap must load review ribbon icon integration');
 assert.doesNotMatch(bootstrap, /static-viewpad-tool-icons-context-controller\.js/, 'bootstrap must not load the old text-shortcut viewpad integration');
 assert.match(bootstrap, /static-topbar-layout-controller\.js\?v=\$\{SAFE_UI_VERSION\}[\s\S]*static-review-ribbon-tools-controller\.js\?v=\$\{SAFE_UI_VERSION\}/, 'review integration must load after the topbar layout controller');
-assert.match(bootstrap, /viewpad-icons-context-saved-state-20260619/, 'safe bootstrap cache key must retain current deployed tool pack cache key');
+assert.match(bootstrap, /esc-tools-export-icons-20260619/, 'safe bootstrap cache key must use the current ESC/export/icon stability pass');
 
 assert.match(controller, /REVIEW_TOOL_REGISTRY/, 'controller must define one registry for ribbon, Review menu, and context-menu coverage');
 assert.match(controller, /RIBBON_GROUP_ID = 'staticReviewRibbonGroup'/, 'controller must create a Review ribbon group');

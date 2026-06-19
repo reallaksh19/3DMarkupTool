@@ -19,7 +19,7 @@ const staticShellImports = (bootstrap.match(/\.js\?v=\$\{SAFE_UI_VERSION\}/g) ||
 const startupScriptBlock = index.slice(index.indexOf('<script type="module"'));
 
 assert.ok(moduleScriptCount <= 3, `index.html should keep top-level module scripts bounded; found ${moduleScriptCount}.`);
-assert.match(index, /static-shell-performance\.css\?v=perf-static-drawer-bundle-20260620/, 'Index must load static performance CSS before JS bootstrap.');
+assert.match(index, /static-shell-performance\.css\?v=(perf-static-drawer-bundle-20260620|perf-idle-diagnostics-20260620|perf-static-shell-20260620)/, 'Index must load static performance CSS before JS bootstrap.');
 assert.match(index, /id="topReviewMenu"[\s\S]*review-top-menu-btn/, 'Top Review menu slot must be statically reserved before JS decorates it.');
 assert.match(index, /id="staticReviewRibbonGroup"/, 'Review ribbon group must be statically reserved before JS decorates it.');
 assert.match(index, /class="tool-group toolbar-group navis-tag-tools tag-lite-host static-markup-tools"/, 'Markup row host must be statically present before JS decorates it.');

@@ -15,6 +15,8 @@ const state = {
   forceActive: false,
   active: false,
   bounds: null,
+  baselineBox: null,
+  baselineLabel: '',
   lastRenderer: runtime()?.renderer || null,
   lastScene: runtime()?.scene || null,
   lastSignature: '',
@@ -34,6 +36,7 @@ if (document.readyState === 'loading') {
 window.addEventListener('markup:render-context', handleRuntimeContext);
 window.addEventListener('viewer:runtime-context', handleRuntimeContext);
 window.addEventListener('viewer:model-loaded', handleRuntimeContext);
+window.addEventListener('viewer:selection-changed', () => syncUi(true));
 
 function handleRuntimeContext(event) {
   if (state.applyingRuntimeClip) return;
@@ -42,14 +45,14 @@ function handleRuntimeContext(event) {
   const renderer = detail.renderer || runtime()?.renderer;
   const scene = detail.modelRoot || detail.scene || runtime()?.getModelRoot?.() || runtime()?.modelRoot || runtime()?.scene;
 
-  if (!renderer || !scene) return;
+  if (!renderer && !scene) return;
 
   try {
-    state.lastRenderer = renderer;
-    state.lastScene = scene;
-    renderer.localClippingEnabled = true;
+    if (renderer) state.lastRenderer = renderer;
+    if (scene) state.lastScene = scene;
+    if (renderer) renderer.localClippingEnabled = true;
     updateBounds(scene);
-    applyClipToRenderer(renderer);
+    if (renderer) applyClipToRenderer(renderer);
     syncUi();
   } catch (error) {
     state.lastError = error;
@@ -74,6 +77,8 @@ function initClipUi() {
     return;
   }
 
+  ui.baseline = ensureBaselineButton();
+
   if (!ui.toggle) {
     ui.toggle = document.createElement('button');
     ui.toggle.type = 'button';
@@ -89,6 +94,7 @@ function initClipUi() {
   ui.position.value = '50.0';
   ui.invert.checked = state.inverted;
 
+  ui.baseline?.addEventListener('click', captureBaseline);
   ui.toggle.addEventListener('click', () => setClipEnabled(!state.active));
   ui.axis.addEventListener('change', () => {
     state.axis = ui.axis.value in AXES ? ui.axis.value : 'x';
@@ -131,6 +137,36 @@ function initClipUi() {
   const renderer = state.lastRenderer || runtime()?.renderer;
   if (renderer) applyClipToRenderer(renderer);
   syncUi(true);
+}
+
+function ensureBaselineButton() {
+  let button = document.getElementById('clipPlaneBaselineBtn');
+  if (button) return button;
+  const header = ui.panel?.querySelector('.clip-adjust-head');
+  if (!header) return null;
+  button = document.createElement('button');
+  button.id = 'clipPlaneBaselineBtn';
+  button.type = 'button';
+  button.className = 'clip-panel-toggle clip-baseline-toggle';
+  button.title = 'Use selected geometry as clip plane baseline';
+  button.textContent = 'Base line';
+  header.insertBefore(button, ui.toggle || null);
+  return button;
+}
+
+function captureBaseline() {
+  const box = selectedReferenceBounds();
+  if (!isValidBox(box)) {
+    safeReadout('Select geometry first, then click Base line.');
+    return false;
+  }
+  state.baselineBox = box.clone();
+  state.baselineLabel = selectedReferenceLabel();
+  state.lastSignature = '';
+  updateBounds(currentModelRoot());
+  state.forceActive = true;
+  applyNow();
+  return true;
 }
 
 function setClipEnabled(enabled) {
@@ -204,10 +240,19 @@ function applyClipToRenderer(renderer) {
 function isToolbarClipActive() {
   const clipButton = document.getElementById('clipBtn');
   if (!clipButton) return false;
-  return clipButton.classList.contains('tool-active') || /clip\s+on/i.test(clipButton.textContent || '');
+  return clipButton.classList.contains('tool-active') || /clip\s+on|plane\s+on/i.test(clipButton.textContent || '');
 }
 
 function updateBounds(root) {
+  if (isValidBox(state.baselineBox)) {
+    const signature = ['x', 'y', 'z'].map((axis) => `${state.baselineBox.min[axis].toFixed(4)}:${state.baselineBox.max[axis].toFixed(4)}`).join('|');
+    if (signature !== state.lastSignature) {
+      state.bounds = state.baselineBox.clone();
+      state.lastSignature = signature;
+    }
+    return;
+  }
+
   if (!root) return;
 
   const box = new THREE.Box3();
@@ -288,6 +333,7 @@ function syncUi() {
     ui.toggle.textContent = state.active ? 'Disable Clip' : 'Enable Clip';
     ui.toggle.classList.toggle('clip-panel-toggle-active', state.active);
   }
+  if (ui.baseline) ui.baseline.classList.toggle('clip-panel-toggle-active', isValidBox(state.baselineBox));
 
   const disabled = !state.bounds;
   [ui.axis, ui.range, ui.position, ui.invert, ui.minus, ui.plus, ui.reset].forEach((control) => {
@@ -300,7 +346,9 @@ function syncUi() {
   }
 
   if (!state.active) {
-    ui.readout.textContent = 'Clip plane ready — click Enable Clip or use C.';
+    ui.readout.textContent = isValidBox(state.baselineBox)
+      ? `Clip plane ready — baseline: ${state.baselineLabel || 'selected geometry'}. Click Enable Clip.`
+      : 'Clip plane ready — click Enable Clip or use C.';
     return;
   }
 
@@ -309,7 +357,50 @@ function syncUi() {
   const max = state.bounds.max[axis];
   const position = min + (max - min) * state.normalized;
   const direction = state.inverted ? '+' : '-';
-  ui.readout.textContent = `${AXES[axis].label} ${direction} @ ${formatNumber(position)} (${(state.normalized * 100).toFixed(1)}%)`;
+  const baselineText = isValidBox(state.baselineBox) ? ` baseline=${state.baselineLabel || 'selected'}` : '';
+  ui.readout.textContent = `${AXES[axis].label} ${direction} @ ${formatNumber(position)} (${(state.normalized * 100).toFixed(1)}%)${baselineText}`;
+}
+
+function selectedReferenceBounds() {
+  const api = runtime() || {};
+  const selectedBox = objectBounds(api.selectedObject);
+  if (isValidBox(selectedBox)) return selectedBox;
+
+  const scene = api.scene || state.lastScene;
+  let helperBox = null;
+  scene?.traverse?.((object) => {
+    if (helperBox) return;
+    const name = String(object?.name || '').toLowerCase();
+    if (!name.includes('selection') || !name.includes('helper')) return;
+    const box = new THREE.Box3().setFromObject(object);
+    if (isValidBox(box)) helperBox = box;
+  });
+  return helperBox;
+}
+
+function selectedReferenceLabel() {
+  const api = runtime() || {};
+  const data = api.selectedData || api.selectedObject?.userData || {};
+  return data.ID || data.id || data.REF_NO || data.refNo || data.LABEL || data.label || 'selected geometry';
+}
+
+function objectBounds(object) {
+  if (!object) return null;
+  const box = new THREE.Box3().setFromObject(object);
+  return isValidBox(box) ? box : null;
+}
+
+function isValidBox(box) {
+  return Boolean(box)
+    && Number.isFinite(box.min?.x)
+    && Number.isFinite(box.min?.y)
+    && Number.isFinite(box.min?.z)
+    && Number.isFinite(box.max?.x)
+    && Number.isFinite(box.max?.y)
+    && Number.isFinite(box.max?.z)
+    && box.max.x >= box.min.x
+    && box.max.y >= box.min.y
+    && box.max.z >= box.min.z;
 }
 
 function readRangeValue() {
@@ -338,7 +429,11 @@ function byId(...ids) {
 }
 
 function runtime() {
-  return window.__3D_MARKUP_VIEWER_RUNTIME__ || window.__3D_MARKUP_CLIP_RUNTIME__ || null;
+  const primary = window.__3D_MARKUP_VIEWER_RUNTIME__;
+  const legacy = window.__3D_MARKUP_CLIP_RUNTIME__;
+  if (primary?.renderer || primary?.scene || primary?.modelRoot) return primary;
+  if (legacy?.renderer || legacy?.scene || legacy?.modelRoot) return legacy;
+  return primary || legacy || null;
 }
 
 function safeReadout(message) {

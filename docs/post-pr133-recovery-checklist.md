@@ -57,6 +57,12 @@ Legend:
 | ✅ | E2 — Clear persistent area selection | Area selection remains forever. | Escape now calls the Area Select clear/deactivate API where present and removes transient area-select overlays as a DOM fallback. |
 | ✅ | E3 — Reassemble exploded view | Once exploded, how to reassemble/undo? | Escape now calls the Explode Review reset API where present and closes the explode panel, providing a shared reassemble/undo exit path. |
 
+## Phase 4A — Static input panel cleanup
+
+| Status | Comment ID | Original feedback | Completion note |
+|---|---|---|---|
+| ✅ | C4 — Compact static input panel cleanup | Input block is visible, but not production-clean: sample status replaces `No file chosen`, drop zone is tall, buttons wrap, and Sideload Data appears too early. | Compact static input card keeps file status independent from BM_CII sample state, keeps the action row on one line, and collapses Sideload Data by default without MutationObserver, polling, scene traversal, or DOM reordering. |
+
 ## Phase 5 — Selection resolver foundation
 
 | Status | Comment ID | Original feedback | Completion note |

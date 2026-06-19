@@ -32,6 +32,20 @@ jobs:
       - name: Apply valve/flange renderer patch
         if: github.event_name == 'pull_request' && github.head_ref == 'fix/valve-flange-direct-renderer-pr'
         run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          patch = Path('.github/valve-flange-direct-renderer-source.patch')
+          text = patch.read_text()
+          for header in [
+              '@@ -118,31 +118,38 @@',
+              '@@ -220,7 +227,16 @@',
+              '@@ -253,6 +269,14 @@',
+              '@@ -310,7 +334,43 @@',
+              '@@ -0,0 +1,44 @@',
+          ]:
+              text = text.replace('@@', header, 1)
+          patch.write_text(text)
+          PY
           git apply .github/valve-flange-direct-renderer-source.patch
           node - <<'NODE'
           const fs = require('node:fs');

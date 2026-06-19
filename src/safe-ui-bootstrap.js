@@ -1,20 +1,23 @@
 // Deterministic optional-UI bootstrap.
-// index.html owns the professional shell. During recovery, optional behavior
-// modules are opt-in so the core viewer cannot be frozen by controller loops.
-// Tiny static shell modules are still loaded in all modes because they own
-// first-class shell behavior, not optional patch-controller behavior.
+// index.html owns the professional shell. Default mode focuses on stable
+// model review/export UI. Experimental clip behavior is opt-in only.
 
-const SAFE_UI_VERSION = 'static-clipbox-material-fallback-20260619';
+const SAFE_UI_VERSION = 'static-color-legend-review-20260619';
 const CORE_MODULE_URLS = [
   `./static-shell-core-controller.js?v=${SAFE_UI_VERSION}`,
+  `./static-review-ui-polish-controller.js?v=${SAFE_UI_VERSION}`,
   `./static-toolbar-polish-controller.js?v=${SAFE_UI_VERSION}`,
   `./static-tree-core-controller.js?v=${SAFE_UI_VERSION}`,
+  `./static-properties-actions-controller.js?v=${SAFE_UI_VERSION}`,
+  `./static-color-legend-controller.js?v=${SAFE_UI_VERSION}`,
   `./static-markup-core-controller.js?v=${SAFE_UI_VERSION}`,
+  `./static-quick-export-core-controller.js?v=${SAFE_UI_VERSION}`
+];
+const CLIP_MODULE_URLS = [
   `./static-clip-diagnostics-controller.js?v=${SAFE_UI_VERSION}`,
   `./clip-adjuster.js?v=${SAFE_UI_VERSION}`,
   `./static-clipbox-core-controller.js?v=${SAFE_UI_VERSION}`,
-  `./static-clipbox-material-fallback-controller.js?v=${SAFE_UI_VERSION}`,
-  `./static-quick-export-core-controller.js?v=${SAFE_UI_VERSION}`
+  `./static-clipbox-material-fallback-controller.js?v=${SAFE_UI_VERSION}`
 ];
 const SAFE_LOADER_URL = `./safe-ui-loader.js?v=${SAFE_UI_VERSION}`;
 const MAX_ATTEMPTS = 4;
@@ -28,14 +31,16 @@ scheduleStart();
 function scheduleCoreShell() {
   if (coreShellStarted) return;
   coreShellStarted = true;
-  const start = () => Promise.allSettled(CORE_MODULE_URLS.map((url) => import(url)))
-    .then((results) => {
+  const start = () => {
+    const urls = shouldLoadClipTools() ? CORE_MODULE_URLS.concat(CLIP_MODULE_URLS) : CORE_MODULE_URLS;
+    return Promise.allSettled(urls.map((url) => import(url))).then((results) => {
       results.forEach((result, index) => {
         if (result.status === 'rejected') {
-          console.warn(`[3DMarkupTool] Static shell core module failed: ${CORE_MODULE_URLS[index]}`, result.reason);
+          console.warn(`[3DMarkupTool] Static shell core module failed: ${urls[index]}`, result.reason);
         }
       });
     });
+  };
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', start, { once: true });
   } else {
@@ -69,6 +74,11 @@ function shouldLoadOptionalUi() {
     || window.localStorage.getItem('3dmarkup.uiAdvanced') === '1'
     || window.localStorage.getItem('3dmarkup.uiAcceptance') === '1'
     || window.localStorage.getItem('3dmarkup.safeUiMode') === 'core';
+}
+
+function shouldLoadClipTools() {
+  const params = new URLSearchParams(window.location.search);
+  return params.has('clipTools') || window.localStorage.getItem('3dmarkup.clipTools') === '1';
 }
 
 function startSoon(delayMs) {

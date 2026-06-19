@@ -7,18 +7,18 @@ const controller = readFileSync(new URL('../src/static-browser-diagnostics-contr
 const checklist = readFileSync(new URL('../docs/post-pr133-recovery-checklist.md', import.meta.url), 'utf8');
 const pkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
 
-assert.match(index, /chrome-runtime-diagnostics-20260619/, 'index must use the Chrome runtime diagnostics shell cache key');
+assert.match(index, /input-always-visible-20260619/, 'index must use the current Phase 2 shell cache key');
 assert.doesNotMatch(index, /fresh-clip-core-20260619/, 'index must not reference stale fresh-clip-core shell assets');
-assert.match(index, /safe-ui-bootstrap\.js\?v=chrome-runtime-diagnostics-20260619/, 'outer bootstrap script must use the bumped shell cache key');
+assert.match(index, /safe-ui-bootstrap\.js\?v=input-always-visible-20260619/, 'outer bootstrap script must use the current shell cache key');
 
-assert.match(bootstrap, /chrome-runtime-diagnostics-20260619/, 'bootstrap must use the Chrome runtime diagnostics cache key');
+assert.match(bootstrap, /input-always-visible-20260619/, 'bootstrap must use the Phase 2 input always-visible cache key');
 assert.match(bootstrap, /static-browser-diagnostics-controller\.js\?v=\$\{SAFE_UI_VERSION\}/, 'bootstrap must load browser diagnostics controller');
 assert.doesNotMatch(bootstrap, /static-properties-actions-controller\.js/, 'bootstrap must not import the missing static properties controller');
 assert.match(bootstrap, /emitBootstrapModuleFailure\(url, result\.reason\)/, 'bootstrap must emit diagnostics for module failures');
 assert.match(bootstrap, /3dmarkup:bootstrap-module-failed/, 'bootstrap must dispatch a module-failed event');
 
-assert.match(controller, /BROWSER_DIAGNOSTICS_VERSION = 'chrome-runtime-diagnostics-20260619'/, 'diagnostic controller must declare the Chrome runtime diagnostics version');
-assert.match(controller, /EXPECTED_SHELL_VERSION = 'chrome-runtime-diagnostics-20260619'/, 'diagnostic controller must know the expected shell version');
+assert.match(controller, /BROWSER_DIAGNOSTICS_VERSION = 'chrome-runtime-diagnostics-20260619'/, 'diagnostic controller must retain the Chrome runtime diagnostics version');
+assert.match(controller, /EXPECTED_SHELL_VERSION = 'chrome-runtime-diagnostics-20260619'/, 'diagnostic controller must retain the Chrome runtime diagnostics expected shell marker');
 assert.match(controller, /STALE_SHELL_VERSION = 'fresh-clip-core-20260619'/, 'diagnostic controller must detect the stale shell key');
 assert.match(controller, /detectStaleShellAssets/, 'diagnostic controller must detect stale shell assets');
 assert.match(controller, /collectWebglInfo/, 'diagnostic controller must capture WebGL GPU information');

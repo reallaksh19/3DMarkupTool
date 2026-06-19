@@ -119,9 +119,29 @@ function runFlangeCorrectionTest() {
   assert.equal(stats.flangeVisualCorrections, 1, 'flange should get a visible gasket/face correction');
   assert.equal(base.visible, false);
   assert.ok(visual.children.find((child) => child.userData?.meshRole === 'GASKET_CENTER'), 'flange pair should include visible gasket/center face marker');
+  assert.ok(visual.children.find((child) => child.userData?.meshRole === 'FLANGE_CENTER_BORE_FILL'), 'flange pair should include a center bore fill so flange plates do not look detached');
+}
+
+function runValveContinuityTest() {
+  const scene = new THREE.Scene();
+  const plant = new THREE.Group();
+  scene.add(plant);
+  const id = 'PE_007_FLANGED_VALVE_83_TO_86';
+  const base = componentMesh(id, 'Flanged Valve', 'FLANGED_VALVE');
+  const visual = valveGroup(id, 'VALVE_FLANGED', new THREE.Vector3(-1.8, 0, 0), new THREE.Vector3(1.8, 0, 0), 'HANDWHEEL');
+  plant.add(componentMesh('PIPE_LEFT'), base, visual, componentMesh('PIPE_RIGHT'));
+
+  const stats = hideCatalogReplacedBaseCylinders(scene);
+  assert.equal(stats.hiddenBaseCylinders, 1, 'flanged valve base cylinder should be hidden');
+  assert.equal(stats.uprightValveCorrections, 1, 'flanged valve should be corrected');
+  assert.equal(base.visible, false, 'same-component base pipe through valve must be hidden');
+  assert.ok(visual.children.find((child) => child.userData?.meshRole === 'VALVE_NECK_A'), 'left valve neck should close gap between body and flange/collar');
+  assert.ok(visual.children.find((child) => child.userData?.meshRole === 'VALVE_NECK_B'), 'right valve neck should close gap between body and flange/collar');
+  assert.equal(visual.userData.valveContinuityCorrectionApplied, true, 'valve continuity correction should be flagged');
 }
 
 runVerticalValveSnapTest();
 runLeverAndActuatorTest();
 runFlangeCorrectionTest();
+runValveContinuityTest();
 console.log('Valve/flange catalog orientation gate passed');

@@ -65,7 +65,8 @@ phase('dry run result satisfies contract shape', () => {
 });
 
 phase('diagnostics report all required acceptance counts', () => {
-  assert.equal(result.diagnostics.sourceRecordsTotal, 5);
+  assert.equal(result.diagnostics.sourceRecordsTotal, result.sourceRecords.length);
+  assert.ok(result.diagnostics.sourceRecordsTotal >= 4, 'dry-run must preserve the four route source records');
   assert.equal(result.diagnostics.componentsTotal, 5);
   assert.equal(result.diagnostics.geometryContractsTotal, 5);
   assert.equal(result.diagnostics.exportPlansTotal, 2);

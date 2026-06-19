@@ -4,6 +4,9 @@
   "private": true,
   "type": "module",
   "description": "Standalone browser app for CAESAR II InputXML to GLB conversion with support and ISONOTE overlays.",
+  "dependencies": {
+    "three": "0.160.0"
+  },
   "scripts": {
     "dev": "python3 -m http.server 5173",
     "serve": "python3 -m http.server 5173",

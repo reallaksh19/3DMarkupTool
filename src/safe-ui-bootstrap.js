@@ -2,8 +2,8 @@
 // index.html owns the professional shell. Default mode focuses on stable
 // model review/export UI. Clip tools are opt-in only.
 
-const SAFE_UI_VERSION = 'explode-review-viewpad-20260619';
-const CLIP_UI_VERSION = 'explode-review-viewpad-20260619';
+const SAFE_UI_VERSION = 'viewpad-icons-context-saved-state-20260619';
+const CLIP_UI_VERSION = 'viewpad-icons-context-saved-state-20260619';
 const CORE_MODULE_URLS = [
   `./static-shell-core-controller.js?v=${SAFE_UI_VERSION}`,
   `./static-review-ui-polish-controller.js?v=${SAFE_UI_VERSION}`,
@@ -13,11 +13,13 @@ const CORE_MODULE_URLS = [
   `./static-marquee-zoom-controller.js?v=${SAFE_UI_VERSION}`,
   `./static-area-select-controller.js?v=${SAFE_UI_VERSION}`,
   `./static-saved-views-controller.js?v=${SAFE_UI_VERSION}`,
+  `./static-saved-views-context-extension.js?v=${SAFE_UI_VERSION}`,
   `./static-component-search-controller.js?v=${SAFE_UI_VERSION}`,
   `./static-measure-polyline-controller.js?v=${SAFE_UI_VERSION}`,
   `./static-explode-review-controller.js?v=${SAFE_UI_VERSION}`,
   `./static-viewpad-navigation-tools-controller.js?v=${SAFE_UI_VERSION}`,
   `./static-section-box-from-selection-controller.js?v=${SAFE_UI_VERSION}`,
+  `./static-viewpad-tool-icons-context-controller.js?v=${SAFE_UI_VERSION}`,
   `./static-tree-core-controller.js?v=${SAFE_UI_VERSION}`,
   `./static-properties-actions-controller.js?v=${SAFE_UI_VERSION}`,
   `./static-color-legend-controller.js?v=${SAFE_UI_VERSION}`,

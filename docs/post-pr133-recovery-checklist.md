@@ -17,6 +17,12 @@ Legend:
 |---|---|---|---|
 | ✅ | B1 — Zoom is not smooth | Zoom/orbit felt rough after restore. | Added event-driven navigation smoothness controller with OrbitControls damping/zoom tuning and stable FOV/aspect-aware fit behavior. |
 
+## Phase 1A — Browser diagnostics / Chrome cache help
+
+| Status | Comment ID | Original feedback | Completion note |
+|---|---|---|---|
+| ✅ | X1 — Chrome-only erratic response | Erratic response appears only in Chrome, not Edge. Console showed a missing dynamic import: `static-properties-actions-controller.js` 404. | Removed the missing startup import and added a browser diagnostic banner/API that detects Chrome/module-load failures and gives Ctrl+F5 / disable-cache / clear-site-data guidance. |
+
 ## Phase 2 — Input panel always-visible block
 
 | Status | Comment ID | Original feedback | Completion note |

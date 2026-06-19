@@ -1,3 +1,4 @@
+import { exportSceneToGlb } from './converter.js?v=professional-viewer-3';
 import { stampLegacyFallbackSceneUserData } from './fallback-render-userdata.js';
 import { hideCatalogReplacedBaseCylinders } from './valve-flange-scene-postprocess.js';
 import {
@@ -47,5 +48,24 @@ export async function convertInputXmlToGlbWithPipingShadow(sourceText, options =
     throw new Error('legacyConvertInputXmlToGlb function is required');
   }
   const glbResult = await legacyConvertInputXmlToGlb(sourceText, options);
-  return attachShadowDiagnosticsToGlbResult(glbResult, options);
+  attachShadowDiagnosticsToGlbResult(glbResult, options);
+
+  const postprocess = glbResult.audit?.valveFlangeVisualPostprocess;
+  const shouldReexport = Boolean(
+    glbResult.scene
+    && postprocess
+    && postprocess.hiddenBaseCylinders > 0
+    && options.reexportGlbAfterVisualPostprocess !== false
+  );
+
+  if (shouldReexport) {
+    const reexport = typeof options.exportSceneToGlb === 'function' ? options.exportSceneToGlb : exportSceneToGlb;
+    glbResult.glb = await reexport(glbResult.scene);
+    glbResult.audit.valveFlangeVisualPostprocess = {
+      ...postprocess,
+      glbReexportedAfterVisualPostprocess: true
+    };
+  }
+
+  return glbResult;
 }

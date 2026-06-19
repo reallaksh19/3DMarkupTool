@@ -4,7 +4,7 @@
 // Tiny static shell modules are still loaded in all modes because they own
 // first-class shell behavior, not optional patch-controller behavior.
 
-const SAFE_UI_VERSION = 'static-clipbox-label-20260618';
+const SAFE_UI_VERSION = 'static-clip-baseline-20260618';
 const CORE_MODULE_URLS = [
   `./static-shell-core-controller.js?v=${SAFE_UI_VERSION}`,
   `./static-toolbar-polish-controller.js?v=${SAFE_UI_VERSION}`,

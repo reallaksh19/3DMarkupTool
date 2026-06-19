@@ -27,7 +27,7 @@ function visualMesh(id, role, componentClass, componentType, position, geometry 
   return mesh;
 }
 
-function valveGroup(id, componentType, collarA, collarB, oldOperatorRole = 'HANDWHEEL') {
+function valveGroup(id, componentType, collarA, collarB, operatorRole = 'HANDWHEEL') {
   const group = new THREE.Group();
   group.name = `${id}_${componentType}`;
   group.userData = {
@@ -42,9 +42,11 @@ function valveGroup(id, componentType, collarA, collarB, oldOperatorRole = 'HAND
   group.add(
     visualMesh(id, 'VALVE_BODY', 'VALVE', componentType, new THREE.Vector3(0, 0, 0)),
     visualMesh(id, 'END_COLLAR_A', 'VALVE', componentType, collarA),
+    visualMesh(id, 'VALVE_NECK_A', 'VALVE', componentType, collarA.clone().multiplyScalar(0.45)),
+    visualMesh(id, 'VALVE_NECK_B', 'VALVE', componentType, collarB.clone().multiplyScalar(0.45)),
     visualMesh(id, 'END_COLLAR_B', 'VALVE', componentType, collarB),
     visualMesh(id, 'BONNET_STEM', 'VALVE', componentType, new THREE.Vector3(1, 0, 0)),
-    visualMesh(id, oldOperatorRole, 'VALVE', componentType, new THREE.Vector3(1.4, 0, 0), oldOperatorRole === 'HANDWHEEL' ? new THREE.TorusGeometry(0.25, 0.035, 8, 16) : new THREE.CylinderGeometry(0.05, 0.05, 1.0, 8))
+    visualMesh(id, operatorRole, 'VALVE', componentType, new THREE.Vector3(1.4, 0, 0), operatorRole === 'HANDWHEEL' ? new THREE.TorusGeometry(0.25, 0.035, 8, 16) : new THREE.CylinderGeometry(0.05, 0.05, 1.0, 8))
   );
   return group;
 }
@@ -62,10 +64,21 @@ function flangeGroup(id) {
     visualCatalogSchema: 'valve-flange-visual-catalog/v1'
   };
   group.add(
-    visualMesh(id, 'FLANGE_DISC_A', 'FLANGE', 'FLANGE_GENERIC', new THREE.Vector3(-1.0, 0, 0)),
-    visualMesh(id, 'FLANGE_DISC_B', 'FLANGE', 'FLANGE_GENERIC', new THREE.Vector3(1.0, 0, 0))
+    visualMesh(id, 'WELD_NECK_A', 'FLANGE', 'FLANGE_GENERIC', new THREE.Vector3(-1.4, 0, 0)),
+    visualMesh(id, 'FLANGE_DISC_A', 'FLANGE', 'FLANGE_GENERIC', new THREE.Vector3(-0.2, 0, 0)),
+    visualMesh(id, 'FLANGE_CENTER_BORE_FILL', 'FLANGE', 'FLANGE_GENERIC', new THREE.Vector3(0, 0, 0)),
+    visualMesh(id, 'FLANGE_DISC_B', 'FLANGE', 'FLANGE_GENERIC', new THREE.Vector3(0.2, 0, 0)),
+    visualMesh(id, 'WELD_NECK_B', 'FLANGE', 'FLANGE_GENERIC', new THREE.Vector3(1.4, 0, 0))
   );
   return group;
+}
+
+function assertNoDecoration(stats, group) {
+  assert.equal(stats.uprightValveCorrections, 0);
+  assert.equal(stats.flangeVisualCorrections, 0);
+  assert.equal(stats.decorativeGeometryAdded, 0);
+  assert.equal(group.children.some((child) => child.userData?.catalogOrientationCorrection), false);
+  assert.equal(group.children.some((child) => child.userData?.uprightValveCorrection), false);
 }
 
 function runVerticalValveSnapTest() {
@@ -76,18 +89,15 @@ function runVerticalValveSnapTest() {
   const adjacentPipe = componentMesh('PIPE_20_TO_30');
   const base = componentMesh(id, 'Gate Valve', 'GATE_VALVE');
   const visual = valveGroup(id, 'VALVE_GATE', new THREE.Vector3(0, -1.4, 0), new THREE.Vector3(0, 1.4, 0), 'HANDWHEEL');
+  const initialCount = visual.children.length;
   plant.add(adjacentPipe, base, visual);
 
   const stats = hideCatalogReplacedBaseCylinders(scene);
   assert.equal(stats.hiddenBaseCylinders, 1, 'vertical valve base cylinder should be hidden');
-  assert.equal(stats.uprightValveCorrections, 1, 'vertical valve should get a stable operator correction');
   assert.equal(adjacentPipe.visible, true, 'adjacent pipe must stay visible');
   assert.equal(base.visible, false, 'same-component valve base must be hidden');
-
-  const correctedWheel = visual.children.find((child) => child.userData?.meshRole === 'HANDWHEEL' && child.userData?.catalogOrientationCorrection);
-  assert.ok(correctedWheel, 'corrected handwheel should be created');
-  assert.ok(correctedWheel.position.z > 0.1, 'vertical-pipe operator should snap to stable lateral Z, not disappear into pipe axis');
-  assert.ok(Math.abs(correctedWheel.position.y) < 0.35, 'operator should not move along the vertical pipe axis');
+  assert.equal(visual.children.length, initialCount, 'postprocess must not add vertical valve decorations');
+  assertNoDecoration(stats, visual);
 }
 
 function runLeverAndActuatorTest() {
@@ -96,13 +106,16 @@ function runLeverAndActuatorTest() {
   scene.add(plant);
   const ball = valveGroup('BALL_VALVE_1', 'VALVE_BALL', new THREE.Vector3(-1.2, 0, 0), new THREE.Vector3(1.2, 0, 0), 'LEVER_HANDLE');
   const control = valveGroup('CONTROL_VALVE_1', 'VALVE_CONTROL', new THREE.Vector3(-1.2, 0, 0), new THREE.Vector3(1.2, 0, 0), 'ACTUATOR');
+  const ballCount = ball.children.length;
+  const controlCount = control.children.length;
   plant.add(componentMesh('BALL_VALVE_1', 'Ball Valve', 'BALL_VALVE'), ball, componentMesh('CONTROL_VALVE_1', 'Control Valve', 'CONTROL_VALVE'), control);
 
   const stats = hideCatalogReplacedBaseCylinders(scene);
   assert.equal(stats.hiddenBaseCylinders, 2, 'ball/control valve bases should be hidden');
-  assert.equal(stats.uprightValveCorrections, 2, 'ball/control valve operators should be corrected');
-  assert.ok(ball.children.find((child) => child.userData?.meshRole === 'LEVER_HANDLE' && child.userData?.catalogOrientationCorrection), 'ball valve should get corrected lever');
-  assert.ok(control.children.find((child) => child.userData?.meshRole === 'ACTUATOR' && child.userData?.catalogOrientationCorrection), 'control valve should get corrected actuator');
+  assert.equal(ball.children.length, ballCount);
+  assert.equal(control.children.length, controlCount);
+  assertNoDecoration(stats, ball);
+  assertNoDecoration(stats, control);
 }
 
 function runFlangeCorrectionTest() {
@@ -112,14 +125,16 @@ function runFlangeCorrectionTest() {
   const id = 'FLANGE_PAIR_1';
   const base = componentMesh(id, 'Flange Pair', 'FLANGE');
   const visual = flangeGroup(id);
+  const initialCount = visual.children.length;
   plant.add(base, visual, componentMesh('PIPE_NEIGHBOUR'));
 
   const stats = hideCatalogReplacedBaseCylinders(scene);
   assert.equal(stats.hiddenBaseCylinders, 1, 'flange base cylinder should be hidden');
-  assert.equal(stats.flangeVisualCorrections, 1, 'flange should get a visible gasket/face correction');
+  assert.equal(stats.flangeVisualCorrections, 0, 'flange gasket/face must come only from catalogue renderer');
   assert.equal(base.visible, false);
-  assert.ok(visual.children.find((child) => child.userData?.meshRole === 'GASKET_CENTER'), 'flange pair should include visible gasket/center face marker');
-  assert.ok(visual.children.find((child) => child.userData?.meshRole === 'FLANGE_CENTER_BORE_FILL'), 'flange pair should include a center bore fill so flange plates do not look detached');
+  assert.equal(visual.children.length, initialCount, 'postprocess must not inject gasket washers or bore fillers');
+  assert.equal(visual.children.filter((child) => child.userData?.meshRole === 'GASKET_CENTER').length, 0, 'postprocess must not create full black gasket plates');
+  assertNoDecoration(stats, visual);
 }
 
 function runValveContinuityTest() {
@@ -129,15 +144,17 @@ function runValveContinuityTest() {
   const id = 'PE_007_FLANGED_VALVE_83_TO_86';
   const base = componentMesh(id, 'Flanged Valve', 'FLANGED_VALVE');
   const visual = valveGroup(id, 'VALVE_FLANGED', new THREE.Vector3(-1.8, 0, 0), new THREE.Vector3(1.8, 0, 0), 'HANDWHEEL');
+  const initialCount = visual.children.length;
   plant.add(componentMesh('PIPE_LEFT'), base, visual, componentMesh('PIPE_RIGHT'));
 
   const stats = hideCatalogReplacedBaseCylinders(scene);
   assert.equal(stats.hiddenBaseCylinders, 1, 'flanged valve base cylinder should be hidden');
-  assert.equal(stats.uprightValveCorrections, 1, 'flanged valve should be corrected');
   assert.equal(base.visible, false, 'same-component base pipe through valve must be hidden');
-  assert.ok(visual.children.find((child) => child.userData?.meshRole === 'VALVE_NECK_A'), 'left valve neck should close gap between body and flange/collar');
-  assert.ok(visual.children.find((child) => child.userData?.meshRole === 'VALVE_NECK_B'), 'right valve neck should close gap between body and flange/collar');
-  assert.equal(visual.userData.valveContinuityCorrectionApplied, true, 'valve continuity correction should be flagged');
+  assert.ok(visual.children.find((child) => child.userData?.meshRole === 'VALVE_NECK_A'), 'left valve neck should be catalogue-owned');
+  assert.ok(visual.children.find((child) => child.userData?.meshRole === 'VALVE_NECK_B'), 'right valve neck should be catalogue-owned');
+  assert.equal(visual.children.length, initialCount, 'postprocess must not add duplicate necks');
+  assert.equal(visual.userData.valveContinuityCorrectionApplied, undefined, 'postprocess must not mark catalogue-owned continuity as a correction');
+  assertNoDecoration(stats, visual);
 }
 
 runVerticalValveSnapTest();

@@ -226,22 +226,31 @@ function createCatalogLinearComponentVisual(element, spec, a, b, pipeRadius, bas
     return object;
   };
   const pointAt = (offset) => mid.clone().add(dir.clone().multiplyScalar(offset || 0));
+  const pointForPrimitive = (primitive) => pointAt(primitiveCenterOffset(primitive));
+  const lengthForPrimitive = (primitive) => primitiveLocalLength(primitive);
+  const spanUserData = (primitive, extra = {}) => ({
+    ...primitive,
+    renderedLocalAxisStart: primitiveLocalStart(primitive),
+    renderedLocalAxisEnd: primitiveLocalEnd(primitive),
+    renderedAxisLength: lengthForPrimitive(primitive),
+    ...extra
+  });
 
   for (const primitive of primitives) {
     if (primitive.hiddenBoreFill) continue;
     if (primitive.kind === 'seam-ring') {
       add(
         cylinderAlongAxis(
-          pointAt(primitive.axialOffset),
+          pointForPrimitive(primitive),
           dir,
-          primitive.length,
+          lengthForPrimitive(primitive),
           Math.max(primitive.radius || pipeRadius * 1.08, pipeRadius * 1.04),
           seamMat,
           24,
           `${element.id}_${primitive.role}`
         ),
         primitive.role,
-        { ...primitive, geometryKind: 'SEAM_RING' }
+        spanUserData(primitive, { geometryKind: 'SEAM_RING' })
       );
       continue;
     }
@@ -249,15 +258,15 @@ function createCatalogLinearComponentVisual(element, spec, a, b, pipeRadius, bas
       if (isTaperedLinearPrimitive(primitive)) {
         const { radiusStart, radiusEnd } = taperedRadiiForPrimitive(primitive);
         add(
-          frustumAlongAxis(pointAt(primitive.axialOffset), dir, primitive.length, radiusStart, radiusEnd, material, 24, `${element.id}_${primitive.role}`),
+          frustumAlongAxis(pointForPrimitive(primitive), dir, lengthForPrimitive(primitive), radiusStart, radiusEnd, material, 24, `${element.id}_${primitive.role}`),
           primitive.role,
-          { ...primitive, geometryKind: 'FRUSTUM', radiusStart, radiusEnd }
+          spanUserData(primitive, { geometryKind: 'FRUSTUM', radiusStart, radiusEnd })
         );
       } else {
-        add(cylinderAlongAxis(pointAt(primitive.axialOffset), dir, primitive.length, primitive.radius, material, 24, `${element.id}_${primitive.role}`), primitive.role, { ...primitive, geometryKind: 'CYLINDER' });
+        add(cylinderAlongAxis(pointForPrimitive(primitive), dir, lengthForPrimitive(primitive), primitive.radius, material, 24, `${element.id}_${primitive.role}`), primitive.role, spanUserData(primitive, { geometryKind: 'CYLINDER' }));
       }
     } else if (primitive.role === 'VALVE_BODY') {
-      add(createValveBodyMesh(pointAt(0), dir, primitive, material, `${element.id}_${primitive.role}`), primitive.role, primitive);
+      add(createValveBodyMesh(pointForPrimitive(primitive), dir, primitive, material, `${element.id}_${primitive.role}`), primitive.role, spanUserData(primitive, { geometryKind: 'SPAN_FILLED_VALVE_BODY' }));
     } else if (primitive.role === 'BONNET_STEM') {
       const start = mid.clone().add(up.clone().multiplyScalar(primitive.radialOffset || pipeRadius * 1.2));
       const end = start.clone().add(up.clone().multiplyScalar(primitive.length));
@@ -298,7 +307,7 @@ function createCatalogLinearComponentVisual(element, spec, a, b, pipeRadius, bas
         );
       }
     } else if (primitive.kind === 'cap') {
-      add(cylinderAlongAxis(pointAt(primitive.axialOffset), dir, primitive.length, primitive.radius, material, 24, `${element.id}_${primitive.role}`), primitive.role, primitive);
+      add(cylinderAlongAxis(pointForPrimitive(primitive), dir, lengthForPrimitive(primitive), primitive.radius, material, 24, `${element.id}_${primitive.role}`), primitive.role, spanUserData(primitive, { geometryKind: 'CYLINDER' }));
     }
   }
 
@@ -308,12 +317,18 @@ function createCatalogLinearComponentVisual(element, spec, a, b, pipeRadius, bas
 function createValveBodyMesh(center, dir, primitive, material, name) {
   const radialSegments = primitive.kind === 'wafer-body' ? 28 : 24;
   if (primitive.kind === 'ball-body' || primitive.kind === 'round-body') {
-    const mesh = new THREE.Mesh(new THREE.SphereGeometry(Math.max(primitive.radius, 0.04), radialSegments, 16), material);
+    const radialRadius = Math.max(primitive.radius, 0.04);
+    const axialLength = primitiveLocalLength(primitive);
+    const axialRadius = Math.max(axialLength / 2, radialRadius * 0.18);
+    const axialScale = Math.max(axialRadius / radialRadius, 0.08);
+    const mesh = new THREE.Mesh(new THREE.SphereGeometry(radialRadius, radialSegments, 16), material);
     mesh.name = name;
     mesh.position.copy(center);
+    mesh.scale.set(1, axialScale, 1);
+    mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir.clone().normalize());
     return mesh;
   }
-  return cylinderAlongAxis(center, dir, primitive.length, primitive.radius, material, radialSegments, name);
+  return cylinderAlongAxis(center, dir, primitiveLocalLength(primitive), primitive.radius, material, radialSegments, name);
 }
 
 function createFlowArrow(center, dir, pipeRadius, primitive, material, name) {
@@ -349,6 +364,32 @@ function addBoltPattern(group, baseUserData, spec, primitive, primitives, mid, d
   }
 }
 
+function primitiveLocalStart(primitive = {}) {
+  const start = Number(primitive.localAxisStart);
+  if (Number.isFinite(start)) return start;
+  return primitiveCenterOffset(primitive) - primitiveLocalLength(primitive) / 2;
+}
+
+function primitiveLocalEnd(primitive = {}) {
+  const end = Number(primitive.localAxisEnd);
+  if (Number.isFinite(end)) return end;
+  return primitiveCenterOffset(primitive) + primitiveLocalLength(primitive) / 2;
+}
+
+function primitiveCenterOffset(primitive = {}) {
+  const start = Number(primitive.localAxisStart);
+  const end = Number(primitive.localAxisEnd);
+  if (Number.isFinite(start) && Number.isFinite(end)) return (start + end) / 2;
+  return Number.isFinite(primitive.axialOffset) ? primitive.axialOffset : 0;
+}
+
+function primitiveLocalLength(primitive = {}) {
+  const start = Number(primitive.localAxisStart);
+  const end = Number(primitive.localAxisEnd);
+  if (Number.isFinite(start) && Number.isFinite(end)) return Math.max(Math.abs(end - start), 0.0001);
+  return Math.max(Number(primitive.length) || 0, 0.0001);
+}
+
 function cylinderAlongAxis(center, dir, length, radius, material, radialSegments, name) {
   const half = dir.clone().normalize().multiplyScalar(Math.max(length, 0.0001) / 2);
   return cylinderBetween(center.clone().sub(half), center.clone().add(half), Math.max(radius, 0.004), material, radialSegments, name);
@@ -363,6 +404,11 @@ function isTaperedLinearPrimitive(primitive = {}) {
 }
 
 function taperedRadiiForPrimitive(primitive = {}) {
+  const explicitStart = Number(primitive.radiusStart);
+  const explicitEnd = Number(primitive.radiusEnd);
+  if (Number.isFinite(explicitStart) && Number.isFinite(explicitEnd)) {
+    return { radiusStart: Math.max(explicitStart, 0.004), radiusEnd: Math.max(explicitEnd, 0.004) };
+  }
   const innerRadius = Math.max(Number(primitive.innerRadius), 0.004);
   const outerRadius = Math.max(Number(primitive.outerRadius), 0.004);
   const role = String(primitive.role || '').toUpperCase();

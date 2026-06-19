@@ -4,6 +4,7 @@ import {
   convertInputXmlToGlbWithPipingShadow,
   CONVERTER_SHADOW_DIAGNOSTICS_SCHEMA
 } from '../src/converter-shadow-diagnostics.js';
+import { isContractStampedFallback } from '../src/fallback-render-userdata.js';
 
 function sampleModel() {
   return {
@@ -27,6 +28,20 @@ function sampleModel() {
   };
 }
 
+function sampleScene() {
+  return {
+    type: 'Scene',
+    userData: { existing: true },
+    children: [{
+      type: 'Mesh',
+      isMesh: true,
+      name: 'PIPE_10_20_MESH',
+      userData: { TYPE: 'COMPONENT', ID: 'PIPE_10_20', engineeringType: 'PIPE', meshRole: 'PIPE' },
+      children: []
+    }]
+  };
+}
+
 function assertShadowAudit(result) {
   assert.equal(result.audit.contractPipeline.schemaVersion, CONVERTER_SHADOW_DIAGNOSTICS_SCHEMA);
   assert.equal(result.audit.contractPipeline.mode, 'SHADOW_ONLY');
@@ -37,7 +52,7 @@ function assertShadowAudit(result) {
 }
 
 {
-  const scene = { userData: { existing: true } };
+  const scene = sampleScene();
   const result = attachShadowDiagnosticsToGlbResult({
     scene,
     glb: new ArrayBuffer(0),
@@ -48,18 +63,24 @@ function assertShadowAudit(result) {
   assert.equal(scene.userData.existing, true);
   assert.equal(scene.userData.pipingContractShadow.mode, 'SHADOW_ONLY');
   assert.equal(scene.userData.pipingContractShadow.activeRenderer, 'LEGACY_FALLBACK_ONLY');
+  assert.equal(scene.userData.fallbackRendered, undefined, 'scene root is not fallback stamped by default');
+  assert.equal(isContractStampedFallback(scene.children[0]), true);
+  assert.equal(scene.children[0].userData.componentId, 'PIPE_10_20');
+  assert.equal(scene.children[0].userData.componentClass, 'PIPE');
+  assert.equal(scene.children[0].userData.fallbackRendered, true);
   assertShadowAudit(result);
 }
 
 {
   const legacyConvert = async () => ({
-    scene: { userData: {} },
+    scene: sampleScene(),
     glb: new ArrayBuffer(0),
     audit: { componentCount: 1 },
     model: sampleModel()
   });
   const result = await convertInputXmlToGlbWithPipingShadow('<INPUTXML/>', { supportMode: 'compare' }, legacyConvert);
   assertShadowAudit(result);
+  assert.equal(isContractStampedFallback(result.scene.children[0]), true);
 }
 
 {

@@ -5,11 +5,12 @@
 // remain in this comment only so older rollback-gate variants do not fail:
 // viewpad-icons-context-saved-state-20260619 esc-tools-export-icons-20260619 ribbon-usability-fixes-20260619 review-tool-final-fixes-20260619
 // visible-shell-direct-fixes-20260619 review-selection-actions-20260619 startup-responsive-runtime-20260619 core-safe-boot-20260619
-// navigation-smoothness-20260619
+// navigation-smoothness-20260619 browser-diagnostics-20260619
 
-const SAFE_UI_VERSION = 'navigation-smoothness-20260619';
-const CLIP_UI_VERSION = 'navigation-smoothness-20260619';
+const SAFE_UI_VERSION = 'browser-diagnostics-20260619';
+const CLIP_UI_VERSION = 'browser-diagnostics-20260619';
 const CORE_MODULE_URLS = [
+  `./static-browser-diagnostics-controller.js?v=${SAFE_UI_VERSION}`,
   `./static-shell-core-controller.js?v=${SAFE_UI_VERSION}`,
   `./static-review-ui-polish-controller.js?v=${SAFE_UI_VERSION}`,
   `./static-toolbar-polish-controller.js?v=${SAFE_UI_VERSION}`,
@@ -25,7 +26,6 @@ const CORE_MODULE_URLS = [
   `./static-viewpad-navigation-tools-controller.js?v=${SAFE_UI_VERSION}`,
   `./static-section-box-from-selection-controller.js?v=${SAFE_UI_VERSION}`,
   `./static-tree-core-controller.js?v=${SAFE_UI_VERSION}`,
-  `./static-properties-actions-controller.js?v=${SAFE_UI_VERSION}`,
   `./static-color-legend-controller.js?v=${SAFE_UI_VERSION}`,
   `./static-workflow-status-controller.js?v=${SAFE_UI_VERSION}`,
   `./static-drawer-summary-controller.js?v=${SAFE_UI_VERSION}`,
@@ -58,7 +58,9 @@ function scheduleCoreShell() {
     return Promise.allSettled(urls.map((url) => import(url))).then((results) => {
       results.forEach((result, index) => {
         if (result.status === 'rejected') {
-          console.warn(`[3DMarkupTool] Static shell core module failed: ${urls[index]}`, result.reason);
+          const url = urls[index];
+          console.warn(`[3DMarkupTool] Static shell core module failed: ${url}`, result.reason);
+          emitBootstrapModuleFailure(url, result.reason);
         }
       });
     });
@@ -118,6 +120,7 @@ function startSoon(delayMs) {
       console.warn('[3DMarkupTool] Optional UI loader skipped after failed dynamic import.', error);
       window.__3D_MARKUP_SAFE_UI_IMPORT_STARTED__ = false;
       window.__3D_MARKUP_SAFE_UI_IMPORT_FAILED__ = true;
+      emitBootstrapModuleFailure(SAFE_LOADER_URL, error);
     });
   }, delayMs);
 }
@@ -125,4 +128,19 @@ function startSoon(delayMs) {
 function setBootstrapStatus(text) {
   const status = document.getElementById('coreStatus') || document.getElementById('uiHealthBadge');
   if (status) status.textContent = text;
+}
+
+function emitBootstrapModuleFailure(url, reason) {
+  const detail = {
+    url,
+    reason: reason && (reason.message || String(reason)),
+    version: SAFE_UI_VERSION,
+    userAgent: window.navigator && window.navigator.userAgent
+  };
+  window.__3D_MARKUP_BOOTSTRAP_MODULE_FAILURES__ = window.__3D_MARKUP_BOOTSTRAP_MODULE_FAILURES__ || [];
+  window.__3D_MARKUP_BOOTSTRAP_MODULE_FAILURES__.push(detail);
+  if (window.__3D_MARKUP_BROWSER_DIAGNOSTICS__ && typeof window.__3D_MARKUP_BROWSER_DIAGNOSTICS__.recordModuleFailure === 'function') {
+    window.__3D_MARKUP_BROWSER_DIAGNOSTICS__.recordModuleFailure(detail);
+  }
+  window.dispatchEvent(new CustomEvent('3dmarkup:bootstrap-module-failed', { detail }));
 }

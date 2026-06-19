@@ -6,10 +6,10 @@
 // viewpad-icons-context-saved-state-20260619 esc-tools-export-icons-20260619 ribbon-usability-fixes-20260619 review-tool-final-fixes-20260619
 // visible-shell-direct-fixes-20260619 review-selection-actions-20260619 startup-responsive-runtime-20260619 core-safe-boot-20260619
 // navigation-smoothness-20260619 browser-diagnostics-20260619 chrome-runtime-diagnostics-20260619 input-always-visible-20260619 phase3-ribbon-cleanup-20260619
-// phase4-global-esc-lifecycle-20260619 phase4a-static-input-panel-cleanup-20260619 perf-static-shell-20260620
+// phase4-global-esc-lifecycle-20260619 phase4a-static-input-panel-cleanup-20260619 perf-static-shell-20260620 perf-lcp-deferred-app-20260620
 
-const SAFE_UI_VERSION = 'perf-static-shell-20260620';
-const CLIP_UI_VERSION = 'perf-static-shell-20260620';
+const SAFE_UI_VERSION = 'perf-idle-diagnostics-20260620';
+const CLIP_UI_VERSION = 'perf-idle-diagnostics-20260620';
 
 const EARLY_MODULE_URLS = [
   `./static-shell-core-controller.js?v=${SAFE_UI_VERSION}`,
@@ -18,7 +18,6 @@ const EARLY_MODULE_URLS = [
 ];
 
 const DEFERRED_MODULE_URLS = [
-  `./static-browser-diagnostics-controller.js?v=${SAFE_UI_VERSION}`,
   `./static-review-ui-polish-controller.js?v=${SAFE_UI_VERSION}`,
   `./static-toolbar-polish-controller.js?v=${SAFE_UI_VERSION}`,
   `./static-svg-icons-controller.js?v=${SAFE_UI_VERSION}`,
@@ -46,6 +45,10 @@ const DEFERRED_MODULE_URLS = [
   `./static-global-tool-lifecycle-controller.js?v=${SAFE_UI_VERSION}`
 ];
 
+const LATE_IDLE_MODULE_URLS = [
+  `./static-browser-diagnostics-controller.js?v=${SAFE_UI_VERSION}`
+];
+
 const CLIP_MODULE_URLS = shouldLoadClipTools() ? [
   `./fresh-clip-controller.js?v=${CLIP_UI_VERSION}`,
   `./fresh-clip-box-adjust-controller.js?v=${CLIP_UI_VERSION}`
@@ -53,11 +56,13 @@ const CLIP_MODULE_URLS = shouldLoadClipTools() ? [
 
 const SAFE_LOADER_URL = `./safe-ui-loader.js?v=${SAFE_UI_VERSION}`;
 const MAX_ATTEMPTS = 4;
-const DEFERRED_IMPORT_BATCH_SIZE = 4;
+const DEFERRED_IMPORT_BATCH_SIZE = 3;
+const LATE_IDLE_TIMEOUT_MS = 4200;
 
 let attempts = 0;
 let coreShellStarted = false;
 let deferredShellStarted = false;
+let lateShellStarted = false;
 
 scheduleCoreShell();
 scheduleStart();
@@ -78,6 +83,26 @@ function startDeferredShell() {
   if (deferredShellStarted) return;
   deferredShellStarted = true;
   importModuleQueue(DEFERRED_MODULE_URLS.concat(CLIP_MODULE_URLS), 'deferred static shell');
+  scheduleLateIdleShell();
+}
+
+function scheduleLateIdleShell() {
+  if (lateShellStarted) return;
+  const start = () => {
+    if (lateShellStarted) return;
+    lateShellStarted = true;
+    importModuleQueue(LATE_IDLE_MODULE_URLS, 'late idle diagnostics shell');
+  };
+
+  if (window.__3D_MARKUP_APP_BOOT_COMPLETE__) {
+    scheduleIdle(start, LATE_IDLE_TIMEOUT_MS);
+    return;
+  }
+
+  window.addEventListener('viewer:app-module-loaded', () => scheduleIdle(start, LATE_IDLE_TIMEOUT_MS), { once: true });
+  window.addEventListener('viewer:app-module-failed', () => scheduleIdle(start, LATE_IDLE_TIMEOUT_MS), { once: true });
+  window.addEventListener('load', () => scheduleIdle(start, LATE_IDLE_TIMEOUT_MS), { once: true });
+  scheduleIdle(start, LATE_IDLE_TIMEOUT_MS + 1800);
 }
 
 function scheduleStart() {
@@ -148,10 +173,10 @@ function importModuleQueue(urls, label) {
     const batch = urls.slice(index, index + DEFERRED_IMPORT_BATCH_SIZE);
     index += batch.length;
     importModuleBatch(batch, label).finally(() => {
-      if (index < urls.length) scheduleIdle(loadNextBatch, 1200);
+      if (index < urls.length) scheduleIdle(loadNextBatch, 1400);
     });
   };
-  scheduleIdle(loadNextBatch, 1200);
+  scheduleIdle(loadNextBatch, 1400);
 }
 
 function reportModuleResults(urls, results, label) {

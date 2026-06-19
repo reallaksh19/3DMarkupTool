@@ -13,6 +13,8 @@ let staleAssetUrls = [];
 let frameSample = null;
 let wheelLatency = null;
 let webglInfo = null;
+let diagnosticsScheduled = false;
+let diagnosticsComplete = false;
 
 window.__3D_MARKUP_BROWSER_DIAGNOSTICS__ = {
   version: BROWSER_DIAGNOSTICS_VERSION,
@@ -39,9 +41,6 @@ if (document.readyState === 'loading') {
 
 function onReady() {
   staleAssetUrls = detectStaleShellAssets();
-  webglInfo = collectWebglInfo();
-  installWheelLatencyProbe();
-  sampleFrameTime();
   console.info('[3DMarkupTool:browser-diagnostics]', checklist());
 
   if (staleAssetUrls.length) {
@@ -55,13 +54,36 @@ function onReady() {
     return;
   }
 
+  scheduleHeavyDiagnosticsProbes();
+
   if (shouldShowChromeHint()) {
     showHelp({
       level: 'info',
-      title: 'Chrome diagnostics ready',
-      message: 'Chrome runtime diagnostics are active. If zoom remains erratic, the panel will warn about stale assets, frame-time spikes, or wheel-event latency. Ctrl+F5 remains the first cache recovery step.'
+      title: 'Chrome diagnostics scheduled',
+      message: 'Chrome runtime diagnostics will run after the page is visually stable. Ctrl+F5 remains the first cache recovery step.'
     });
   }
+}
+
+function scheduleHeavyDiagnosticsProbes() {
+  if (diagnosticsScheduled) return;
+  diagnosticsScheduled = true;
+  const start = () => scheduleAfterFirstPaint(() => scheduleIdle(runHeavyDiagnosticsProbes, 3600));
+  if (document.readyState === 'complete') {
+    start();
+    return;
+  }
+  window.addEventListener('load', start, { once: true });
+  scheduleIdle(start, 5200);
+}
+
+function runHeavyDiagnosticsProbes() {
+  if (diagnosticsComplete) return;
+  diagnosticsComplete = true;
+  webglInfo = collectWebglInfo();
+  installWheelLatencyProbe();
+  sampleFrameTime();
+  console.info('[3DMarkupTool:browser-diagnostics:late]', checklist());
 }
 
 function recordModuleFailure(detail) {
@@ -345,6 +367,25 @@ function injectStyles() {
   document.head.appendChild(style);
 }
 
+function scheduleAfterFirstPaint(callback) {
+  const run = () => callback();
+  if (typeof window.requestAnimationFrame !== 'function') {
+    run();
+    return;
+  }
+  window.requestAnimationFrame(() => {
+    window.requestAnimationFrame(run);
+  });
+}
+
+function scheduleIdle(callback, timeout = 1600) {
+  if (typeof window.requestIdleCallback === 'function') {
+    window.requestIdleCallback(callback, { timeout });
+    return;
+  }
+  window.setTimeout(callback, 1);
+}
+
 function basename(url) {
   return String(url || '').split('/').pop() || String(url || 'module');
 }
@@ -364,6 +405,8 @@ function checklist() {
     userAgent: ua,
     moduleFailureCount: moduleFailures.length,
     runtimeWarningCount: runtimeWarnings.length,
+    diagnosticsScheduled,
+    diagnosticsComplete,
     webglInfo,
     frameSample,
     wheelLatency,
@@ -371,6 +414,7 @@ function checklist() {
     noIntervalPolling: true,
     frameTimeProbe: true,
     wheelLatencyProbe: true,
-    staleShellProbe: true
+    staleShellProbe: true,
+    deferredWebglProbe: true
   };
 }

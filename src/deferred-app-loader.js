@@ -1,17 +1,20 @@
-const APP_LOADER_VERSION = 'perf-lcp-deferred-app-20260620';
+const APP_LOADER_VERSION = 'perf-idle-diagnostics-20260620';
 const APP_MODULE_URL = `./app.js?v=${APP_LOADER_VERSION}`;
+const CLIP_HOOK_MODULE_URL = `./clip-render-hook.js?v=${APP_LOADER_VERSION}`;
 const FRESH_CLIP_MODULE_URL = `./fresh-clip-controller.js?v=${APP_LOADER_VERSION}`;
 const APP_BOOT_IDLE_TIMEOUT_MS = 900;
-const POST_APP_IDLE_TIMEOUT_MS = 1200;
+const POST_APP_IDLE_TIMEOUT_MS = 1400;
 
 window.__3D_MARKUP_APP_DEFERRED_BOOT__ = true;
 window.__3D_MARKUP_APP_LOADER_VERSION__ = APP_LOADER_VERSION;
 
 scheduleAfterFirstPaint(startViewerApp);
 
-function startViewerApp() {
+async function startViewerApp() {
   if (window.__3D_MARKUP_APP_BOOT_STARTED__) return;
   window.__3D_MARKUP_APP_BOOT_STARTED__ = true;
+
+  await loadClipRenderHook();
   const installGuard = window.__3D_MARKUP_INSTALL_STARTUP_FREEZE_GUARD__;
   if (typeof installGuard === 'function') installGuard({ source: 'deferred-app-loader' });
   setRuntimeStatus('Viewer Loading');
@@ -35,6 +38,28 @@ function startViewerApp() {
         }
       }));
     });
+}
+
+function loadClipRenderHook() {
+  if (window.__3D_MARKUP_CLIP_RENDER_HOOK_READY__) return Promise.resolve(true);
+  if (window.__3D_MARKUP_CLIP_RENDER_HOOK_IMPORT__) return window.__3D_MARKUP_CLIP_RENDER_HOOK_IMPORT__;
+
+  window.__3D_MARKUP_CLIP_RENDER_HOOK_IMPORT__ = import(CLIP_HOOK_MODULE_URL)
+    .then(() => {
+      window.__3D_MARKUP_CLIP_RENDER_HOOK_READY__ = true;
+      return true;
+    })
+    .catch((error) => {
+      console.warn('[3DMarkupTool] Clip render hook skipped before app boot.', error);
+      window.dispatchEvent(new CustomEvent('viewer:clip-render-hook-skipped', {
+        detail: {
+          version: APP_LOADER_VERSION,
+          reason: error && (error.message || String(error))
+        }
+      }));
+      return false;
+    });
+  return window.__3D_MARKUP_CLIP_RENDER_HOOK_IMPORT__;
 }
 
 function loadFreshClipController() {

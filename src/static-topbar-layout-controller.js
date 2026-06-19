@@ -1,13 +1,16 @@
 // Static topbar/ribbon layout controller.
-// Keeps View/Fit/Display expanded while moving Color By/Tag Views into Display and
-// placing Markup/Session/Export as topbar menus after Props.
+// The static shell now owns first-paint geometry. This module must not move
+// controls or inject layout-changing CSS during the default boot path.
 
-const VERSION = 'static-topbar-markup-health-bar-20260619';
+const VERSION = 'perf-idle-topbar-layout-20260620';
 
 const MARKUP_IDS = ['staticTagBtn', 'staticIsonoteXmlBtn', 'staticImportXmlBtn'];
 const SESSION_IDS = ['staticSaveSessionBtn', 'staticRestoreSessionBtn', 'staticClearSessionBtn'];
 const EXPORT_IDS = ['downloadGlbBtn', 'downloadRvmBtn', 'downloadAttBtn', 'downloadAuditBtn', 'staticXmlQaBtn', 'staticExportXmlBtn'];
 const PROXIED_IDS = [...MARKUP_IDS, ...SESSION_IDS, ...EXPORT_IDS];
+
+let fullLayoutEnabled = false;
+let menuCloseBound = false;
 
 runWhenReady(initStaticTopbarLayout);
 
@@ -17,17 +20,35 @@ function runWhenReady(callback) {
 }
 
 function initStaticTopbarLayout() {
+  groupViewFitDisplay();
+  bindMenuCloseOnly();
+
+  const api = {
+    version: VERSION,
+    mode: shouldEnableFullTopbarLayout() ? 'full-opt-in' : 'static-shell',
+    refresh: refreshLayout,
+    enableFullLayout
+  };
+  window.__3D_MARKUP_STATIC_TOPBAR_LAYOUT__ = api;
+
+  if (shouldEnableFullTopbarLayout()) enableFullLayout();
+}
+
+function shouldEnableFullTopbarLayout() {
+  const params = new URLSearchParams(window.location.search);
+  return params.has('topbarLayout')
+    || params.has('fullTopbarLayout')
+    || window.localStorage.getItem('3dmarkup.fullTopbarLayout') === '1';
+}
+
+function enableFullLayout() {
+  if (fullLayoutEnabled) return;
+  fullLayoutEnabled = true;
   injectStyles();
   groupViewFitDisplay();
-  moveColorByToDisplay();
-  moveTagViewsToDisplay();
   ensureTopbarMenus();
   improveHealthStatus();
   bindUpdates();
-  window.__3D_MARKUP_STATIC_TOPBAR_LAYOUT__ = {
-    version: VERSION,
-    refresh: refreshLayout
-  };
   refreshLayout();
 }
 
@@ -37,70 +58,6 @@ function injectStyles() {
   style.id = 'staticTopbarLayoutStyles';
   style.textContent = `
     .topbar-actions { gap: 8px; align-items: center; }
-    .topbar-actions .color-control { display: none !important; }
-
-    .main-ribbon { align-items: stretch; gap: 8px; }
-    .toolbar-group[data-expanded-group] {
-      position: relative;
-      padding-top: 16px;
-    }
-    .toolbar-group[data-expanded-group]::before {
-      content: attr(data-expanded-label);
-      position: absolute;
-      top: 2px;
-      left: 10px;
-      color: rgba(169, 195, 226, .78);
-      font-size: 9px;
-      font-weight: 900;
-      letter-spacing: .08em;
-      text-transform: uppercase;
-      pointer-events: none;
-    }
-
-    .display-color-inline {
-      min-width: 170px;
-      height: 56px;
-      display: grid;
-      grid-template-rows: auto 1fr;
-      gap: 2px;
-      align-items: center;
-      padding: 6px 8px;
-      border: 1px solid rgba(83,125,176,.38);
-      border-radius: 10px;
-      background: rgba(11,29,51,.76);
-      color: #e6f0ff;
-      box-sizing: border-box;
-    }
-    .display-color-inline span {
-      font-size: 9px;
-      font-weight: 950;
-      letter-spacing: .04em;
-      color: #a9c3e2;
-      line-height: 1;
-    }
-    .display-color-inline select {
-      height: 28px;
-      min-height: 28px !important;
-      padding: 3px 28px 3px 8px;
-      border-radius: 7px;
-      font-size: 11px;
-      font-weight: 800;
-      background-color: rgba(6, 22, 40, .88);
-      color: #fff;
-    }
-
-    #staticTagViewsBtn.display-tag-views {
-      width: 86px;
-      min-width: 86px;
-      max-width: 86px;
-      height: 56px;
-      min-height: 56px;
-    }
-
-    .markup-ribbon { display: none !important; }
-    ${PROXIED_IDS.map((id) => `#${id}`).join(', ')} { display: none !important; }
-    #staticTagViewsBtn.display-tag-views { display: inline-flex !important; }
-
     .top-menu-wrap { position: relative; }
     .top-menu-btn {
       min-height: 42px;
@@ -148,7 +105,6 @@ function injectStyles() {
       font-size: 10px;
       line-height: 1.3;
     }
-
     .app-health-pill {
       min-width: 142px;
       min-height: 42px;
@@ -164,29 +120,11 @@ function injectStyles() {
       white-space: nowrap;
       box-sizing: border-box;
     }
-    .app-health-top {
-      display: flex;
-      align-items: baseline;
-      justify-content: space-between;
-      gap: 8px;
-    }
+    .app-health-top { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
     .app-health-top strong { font-size: 11px; font-weight: 1000; }
     .app-health-top b { font-size: 12px; font-weight: 1000; color: #39f0bd; }
-    .app-health-bar {
-      position: relative;
-      height: 5px;
-      border-radius: 999px;
-      overflow: hidden;
-      background: rgba(255,255,255,.12);
-    }
-    .app-health-bar span {
-      display: block;
-      height: 100%;
-      width: var(--health-pct, 0%);
-      border-radius: inherit;
-      background: linear-gradient(90deg, #1fa7ff, #28e0a1);
-      transition: width .18s ease;
-    }
+    .app-health-bar { position: relative; height: 5px; border-radius: 999px; overflow: hidden; background: rgba(255,255,255,.12); }
+    .app-health-bar span { display: block; height: 100%; width: var(--health-pct, 0%); border-radius: inherit; background: linear-gradient(90deg, #1fa7ff, #28e0a1); transition: width .18s ease; }
     .app-health-detail { font-size: 9.5px; color: rgba(213,255,244,.78); font-weight: 800; overflow: hidden; text-overflow: ellipsis; }
     .app-health-pill.warn { border-color: rgba(255,171,53,.62); background: rgba(61, 39, 8, .68); color: #ffe6b5; }
     .app-health-pill.warn .app-health-top b { color: #ffc15d; }
@@ -194,13 +132,6 @@ function injectStyles() {
     .app-health-pill.bad { border-color: rgba(255,90,110,.62); background: rgba(62, 8, 20, .68); color: #ffd7dc; }
     .app-health-pill.bad .app-health-top b { color: #ff7f93; }
     .app-health-pill.bad .app-health-bar span { background: linear-gradient(90deg, #ff4d6d, #ff8fa3); }
-    #runtimeStatus, #uiScorePill { display: none !important; }
-
-    @media (max-width: 1500px) {
-      .display-color-inline { min-width: 150px; }
-      .top-menu-btn { padding-inline: 10px; }
-      .app-health-pill { min-width: 132px; padding-inline: 9px; }
-    }
   `;
   document.head.appendChild(style);
 }
@@ -216,32 +147,6 @@ function groupViewFitDisplay() {
     displayGroup.dataset.expandedGroup = 'display';
     displayGroup.dataset.expandedLabel = 'Display';
   }
-}
-
-function moveColorByToDisplay() {
-  const displayGroup = document.querySelector('[data-group="display"]');
-  const select = document.getElementById('colorBySelect');
-  if (!displayGroup || !select || document.getElementById('displayColorInline')) return;
-
-  const inline = document.createElement('label');
-  inline.id = 'displayColorInline';
-  inline.className = 'display-color-inline';
-  inline.innerHTML = '<span>Color By</span>';
-  inline.appendChild(select);
-
-  const legend = document.getElementById('colorLegendBtn');
-  if (legend?.parentElement === displayGroup) displayGroup.insertBefore(inline, legend);
-  else displayGroup.insertBefore(inline, displayGroup.firstChild);
-}
-
-function moveTagViewsToDisplay() {
-  const displayGroup = document.querySelector('[data-group="display"]');
-  const legend = document.getElementById('colorLegendBtn');
-  const tagViews = document.getElementById('staticTagViewsBtn');
-  if (!displayGroup || !tagViews) return;
-  tagViews.classList.add('display-tag-views');
-  if (legend?.parentElement === displayGroup) legend.after(tagViews);
-  else displayGroup.appendChild(tagViews);
 }
 
 function ensureTopbarMenus() {
@@ -275,8 +180,8 @@ function ensureMenu(id, label, icon, itemIds, note) {
     });
   }
   const pop = wrap.querySelector('.top-menu-popover');
-  if (pop) {
-    pop.innerHTML = '';
+  if (pop && !pop.dataset.boundProxyMenu) {
+    pop.dataset.boundProxyMenu = '1';
     itemIds.forEach((itemId) => {
       const source = document.getElementById(itemId);
       const proxy = document.createElement('button');
@@ -336,27 +241,31 @@ function improveHealthStatus() {
   actions.appendChild(health);
 }
 
-function bindUpdates() {
+function bindMenuCloseOnly() {
+  if (menuCloseBound) return;
+  menuCloseBound = true;
   window.addEventListener('click', (event) => {
     if (!event.target?.closest?.('.top-menu-wrap')) closeMenus();
   });
   window.addEventListener('keydown', (event) => {
     if (event.key === 'Escape') closeMenus();
   });
+}
+
+function bindUpdates() {
   ['viewer:ui-score-changed', 'markup:app-ready', 'markup:render-context', 'viewer:model-loaded', 'viewer:selection-changed', 'viewer:grid-visibility-changed']
     .forEach((name) => window.addEventListener(name, refreshLayout));
-  window.setInterval(refreshLayout, 1200);
 }
 
 function refreshLayout() {
   groupViewFitDisplay();
-  moveColorByToDisplay();
-  moveTagViewsToDisplay();
-  ensureTopbarMenus();
-  refreshTopbarMenus();
-  refreshHealth();
-  if (window.lucide?.createIcons) {
-    try { window.lucide.createIcons(); } catch { /* inline icons may already be SVG */ }
+  if (fullLayoutEnabled) {
+    ensureTopbarMenus();
+    refreshTopbarMenus();
+    refreshHealth();
+    if (window.lucide?.createIcons) {
+      try { window.lucide.createIcons(); } catch { /* inline icons may already be SVG */ }
+    }
   }
 }
 

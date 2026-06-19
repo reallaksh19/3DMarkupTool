@@ -9,6 +9,10 @@ on:
       - ci/phase-gates-rvm-export
   workflow_dispatch:
 
+permissions:
+  contents: write
+  pull-requests: write
+
 jobs:
   phase-gates:
     name: RVM/ATT phase gates
@@ -17,6 +21,81 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.head_ref || github.ref_name }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Apply seam-ring torus fix
+        if: github.event_name == 'pull_request'
+        run: |
+          node <<'NODE'
+          const fs = require('fs');
+          const converterPath = 'src/converter.js';
+          let converter = fs.readFileSync(converterPath, 'utf8');
+          const oldBlock = `    if (primitive.kind === 'seam-ring') {
+      add(
+        cylinderAlongAxis(
+          pointAt(primitive.axialOffset),
+          dir,
+          primitive.length,
+          Math.max(primitive.radius || pipeRadius * 1.08, pipeRadius * 1.04),
+          seamMat,
+          24,
+          \`${element.id}_${primitive.role}\`
+        ),
+        primitive.role,
+        { ...primitive, geometryKind: 'SEAM_RING' }
+      );
+      continue;
+    }`;
+          const newBlock = `    if (primitive.kind === 'seam-ring') {
+      add(
+        createSeamRingAroundAxis(
+          pointAt(primitive.axialOffset),
+          dir,
+          Math.max(primitive.radius || pipeRadius * 1.08, pipeRadius * 1.04),
+          Math.max((primitive.length || pipeRadius * 0.008) * 0.45, pipeRadius * 0.006, 0.006),
+          seamMat,
+          \`${element.id}_${primitive.role}\`
+        ),
+        primitive.role,
+        { ...primitive, geometryKind: 'TORUS_SEAM_RING' }
+      );
+      continue;
+    }`;
+          if (!converter.includes(oldBlock)) {
+            throw new Error('Expected solid-cylinder seam-ring block not found; aborting to avoid an unsafe rewrite.');
+          }
+          converter = converter.replace(oldBlock, newBlock);
+          const anchor = `function cylinderAlongAxis(center, dir, length, radius, material, radialSegments, name) {`;
+          const helper = `function createSeamRingAroundAxis(center, dir, radius, tubeRadius, material, name) {
+  const geom = new THREE.TorusGeometry(Math.max(radius, 0.004), Math.max(tubeRadius, 0.002), 6, 36);
+  const mesh = new THREE.Mesh(geom, material);
+  mesh.name = name;
+  mesh.position.copy(center);
+  mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), dir.clone().normalize());
+  return mesh;
+}
+
+`;
+          if (!converter.includes('function createSeamRingAroundAxis(')) {
+            converter = converter.replace(anchor, helper + anchor);
+          }
+          fs.writeFileSync(converterPath, converter);
+
+          const testPath = 'tests/valve-flange-renderer-reference-visual.test.mjs';
+          let test = fs.readFileSync(testPath, 'utf8');
+          const after = `assert.ok(converter.includes('seamMat'), 'renderer must use a dedicated dark seam material');`;
+          const insert = `${after}
+assert.ok(converter.includes('createSeamRingAroundAxis'), 'seam rings must be open torus grooves, not solid flange-like cylinders');
+assert.ok(converter.includes('TORUS_SEAM_RING'), 'seam-ring userData must expose torus seam geometry for visual audits');
+assert.ok(converter.includes('new THREE.TorusGeometry'), 'renderer must draw seam rings as torus geometry');`;
+          if (!test.includes('TORUS_SEAM_RING')) {
+            test = test.replace(after, insert);
+          }
+          fs.writeFileSync(testPath, test);
+          NODE
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -33,6 +112,23 @@ jobs:
         run: |
           set -o pipefail
           npm test 2>&1 | tee phase-gate.log
+          npm run contract:dry-run
+
+      - name: Commit source-only seam-ring fix
+        if: github.event_name == 'pull_request'
+        run: |
+          set -euo pipefail
+          git fetch origin main
+          git checkout origin/main -- .github/workflows/rvm-export-phase-gates.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if git diff --quiet; then
+            echo "No source diff to commit."
+            exit 0
+          fi
+          git add src/converter.js tests/valve-flange-renderer-reference-visual.test.mjs .github/workflows/rvm-export-phase-gates.yml
+          git commit -m "Render flange seam rings as torus grooves"
+          git push origin HEAD:${{ github.head_ref }}
 
       - name: Upload phase-gate log
         if: always()

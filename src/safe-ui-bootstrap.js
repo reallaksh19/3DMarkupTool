@@ -19,7 +19,6 @@ const CORE_MODULE_URLS = [
   `./static-explode-review-controller.js?v=${SAFE_UI_VERSION}`,
   `./static-viewpad-navigation-tools-controller.js?v=${SAFE_UI_VERSION}`,
   `./static-section-box-from-selection-controller.js?v=${SAFE_UI_VERSION}`,
-  `./static-viewpad-tool-icons-context-controller.js?v=${SAFE_UI_VERSION}`,
   `./static-tree-core-controller.js?v=${SAFE_UI_VERSION}`,
   `./static-properties-actions-controller.js?v=${SAFE_UI_VERSION}`,
   `./static-color-legend-controller.js?v=${SAFE_UI_VERSION}`,
@@ -29,7 +28,8 @@ const CORE_MODULE_URLS = [
   `./static-help-shortcuts-controller.js?v=${SAFE_UI_VERSION}`,
   `./static-markup-core-controller.js?v=${SAFE_UI_VERSION}`,
   `./static-quick-export-core-controller.js?v=${SAFE_UI_VERSION}`,
-  `./static-topbar-layout-controller.js?v=${SAFE_UI_VERSION}`
+  `./static-topbar-layout-controller.js?v=${SAFE_UI_VERSION}`,
+  `./static-review-ribbon-tools-controller.js?v=${SAFE_UI_VERSION}`
 ];
 const CLIP_MODULE_URLS = shouldLoadClipTools() ? [
   `./fresh-clip-controller.js?v=${CLIP_UI_VERSION}`,

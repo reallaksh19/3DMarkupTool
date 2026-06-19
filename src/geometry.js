@@ -136,8 +136,15 @@ export function createSpringCoil(center, axis = new THREE.Vector3(0, 1, 0), radi
 
 export function orthogonal(dir) {
   const d = dir.clone().normalize();
-  const ref = Math.abs(d.y) < 0.9 ? new THREE.Vector3(0, 1, 0) : new THREE.Vector3(1, 0, 0);
-  return new THREE.Vector3().crossVectors(d, ref).normalize();
+  const worldUp = new THREE.Vector3(0, 1, 0);
+  const projectedUp = worldUp.clone().sub(d.clone().multiplyScalar(worldUp.dot(d)));
+  if (projectedUp.lengthSq() > 1e-8) return projectedUp.normalize();
+
+  const worldX = new THREE.Vector3(1, 0, 0);
+  const projectedX = worldX.clone().sub(d.clone().multiplyScalar(worldX.dot(d)));
+  if (projectedX.lengthSq() > 1e-8) return projectedX.normalize();
+
+  return new THREE.Vector3(0, 0, 1);
 }
 
 export function dominantAxis(vec) {

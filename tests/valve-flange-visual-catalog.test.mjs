@@ -24,6 +24,10 @@ function assertCoverage(plan, length, message) {
   assert.ok(coveredTo >= length / 2 - 0.03, `${message}: visual does not reach component end`);
 }
 
+function assertNoFilledSeamRings(plan, message) {
+  assert.ok(!plan.some((p) => p.kind === 'seam-ring'), `${message}: seam-ring primitives render as filled cylinders and must not be emitted`);
+}
+
 function run() {
   assert.ok(VALVE_FLANGE_VISUAL_CATALOG.valveTypes.VALVE_GATE);
   assert.ok(VALVE_FLANGE_VISUAL_CATALOG.valveTypes.VALVE_FLANGED);
@@ -40,6 +44,7 @@ function run() {
   assert.equal(flangedValve.visualPolicy.lengthPartitionedSymbol, true);
   const flangedPipeRadius = 0.5715;
   const flangedValvePlan = buildLinearVisualPrimitivePlan(flangedValve, { length: 3.4, pipeRadius: flangedPipeRadius });
+  assertNoFilledSeamRings(flangedValvePlan, 'flanged valve');
   assert.ok(flangedValvePlan.some((p) => p.role === 'VALVE_BODY'), 'flanged valve must include a central valve body');
   assert.ok(flangedValvePlan.some((p) => p.role === 'VALVE_BORE_FILL'), 'flanged valve must include a bore fill so there is no open pipe gap');
   assert.ok(flangedValvePlan.some((p) => p.role === 'END_COLLAR_A'));
@@ -58,10 +63,6 @@ function run() {
   const endCollar = flangedValvePlan.find((p) => p.role === 'END_COLLAR_A');
   assert.ok(endCollar.length <= flangedPipeRadius * 0.13, 'flanged valve end collar must read as a thin plate, not a thick washer');
   assert.equal(endCollar.thinPlate, true);
-  const valveSeam = flangedValvePlan.find((p) => p.role === 'END_COLLAR_SEAM_A');
-  assert.ok(valveSeam, 'flanged valve must include a dark seam at the flange/neck boundary');
-  assert.equal(valveSeam.kind, 'seam-ring');
-  assert.ok(valveSeam.length <= endCollar.length * 0.3, 'valve seam must be a thin line, not another collar');
   const handwheel = flangedValvePlan.find((p) => p.role === 'HANDWHEEL');
   assert.ok(handwheel.radius >= flangedPipeRadius * 0.85, 'handwheel must remain large enough to read in the 3D view');
   assert.equal(handwheel.visualWeight, 'readable-operator');
@@ -75,6 +76,7 @@ function run() {
   assert.equal(gate.profile.handleStyle, 'handwheel');
   assert.equal(gate.visualPolicy.pipeShouldNotPassThroughBody, true);
   const gatePlan = buildLinearVisualPrimitivePlan(gate, { length: 4, pipeRadius: 0.75 });
+  assertNoFilledSeamRings(gatePlan, 'gate valve');
   const gateBody = gatePlan.find((p) => p.role === 'VALVE_BODY');
   assert.ok(gateBody);
   assert.ok(gatePlan.some((p) => p.role === 'BONNET_STEM'));
@@ -89,6 +91,7 @@ function run() {
   const ball = getValveFlangeVisualSpec({ rawType: 'BALL VALVE', props: { bore: '100' } });
   assert.equal(ball.componentType, 'VALVE_BALL');
   const ballPlan = buildLinearVisualPrimitivePlan(ball, { length: 3, pipeRadius: 0.5 });
+  assertNoFilledSeamRings(ballPlan, 'ball valve');
   assert.ok(ballPlan.some((p) => p.role === 'LEVER_HANDLE'));
   assert.ok(ballPlan.find((p) => p.role === 'VALVE_BODY').radius >= 0.5 * 1.75);
   assertCoverage(ballPlan, 3, 'ball valve visual replacement coverage');
@@ -100,21 +103,18 @@ function run() {
   assert.equal(flange.componentClass, 'FLANGE');
   assert.equal(flange.visualRecipeId, 'flange-pair-symbol.v1');
   const flangePlan = buildLinearVisualPrimitivePlan(flange, { length: 2.5, pipeRadius: 1 });
+  assertNoFilledSeamRings(flangePlan, 'flange pair');
   const flangeDisc = flangePlan.find((p) => p.role === 'FLANGE_DISC_A');
   const raisedFace = flangePlan.find((p) => p.role === 'RAISED_FACE_A');
   const boltPattern = flangePlan.find((p) => p.role === 'BOLT_PATTERN');
-  const flangeSeam = flangePlan.find((p) => p.role === 'FLANGE_GASKET_SEAM_A');
   assert.ok(flangeDisc);
   assert.ok(flangePlan.some((p) => p.role === 'FLANGE_DISC_B'));
   assert.ok(boltPattern);
-  assert.ok(flangeSeam, 'flange pair must include a dark gasket/seam line');
-  assert.equal(flangeSeam.kind, 'seam-ring');
   assert.ok(flangePlan.some((p) => p.role === 'FLANGE_CENTER_BORE_FILL'), 'flange pair needs direct center bore fill, not detached washers');
   assert.ok(flangeDisc.radius >= 2.0, 'flange disc must read larger than pipe OD');
   assert.ok(flangeDisc.length <= 0.105, 'flange thickness must stay thin/proportional to bore, not long component span');
   assert.equal(flangeDisc.thinPlate, true);
   assert.ok(raisedFace.length <= flangeDisc.length * 0.16, 'raised face/gasket marker must be a thin visual detail');
-  assert.ok(flangeSeam.length <= raisedFace.length, 'dark gasket seam must be no thicker than the raised face marker');
   assert.equal(raisedFace.thinRaisedFace, true);
   assert.ok(boltPattern.boltRadius <= 0.06, 'bolt pattern must not dominate the thin flange plate');
   assert.equal(flangeDisc.replacesCenterlinePipe, true);
@@ -123,6 +123,7 @@ function run() {
   const weldNeck = getValveFlangeVisualSpec({ rawType: 'WELD_NECK_FLANGE', props: { bore: '200' } });
   assert.equal(weldNeck.componentType, 'FLANGE_WELD_NECK');
   const weldNeckPlan = buildLinearVisualPrimitivePlan(weldNeck, { length: 2.5, pipeRadius: 1 });
+  assertNoFilledSeamRings(weldNeckPlan, 'weld-neck flange');
   const weldNeckA = weldNeckPlan.find((p) => p.role === 'WELD_NECK_A');
   const weldNeckB = weldNeckPlan.find((p) => p.role === 'WELD_NECK_B');
   const weldDiscA = weldNeckPlan.find((p) => p.role === 'FLANGE_DISC_A');

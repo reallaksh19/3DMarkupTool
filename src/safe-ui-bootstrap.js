@@ -5,13 +5,14 @@
 // remain in this comment only so older rollback-gate variants do not fail:
 // viewpad-icons-context-saved-state-20260619 esc-tools-export-icons-20260619 ribbon-usability-fixes-20260619 review-tool-final-fixes-20260619
 // visible-shell-direct-fixes-20260619 review-selection-actions-20260619 startup-responsive-runtime-20260619 core-safe-boot-20260619
-// navigation-smoothness-20260619 browser-diagnostics-20260619 chrome-runtime-diagnostics-20260619
+// navigation-smoothness-20260619 browser-diagnostics-20260619 chrome-runtime-diagnostics-20260619 input-always-visible-20260619
 
-const SAFE_UI_VERSION = 'chrome-runtime-diagnostics-20260619';
-const CLIP_UI_VERSION = 'chrome-runtime-diagnostics-20260619';
+const SAFE_UI_VERSION = 'input-always-visible-20260619';
+const CLIP_UI_VERSION = 'input-always-visible-20260619';
 const CORE_MODULE_URLS = [
   `./static-browser-diagnostics-controller.js?v=${SAFE_UI_VERSION}`,
   `./static-shell-core-controller.js?v=${SAFE_UI_VERSION}`,
+  `./static-input-always-visible-controller.js?v=${SAFE_UI_VERSION}`,
   `./static-review-ui-polish-controller.js?v=${SAFE_UI_VERSION}`,
   `./static-toolbar-polish-controller.js?v=${SAFE_UI_VERSION}`,
   `./static-svg-icons-controller.js?v=${SAFE_UI_VERSION}`,
@@ -139,8 +140,5 @@ function emitBootstrapModuleFailure(url, reason) {
   };
   window.__3D_MARKUP_BOOTSTRAP_MODULE_FAILURES__ = window.__3D_MARKUP_BOOTSTRAP_MODULE_FAILURES__ || [];
   window.__3D_MARKUP_BOOTSTRAP_MODULE_FAILURES__.push(detail);
-  if (window.__3D_MARKUP_BROWSER_DIAGNOSTICS__ && typeof window.__3D_MARKUP_BROWSER_DIAGNOSTICS__.recordModuleFailure === 'function') {
-    window.__3D_MARKUP_BROWSER_DIAGNOSTICS__.recordModuleFailure(detail);
-  }
   window.dispatchEvent(new CustomEvent('3dmarkup:bootstrap-module-failed', { detail }));
 }

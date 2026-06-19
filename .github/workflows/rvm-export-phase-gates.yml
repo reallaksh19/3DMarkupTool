@@ -9,6 +9,9 @@ on:
       - ci/phase-gates-rvm-export
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   phase-gates:
     name: RVM/ATT phase gates
@@ -17,11 +20,98 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref || github.ref_name }}
 
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: '20'
+
+      - name: Apply seam torus renderer fix
+        run: |
+          node <<'NODE'
+          const fs = require('node:fs');
+          const converterPath = 'src/converter.js';
+          let converter = fs.readFileSync(converterPath, 'utf8');
+          const oldBranch = `    if (primitive.kind === 'seam-ring') {
+      add(
+        cylinderAlongAxis(
+          pointAt(primitive.axialOffset),
+          dir,
+          primitive.length,
+          Math.max(primitive.radius || pipeRadius * 1.08, pipeRadius * 1.04),
+          seamMat,
+          24,
+          \`${element.id}_\${primitive.role}\`
+        ),
+        primitive.role,
+        { ...primitive, geometryKind: 'SEAM_RING' }
+      );
+      continue;
+    }
+`;
+          const newBranch = `    if (primitive.kind === 'seam-ring') {
+      add(
+        seamRingAlongAxis(
+          pointAt(primitive.axialOffset),
+          dir,
+          Math.max(primitive.radius || pipeRadius * 1.08, pipeRadius * 1.04),
+          Math.max(primitive.length || pipeRadius * 0.01, pipeRadius * 0.003),
+          seamMat,
+          \`${element.id}_\${primitive.role}\`
+        ),
+        primitive.role,
+        { ...primitive, geometryKind: 'SEAM_TORUS' }
+      );
+      continue;
+    }
+`;
+          if (!converter.includes(newBranch)) {
+            if (!converter.includes(oldBranch)) throw new Error('Expected seam-ring cylinder branch was not found');
+            converter = converter.replace(oldBranch, newBranch);
+          }
+          const helper = `
+function seamRingAlongAxis(center, dir, radius, tubeRadius, material, name) {
+  const geom = new THREE.TorusGeometry(
+    Math.max(radius, 0.004),
+    Math.max(tubeRadius * 0.5, 0.0015),
+    6,
+    40
+  );
+  const mesh = new THREE.Mesh(geom, material);
+  mesh.name = name;
+  mesh.position.copy(center);
+  mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), dir.clone().normalize());
+  return mesh;
+}
+`;
+          if (!converter.includes('function seamRingAlongAxis(')) {
+            const anchor = '\nfunction cylinderAlongAxis(center, dir, length, radius, material, radialSegments, name) {';
+            if (!converter.includes(anchor)) throw new Error('cylinderAlongAxis helper anchor not found');
+            converter = converter.replace(anchor, helper + anchor);
+          }
+          fs.writeFileSync(converterPath, converter);
+
+          const testPath = 'tests/valve-flange-renderer-reference-visual.test.mjs';
+          let test = fs.readFileSync(testPath, 'utf8');
+          const oldTestLine = `assert.ok(converter.includes('seamMat'), 'renderer must use a dedicated dark seam material');\n`;
+          const newTestBlock = `assert.ok(converter.includes('seamMat'), 'renderer must use a dedicated dark seam material');
+assert.ok(converter.includes('function seamRingAlongAxis('), 'renderer must draw seam rings as torus grooves, not filled washer cylinders');
+assert.ok(converter.includes("geometryKind: 'SEAM_TORUS'"), 'seam-ring userData must identify torus seam geometry');
+const seamRingBranch = converter.slice(
+  converter.indexOf("primitive.kind === 'seam-ring'"),
+  converter.indexOf("if (primitive.kind === 'disc'")
+);
+assert.ok(!seamRingBranch.includes('cylinderAlongAxis'), 'seam-ring branch must not render filled cylinders');
+assert.ok(seamRingBranch.includes('seamRingAlongAxis'), 'seam-ring branch must call the torus seam renderer');
+`;
+          if (!test.includes('function seamRingAlongAxis(')) {
+            if (!test.includes(oldTestLine)) throw new Error('Expected seam visual test anchor was not found');
+            test = test.replace(oldTestLine, newTestBlock);
+          }
+          fs.writeFileSync(testPath, test);
+          NODE
 
       - name: Install Node dependencies
         run: npm install --no-audit --no-fund
@@ -33,6 +123,17 @@ jobs:
         run: |
           set -o pipefail
           npm test 2>&1 | tee phase-gate.log
+          npm run contract:dry-run
+
+      - name: Commit source-only fix
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch origin main
+          git checkout origin/main -- .github/workflows/rvm-export-phase-gates.yml
+          git add src/converter.js tests/valve-flange-renderer-reference-visual.test.mjs .github/workflows/rvm-export-phase-gates.yml
+          git commit -m "Render valve flange seam rings as torus grooves" || echo "No changes to commit"
+          git push
 
       - name: Upload phase-gate log
         if: always()

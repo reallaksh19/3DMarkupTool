@@ -43,11 +43,18 @@ function assertNoUnmanifestedAppConversionOrchestration() {
   assert.deepEqual(offenders, [], `Unmanifested app conversion orchestration found: ${offenders.join(', ')}`);
 }
 
-function assertTemporaryLegacyCallerIsExplicit() {
+function assertNoTemporaryLegacyCallerException() {
   const appEntry = APPROVED_APP_CONVERSION_ENTRYPOINTS.find((entry) => entry.path === 'src/app.js');
-  assert.ok(appEntry, 'src/app.js temporary legacy caller must be explicit until final wiring lands');
-  assert.equal(appEntry.role, 'TEMPORARY_LEGACY_UI_CALLER');
-  assert.match(appEntry.reason, /Temporary UI caller/);
+  assert.equal(appEntry, undefined, 'src/app.js must not remain an approved direct converter caller after delegate wiring');
+}
+
+function assertAppJsDelegatesConversion() {
+  const source = readFileSync(join(srcRoot, 'app.js'), 'utf8');
+  assert.match(source, /import\s*\{\s*runAppConversionController\s*\}\s*from\s*['"]\.\/app-run-conversion-controller\.js\?v=professional-viewer-3['"];/);
+  assert.match(source, /async\s+function\s+runConversion\s*\(\)\s*\{\s*await\s+runAppConversionController\s*\(/s);
+  assert.doesNotMatch(source, /import\s*\{[^}]*convertInputXmlToGlb[^}]*\}\s*from\s*['"]\.\/converter\.js/);
+  assert.doesNotMatch(source, /import\s*\{[^}]*convertInputXmlToRvmAtt[^}]*\}\s*from\s*['"]\.\/rvm-converter\.js/);
+  assert.doesNotMatch(source, /import\s*\{[^}]*createRvmPreviewScene[^}]*\}\s*from\s*['"]\.\/rvm-preview\.js/);
 }
 
 function assertPipelineSeamIsExplicit() {
@@ -60,7 +67,8 @@ function assertPipelineSeamIsExplicit() {
 
 assertAppConversionBoundaryManifest();
 assertPipelineSeamIsExplicit();
-assertTemporaryLegacyCallerIsExplicit();
+assertNoTemporaryLegacyCallerException();
+assertAppJsDelegatesConversion();
 assertNoUnmanifestedAppConversionOrchestration();
 
 console.log('app-conversion-boundary-audit: ok');

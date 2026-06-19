@@ -58,34 +58,31 @@ function run() {
     componentType: 'VALVE_FLANGED',
     visualCatalogSchema: 'valve-flange-visual-catalog/v1'
   };
-  const oldBody = visualMesh('VALVE_BODY', new THREE.Vector3(0, 0, 0));
+  const catalogBody = visualMesh('VALVE_BODY', new THREE.Vector3(0, 0, 0));
   const collarA = visualMesh('END_COLLAR_A', new THREE.Vector3(-1.9, 0, 0));
   const collarB = visualMesh('END_COLLAR_B', new THREE.Vector3(1.9, 0, 0));
-  const oldStem = visualMesh('BONNET_STEM', new THREE.Vector3(0, 0, 1.1));
-  const oldWheel = visualMesh('HANDWHEEL', new THREE.Vector3(0, 0, 1.8), new THREE.TorusGeometry(0.35, 0.04, 8, 16));
-  visualGroup.add(oldBody, collarA, collarB, oldStem, oldWheel);
+  const stem = visualMesh('BONNET_STEM', new THREE.Vector3(0, 0, 1.1));
+  const wheel = visualMesh('HANDWHEEL', new THREE.Vector3(0, 0, 1.8), new THREE.TorusGeometry(0.35, 0.04, 8, 16));
+  visualGroup.add(catalogBody, collarA, collarB, stem, wheel);
+  const initialChildren = [...visualGroup.children];
 
   plant.add(adjacentPipe, legacyBase, visualGroup);
 
   const stats = hideCatalogReplacedBaseCylinders(scene);
   assert.equal(stats.hiddenBaseCylinders, 1, 'same-component legacy base cylinder must be hidden');
-  assert.equal(stats.uprightValveCorrections, 1, 'flanged valve must get an upright visual correction');
+  assert.equal(stats.uprightValveCorrections, 0, 'postprocess must not duplicate or replace catalogue valve geometry');
+  assert.equal(stats.decorativeGeometryAdded, 0);
   assert.equal(legacyBase.visible, false);
   assert.equal(adjacentPipe.visible, true);
-  assert.equal(oldBody.visible, false, 'horizontal barrel body should be replaced');
-  assert.equal(oldStem.visible, false, 'sideways stem should be replaced');
-  assert.equal(oldWheel.visible, false, 'sideways handwheel should be replaced');
 
-  const uprightBody = visualGroup.children.find((child) => child.userData?.meshRole === 'VALVE_BODY' && child.userData?.uprightValveCorrection);
-  const uprightStem = visualGroup.children.find((child) => child.userData?.meshRole === 'BONNET_STEM' && child.userData?.uprightValveCorrection);
-  const uprightWheel = visualGroup.children.find((child) => child.userData?.meshRole === 'HANDWHEEL' && child.userData?.uprightValveCorrection);
-  assert.ok(uprightBody, 'replacement round valve body should be present');
-  assert.ok(uprightStem, 'upright bonnet stem should be present');
-  assert.ok(uprightWheel, 'upright handwheel should be present');
-  assert.ok(uprightStem.position.y > uprightBody.position.y, 'bonnet stem should rise in world-up direction, not lie sideways');
-  assert.ok(uprightWheel.position.y > uprightStem.position.y, 'handwheel should sit above the bonnet stem');
+  for (const child of initialChildren) {
+    assert.equal(child.visible, true, `${child.userData.meshRole} should remain catalogue-owned and visible`);
+  }
+  assert.equal(visualGroup.children.length, initialChildren.length, 'postprocess must not add replacement body/stem/handwheel meshes');
+  assert.equal(visualGroup.children.some((child) => child.userData?.uprightValveCorrection), false, 'no postprocess correction meshes should be present');
+  assert.equal(visualGroup.children.some((child) => /UPRIGHT/i.test(child.name)), false, 'no duplicate upright mesh names should be created');
 
-  console.log('Flanged valve upright visual correction gate passed');
+  console.log('Flanged valve non-decorating postprocess gate passed');
 }
 
 run();

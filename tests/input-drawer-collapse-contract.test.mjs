@@ -48,8 +48,8 @@ assert.match(
 
 assert.match(
   bootstrap,
-  /static-input-collapse-fix-20260619/,
-  'Safe UI bootstrap version must change so browsers fetch the fixed collapse controller.'
+  /marquee-zoom-viewpad-20260619/,
+  'Safe UI bootstrap version must remain cache-busted so browsers fetch fixed drawer and view-pad controllers.'
 );
 
 console.log('input drawer collapse contract passed');

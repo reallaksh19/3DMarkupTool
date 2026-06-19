@@ -123,26 +123,33 @@ function createElementGeometry(element, group, options, elementByNode) {
   const { a, b } = trimmedElementEndpoints(element, elementByNode, radius, fullA, fullB);
   const isRigid = element.rawType && element.rawType !== 'PIPE' && element.rawType !== 'BEND';
   const visualSpec = getValveFlangeVisualSpec(element);
+  const baseUserData = buildComponentUserData(element);
+
+  if (visualSpec) {
+    const catalogVisual = createCatalogLinearComponentVisual(element, visualSpec, a, b, radius, baseUserData, options);
+    if (catalogVisual) {
+      group.add(catalogVisual);
+      return;
+    }
+  }
+
   const isValve = visualSpec?.componentClass === 'VALVE' || (isRigid && /VALVE/i.test(element.rawType || element.props.rigidType || ''));
   const isFlange = visualSpec?.componentClass === 'FLANGE';
   const material = isValve ? valveMat : isFlange ? flangeMat : isRigid ? rigidMat : element.type === 'BEND' ? bendMat : pipeMat;
   const cyl = cylinderBetween(a, b, radius, material, options.compactMode === false ? 24 : 14, element.id);
-  cyl.userData = buildComponentUserData(element);
+  cyl.userData = baseUserData;
   group.add(cyl);
 
-  if (visualSpec) {
-    const catalogVisual = createCatalogLinearComponentVisual(element, visualSpec, a, b, radius, cyl.userData, options);
-    if (catalogVisual) group.add(catalogVisual);
-  } else if (isRigid) {
+  if (isRigid) {
     const dir = b.clone().sub(a).normalize();
     const mid = a.clone().add(b).multiplyScalar(0.5);
     const collar1 = cylinderBetween(mid.clone().sub(dir.clone().multiplyScalar(0.18)), mid.clone().add(dir.clone().multiplyScalar(0.18)), radius * 1.35, rigidMat, 18, `${element.id}_RIGID_MARKER`);
-    collar1.userData = { ...cyl.userData, meshRole: 'RIGID_MARKER' };
+    collar1.userData = { ...baseUserData, meshRole: 'RIGID_MARKER' };
     group.add(collar1);
   }
 
   if (isBendElement(element)) {
-    const bend = createBendGeometry(element, elementByNode, radius, cyl.userData, options);
+    const bend = createBendGeometry(element, elementByNode, radius, baseUserData, options);
     if (bend) group.add(bend);
   }
 }
@@ -221,7 +228,16 @@ function createCatalogLinearComponentVisual(element, spec, a, b, pipeRadius, bas
 
   for (const primitive of primitives) {
     if (primitive.kind === 'disc') {
-      add(cylinderAlongAxis(pointAt(primitive.axialOffset), dir, primitive.length, primitive.radius, material, 24, `${element.id}_${primitive.role}`), primitive.role, primitive);
+      if (isTaperedLinearPrimitive(primitive)) {
+        const { radiusStart, radiusEnd } = taperedRadiiForPrimitive(primitive);
+        add(
+          frustumAlongAxis(pointAt(primitive.axialOffset), dir, primitive.length, radiusStart, radiusEnd, material, 24, `${element.id}_${primitive.role}`),
+          primitive.role,
+          { ...primitive, geometryKind: 'FRUSTUM', radiusStart, radiusEnd }
+        );
+      } else {
+        add(cylinderAlongAxis(pointAt(primitive.axialOffset), dir, primitive.length, primitive.radius, material, 24, `${element.id}_${primitive.role}`), primitive.role, { ...primitive, geometryKind: 'CYLINDER' });
+      }
     } else if (primitive.role === 'VALVE_BODY') {
       add(createValveBodyMesh(pointAt(0), dir, primitive, material, `${element.id}_${primitive.role}`), primitive.role, primitive);
     } else if (primitive.role === 'BONNET_STEM') {
@@ -253,7 +269,15 @@ function createCatalogLinearComponentVisual(element, spec, a, b, pipeRadius, bas
       for (const [role, sign, disc] of [['WELD_NECK_A', -1, discA], ['WELD_NECK_B', 1, discB]]) {
         if (!disc) continue;
         const center = pointAt((disc.axialOffset || 0) - sign * (disc.length / 2 + primitive.length / 2));
-        add(cylinderAlongAxis(center, dir, primitive.length, primitive.radius, material, 18, `${element.id}_${role}`), role, primitive);
+        const radiusAtFlange = Math.max(primitive.radius, pipeRadius * 1.06);
+        const radiusAtPipe = Math.max(pipeRadius * 1.02, 0.004);
+        const radiusStart = role.endsWith('_A') ? radiusAtFlange : radiusAtPipe;
+        const radiusEnd = role.endsWith('_A') ? radiusAtPipe : radiusAtFlange;
+        add(
+          frustumAlongAxis(center, dir, primitive.length, radiusStart, radiusEnd, material, 18, `${element.id}_${role}`),
+          role,
+          { ...primitive, geometryKind: 'FRUSTUM', radiusStart, radiusEnd }
+        );
       }
     } else if (primitive.kind === 'cap') {
       add(cylinderAlongAxis(pointAt(primitive.axialOffset), dir, primitive.length, primitive.radius, material, 24, `${element.id}_${primitive.role}`), primitive.role, primitive);
@@ -310,6 +334,32 @@ function addBoltPattern(group, baseUserData, spec, primitive, primitives, mid, d
 function cylinderAlongAxis(center, dir, length, radius, material, radialSegments, name) {
   const half = dir.clone().normalize().multiplyScalar(Math.max(length, 0.0001) / 2);
   return cylinderBetween(center.clone().sub(half), center.clone().add(half), Math.max(radius, 0.004), material, radialSegments, name);
+}
+
+function isTaperedLinearPrimitive(primitive = {}) {
+  const innerRadius = Number(primitive.innerRadius);
+  const outerRadius = Number(primitive.outerRadius);
+  if (!Number.isFinite(innerRadius) || !Number.isFinite(outerRadius)) return false;
+  if (Math.abs(innerRadius - outerRadius) < 1e-6) return false;
+  return primitive.proportionalShoulder === true || /(?:NECK|SHOULDER)/i.test(String(primitive.role || ''));
+}
+
+function taperedRadiiForPrimitive(primitive = {}) {
+  const innerRadius = Math.max(Number(primitive.innerRadius), 0.004);
+  const outerRadius = Math.max(Number(primitive.outerRadius), 0.004);
+  const role = String(primitive.role || '').toUpperCase();
+  if (role.endsWith('_B')) return { radiusStart: outerRadius, radiusEnd: innerRadius };
+  return { radiusStart: innerRadius, radiusEnd: outerRadius };
+}
+
+function frustumAlongAxis(center, dir, length, radiusStart, radiusEnd, material, radialSegments, name) {
+  const safeLength = Math.max(length, 0.0001);
+  const geom = new THREE.CylinderGeometry(Math.max(radiusEnd, 0.004), Math.max(radiusStart, 0.004), safeLength, radialSegments, 1, false);
+  const mesh = new THREE.Mesh(geom, material);
+  mesh.name = name;
+  mesh.position.copy(center);
+  mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir.clone().normalize());
+  return mesh;
 }
 
 function catalogVisualUserData(baseUserData, spec, meshRole, extra = {}) {

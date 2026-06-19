@@ -53,7 +53,6 @@ jobs:
             replace(/\nfunction catalogVisualUserData\(baseUserData, spec, meshRole, extra = \{\}\) \{/, `\nfunction isTaperedLinearPrimitive(primitive = {}) {\n  const innerRadius = Number(primitive.innerRadius);\n  const outerRadius = Number(primitive.outerRadius);\n  if (!Number.isFinite(innerRadius) || !Number.isFinite(outerRadius)) return false;\n  if (Math.abs(innerRadius - outerRadius) < 1e-6) return false;\n  return primitive.proportionalShoulder === true || /(?:NECK|SHOULDER)/i.test(String(primitive.role || ''));\n}\n\nfunction taperedRadiiForPrimitive(primitive = {}) {\n  const innerRadius = Math.max(Number(primitive.innerRadius), 0.004);\n  const outerRadius = Math.max(Number(primitive.outerRadius), 0.004);\n  const role = String(primitive.role || '').toUpperCase();\n  if (role.endsWith('_B')) return { radiusStart: outerRadius, radiusEnd: innerRadius };\n  return { radiusStart: innerRadius, radiusEnd: outerRadius };\n}\n\nfunction frustumAlongAxis(center, dir, length, radiusStart, radiusEnd, material, radialSegments, name) {\n  const safeLength = Math.max(length, 0.0001);\n  const geom = new THREE.CylinderGeometry(Math.max(radiusEnd, 0.004), Math.max(radiusStart, 0.004), safeLength, radialSegments, 1, false);\n  const mesh = new THREE.Mesh(geom, material);\n  mesh.name = name;\n  mesh.position.copy(center);\n  mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir.clone().normalize());\n  return mesh;\n}\n\nfunction catalogVisualUserData(baseUserData, spec, meshRole, extra = {}) {`, 'frustum helpers');
           }
           fs.writeFileSync('src/converter.js', text);
-          fs.writeFileSync('tests/valve-flange-direct-renderer.test.mjs', `import assert from 'node:assert/strict';\nimport { readFile } from 'node:fs/promises';\nimport path from 'node:path';\nimport { fileURLToPath } from 'node:url';\nconst repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');\nconst converterSource = await readFile(path.join(repoRoot, 'src', 'converter.js'), 'utf8');\nconst catalogSource = await readFile(path.join(repoRoot, 'src', 'valve-flange-visual-catalog.js'), 'utf8');\nconst visualBranchIndex = converterSource.indexOf('const catalogVisual = createCatalogLinearComponentVisual(element, visualSpec, a, b, radius, baseUserData, options);');\nconst legacyCylinderIndex = converterSource.indexOf('const cyl = cylinderBetween(a, b, radius, material');\nassert.notEqual(visualBranchIndex, -1, 'direct catalogue branch must exist');\nassert.notEqual(legacyCylinderIndex, -1, 'legacy fallback cylinder must still exist');\nassert.ok(visualBranchIndex < legacyCylinderIndex, 'catalogue branch must run before legacy fallback cylinder');\nassert.match(converterSource.slice(visualBranchIndex, legacyCylinderIndex), /return;/, 'catalogue branch must return before fallback');\nassert.doesNotMatch(converterSource.slice(visualBranchIndex, legacyCylinderIndex), /group\\.add\\(cyl\\)/, 'catalogue branch must not add a legacy centerline cylinder');\nassert.match(converterSource, /function frustumAlongAxis\\(/, 'renderer must define frustum helper');\nassert.match(converterSource, /geometryKind:\\s*'FRUSTUM'/, 'tapered neck primitives must be tagged as frustums');\nassert.match(converterSource, /WELD_NECK_A[\\s\\S]*WELD_NECK_B[\\s\\S]*frustumAlongAxis/, 'weld-neck primitives must render as frustums');\nassert.match(catalogSource, /role:\\s*'VALVE_NECK_A'[\\s\\S]*innerRadius[\\s\\S]*outerRadius/, 'VALVE_NECK_A must carry taper radii');\nassert.match(catalogSource, /role:\\s*'VALVE_NECK_B'[\\s\\S]*innerRadius[\\s\\S]*outerRadius/, 'VALVE_NECK_B must carry taper radii');\nconst packageJson = JSON.parse(await readFile(path.join(repoRoot, 'package.json'), 'utf8'));\nassert.match(packageJson.scripts.test, /valve-flange-direct-renderer\\.test\\.mjs/, 'npm test must include renderer gate');\nconsole.log('Valve/flange direct renderer gate passed');\n`);
           const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
           const marker = 'node tests/valve-flange-visual-catalog.test.mjs && node tests/valve-flange-scene-postprocess.test.mjs';
           const replacement = 'node tests/valve-flange-visual-catalog.test.mjs && node tests/valve-flange-direct-renderer.test.mjs && node tests/valve-flange-scene-postprocess.test.mjs';
@@ -63,6 +62,37 @@ jobs:
           }
           fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n');
           NODE
+
+      - name: Write direct renderer regression gate
+        if: github.event_name == 'pull_request' && github.head_ref == 'fix/valve-flange-direct-renderer-pr'
+        run: |
+          cat > tests/valve-flange-direct-renderer.test.mjs <<'EOF'
+          import assert from 'node:assert/strict';
+          import { readFile } from 'node:fs/promises';
+          import path from 'node:path';
+          import { fileURLToPath } from 'node:url';
+
+          const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+          const converterSource = await readFile(path.join(repoRoot, 'src', 'converter.js'), 'utf8');
+          const catalogSource = await readFile(path.join(repoRoot, 'src', 'valve-flange-visual-catalog.js'), 'utf8');
+
+          const visualBranchIndex = converterSource.indexOf('const catalogVisual = createCatalogLinearComponentVisual(element, visualSpec, a, b, radius, baseUserData, options);');
+          const legacyCylinderIndex = converterSource.indexOf('const cyl = cylinderBetween(a, b, radius, material');
+          assert.notEqual(visualBranchIndex, -1, 'direct catalogue branch must exist');
+          assert.notEqual(legacyCylinderIndex, -1, 'legacy fallback cylinder must still exist');
+          assert.ok(visualBranchIndex < legacyCylinderIndex, 'catalogue branch must run before legacy fallback cylinder');
+          assert.match(converterSource.slice(visualBranchIndex, legacyCylinderIndex), /return;/, 'catalogue branch must return before fallback');
+          assert.doesNotMatch(converterSource.slice(visualBranchIndex, legacyCylinderIndex), /group\.add\(cyl\)/, 'catalogue branch must not add a legacy centerline cylinder');
+          assert.match(converterSource, /function frustumAlongAxis\(/, 'renderer must define frustum helper');
+          assert.match(converterSource, /geometryKind:\s*'FRUSTUM'/, 'tapered neck primitives must be tagged as frustums');
+          assert.match(converterSource, /WELD_NECK_A[\s\S]*WELD_NECK_B[\s\S]*frustumAlongAxis/, 'weld-neck primitives must render as frustums');
+          assert.match(catalogSource, /'VALVE_NECK_A'/, 'VALVE_NECK_A catalogue primitive must exist');
+          assert.match(catalogSource, /'VALVE_NECK_B'/, 'VALVE_NECK_B catalogue primitive must exist');
+          assert.match(catalogSource, /function addValveShoulderPrimitive[\s\S]*innerRadius[\s\S]*outerRadius/, 'valve shoulder primitive helper must carry taper radii');
+          const packageJson = JSON.parse(await readFile(path.join(repoRoot, 'package.json'), 'utf8'));
+          assert.match(packageJson.scripts.test, /valve-flange-direct-renderer\.test\.mjs/, 'npm test must include renderer gate');
+          console.log('Valve/flange direct renderer gate passed');
+          EOF
 
       - name: Install Node dependencies
         run: npm install --no-audit --no-fund

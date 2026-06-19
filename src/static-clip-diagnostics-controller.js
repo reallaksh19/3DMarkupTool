@@ -40,7 +40,6 @@ function bindEvents() {
     }));
 
   window.addEventListener('click', (event) => {
-    const target = event.target?.closest?.('button, [role="button"');
     window.setTimeout(() => {
       aliasTreeApi();
       const selected = syncSelection('click');

@@ -2,9 +2,10 @@ import * as THREE from 'three';
 
 // Static/core Clip Box.
 // Selection-baseline only: no ghost/helper geometry and no model/scene fallback.
-// Select geometry, click Base line, then Apply to clip relative to that selected bounds.
+// Select geometry, click Base line, and current ranges are applied relative to that selected bounds.
 
-const VERSION = 'static-core-clip-box-selection-baseline-20260618';
+const VERSION = 'static-core-clip-box-baseline-applies-20260619';
+const LOG_PREFIX = '[3DMarkupTool:clipbox]';
 const STATE = {
   open: false,
   enabled: false,
@@ -16,7 +17,8 @@ const STATE = {
   zMax: 100,
   baselineBox: null,
   baselineLabel: '',
-  lastSource: 'idle'
+  lastSource: 'idle',
+  lastError: ''
 };
 
 runWhenReady(initStaticClipBoxCore);
@@ -36,6 +38,7 @@ function initStaticClipBoxCore() {
   bindRuntimeEvents();
   installApi();
   updateUi();
+  clipLog('ready', { version: VERSION });
   window.__3D_MARKUP_STATIC_SHELL_CORE__?.updateUiScore?.();
   window.dispatchEvent(new CustomEvent('viewer:static-clipbox-ready', { detail: { version: VERSION } }));
 }
@@ -190,7 +193,7 @@ function ensurePanel() {
     ${axisRow('y', 'Y')}
     ${axisRow('z', 'Z')}
     <div class="static-clipbox-actions">
-      <button id="staticClipBoxBaselineBtn" type="button" title="Use selected geometry as clip box baseline">Base line</button>
+      <button id="staticClipBoxBaselineBtn" type="button" title="Use selected geometry as clip box baseline and apply current range">Base line</button>
       <button id="staticClipBoxApplyBtn" type="button" title="Apply box clipping relative to baseline">Apply</button>
       <button id="staticClipBoxResetBtn" type="button">Reset</button>
     </div>
@@ -199,23 +202,23 @@ function ensurePanel() {
   viewer.appendChild(panel);
 
   panel.querySelector('#staticClipBoxCloseBtn')?.addEventListener('click', closePanel);
-  panel.querySelector('#staticClipBoxBaselineBtn')?.addEventListener('click', captureBaseline);
+  panel.querySelector('#staticClipBoxBaselineBtn')?.addEventListener('click', captureBaselineAndApply);
   panel.querySelector('#staticClipBoxApplyBtn')?.addEventListener('click', () => {
     readInputs();
     STATE.enabled = true;
-    applyClipBox();
+    applyClipBox('apply-button');
     updateUi();
   });
   panel.querySelector('#staticClipBoxResetBtn')?.addEventListener('click', resetClipBox);
   panel.querySelectorAll('input[data-clipbox-axis]').forEach((input) => {
     input.addEventListener('input', () => {
       readInputs();
-      if (STATE.enabled) applyClipBox();
+      if (STATE.enabled) applyClipBox('input');
       updateUi();
     });
     input.addEventListener('change', () => {
       readInputs();
-      if (STATE.enabled) applyClipBox();
+      if (STATE.enabled) applyClipBox('change');
       updateUi();
     });
   });
@@ -243,9 +246,9 @@ function installApi() {
     open: openPanel,
     close: closePanel,
     toggle: togglePanel,
-    apply: () => { STATE.enabled = true; applyClipBox(); updateUi(); },
+    apply: () => { STATE.enabled = true; applyClipBox('api'); updateUi(); },
     reset: resetClipBox,
-    baseline: captureBaseline,
+    baseline: captureBaselineAndApply,
     state: STATE
   };
 }
@@ -279,26 +282,35 @@ function resetClipBox() {
     zMax: 100,
     baselineBox: null,
     baselineLabel: '',
-    lastSource: 'idle'
+    lastSource: 'idle',
+    lastError: ''
   });
   clearRendererClipping();
   writeInputs();
   updateUi();
+  reportStatus('Clip Box reset');
 }
 
-function captureBaseline() {
+function captureBaselineAndApply() {
+  readInputs();
   const selected = selectedObject();
   const box = selected ? objectBounds(selected) : null;
+  clipLog('baseline.capture', { selected: objectLabel(selected), hasObject: Boolean(selected), box: boxSummary(box) });
   if (!isValidBox(box)) {
     STATE.lastSource = 'baseline-missing';
+    STATE.lastError = selected ? 'Selected object has no valid bounds.' : 'No selected object found.';
+    reportStatus(`Clip Box baseline failed: ${STATE.lastError}`);
     updateUi();
     return false;
   }
   STATE.baselineBox = box.clone();
-  STATE.baselineLabel = selected?.name || selected?.userData?.ID || selected?.userData?.id || 'selected geometry';
+  STATE.baselineLabel = objectLabel(selected);
   STATE.lastSource = 'baseline';
+  STATE.lastError = '';
+  STATE.enabled = true;
+  const applied = applyClipBox('baseline');
   updateUi();
-  return true;
+  return applied;
 }
 
 function readInputs() {
@@ -319,7 +331,7 @@ function writeInputs() {
   });
 }
 
-function applyClipBox() {
+function applyClipBox(source = 'apply') {
   const runtime = getRuntime();
   const renderer = runtime.renderer;
   const baseBox = resolveBounds();
@@ -327,19 +339,35 @@ function applyClipBox() {
   if (!baseBox) {
     STATE.enabled = false;
     STATE.lastSource = 'baseline-missing';
+    STATE.lastError = 'No valid baseline/selected bounds.';
+    clipLog('apply.fail.bounds', { source, selected: objectLabel(selectedObject()), ranges: rangeState() }, 'warn');
+    reportStatus(`Clip Box apply failed: ${STATE.lastError}`);
     return false;
   }
 
   if (!renderer) {
     STATE.enabled = false;
     STATE.lastSource = 'renderer-missing';
+    STATE.lastError = 'Renderer is not ready.';
+    clipLog('apply.fail.renderer', { source, runtimeKeys: Object.keys(runtime || {}), ranges: rangeState() }, 'warn');
+    reportStatus(`Clip Box apply failed: ${STATE.lastError}`);
     return false;
   }
 
   const box = percentBox(baseBox);
+  if (!isValidBox(box)) {
+    STATE.enabled = false;
+    STATE.lastSource = 'box-invalid';
+    STATE.lastError = 'Calculated clip box is invalid.';
+    clipLog('apply.fail.box-invalid', { source, baseBox: boxSummary(baseBox), box: boxSummary(box), ranges: rangeState() }, 'warn');
+    reportStatus(`Clip Box apply failed: ${STATE.lastError}`);
+    return false;
+  }
+
   const planes = planesForBox(box);
   STATE.enabled = true;
   STATE.lastSource = isValidBox(STATE.baselineBox) ? 'baseline' : 'selected';
+  STATE.lastError = '';
 
   if (typeof runtime.applyClipping === 'function') {
     runtime.applyClipping(planes, { mode: 'box', source: 'static-clipbox' });
@@ -350,7 +378,21 @@ function applyClipBox() {
     runtime.clippingMode = 'box';
     window.dispatchEvent(new CustomEvent('viewer:clipping-changed', { detail: { mode: 'box', source: 'static-clipbox', planes } }));
   }
+  renderer.localClippingEnabled = true;
   requestRender(runtime);
+  const detail = {
+    source,
+    reference: STATE.lastSource,
+    label: STATE.baselineLabel || objectLabel(selectedObject()),
+    baseBox: boxSummary(baseBox),
+    clipBox: boxSummary(box),
+    planes: planes.map((plane) => ({ normal: plane.normal.toArray(), constant: plane.constant })),
+    rendererLocalClipping: renderer.localClippingEnabled,
+    rendererPlaneCount: Array.isArray(renderer.clippingPlanes) ? renderer.clippingPlanes.length : 0,
+    ranges: rangeState()
+  };
+  clipLog('apply.success', detail);
+  reportStatus(`Clip Box active: ${detail.label} X ${STATE.xMin}-${STATE.xMax}%, Y ${STATE.yMin}-${STATE.yMax}%, Z ${STATE.zMin}-${STATE.zMax}%`);
   return true;
 }
 
@@ -376,8 +418,10 @@ function resolveBounds() {
 }
 
 function selectedObject() {
+  const diagnosticsSelected = window.__3D_MARKUP_CLIP_DIAGNOSTICS__?.selectedObject?.();
+  if (diagnosticsSelected && !diagnosticsSelected.isScene) return diagnosticsSelected;
   const runtime = getRuntime();
-  return runtime.selectedObject || window.__3D_MARKUP_STATIC_TREE__?.state?.selectedObject || null;
+  return runtime.selectedObject || window.__3D_MARKUP_STATIC_TREE__?.state?.selectedObject || window.__3D_MARKUP_TREE__?.state?.selectedObject || null;
 }
 
 function objectBounds(object) {
@@ -430,9 +474,11 @@ function updateUi() {
 }
 
 function readoutText() {
+  if (STATE.lastError) return STATE.lastError;
   if (STATE.lastSource === 'idle') return 'Select geometry and click Base line. Clip Box uses selection bounds only; no ghost/helper box is drawn.';
   if (STATE.lastSource === 'baseline-missing') return 'Select geometry first, then click Base line or Apply.';
   if (STATE.lastSource === 'renderer-missing') return 'Renderer is not ready yet. Run conversion first.';
+  if (STATE.lastSource === 'box-invalid') return 'Calculated clip box is invalid. Check min/max ranges.';
   const scope = STATE.lastSource === 'baseline'
     ? `baseline: ${STATE.baselineLabel || 'selected geometry'}`
     : 'selected object bounds';
@@ -466,6 +512,43 @@ function requestRender(runtime) {
     return;
   }
   window.dispatchEvent(new CustomEvent('viewer:request-render', { detail: { source: 'static-clipbox' } }));
+}
+
+function reportStatus(text) {
+  window.__3D_MARKUP_CLIP_DIAGNOSTICS__?.setStatus?.(text);
+}
+
+function clipLog(event, detail = {}, level = 'info') {
+  const payload = { event, ...detail };
+  const method = level === 'warn' ? 'warn' : level === 'error' ? 'error' : 'info';
+  console[method](LOG_PREFIX, payload);
+  window.__3D_MARKUP_CLIP_DIAGNOSTICS__?.log?.(`clipbox.${event}`, detail, level);
+}
+
+function boxSummary(box) {
+  if (!isValidBox(box)) return null;
+  return {
+    min: [round(box.min.x), round(box.min.y), round(box.min.z)],
+    max: [round(box.max.x), round(box.max.y), round(box.max.z)],
+    size: [round(box.max.x - box.min.x), round(box.max.y - box.min.y), round(box.max.z - box.min.z)]
+  };
+}
+
+function rangeState() {
+  return {
+    x: [STATE.xMin, STATE.xMax],
+    y: [STATE.yMin, STATE.yMax],
+    z: [STATE.zMin, STATE.zMax]
+  };
+}
+
+function objectLabel(object) {
+  const raw = object?.userData || {};
+  return raw.ID || raw.id || raw.REF_NO || raw.refNo || raw.LABEL || raw.label || object?.name || object?.uuid || '';
+}
+
+function round(value) {
+  return Number.isFinite(value) ? Math.round(value * 1000) / 1000 : value;
 }
 
 function isValidBox(box) {

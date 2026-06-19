@@ -1,7 +1,7 @@
 // Static review UI polish.
 // Default review mode hides experimental clip UI and tightens the shell for model review/export.
 
-const VERSION = 'static-review-ui-polish-restored-20260619';
+const VERSION = 'static-review-ui-polish-no-fresh-clip-20260619';
 const CLIP_ENABLED = new URLSearchParams(location.search).has('clipTools')
   || localStorage.getItem('3dmarkup.clipTools') === '1';
 
@@ -30,8 +30,13 @@ function injectStyles() {
     body.review-mode .clip-adjust-panel,
     body.review-mode #clipBtn,
     body.review-mode #clipBoxToggleBtn,
+    body.review-mode #freshClipPlaneBtn,
+    body.review-mode #freshClipBoxBtn,
+    body.review-mode #freshClipClearBtn,
+    body.review-mode .fresh-clip-btn,
     body.review-mode [data-view="clip"],
     body.review-mode #clipStatus,
+    body.review-mode .fresh-clip-panel,
     body.review-mode .static-clipbox-panel { display: none !important; }
     .viewer-topbar h1 { letter-spacing: -.02em; }
     .viewer-statusbar { gap: 14px; }
@@ -53,7 +58,7 @@ function normalizeShellText() {
 
 function hideClipUi() {
   document.body.classList.add('review-mode');
-  document.querySelectorAll('[data-view="clip"]').forEach((button) => button.remove());
+  document.querySelectorAll('[data-view="clip"], #freshClipPlaneBtn, #freshClipBoxBtn, #freshClipClearBtn').forEach((button) => button.remove());
   const hint = document.getElementById('hint');
   if (hint) {
     const shortcuts = hint.querySelector('span:last-child');

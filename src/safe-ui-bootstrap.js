@@ -1,10 +1,9 @@
 // Deterministic optional-UI bootstrap.
 // index.html owns the professional shell. Default mode focuses on stable
-// model review/export UI. Fresh clipping is loaded as a core renderer tool.
+// model review/export UI. Clip tools are opt-in only.
 
-const SAFE_UI_VERSION = 'static-color-legend-draggable-20260619';
-const FRESH_CLIP_VERSION = 'fresh-clip-core-20260619';
-const FRESH_BOX_ADJUST_VERSION = 'fresh-clip-box-adjust-20260619';
+const SAFE_UI_VERSION = 'static-workflow-status-review-20260619';
+const CLIP_UI_VERSION = 'static-workflow-status-review-20260619';
 const CORE_MODULE_URLS = [
   `./static-shell-core-controller.js?v=${SAFE_UI_VERSION}`,
   `./static-review-ui-polish-controller.js?v=${SAFE_UI_VERSION}`,
@@ -12,16 +11,14 @@ const CORE_MODULE_URLS = [
   `./static-tree-core-controller.js?v=${SAFE_UI_VERSION}`,
   `./static-properties-actions-controller.js?v=${SAFE_UI_VERSION}`,
   `./static-color-legend-controller.js?v=${SAFE_UI_VERSION}`,
+  `./static-workflow-status-controller.js?v=${SAFE_UI_VERSION}`,
   `./static-markup-core-controller.js?v=${SAFE_UI_VERSION}`,
-  `./static-quick-export-core-controller.js?v=${SAFE_UI_VERSION}`,
-  `./fresh-clip-controller.js?v=${FRESH_CLIP_VERSION}`,
-  `./fresh-clip-box-adjust-controller.js?v=${FRESH_BOX_ADJUST_VERSION}`
+  `./static-quick-export-core-controller.js?v=${SAFE_UI_VERSION}`
 ];
-// Legacy clip controllers are intentionally not loaded. They used multiple
-// competing code paths and could intercept clicks before the renderer-based
-// flow. Fresh clipping is owned by fresh-clip-controller.js; Box adjustment is
-// layered by fresh-clip-box-adjust-controller.js.
-const CLIP_MODULE_URLS = [];
+const CLIP_MODULE_URLS = shouldLoadClipTools() ? [
+  `./fresh-clip-controller.js?v=${CLIP_UI_VERSION}`,
+  `./fresh-clip-box-adjust-controller.js?v=${CLIP_UI_VERSION}`
+] : [];
 const SAFE_LOADER_URL = `./safe-ui-loader.js?v=${SAFE_UI_VERSION}`;
 const MAX_ATTEMPTS = 4;
 
@@ -80,7 +77,8 @@ function shouldLoadOptionalUi() {
 }
 
 function shouldLoadClipTools() {
-  return false;
+  const params = new URLSearchParams(window.location.search);
+  return params.has('clipTools') || window.localStorage.getItem('3dmarkup.clipTools') === '1';
 }
 
 function startSoon(delayMs) {

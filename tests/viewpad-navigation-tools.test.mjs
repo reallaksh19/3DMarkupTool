@@ -19,7 +19,7 @@ assert.match(controller, /renderOnce\?\.\('show-all'\)/, 'show all must request 
 assert.match(controller, /view-pad-with-navigation-tools/, 'viewpad CSS hook must be installed');
 
 assert.match(bootstrap, /static-viewpad-navigation-tools-controller\.js\?v=\$\{SAFE_UI_VERSION\}/, 'bootstrap must load viewpad navigation controller');
-assert.match(bootstrap, /section-box-viewpad-20260619/, 'bootstrap cache key must be bumped for current viewpad tools');
+assert.match(bootstrap, /area-select-viewpad-20260619/, 'bootstrap cache key must be bumped for current viewpad tools');
 assert.ok(pkg.scripts.test.includes('tests/viewpad-navigation-tools.test.mjs'), 'npm test must include viewpad navigation tools gate');
 
 console.log('viewpad-navigation-tools gate passed');

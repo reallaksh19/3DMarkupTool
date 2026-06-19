@@ -12,11 +12,11 @@ assert.match(index, /<span>Choose InputXML<\/span>/, 'Input panel must show Choo
 assert.match(index, /id="loadSampleBtn"[\s\S]*Load BM_CII sample/, 'Input panel must expose the real Load BM_CII sample button.');
 assert.match(index, /id="clearBtn"[\s\S]*Clear All/, 'Input panel must expose the real Clear All button.');
 assert.match(index, /phase2-input-sticky-section/, 'Input section must use the Phase 2 sticky visible block class.');
-assert.match(index, /input-always-visible-20260619/, 'Index must use the Phase 2 cache key.');
+assert.match(index, /input-always-visible-20260619|phase4-global-esc-lifecycle-20260619/, 'Index must use the Phase 2 or newer cache key.');
 assert.doesNotMatch(index, /core-safe-boot-20260619/, 'Index must not revert to the emergency core-safe startup shell.');
 
 assert.match(bootstrap, /static-input-always-visible-controller\.js\?v=\$\{SAFE_UI_VERSION\}/, 'Bootstrap must load the Phase 2 input always-visible controller.');
-assert.match(bootstrap, /SAFE_UI_VERSION = 'input-always-visible-20260619'/, 'Bootstrap must use the Phase 2 cache key.');
+assert.match(bootstrap, /SAFE_UI_VERSION = '(input-always-visible-20260619|phase3-ribbon-cleanup-20260619|phase4-global-esc-lifecycle-20260619)'/, 'Bootstrap must use the Phase 2 or newer cache key.');
 
 assert.match(controller, /const VERSION = 'input-always-visible-20260619'/, 'Controller must declare Phase 2 version.');
 assert.match(controller, /No file chosen/, 'Controller must preserve No file chosen status.');

@@ -7,7 +7,22 @@ import {
 
 function run() {
   assert.ok(VALVE_FLANGE_VISUAL_CATALOG.valveTypes.VALVE_GATE);
+  assert.ok(VALVE_FLANGE_VISUAL_CATALOG.valveTypes.VALVE_FLANGED);
   assert.ok(VALVE_FLANGE_VISUAL_CATALOG.flangeTypes.FLANGE_GENERIC);
+
+  const flangedValve = getValveFlangeVisualSpec({
+    rawType: 'FLANGED_VALVE',
+    type: 'FLANGED_VALVE',
+    props: { bore: '114.299995', meshRole: 'Flanged Valve' }
+  });
+  assert.equal(flangedValve.componentClass, 'VALVE');
+  assert.equal(flangedValve.componentType, 'VALVE_FLANGED');
+  assert.equal(flangedValve.visualRecipeId, 'valve-flanged-symbol.v1');
+  const flangedValvePlan = buildLinearVisualPrimitivePlan(flangedValve, { length: 3.4, pipeRadius: 0.5715 });
+  assert.ok(flangedValvePlan.some((p) => p.role === 'VALVE_BODY'), 'flanged valve must include a central valve body');
+  assert.ok(flangedValvePlan.some((p) => p.role === 'END_COLLAR_A'));
+  assert.ok(flangedValvePlan.some((p) => p.role === 'END_COLLAR_B'));
+  assert.ok(!flangedValvePlan.some((p) => p.role === 'FLANGE_DISC_A'), 'flanged valve must not be classified as a loose flange pair');
 
   const gate = getValveFlangeVisualSpec({ rawType: 'GATE_VALVE', props: { bore: '150' } });
   assert.equal(gate.componentClass, 'VALVE');

@@ -46,7 +46,7 @@ jobs:
               text = text.replace('@@', header, 1)
           patch.write_text(text)
           PY
-          git apply .github/valve-flange-direct-renderer-source.patch
+          patch -p1 < .github/valve-flange-direct-renderer-source.patch
           node - <<'NODE'
           const fs = require('node:fs');
           const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));

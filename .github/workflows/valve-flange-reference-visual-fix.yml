@@ -1,0 +1,183 @@
+name: Apply Valve Flange Reference Visual Fix
+
+on:
+  push:
+    branches:
+      - fix/reference-style-valve-flange-visuals
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  apply-and-validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/reference-style-valve-flange-visuals
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Apply reference-style catalogue and renderer refinements
+        run: |
+          python3 <<'PY'
+          from pathlib import Path
+          import json
+
+          def replace_once(text, old, new, label):
+              if old not in text:
+                  raise SystemExit(f'Missing expected block: {label}')
+              return text.replace(old, new, 1)
+
+          converter_path = Path('src/converter.js')
+          converter = converter_path.read_text()
+          converter = replace_once(
+              converter,
+              "const boltMat = mat(0xd9e7f3, { roughness: 0.5, metalness: 0.22 });",
+              "const boltMat = mat(0xd9e7f3, { roughness: 0.5, metalness: 0.22 });\nconst seamMat = mat(0x1b2328, { roughness: 0.72, metalness: 0.05, emissive: 0x050607, emissiveIntensity: 0.1 });",
+              'catalogue seam material'
+          )
+          converter = replace_once(
+              converter,
+              "  for (const primitive of primitives) {\n    if (primitive.kind === 'disc') {",
+              "  for (const primitive of primitives) {\n    if (primitive.hiddenBoreFill) continue;\n    if (primitive.kind === 'seam-ring') {\n      add(\n        cylinderAlongAxis(\n          pointAt(primitive.axialOffset),\n          dir,\n          primitive.length,\n          Math.max(primitive.radius || pipeRadius * 1.08, pipeRadius * 1.04),\n          seamMat,\n          24,\n          `${element.id}_${primitive.role}`\n        ),\n        primitive.role,\n        { ...primitive, geometryKind: 'SEAM_RING' }\n      );\n      continue;\n    }\n    if (primitive.kind === 'disc') {",
+              'hidden bore fill skip and seam-ring renderer'
+          )
+          converter_path.write_text(converter)
+
+          catalog_path = Path('src/valve-flange-visual-catalog.js')
+          catalog = catalog_path.read_text()
+          replacements = [
+              (
+                  "flangeDiameterFactor: 2.05, flangeThicknessFactor: 0.095, raisedFaceDiameterFactor: 1.32, raisedFaceThicknessFactor: 0.018, boltCircleFactor: 1.72, boltDiameterFactor: 0.075, boltCount: 8",
+                  "flangeDiameterFactor: 2.05, flangeThicknessFactor: 0.075, raisedFaceDiameterFactor: 1.32, raisedFaceThicknessFactor: 0.014, boltCircleFactor: 1.72, boltDiameterFactor: 0.055, boltCount: 8",
+                  'generic flange thin plate profile'
+              ),
+              (
+                  "flangeDiameterFactor: 2.14, flangeThicknessFactor: 0.10, raisedFaceDiameterFactor: 1.34, raisedFaceThicknessFactor: 0.02, boltCircleFactor: 1.82, boltDiameterFactor: 0.075, boltCount: 8, neckDiameterFactor: 1.12, neckLengthFactor: 0.18",
+                  "flangeDiameterFactor: 2.14, flangeThicknessFactor: 0.08, raisedFaceDiameterFactor: 1.34, raisedFaceThicknessFactor: 0.015, boltCircleFactor: 1.82, boltDiameterFactor: 0.055, boltCount: 8, neckDiameterFactor: 1.12, neckLengthFactor: 0.72",
+                  'weld-neck flange thin plate profile'
+              ),
+              (
+                  "flangeDiameterFactor: 2.18, flangeThicknessFactor: 0.12, raisedFaceDiameterFactor: 1.38, raisedFaceThicknessFactor: 0.022, boltCircleFactor: 1.88, boltDiameterFactor: 0.075, boltCount: 8, blindCap: true",
+                  "flangeDiameterFactor: 2.18, flangeThicknessFactor: 0.09, raisedFaceDiameterFactor: 1.38, raisedFaceThicknessFactor: 0.016, boltCircleFactor: 1.88, boltDiameterFactor: 0.055, boltCount: 8, blindCap: true",
+                  'blind flange thin plate profile'
+              ),
+              (
+                  "    const flangeThickness = clamp(pipeRadius * spec.profile.flangeThicknessFactor, pipeRadius * 0.035, Math.min(length * 0.04, pipeRadius * 0.14));\n    const raisedFaceThickness = clamp(pipeRadius * spec.profile.raisedFaceThicknessFactor, pipeRadius * 0.006, flangeThickness * 0.18);\n    const flangeOffset = Math.max(0, half - flangeThickness / 2);\n    const raisedFaceOffset = Math.max(0, half - flangeThickness - raisedFaceThickness / 2);\n    const innerGap = Math.max(0, length - (flangeThickness + raisedFaceThickness) * 2);",
+                  "    const flangeThickness = clamp(pipeRadius * spec.profile.flangeThicknessFactor, pipeRadius * 0.028, Math.min(length * 0.032, pipeRadius * 0.10));\n    const raisedFaceThickness = clamp(pipeRadius * spec.profile.raisedFaceThicknessFactor, pipeRadius * 0.004, flangeThickness * 0.14);\n    const seamThickness = clamp(pipeRadius * 0.012, pipeRadius * 0.004, Math.max(raisedFaceThickness * 0.72, pipeRadius * 0.006));\n    const flangeOffset = Math.max(0, half - flangeThickness / 2);\n    const raisedFaceOffset = Math.max(0, half - flangeThickness - raisedFaceThickness / 2);\n    const seamOffset = Math.max(0, raisedFaceOffset - raisedFaceThickness / 2 - seamThickness / 2);\n    const innerGap = Math.max(0, length - (flangeThickness + raisedFaceThickness + seamThickness) * 2);",
+                  'flange thin plate, raised face and seam proportions'
+              ),
+              (
+                  "    primitives.push({ role: 'RAISED_FACE_A', kind: 'disc', axialOffset: -raisedFaceOffset, radius: pipeRadius * spec.profile.raisedFaceDiameterFactor, length: raisedFaceThickness, replacesCenterlinePipe: true, thinRaisedFace: true });\n    primitives.push({ role: 'RAISED_FACE_B', kind: 'disc', axialOffset: raisedFaceOffset, radius: pipeRadius * spec.profile.raisedFaceDiameterFactor, length: raisedFaceThickness, replacesCenterlinePipe: true, thinRaisedFace: true });",
+                  "    primitives.push({ role: 'RAISED_FACE_A', kind: 'disc', axialOffset: -raisedFaceOffset, radius: pipeRadius * spec.profile.raisedFaceDiameterFactor, length: raisedFaceThickness, replacesCenterlinePipe: true, thinRaisedFace: true });\n    primitives.push({ role: 'RAISED_FACE_B', kind: 'disc', axialOffset: raisedFaceOffset, radius: pipeRadius * spec.profile.raisedFaceDiameterFactor, length: raisedFaceThickness, replacesCenterlinePipe: true, thinRaisedFace: true });\n    primitives.push({ role: 'FLANGE_GASKET_SEAM_A', kind: 'seam-ring', axialOffset: -seamOffset, radius: pipeRadius * Math.max(spec.profile.raisedFaceDiameterFactor * 1.03, 1.18), length: seamThickness, darkSeam: true, visualBoundary: 'raised-face-gasket' });\n    primitives.push({ role: 'FLANGE_GASKET_SEAM_B', kind: 'seam-ring', axialOffset: seamOffset, radius: pipeRadius * Math.max(spec.profile.raisedFaceDiameterFactor * 1.03, 1.18), length: seamThickness, darkSeam: true, visualBoundary: 'raised-face-gasket' });",
+                  'flange dark gasket seam primitives'
+              ),
+              (
+                  "    if (spec.profile.neckLengthFactor) primitives.push({ role: 'WELD_NECK', kind: 'neck-pair', radius: pipeRadius * spec.profile.neckDiameterFactor, length: Math.min(length * 0.14, pipeRadius * spec.profile.neckLengthFactor * 2) });",
+                  "    if (spec.profile.neckLengthFactor) primitives.push({ role: 'WELD_NECK', kind: 'neck-pair', radius: pipeRadius * spec.profile.neckDiameterFactor, length: Math.min(length * 0.18, pipeRadius * spec.profile.neckLengthFactor * 2) });",
+                  'weld-neck taper length'
+              ),
+              (
+                  "    const collarLength = clamp(length * spec.profile.endCollarLengthFactor, pipeRadius * 0.055, Math.min(length * 0.055, pipeRadius * 0.16));",
+                  "    const collarLength = clamp(length * spec.profile.endCollarLengthFactor, pipeRadius * 0.035, Math.min(length * 0.045, pipeRadius * 0.12));",
+                  'valve end collar thinner plate'
+              ),
+              (
+                  "    const shoulderOverlap = Math.max(pipeRadius * 0.055, length * 0.010);\n    const boreFillRadius = pipeRadius * 0.72;\n    const shoulderOuterRadius = Math.max(pipeRadius * 1.20, Math.min(bodyRadius * 0.78, collarRadius * 0.70));",
+                  "    const shoulderOverlap = Math.max(pipeRadius * 0.055, length * 0.010);\n    const boreFillRadius = pipeRadius * 0.44;\n    const shoulderOuterRadius = Math.max(pipeRadius * 1.28, Math.min(bodyRadius * 0.82, collarRadius * 0.76));\n    const valveSeamThickness = clamp(pipeRadius * 0.012, pipeRadius * 0.004, Math.max(collarLength * 0.22, pipeRadius * 0.006));\n    const valveSeamRadius = Math.max(collarRadius * 1.02, pipeRadius * 1.55);",
+                  'valve hidden bore and shoulder/seam proportions'
+              ),
+              (
+                  "    primitives.push({ role: 'END_COLLAR_A', kind: 'disc', axialOffset: -collarOffset, radius: collarRadius, length: collarLength, replacesCenterlinePipe: true, proportionalFlangeThickness: true, thinPlate: true });\n    primitives.push({ role: 'END_COLLAR_B', kind: 'disc', axialOffset: collarOffset, radius: collarRadius, length: collarLength, replacesCenterlinePipe: true, proportionalFlangeThickness: true, thinPlate: true });",
+                  "    primitives.push({ role: 'END_COLLAR_A', kind: 'disc', axialOffset: -collarOffset, radius: collarRadius, length: collarLength, replacesCenterlinePipe: true, proportionalFlangeThickness: true, thinPlate: true });\n    primitives.push({ role: 'END_COLLAR_B', kind: 'disc', axialOffset: collarOffset, radius: collarRadius, length: collarLength, replacesCenterlinePipe: true, proportionalFlangeThickness: true, thinPlate: true });\n    primitives.push({ role: 'END_COLLAR_SEAM_A', kind: 'seam-ring', axialOffset: leftInnerFace + valveSeamThickness / 2, radius: valveSeamRadius, length: valveSeamThickness, darkSeam: true, visualBoundary: 'valve-flange-neck' });\n    primitives.push({ role: 'END_COLLAR_SEAM_B', kind: 'seam-ring', axialOffset: rightInnerFace - valveSeamThickness / 2, radius: valveSeamRadius, length: valveSeamThickness, darkSeam: true, visualBoundary: 'valve-flange-neck' });",
+                  'valve collar dark seam primitives'
+              )
+          ]
+          for old, new, label in replacements:
+              catalog = replace_once(catalog, old, new, label)
+          catalog_path.write_text(catalog)
+
+          test_path = Path('tests/valve-flange-visual-catalog.test.mjs')
+          test = test_path.read_text()
+          test = replace_once(
+              test,
+              "  assert.ok(valveBoreFill.radius <= flangedPipeRadius * 0.8, 'bore fill must stay hidden and not read as a centerline pipe');",
+              "  assert.ok(valveBoreFill.hiddenBoreFill, 'bore fill is a continuity planning span only, not visible geometry');\n  assert.ok(valveBoreFill.radius <= flangedPipeRadius * 0.5, 'bore fill must stay hidden and not read as a centerline pipe');",
+              'hidden bore fill assertions'
+          )
+          test = replace_once(
+              test,
+              "  const endCollar = flangedValvePlan.find((p) => p.role === 'END_COLLAR_A');\n  assert.ok(endCollar.length <= flangedPipeRadius * 0.17, 'flanged valve end collar must read as a thin plate, not a thick washer');\n  assert.equal(endCollar.thinPlate, true);",
+              "  const endCollar = flangedValvePlan.find((p) => p.role === 'END_COLLAR_A');\n  assert.ok(endCollar.length <= flangedPipeRadius * 0.13, 'flanged valve end collar must read as a thin plate, not a thick washer');\n  assert.equal(endCollar.thinPlate, true);\n  const valveSeam = flangedValvePlan.find((p) => p.role === 'END_COLLAR_SEAM_A');\n  assert.ok(valveSeam, 'flanged valve must include a dark seam at the flange/neck boundary');\n  assert.equal(valveSeam.kind, 'seam-ring');\n  assert.ok(valveSeam.length <= endCollar.length * 0.3, 'valve seam must be a thin line, not another collar');",
+              'valve seam assertions'
+          )
+          test = replace_once(
+              test,
+              "  const boltPattern = flangePlan.find((p) => p.role === 'BOLT_PATTERN');",
+              "  const boltPattern = flangePlan.find((p) => p.role === 'BOLT_PATTERN');\n  const flangeSeam = flangePlan.find((p) => p.role === 'FLANGE_GASKET_SEAM_A');",
+              'flange seam lookup'
+          )
+          test = replace_once(
+              test,
+              "  assert.ok(boltPattern);\n  assert.ok(flangePlan.some((p) => p.role === 'FLANGE_CENTER_BORE_FILL'), 'flange pair needs direct center bore fill, not detached washers');",
+              "  assert.ok(boltPattern);\n  assert.ok(flangeSeam, 'flange pair must include a dark gasket/seam line');\n  assert.equal(flangeSeam.kind, 'seam-ring');\n  assert.ok(flangePlan.some((p) => p.role === 'FLANGE_CENTER_BORE_FILL'), 'flange pair needs direct center bore fill, not detached washers');",
+              'flange seam assertions'
+          )
+          test = replace_once(
+              test,
+              "  assert.ok(flangeDisc.length <= 0.14, 'flange thickness must stay thin/proportional to bore, not long component span');",
+              "  assert.ok(flangeDisc.length <= 0.105, 'flange thickness must stay thin/proportional to bore, not long component span');",
+              'stricter flange thickness assertion'
+          )
+          test = replace_once(
+              test,
+              "  assert.ok(raisedFace.length <= flangeDisc.length * 0.2, 'raised face/gasket marker must be a thin visual detail');",
+              "  assert.ok(raisedFace.length <= flangeDisc.length * 0.16, 'raised face/gasket marker must be a thin visual detail');\n  assert.ok(flangeSeam.length <= raisedFace.length, 'dark gasket seam must be no thicker than the raised face marker');",
+              'raised face and seam assertion'
+          )
+          test = replace_once(
+              test,
+              "  assert.ok(boltPattern.boltRadius <= 0.08, 'bolt pattern must not dominate the thin flange plate');",
+              "  assert.ok(boltPattern.boltRadius <= 0.06, 'bolt pattern must not dominate the thin flange plate');",
+              'stricter bolt marker assertion'
+          )
+          test_path.write_text(test)
+
+          static_test = Path('tests/valve-flange-renderer-reference-visual.test.mjs')
+          static_test.write_text("""import assert from 'node:assert/strict';\nimport { readFileSync } from 'node:fs';\n\nconst converter = readFileSync('src/converter.js', 'utf8');\nconst catalog = readFileSync('src/valve-flange-visual-catalog.js', 'utf8');\n\nassert.ok(converter.includes('if (primitive.hiddenBoreFill) continue;'), 'renderer must not draw hidden bore-fill spans as visible centerline pipe');\nassert.ok(converter.includes(\"primitive.kind === 'seam-ring'\"), 'renderer must support dark seam-ring primitives');\nassert.ok(converter.includes('seamMat'), 'renderer must use a dedicated dark seam material');\nassert.ok(catalog.includes('FLANGE_GASKET_SEAM_A'), 'flanges must include dark gasket/seam rings');\nassert.ok(catalog.includes('END_COLLAR_SEAM_A'), 'flanged valves must include collar/neck seam rings');\nassert.ok(catalog.includes('boreFillRadius = pipeRadius * 0.44'), 'valve bore fill must remain visually hidden and not barrel-like');\n\nconsole.log('Valve/flange renderer reference visual gates passed');\n""")
+
+          package_path = Path('package.json')
+          package_data = json.loads(package_path.read_text())
+          test_script = package_data['scripts']['test']
+          extra = 'node tests/valve-flange-renderer-reference-visual.test.mjs'
+          if extra not in test_script:
+              test_script = test_script.replace(
+                  'node tests/valve-flange-visual-catalog.test.mjs &&',
+                  'node tests/valve-flange-visual-catalog.test.mjs && node tests/valve-flange-renderer-reference-visual.test.mjs &&'
+              )
+          package_data['scripts']['test'] = test_script
+          package_path.write_text(json.dumps(package_data, indent=2) + '\n')
+          PY
+
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund --package-lock=false
+
+      - name: Validate
+        run: |
+          npm test
+          npm run contract:dry-run
+
+      - name: Commit source-only fix
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm .github/workflows/valve-flange-reference-visual-fix.yml
+          git add src/converter.js src/valve-flange-visual-catalog.js tests/valve-flange-visual-catalog.test.mjs tests/valve-flange-renderer-reference-visual.test.mjs package.json
+          git status --short
+          git commit -m "Refine valve flange reference visuals"
+          git push origin HEAD:fix/reference-style-valve-flange-visuals

@@ -4,14 +4,12 @@ export const APPROVED_APP_CONVERSION_ENTRYPOINTS = Object.freeze([
   {
     path: 'src/app-conversion-pipeline.js',
     role: 'APP_CONVERSION_PIPELINE_SEAM',
-    allowedDirectConverters: ['convertInputXmlToGlbWithShadowDiagnostics', 'convertInputXmlToRvmAtt', 'createRvmPreviewScene'],
+    allowedDirectConverters: [
+      'convertInputXmlToGlbWithShadowDiagnostics',
+      'convertInputXmlToRvmAtt',
+      'createRvmPreviewScene'
+    ],
     reason: 'Centralized app conversion seam that combines legacy GLB fallback, shadow contract diagnostics, RVM/ATT export, and preview scene creation.'
-  },
-  {
-    path: 'src/app.js',
-    role: 'TEMPORARY_LEGACY_UI_CALLER',
-    allowedDirectConverters: ['convertInputXmlToGlb', 'convertInputXmlToRvmAtt', 'createRvmPreviewScene'],
-    reason: 'Temporary UI caller kept until the large app module is safely delegated to app-run-conversion-controller. Do not add new direct converter orchestration outside this manifest.'
   }
 ]);
 

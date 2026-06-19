@@ -6,7 +6,7 @@ const bootstrap = readFileSync(new URL('../src/safe-ui-bootstrap.js', import.met
 const pkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
 
 assert.match(bootstrap, /static-section-box-from-selection-controller\.js\?v=\$\{SAFE_UI_VERSION\}/, 'bootstrap must load the section box viewpad controller');
-assert.match(bootstrap, /section-box-viewpad-20260619/, 'safe bootstrap cache key must bump for the section box viewpad tool');
+assert.match(bootstrap, /area-select-viewpad-20260619/, 'safe bootstrap cache key must bump for the current viewpad tool pack');
 
 assert.match(controller, /const TOOL_VIEW = 'sectionBoxSelected'/, 'controller must define a stable viewpad data-view key');
 assert.match(controller, /Section Box from selected component/, 'controller must expose a user-facing section-box tooltip');

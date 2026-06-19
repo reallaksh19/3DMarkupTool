@@ -41,13 +41,13 @@ Legend:
 
 | Status | Comment ID | Original feedback | Completion note |
 |---|---|---|---|
-| ⬜ | D1 — Broken dropdown menu | Fix broken dropdown menu. | Pending. |
-| ⬜ | D2 — Truncated dropdown | Fix truncating dropdown. | Pending. |
-| ⬜ | D3 — Remove duplication | Remove duplicate tool/menu entries. | Pending. |
-| ⬜ | D4 — Export menu grouping | Group/merge export buttons into Export. | Pending. |
-| ⬜ | D5 — Icon size consistency | Make all icon sizes similar. | Pending. |
-| ⬜ | D6 — Collapsible ribbon groups | Collapse groups and add `>>` / `<<` expand affordance. | Pending. |
-| ⬜ | D7 — Preserve icon UI grammar | Preserve new app structure with icon buttons, not text shortcuts. | Pending. |
+| ✅ | D1 — Broken dropdown menu | Fix broken dropdown menu. | Added a Phase 3 ribbon/dropdown cleanup controller that positions topbar menus as fixed popovers above the shell instead of allowing parent overflow clipping. |
+| ✅ | D2 — Truncated dropdown | Fix truncating dropdown. | Topbar dropdowns now use bounded max-height and internal scrolling, with overflow visible on the topbar/action containers. |
+| ✅ | D3 — Remove duplication | Remove duplicate tool/menu entries. | Duplicate Review dropdown and legacy quick-export ribbon group are hidden/removed; Review tools remain in the ribbon and canvas context path. |
+| ✅ | D4 — Export menu grouping | Group/merge export buttons into Export. | Quick export is now menu-only; GLB/RVM/ATT/Audit downloads stay under the existing Export dropdown. |
+| ✅ | D5 — Icon size consistency | Make all icon sizes similar. | Ribbon and review icons are normalized to the same 64×56 tile and 20 px icon grammar. |
+| ✅ | D6 — Collapsible ribbon groups | Collapse groups and add `>>` / `<<` expand affordance. | View/Fit has an explicit `>>` / `<<` toggle with secondary buttons collapsed by default and state saved in localStorage. |
+| ✅ | D7 — Preserve icon UI grammar | Preserve new app structure with icon buttons, not text shortcuts. | The icon-first ribbon remains the primary UI; hidden shortcut hooks remain non-visible implementation hooks only. |
 
 ## Phase 4 — Global Esc and tool lifecycle
 

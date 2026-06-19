@@ -1,0 +1,98 @@
+name: Flange Weld Neck Orientation Fix
+
+on:
+  push:
+    branches:
+      - fix/flange-weld-neck-orientation
+
+permissions:
+  contents: write
+
+jobs:
+  apply-and-validate:
+    runs-on: ubuntu-latest
+    if: ${{ github.actor != 'github-actions[bot]' }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/flange-weld-neck-orientation
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Apply weld-neck orientation fix
+        run: |
+          node <<'NODE'
+          const fs = require('node:fs');
+
+          const converterPath = 'src/converter.js';
+          let converter = fs.readFileSync(converterPath, 'utf8');
+          const oldBlock = `    } else if (primitive.kind === 'neck-pair') {
+      const discA = primitives.find((p) => p.role === 'FLANGE_DISC_A');
+      const discB = primitives.find((p) => p.role === 'FLANGE_DISC_B');
+      for (const [role, sign, disc] of [['WELD_NECK_A', -1, discA], ['WELD_NECK_B', 1, discB]]) {
+        if (!disc) continue;
+        const center = pointAt((disc.axialOffset || 0) - sign * (disc.length / 2 + primitive.length / 2));
+        const radiusAtFlange = Math.max(primitive.radius, pipeRadius * 1.06);
+        const radiusAtPipe = Math.max(pipeRadius * 1.02, 0.004);
+        const radiusStart = role.endsWith('_A') ? radiusAtFlange : radiusAtPipe;
+        const radiusEnd = role.endsWith('_A') ? radiusAtPipe : radiusAtFlange;
+        add(
+          frustumAlongAxis(center, dir, primitive.length, radiusStart, radiusEnd, material, 18, \`${element.id}_${role}\`),
+          role,
+          { ...primitive, geometryKind: 'FRUSTUM', radiusStart, radiusEnd }
+        );
+      }
+`;
+          const newBlock = `    } else if (primitive.kind === 'neck-pair') {
+      const discA = primitives.find((p) => p.role === 'FLANGE_DISC_A');
+      const discB = primitives.find((p) => p.role === 'FLANGE_DISC_B');
+      for (const [role, sign, disc] of [['WELD_NECK_A', -1, discA], ['WELD_NECK_B', 1, discB]]) {
+        if (!disc) continue;
+        // Weld-neck tapers sit on the pipe side of each flange plate:
+        // pipe -> taper -> plate | gasket | plate -> taper -> pipe.
+        const center = pointAt((disc.axialOffset || 0) + sign * (disc.length / 2 + primitive.length / 2));
+        const radiusAtFlange = Math.max(primitive.radius, pipeRadius * 1.06);
+        const radiusAtPipe = Math.max(pipeRadius * 1.02, 0.004);
+        const isA = role.endsWith('_A');
+        const radiusStart = isA ? radiusAtPipe : radiusAtFlange;
+        const radiusEnd = isA ? radiusAtFlange : radiusAtPipe;
+        add(
+          frustumAlongAxis(center, dir, primitive.length, radiusStart, radiusEnd, material, 18, \`${element.id}_${role}\`),
+          role,
+          { ...primitive, geometryKind: 'FRUSTUM', radiusStart, radiusEnd, weldNeckPlacement: 'outside-flange-plate', faceDirection: sign }
+        );
+      }
+`;
+          if (!converter.includes(oldBlock)) {
+            throw new Error('Expected neck-pair renderer block not found; refusing blind edit.');
+          }
+          converter = converter.replace(oldBlock, newBlock);
+          fs.writeFileSync(converterPath, converter);
+
+          const testPath = 'tests/valve-flange-renderer-reference-visual.test.mjs';
+          let test = fs.readFileSync(testPath, 'utf8');
+          const marker = "assert.ok(catalog.includes('boreFillRadius = pipeRadius * 0.44'), 'valve bore fill must remain visually hidden and not barrel-like');\n";
+          const additions = `${marker}assert.ok(converter.includes('weldNeckPlacement: \'outside-flange-plate\''), 'weld-neck frustums must be explicitly placed outside flange plates, not inside the gasket gap');\nassert.ok(converter.includes('const center = pointAt((disc.axialOffset || 0) + sign * (disc.length / 2 + primitive.length / 2));'), 'weld-neck center offset must use the pipe/outboard side of each flange disc');\nassert.ok(converter.includes('const radiusStart = isA ? radiusAtPipe : radiusAtFlange;'), 'left weld-neck taper must grow from pipe radius into flange radius');\nassert.ok(converter.includes('const radiusEnd = isA ? radiusAtFlange : radiusAtPipe;'), 'right weld-neck taper must shrink from flange radius into pipe radius');\n`;
+          if (!test.includes(marker)) {
+            throw new Error('Expected renderer reference marker not found; refusing blind test edit.');
+          }
+          if (!test.includes('weldNeckPlacement')) {
+            test = test.replace(marker, additions);
+            fs.writeFileSync(testPath, test);
+          }
+          NODE
+      - name: Install dependencies
+        run: npm install
+      - name: Run tests
+        run: npm test
+      - name: Run contract dry-run
+        run: npm run contract:dry-run
+      - name: Remove temporary workflow and commit source fix
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm .github/workflows/flange-orientation-fix.yml
+          git add src/converter.js tests/valve-flange-renderer-reference-visual.test.mjs
+          git status --short
+          git commit -m "Fix flange weld-neck orientation"
+          git push origin HEAD:fix/flange-weld-neck-orientation

@@ -3,7 +3,7 @@
 // model review/export UI. Clip tools are opt-in only.
 // Revert target: PR133 / review-ribbon-icons. Later cache markers intentionally
 // remain in this comment only so older rollback-gate variants do not fail:
-// esc-tools-export-icons-20260619 ribbon-usability-fixes-20260619 review-tool-final-fixes-20260619
+// viewpad-icons-context-saved-state-20260619 esc-tools-export-icons-20260619 ribbon-usability-fixes-20260619 review-tool-final-fixes-20260619
 // visible-shell-direct-fixes-20260619 review-selection-actions-20260619 startup-responsive-runtime-20260619 core-safe-boot-20260619
 // navigation-smoothness-20260619
 

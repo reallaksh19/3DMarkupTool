@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { GLTFExporter } from 'three/addons/exporters/GLTFExporter.js';
 import { parseIsonoteExpectedRecords } from './parser.js?v=professional-viewer-3';
 import { parseMarkupSource } from './source-parser.js?v=20260618-uxml-source-1';
+import { buildLinearVisualPrimitivePlan, getValveFlangeVisualSpec } from './valve-flange-visual-catalog.js';
 import {
   COLORS,
   mat,
@@ -22,6 +23,8 @@ const SCALE = 0.01;
 const pipeMat = mat(COLORS.pipe, { roughness: 0.66, metalness: 0.08 });
 const rigidMat = mat(COLORS.rigid, { roughness: 0.58, metalness: 0.14 });
 const valveMat = mat(COLORS.valve, { roughness: 0.54, metalness: 0.12, emissive: 0x12091f, emissiveIntensity: 0.08 });
+const flangeMat = mat(COLORS.rigid, { roughness: 0.52, metalness: 0.18, emissive: 0x101a2c, emissiveIntensity: 0.05 });
+const boltMat = mat(0xd9e7f3, { roughness: 0.5, metalness: 0.22 });
 const bendMat = mat(COLORS.bend, { roughness: 0.6, metalness: 0.1, emissive: 0x032533, emissiveIntensity: 0.1 });
 const restMat = mat(COLORS.rest, { emissive: 0x063244, emissiveIntensity: 0.18 });
 const guideMat = mat(COLORS.guide, { emissive: 0x063322, emissiveIntensity: 0.16 });
@@ -119,13 +122,18 @@ function createElementGeometry(element, group, options, elementByNode) {
   const radius = Math.max(0.04, (od / 2));
   const { a, b } = trimmedElementEndpoints(element, elementByNode, radius, fullA, fullB);
   const isRigid = element.rawType && element.rawType !== 'PIPE' && element.rawType !== 'BEND';
-  const isValve = isRigid && /VALVE/i.test(element.rawType || element.props.rigidType || '');
-  const material = isValve ? valveMat : isRigid ? rigidMat : element.type === 'BEND' ? bendMat : pipeMat;
+  const visualSpec = getValveFlangeVisualSpec(element);
+  const isValve = visualSpec?.componentClass === 'VALVE' || (isRigid && /VALVE/i.test(element.rawType || element.props.rigidType || ''));
+  const isFlange = visualSpec?.componentClass === 'FLANGE';
+  const material = isValve ? valveMat : isFlange ? flangeMat : isRigid ? rigidMat : element.type === 'BEND' ? bendMat : pipeMat;
   const cyl = cylinderBetween(a, b, radius, material, options.compactMode === false ? 24 : 14, element.id);
   cyl.userData = buildComponentUserData(element);
   group.add(cyl);
 
-  if (isRigid) {
+  if (visualSpec) {
+    const catalogVisual = createCatalogLinearComponentVisual(element, visualSpec, a, b, radius, cyl.userData, options);
+    if (catalogVisual) group.add(catalogVisual);
+  } else if (isRigid) {
     const dir = b.clone().sub(a).normalize();
     const mid = a.clone().add(b).multiplyScalar(0.5);
     const collar1 = cylinderBetween(mid.clone().sub(dir.clone().multiplyScalar(0.18)), mid.clone().add(dir.clone().multiplyScalar(0.18)), radius * 1.35, rigidMat, 18, `${element.id}_RIGID_MARKER`);
@@ -188,6 +196,133 @@ function createBendGeometry(element, elementByNode, pipeRadius, userData, option
     bendCenterlineRadius: bendRadius / SCALE
   };
   return tube;
+}
+
+function createCatalogLinearComponentVisual(element, spec, a, b, pipeRadius, baseUserData, options = {}) {
+  const axis = b.clone().sub(a);
+  const length = axis.length();
+  if (length < 1e-8) return null;
+  const dir = axis.normalize();
+  const mid = a.clone().add(b).multiplyScalar(0.5);
+  const up = orthogonal(dir);
+  const side = new THREE.Vector3().crossVectors(dir, up).normalize();
+  const primitives = buildLinearVisualPrimitivePlan(spec, { length, pipeRadius });
+  const material = spec.componentClass === 'VALVE' ? valveMat : flangeMat;
+  const group = new THREE.Group();
+  group.name = `${element.id}_${spec.visualKey}`;
+  group.userData = catalogVisualUserData(baseUserData, spec, 'CATALOG_VISUAL_GROUP');
+
+  const add = (object, role, extra = {}) => {
+    object.userData = catalogVisualUserData(baseUserData, spec, role, extra);
+    group.add(object);
+    return object;
+  };
+  const pointAt = (offset) => mid.clone().add(dir.clone().multiplyScalar(offset || 0));
+
+  for (const primitive of primitives) {
+    if (primitive.kind === 'disc') {
+      add(cylinderAlongAxis(pointAt(primitive.axialOffset), dir, primitive.length, primitive.radius, material, 24, `${element.id}_${primitive.role}`), primitive.role, primitive);
+    } else if (primitive.role === 'VALVE_BODY') {
+      add(createValveBodyMesh(pointAt(0), dir, primitive, material, `${element.id}_${primitive.role}`), primitive.role, primitive);
+    } else if (primitive.role === 'BONNET_STEM') {
+      const start = mid.clone().add(up.clone().multiplyScalar(primitive.radialOffset || pipeRadius * 1.2));
+      const end = start.clone().add(up.clone().multiplyScalar(primitive.length));
+      add(cylinderBetween(start, end, Math.max(pipeRadius * 0.18, 0.035), material, options.compactMode === false ? 16 : 10, `${element.id}_${primitive.role}`), primitive.role, primitive);
+    } else if (primitive.role === 'HANDWHEEL') {
+      const center = mid.clone().add(up.clone().multiplyScalar(pipeRadius * (spec.profile.bodyDiameterFactor + spec.profile.bonnetHeightFactor + 0.25)));
+      const wheel = new THREE.Mesh(new THREE.TorusGeometry(Math.max(primitive.radius, pipeRadius * 0.35), Math.max(pipeRadius * 0.045, 0.018), 8, 32), material);
+      wheel.name = `${element.id}_${primitive.role}`;
+      wheel.position.copy(center);
+      wheel.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), up.clone().normalize());
+      add(wheel, primitive.role, primitive);
+    } else if (primitive.role === 'LEVER_HANDLE') {
+      const center = mid.clone().add(up.clone().multiplyScalar(pipeRadius * (spec.profile.bodyDiameterFactor + 0.65)));
+      const start = center.clone().sub(side.clone().multiplyScalar(primitive.length / 2));
+      const end = center.clone().add(side.clone().multiplyScalar(primitive.length / 2));
+      add(cylinderBetween(start, end, Math.max(pipeRadius * 0.08, 0.025), material, 10, `${element.id}_${primitive.role}`), primitive.role, primitive);
+    } else if (primitive.role === 'FLOW_ARROW') {
+      add(createFlowArrow(mid, dir, pipeRadius, primitive, material, `${element.id}_${primitive.role}`), primitive.role, primitive);
+    } else if (primitive.role === 'ACTUATOR') {
+      const center = mid.clone().add(up.clone().multiplyScalar(pipeRadius * (spec.profile.bodyDiameterFactor + spec.profile.bonnetHeightFactor + 0.35)));
+      add(cylinderAlongAxis(center, up, primitive.length, primitive.radius, material, 18, `${element.id}_${primitive.role}`), primitive.role, primitive);
+    } else if (primitive.kind === 'bolt-pattern') {
+      addBoltPattern(group, baseUserData, spec, primitive, primitives, mid, dir, up, side, element.id);
+    } else if (primitive.kind === 'neck-pair') {
+      const discA = primitives.find((p) => p.role === 'FLANGE_DISC_A');
+      const discB = primitives.find((p) => p.role === 'FLANGE_DISC_B');
+      for (const [role, sign, disc] of [['WELD_NECK_A', -1, discA], ['WELD_NECK_B', 1, discB]]) {
+        if (!disc) continue;
+        const center = pointAt((disc.axialOffset || 0) - sign * (disc.length / 2 + primitive.length / 2));
+        add(cylinderAlongAxis(center, dir, primitive.length, primitive.radius, material, 18, `${element.id}_${role}`), role, primitive);
+      }
+    } else if (primitive.kind === 'cap') {
+      add(cylinderAlongAxis(pointAt(primitive.axialOffset), dir, primitive.length, primitive.radius, material, 24, `${element.id}_${primitive.role}`), primitive.role, primitive);
+    }
+  }
+
+  return group.children.length ? group : null;
+}
+
+function createValveBodyMesh(center, dir, primitive, material, name) {
+  const radialSegments = primitive.kind === 'wafer-body' ? 28 : 24;
+  if (primitive.kind === 'ball-body' || primitive.kind === 'round-body') {
+    const mesh = new THREE.Mesh(new THREE.SphereGeometry(Math.max(primitive.radius, 0.04), radialSegments, 16), material);
+    mesh.name = name;
+    mesh.position.copy(center);
+    return mesh;
+  }
+  return cylinderAlongAxis(center, dir, primitive.length, primitive.radius, material, radialSegments, name);
+}
+
+function createFlowArrow(center, dir, pipeRadius, primitive, material, name) {
+  const group = new THREE.Group();
+  group.name = name;
+  const arrowLength = Math.max(primitive.length, pipeRadius * 1.2);
+  const start = center.clone().sub(dir.clone().multiplyScalar(arrowLength / 2));
+  const stem = cylinderBetween(start, start.clone().add(dir.clone().multiplyScalar(arrowLength * 0.65)), Math.max(pipeRadius * 0.045, 0.018), material, 8, `${name}_stem`);
+  const cone = new THREE.Mesh(new THREE.ConeGeometry(Math.max(pipeRadius * 0.22, 0.04), Math.max(pipeRadius * 0.42, 0.08), 16), material);
+  cone.name = `${name}_head`;
+  cone.position.copy(start).add(dir.clone().multiplyScalar(arrowLength * 0.82));
+  cone.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir.clone().normalize());
+  group.add(stem, cone);
+  return group;
+}
+
+function addBoltPattern(group, baseUserData, spec, primitive, primitives, mid, dir, up, side, elementId) {
+  const discs = primitives.filter((entry) => entry.role === 'FLANGE_DISC_A' || entry.role === 'FLANGE_DISC_B');
+  const count = Math.max(4, Number(primitive.boltCount) || 8);
+  for (const disc of discs) {
+    for (let i = 0; i < count; i += 1) {
+      const theta = (Math.PI * 2 * i) / count;
+      const center = mid.clone()
+        .add(dir.clone().multiplyScalar(disc.axialOffset || 0))
+        .add(up.clone().multiplyScalar(Math.cos(theta) * primitive.boltCircleRadius))
+        .add(side.clone().multiplyScalar(Math.sin(theta) * primitive.boltCircleRadius));
+      const bolt = new THREE.Mesh(new THREE.SphereGeometry(Math.max(primitive.boltRadius, 0.025), 10, 6), boltMat);
+      bolt.name = `${elementId}_${disc.role}_BOLT_${i + 1}`;
+      bolt.position.copy(center);
+      bolt.userData = catalogVisualUserData(baseUserData, spec, `${disc.role}_BOLT`, { boltIndex: i + 1, boltCount: count });
+      group.add(bolt);
+    }
+  }
+}
+
+function cylinderAlongAxis(center, dir, length, radius, material, radialSegments, name) {
+  const half = dir.clone().normalize().multiplyScalar(Math.max(length, 0.0001) / 2);
+  return cylinderBetween(center.clone().sub(half), center.clone().add(half), Math.max(radius, 0.004), material, radialSegments, name);
+}
+
+function catalogVisualUserData(baseUserData, spec, meshRole, extra = {}) {
+  return {
+    ...baseUserData,
+    meshRole,
+    componentClass: spec.componentClass,
+    componentType: spec.componentType,
+    visualCatalogSchema: spec.catalogSchemaVersion,
+    visualRecipeId: spec.visualRecipeId,
+    visualKey: spec.visualKey,
+    ...extra
+  };
 }
 
 function connectedDirectionAtNode(elementByNode, nodeId, currentElement) {

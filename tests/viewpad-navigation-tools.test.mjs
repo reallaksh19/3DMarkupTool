@@ -26,13 +26,14 @@ assert.match(controller, /attachVisibilityEsc\(\)/, 'visibility tools must insta
 assert.match(controller, /document\.addEventListener\('keydown', onVisibilityEscape, \{ capture: true \}\)/, 'Esc handler must be bounded and event-driven');
 assert.match(controller, /event\.key !== 'Escape' \|\| !visibilitySession\.active/, 'Esc must only act when visibility session is active');
 assert.match(controller, /showAll\('escape'\)/, 'Esc must restore visibility through Show All path');
-assert.match(controller, /beginVisibilitySession\('isolate', selected, 'isolate-selected'\)/, 'isolate must start a visibility session');
+assert.match(controller, /beginVisibilitySession\('isolate', selected, 'isolate-selected'/, 'isolate must start a visibility session');
 assert.match(controller, /beginVisibilitySession\('hide', selected, 'hide-selected'/, 'hide must start or append to a visibility session');
 assert.match(controller, /visibility-tool-active/, 'visibility session must expose a body state hook');
 assert.match(controller, /visibility-isolate-active/, 'isolate state hook must be present');
 assert.match(controller, /visibility-hide-active/, 'hide state hook must be present');
 assert.match(controller, /resolveSafeHideTarget\(undefined, \{ runtime: rt \}\)/, 'hide/isolate must use the shared safe resolver');
-assert.match(controller, /if \(!root \|\| !selected\)/, 'isolate must reject missing root or unsafe selection');
+assert.match(controller, /if \(!root \|\| !targets\.length \|\| !selected\)/, 'isolate must reject missing root or unsafe selection');
+assert.match(controller, /getAreaSelectedRoots/, 'Phase 8 must support Area Select multi-target visibility actions.');
 assert.doesNotMatch(controller, /root\.visible\s*=\s*false/, 'normal visibility tools must never hide the model root directly');
 assert.doesNotMatch(controller, /setInterval\s*\(/, 'viewpad visibility lifecycle must not poll');
 assert.doesNotMatch(controller, /MutationObserver/, 'viewpad visibility lifecycle must not use MutationObserver');

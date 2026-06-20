@@ -1,23 +1,24 @@
-const APP_LOADER_VERSION = 'perf-static-drawer-bundle-20260620';
+const APP_LOADER_VERSION = 'perf-rules-20260620';
 const APP_MODULE_URL = `./app.js?v=${APP_LOADER_VERSION}`;
 const CLIP_HOOK_MODULE_URL = `./clip-render-hook.js?v=${APP_LOADER_VERSION}`;
 const FRESH_CLIP_MODULE_URL = `./fresh-clip-controller.js?v=${APP_LOADER_VERSION}`;
-const BUNDLED_ASSETS = window.__3D_MARKUP_BUNDLED_ASSETS__ || {};
-// Resolve against document.baseURI: import() is module-relative but the
-// manifest URL (./assets/) is meant to be document-relative.
-const APP_BUNDLE_URL = resolveFromBase(BUNDLED_ASSETS.app || '');
-
-function resolveFromBase(url) {
-  if (!url || !url.startsWith('./')) return url;
-  try { return new URL(url, document.baseURI).href; } catch (_) { return url; }
-}
 const APP_BOOT_IDLE_TIMEOUT_MS = 900;
 const POST_APP_IDLE_TIMEOUT_MS = 1400;
+
+const BUNDLED_ASSETS = window.__3D_MARKUP_BUNDLED_ASSETS__ || {};
+const APP_BUNDLE_URL = resolveFromBase(BUNDLED_ASSETS.app || '');
 
 window.__3D_MARKUP_APP_DEFERRED_BOOT__ = true;
 window.__3D_MARKUP_APP_LOADER_VERSION__ = APP_LOADER_VERSION;
 
 scheduleAfterFirstPaint(startViewerApp);
+
+function resolveFromBase(url) {
+  // Resolve against document.baseURI: import() is module-relative but the
+  // manifest URL (./assets/) is meant to be document-relative.
+  if (!url || !url.startsWith('./')) return url;
+  try { return new URL(url, document.baseURI).href; } catch (_) { return url; }
+}
 
 async function startViewerApp() {
   if (window.__3D_MARKUP_APP_BOOT_STARTED__) return;

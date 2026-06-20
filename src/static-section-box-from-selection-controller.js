@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { objectId, resolveSafeHideTarget } from './static-selection-resolver.js';
 
 // Adds a compact in-canvas Section Box tool without touching src/app.js.
 // Tool: SB = Section Box from selected component. It writes renderer clipping planes
@@ -71,10 +72,10 @@ function installApi() {
 function applySectionBoxFromSelection({ source = 'section-box' } = {}) {
   const rt = runtime();
   const renderer = rt?.renderer;
-  const selected = selectedComponentRoot(rt);
+  const selected = resolveSafeHideTarget(undefined, { runtime: rt });
   if (!selected) {
-    setStatus('Select a component before Section Box');
-    dispatchSectionBox('fail', { source, reason: 'missing-selection' });
+    setStatus('Select a component/part before Section Box');
+    dispatchSectionBox('fail', { source, reason: 'missing-safe-selection', resolver: 'shared-selection-resolver' });
     return false;
   }
 
@@ -102,6 +103,7 @@ function applySectionBoxFromSelection({ source = 'section-box' } = {}) {
     mode: 'box',
     source: 'viewpad-section-box',
     trigger: source,
+    resolver: 'shared-selection-resolver',
     selectedId: objectId(selected),
     padding: sectionPadding(box),
     box: boxSummary(expandedBox)
@@ -149,33 +151,6 @@ function clearSectionBox({ source = 'section-box-clear' } = {}) {
 
 function runtime() {
   return window.__3D_MARKUP_VIEWER_RUNTIME__ || window.__3D_MARKUP_CLIP_RUNTIME__ || {};
-}
-
-function getModelRoot(rt = runtime()) {
-  return rt?.getModelRoot?.() || rt?.modelRoot || null;
-}
-
-function selectedObject(rt = runtime()) {
-  return rt?.selectedObject
-    || rt?.selectedMesh
-    || window.__3D_MARKUP_STATIC_TREE__?.state?.selectedObject
-    || window.__3D_MARKUP_TREE__?.state?.selectedObject
-    || null;
-}
-
-function selectedComponentRoot(rt = runtime()) {
-  const root = getModelRoot(rt);
-  let object = selectedObject(rt);
-  if (!object || object.isScene) return null;
-  while (object.parent && object.parent !== root && object.parent.type !== 'Scene') {
-    const data = object.parent.userData || {};
-    if (data.ID || data.id || data.componentId || data.componentClass || data.TYPE === 'COMPONENT') {
-      object = object.parent;
-      continue;
-    }
-    break;
-  }
-  return object;
 }
 
 function boundsForObject(object) {
@@ -227,11 +202,6 @@ function boxSummary(box) {
   };
 }
 
-function objectId(object) {
-  const data = object?.userData || {};
-  return data.ID || data.id || data.componentId || data.NAME || object?.name || '';
-}
-
 function requestRender(rt, reason) {
   if (typeof rt?.renderOnce === 'function') {
     rt.renderOnce(reason);
@@ -254,7 +224,7 @@ function dispatchSectionBox(action, detail = {}) {
 function debugSnapshot() {
   const rt = runtime();
   const renderer = rt?.renderer;
-  const selected = selectedComponentRoot(rt);
+  const selected = resolveSafeHideTarget(undefined, { runtime: rt });
   return {
     version: VERSION,
     hasRenderer: Boolean(renderer),
@@ -262,7 +232,8 @@ function debugSnapshot() {
     rendererPlaneCount: Array.isArray(renderer?.clippingPlanes) ? renderer.clippingPlanes.length : 0,
     selectedId: objectId(selected),
     hasSelected: Boolean(selected),
-    runtimeKeys: Object.keys(rt || {})
+    runtimeKeys: Object.keys(rt || {}),
+    resolver: 'shared-selection-resolver'
   };
 }
 

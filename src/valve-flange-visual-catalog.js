@@ -57,7 +57,7 @@ const VALVE_ALIAS_MAP = new Map([
 ]);
 
 const FLANGE_ALIAS_MAP = new Map([
-  ['FLANGE', 'FLANGE_GENERIC'], ['FLANGE_GENERIC', 'FLANGE_GENERIC'], ['PAIR_FLANGE', 'FLANGE_GENERIC'], ['FLG', 'FLANGE_GENERIC'], ['FL', 'FLANGE_GENERIC'],
+  ['FLANGE', 'FLANGE_GENERIC'], ['FLANGE_GENERIC', 'FLANGE_GENERIC'], ['FLANGE_PAIR', 'FLANGE_GENERIC'], ['PAIR_FLANGE', 'FLANGE_GENERIC'], ['FLG', 'FLANGE_GENERIC'], ['FL', 'FLANGE_GENERIC'],
   ['WELD_NECK_FLANGE', 'FLANGE_WELD_NECK'], ['WELDNECK_FLANGE', 'FLANGE_WELD_NECK'], ['WN_FLANGE', 'FLANGE_WELD_NECK'], ['FLANGE_WELD_NECK', 'FLANGE_WELD_NECK'], ['FLWN', 'FLANGE_WELD_NECK'], ['FWN', 'FLANGE_WELD_NECK'],
   ['BLIND_FLANGE', 'FLANGE_BLIND'], ['BLINDFLANGE', 'FLANGE_BLIND'], ['FLANGE_BLIND', 'FLANGE_BLIND'], ['FLBL', 'FLANGE_BLIND'], ['FBLD', 'FLANGE_BLIND']
 ]);
@@ -133,12 +133,94 @@ export function validateLinearVisualPrimitiveContinuity(plan, length, options = 
 }
 
 function buildFlangePrimitivePlan(spec, length, pipeRadius, half) {
+  if (spec.flangeTopology?.visualKind === 'SINGLE_ORIENTED_FLANGE') {
+    return buildSingleFlangePrimitivePlan(spec, length, pipeRadius, half);
+  }
+  return buildFlangePairPrimitivePlan(spec, length, pipeRadius, half);
+}
+
+function flangeMetrics(spec, length, pipeRadius) {
   const flangeThickness = clamp(pipeRadius * spec.profile.flangeThicknessFactor, pipeRadius * 0.028, Math.min(length * 0.045, pipeRadius * 0.10));
   const raisedFaceThickness = clamp(pipeRadius * spec.profile.raisedFaceThicknessFactor, pipeRadius * 0.004, Math.min(flangeThickness * 0.14, length * 0.012));
   const gasketThickness = clamp(pipeRadius * 0.018, pipeRadius * 0.006, Math.min(flangeThickness * 0.22, length * 0.018));
   const plateRadius = pipeRadius * spec.profile.flangeDiameterFactor;
   const raisedFaceRadius = pipeRadius * spec.profile.raisedFaceDiameterFactor;
   const neckOuterRadius = Math.max(pipeRadius * positiveNumber(spec.profile.neckDiameterFactor, 1.08), pipeRadius * 1.06);
+  return { flangeThickness, raisedFaceThickness, gasketThickness, plateRadius, raisedFaceRadius, neckOuterRadius };
+}
+
+function buildSingleFlangePrimitivePlan(spec, length, pipeRadius, half) {
+  const { flangeThickness, raisedFaceThickness, plateRadius, raisedFaceRadius, neckOuterRadius } = flangeMetrics(spec, length, pipeRadius);
+  const raisedFaceAtTo = spec.flangeTopology.raisedFaceEndpoint === 'TO';
+  const primitives = [];
+
+  if (raisedFaceAtTo) {
+    const raisedFaceStart = half - raisedFaceThickness;
+    const plateStart = raisedFaceStart - flangeThickness;
+    primitives.push(segmentPrimitive('WELD_NECK_PIPE_SIDE', 'disc', -half, plateStart, {
+      radius: neckOuterRadius,
+      innerRadius: pipeRadius * 1.02,
+      outerRadius: neckOuterRadius,
+      radiusStart: pipeRadius * 1.02,
+      radiusEnd: neckOuterRadius,
+      replacesCenterlinePipe: true,
+      proportionalShoulder: true,
+      singleFlangePipeSide: 'FROM'
+    }));
+    primitives.push(segmentPrimitive('FLANGE_PLATE', 'disc', plateStart, raisedFaceStart, {
+      radius: plateRadius,
+      replacesCenterlinePipe: true,
+      proportionalFlangeThickness: true,
+      thinPlate: true
+    }));
+    primitives.push(segmentPrimitive('RAISED_FACE_VALVE_SIDE', 'disc', raisedFaceStart, half, {
+      radius: raisedFaceRadius,
+      replacesCenterlinePipe: true,
+      thinRaisedFace: true,
+      visualMaterial: 'raised-face',
+      singleFlangeRaisedFaceSide: 'TO'
+    }));
+  } else {
+    const raisedFaceEnd = -half + raisedFaceThickness;
+    const plateEnd = raisedFaceEnd + flangeThickness;
+    primitives.push(segmentPrimitive('RAISED_FACE_VALVE_SIDE', 'disc', -half, raisedFaceEnd, {
+      radius: raisedFaceRadius,
+      replacesCenterlinePipe: true,
+      thinRaisedFace: true,
+      visualMaterial: 'raised-face',
+      singleFlangeRaisedFaceSide: 'FROM'
+    }));
+    primitives.push(segmentPrimitive('FLANGE_PLATE', 'disc', raisedFaceEnd, plateEnd, {
+      radius: plateRadius,
+      replacesCenterlinePipe: true,
+      proportionalFlangeThickness: true,
+      thinPlate: true
+    }));
+    primitives.push(segmentPrimitive('WELD_NECK_PIPE_SIDE', 'disc', plateEnd, half, {
+      radius: neckOuterRadius,
+      innerRadius: pipeRadius * 1.02,
+      outerRadius: neckOuterRadius,
+      radiusStart: neckOuterRadius,
+      radiusEnd: pipeRadius * 1.02,
+      replacesCenterlinePipe: true,
+      proportionalShoulder: true,
+      singleFlangePipeSide: 'TO'
+    }));
+  }
+
+  primitives.push({
+    role: 'BOLT_PATTERN',
+    kind: 'bolt-pattern',
+    boltCount: spec.profile.boltCount,
+    boltCircleRadius: pipeRadius * spec.profile.boltCircleFactor,
+    boltRadius: pipeRadius * spec.profile.boltDiameterFactor,
+    flangeRoles: ['FLANGE_PLATE']
+  });
+  return primitives;
+}
+
+function buildFlangePairPrimitivePlan(spec, length, pipeRadius, half) {
+  const { flangeThickness, raisedFaceThickness, gasketThickness, plateRadius, raisedFaceRadius, neckOuterRadius } = flangeMetrics(spec, length, pipeRadius);
   const innerLeft = -gasketThickness / 2;
   const innerRight = gasketThickness / 2;
   const leftPlateStart = innerLeft - flangeThickness;
@@ -321,15 +403,23 @@ function buildFlangeSpec(type, element, props, tokens) {
 
 function buildSpec({ componentClass, componentType, profile, element, props, tokens }) {
   const bore = positiveNumber(props.bore || props.startBore || props.endBore || element.bore, 100);
+  const flangeTopology = componentClass === 'FLANGE' ? {
+    visualKind: props.flangeVisualKind || 'PAIR_FLANGE',
+    pipeEndpoint: props.singleFlangePipeEndpoint || null,
+    raisedFaceEndpoint: props.singleFlangeRaisedFaceEndpoint || null,
+    fromHasValve: props.singleFlangeFromHasValve === true,
+    toHasValve: props.singleFlangeToHasValve === true
+  } : null;
   return {
     schemaVersion: LINEAR_COMPONENT_VISUAL_SPEC_SCHEMA,
     catalogSchemaVersion: VALVE_FLANGE_VISUAL_CATALOG_SCHEMA,
     componentClass,
     componentType,
-    visualKey: profile.visualKey,
-    visualRecipeId: profile.visualRecipeId,
+    visualKey: flangeTopology?.visualKind === 'SINGLE_ORIENTED_FLANGE' ? 'single-oriented-flange' : profile.visualKey,
+    visualRecipeId: flangeTopology?.visualKind === 'SINGLE_ORIENTED_FLANGE' ? 'single-oriented-flange-symbol.v1' : profile.visualRecipeId,
     matchedTokens: tokens,
     profile: { ...profile.profile },
+    flangeTopology,
     visualPolicy: {
       replacesCenterlinePipe: true,
       pipeShouldNotPassThroughBody: true,

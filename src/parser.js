@@ -127,6 +127,8 @@ export function parseInputXml(xmlText, sideloads = {}) {
     elements.push({ id, fromNode, toNode, from, to, dx, dy, dz, type: cleanType, rawType, props });
   }
 
+  annotateSingleFlangeTopology(elements);
+
   const restraints = Array.from(doc.getElementsByTagName('RESTRAINT')).map((r, i) => ({
     id: `INPUTXML_RESTRAINT_${i + 1}`,
     source: 'InputXML',
@@ -140,6 +142,63 @@ export function parseInputXml(xmlText, sideloads = {}) {
   }));
 
   return { doc, elements, nodes, restraints, lineMap, isonoteMap };
+}
+
+function annotateSingleFlangeTopology(elements) {
+  const byNode = new Map();
+  for (const element of elements) {
+    for (const node of [element.fromNode, element.toNode]) {
+      if (!byNode.has(node)) byNode.set(node, []);
+      byNode.get(node).push(element);
+    }
+  }
+
+  for (const element of elements) {
+    if (!isSingleFlangeElement(element)) continue;
+
+    const fromNeighbours = (byNode.get(element.fromNode) || []).filter((candidate) => candidate !== element);
+    const toNeighbours = (byNode.get(element.toNode) || []).filter((candidate) => candidate !== element);
+    const fromHasPipe = fromNeighbours.some(isPipeElement);
+    const toHasPipe = toNeighbours.some(isPipeElement);
+    const fromHasValve = fromNeighbours.some(isValveElement);
+    const toHasValve = toNeighbours.some(isValveElement);
+
+    // A CAESAR/InputXML rigid TYPE="Flange" near a valve is a single oriented
+    // flange, not a flange pair.  The pipe endpoint owns the weld neck; the
+    // raised face is on the opposite mating/valve side.  If both or neither end
+    // is pipe-connected, leave it unresolved so the catalogue can keep the
+    // symmetric fallback instead of guessing.
+    if (fromHasPipe && !toHasPipe && toHasValve) {
+      stampSingleFlange(element, 'FROM', 'TO', fromHasValve, toHasValve);
+    } else if (toHasPipe && !fromHasPipe && fromHasValve) {
+      stampSingleFlange(element, 'TO', 'FROM', fromHasValve, toHasValve);
+    }
+  }
+}
+
+function stampSingleFlange(element, pipeEndpoint, raisedFaceEndpoint, fromHasValve, toHasValve) {
+  element.props.flangeVisualKind = 'SINGLE_ORIENTED_FLANGE';
+  element.props.singleFlangePipeEndpoint = pipeEndpoint;
+  element.props.singleFlangeRaisedFaceEndpoint = raisedFaceEndpoint;
+  element.props.singleFlangeFromHasValve = fromHasValve;
+  element.props.singleFlangeToHasValve = toHasValve;
+}
+
+function normalizedType(element) {
+  return String(element?.rawType || element?.type || element?.props?.type || '').trim().toUpperCase().replace(/[^A-Z0-9]+/g, '_');
+}
+
+function isSingleFlangeElement(element) {
+  const type = normalizedType(element);
+  return type === 'FLANGE' || type === 'WELD_NECK_FLANGE' || type === 'WN_FLANGE';
+}
+
+function isValveElement(element) {
+  return normalizedType(element).includes('VALVE');
+}
+
+function isPipeElement(element) {
+  return normalizedType(element) === 'PIPE';
 }
 
 export function parseGapValue(raw) {

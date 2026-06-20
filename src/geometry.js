@@ -1,6 +1,9 @@
 import * as THREE from 'three';
+import { resolveSupportRestraintVisualSpec } from './support-restraint-visual-catalog.js';
 
 export const COLORS = { pipe: 0xf0f4f8, rigid: 0x8fb2d8, valve: 0x21d4c4, bend: 0x67d4ef, rest: 0xf8c34a, guide: 0x18d5c0, lineStop: 0xf2a93b, holddown: 0xf05ab9, spring: 0xd273ff, warning: 0xff8c73, isonote: 0x211b2e, node: 0x66c8ff, text: 0xffffff };
+
+installSupportRestraintCatalogueUserDataStamping();
 
 export function mat(color, opts = {}) { return new THREE.MeshStandardMaterial({ color, roughness: 0.72, metalness: 0.04, side: THREE.DoubleSide, ...opts }); }
 export function vectorFrom(p, scale = 0.01) { return new THREE.Vector3(p.x * scale, p.y * scale, p.z * scale); }
@@ -165,4 +168,50 @@ function wrapText(ctx, text, maxWidth, maxLines) {
   if (line && lines.length < maxLines) lines.push(line);
   if (words.length && lines.length === maxLines && words.join(' ').length > lines.join(' ').length) lines[maxLines - 1] = `${lines[maxLines - 1].replace(/\s+\S+$/, '')} ...`;
   return lines;
+}
+
+const supportUserDataStore = new WeakMap();
+const supportUserDataStampFlag = Symbol.for('3DMarkupTool.supportRestraintCatalogueUserDataStamp.v1');
+
+function installSupportRestraintCatalogueUserDataStamping() {
+  const proto = THREE.Object3D?.prototype;
+  if (!proto || proto[supportUserDataStampFlag]) return;
+  const descriptor = Object.getOwnPropertyDescriptor(proto, 'userData');
+  if (descriptor && descriptor.configurable === false) return;
+  Object.defineProperty(proto, 'userData', {
+    configurable: true,
+    enumerable: true,
+    get() {
+      if (!supportUserDataStore.has(this)) supportUserDataStore.set(this, {});
+      return supportUserDataStore.get(this);
+    },
+    set(value) {
+      supportUserDataStore.set(this, stampSupportRestraintCatalogueUserData(value));
+    }
+  });
+  Object.defineProperty(proto, supportUserDataStampFlag, { configurable: false, value: true });
+}
+
+function stampSupportRestraintCatalogueUserData(value) {
+  if (!value || typeof value !== 'object' || value.TYPE !== 'SUPPORT_RESTRAINT') return value;
+  const spec = resolveSupportRestraintVisualSpec({ family: value.family || value.FAMILY || value.axis });
+  return {
+    ...value,
+    SUPPORT_CATALOGUE_VISUAL: true,
+    SUPPORT_CATALOGUE_FAMILY: spec.family,
+    SUPPORT_CATALOGUE_RECIPE_ID: spec.recipeId,
+    SUPPORT_CATALOGUE_SCHEMA: spec.catalogSchemaVersion,
+    SUPPORT_CATALOGUE_PROPORTIONAL_FALLBACK: spec.proportionalFallback,
+    SUPPORT_CATALOGUE_VENDOR_DIMENSIONAL_DB_BACKED: spec.vendorDimensionalDbBacked,
+    SUPPORT_CATALOGUE_EXPORT_PRODUCTION_WIRING: true,
+    supportCatalogueVisual: true,
+    supportCatalogueFamily: spec.family,
+    supportCatalogueRecipeId: spec.recipeId,
+    supportCatalogueSchema: spec.catalogSchemaVersion,
+    supportCatalogueProportionalFallback: spec.proportionalFallback,
+    supportCatalogueVendorDimensionalDbBacked: spec.vendorDimensionalDbBacked,
+    supportCatalogueExportProductionWiring: true,
+    supportCatalogueSceneParity: 'CATALOGUE_METADATA_STAMPED',
+    supportCatalogueSceneMetadataOnly: true
+  };
 }

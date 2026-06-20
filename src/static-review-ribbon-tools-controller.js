@@ -14,6 +14,8 @@ const MAX_RETRIES = 35;
 const REVIEW_TOOL_REGISTRY = [
   { key: 'marqueeZoom', label: 'Zoom Box', menuLabel: 'Zoom Box', icon: 'zoom-box', title: 'Drag a box on the canvas to zoom into that area', api: ['__3D_MARKUP_MARQUEE_ZOOM__', 'activate'], ribbon: true },
   { key: 'areaSelect', label: 'Area Sel', menuLabel: 'Area Select', icon: 'area-select', title: 'Drag a box to select visible components', api: ['__3D_MARKUP_AREA_SELECT__', 'activate'], ribbon: true },
+  { key: 'clearAreaSelection', label: 'Clear Sel', menuLabel: 'Clear Selection', icon: 'clear-selection', title: 'Clear Area Select highlights', api: ['__3D_MARKUP_AREA_SELECT__', 'clearSelection'], ribbon: true },
+  { key: 'exportAreaSelectionCsv', label: 'Sel CSV', menuLabel: 'Export Selected CSV', icon: 'export-csv', title: 'Download properties for Area Select highlights as CSV', api: ['__3D_MARKUP_AREA_SELECT__', 'exportSelectedPropertiesCsv'], ribbon: true },
   { key: 'componentSearch', label: 'Search', menuLabel: 'Search / Jump', icon: 'search-target', title: 'Search by ID, node, line, support, tag, or type', api: ['__3D_MARKUP_COMPONENT_SEARCH__', 'open'], ribbon: true },
   { key: 'sectionBoxSelected', label: 'Box', menuLabel: 'Section Box', icon: 'section-box', title: 'Create a section box from the selected component', api: ['__3D_MARKUP_SECTION_BOX__', 'apply'], ribbon: true },
   { key: 'isolateSelected', label: 'Isolate', menuLabel: 'Isolate Selected', icon: 'isolate', title: 'Show only the selected component', api: ['__3D_MARKUP_VIEWPAD_TOOLS__', 'isolateSelected'], ribbon: true },
@@ -161,7 +163,7 @@ function renderTopReviewMenu(wrap) {
   });
   const note = document.createElement('div');
   note.className = 'top-menu-note';
-  note.textContent = 'Same tools are available from the canvas right-click menu.';
+  note.textContent = 'Area Select can feed Isolate, Hide, Show All, Clear Selection, and CSV export.';
   pop.appendChild(note);
 }
 
@@ -313,9 +315,8 @@ function attachRefreshEvents() {
   window.addEventListener('click', (event) => {
     if (!event.target?.closest?.('.review-top-menu-wrap')) closeTopReviewMenus();
   });
-  ['markup:app-ready', 'viewer:model-loaded', 'viewer:selection-changed', 'viewer:ui-score-changed']
+  ['markup:app-ready', 'viewer:model-loaded', 'viewer:selection-changed', 'viewer:ui-score-changed', 'viewer:area-select', 'viewer:visibility-tools']
     .forEach((eventName) => window.addEventListener(eventName, refreshIntegration));
-  window.setInterval(refreshIntegration, 1800);
 }
 
 function retryRefresh() {
@@ -381,6 +382,8 @@ function iconMarkup(name) {
   const icons = {
     'zoom-box': `<rect x="4" y="4" width="11" height="11" rx="2" ${common}/><path d="M15 15l5 5" ${common}/><path d="M7 8h5M9.5 5.5v5" ${common}/><path d="M4 18h5" ${common} opacity=".55"/>`,
     'area-select': `<rect x="4" y="5" width="16" height="12" rx="2" ${common} stroke-dasharray="3 2"/><path d="M8 20h8" ${common}/><path d="M9 9h6M9 13h4" ${common}/>` ,
+    'clear-selection': `<rect x="4" y="5" width="16" height="12" rx="2" ${common} stroke-dasharray="3 2"/><path d="M7 20l10-10M17 20L7 10" ${common}/>` ,
+    'export-csv': `<path d="M6 3h8l4 4v14H6z" ${common}/><path d="M14 3v5h5" ${common}/><path d="M8 14h8M8 17h5M10 10l2 2 3-4" ${common}/>` ,
     'search-target': `<circle cx="10" cy="10" r="5" ${common}/><path d="M14 14l5 5" ${common}/><path d="M10 7v6M7 10h6" ${common}/>` ,
     'section-box': `<path d="M5 8l7-4 7 4-7 4-7-4z" ${common}/><path d="M5 8v8l7 4 7-4V8" ${common}/><path d="M12 12v8M8 10l8 5" ${common} opacity=".55"/>`,
     isolate: `<path d="M3 12s3.2-6 9-6 9 6 9 6-3.2 6-9 6-9-6-9-6z" ${common}/><circle cx="12" cy="12" r="3" ${common}/><path d="M12 4v2M12 18v2M4 12h2M18 12h2" ${common} opacity=".65"/>`,
@@ -422,7 +425,7 @@ function injectStyles() {
   const style = document.createElement('style');
   style.id = STYLE_ID;
   style.textContent = `
-    #${RIBBON_GROUP_ID}.review-ribbon-group { max-width: 420px; overflow-x: auto; overflow-y: hidden; scrollbar-width: none; scroll-snap-type: x proximity; padding-right: 6px; }
+    #${RIBBON_GROUP_ID}.review-ribbon-group { max-width: 520px; overflow-x: auto; overflow-y: hidden; scrollbar-width: none; scroll-snap-type: x proximity; padding-right: 6px; }
     #${RIBBON_GROUP_ID}.review-ribbon-group::-webkit-scrollbar { display: none; }
     #${RIBBON_GROUP_ID} .review-ribbon-tool-btn { min-width: 56px; width: 56px; max-width: 56px; scroll-snap-align: start; }
     #${RIBBON_GROUP_ID} .review-ribbon-tool-btn span { max-width: 48px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -442,7 +445,7 @@ function injectStyles() {
     .review-context-menu__item__icon { width: 22px; height: 22px; padding: 3px; display: inline-flex; align-items: center; justify-content: center; border-radius: 7px; background: rgba(30, 64, 120, .62); color: #bfdbfe; }
     .review-context-menu__item__label { font-weight: 750; }
     @media (max-width: 1500px) {
-      #${RIBBON_GROUP_ID}.review-ribbon-group { max-width: 330px; }
+      #${RIBBON_GROUP_ID}.review-ribbon-group { max-width: 390px; }
       #${RIBBON_GROUP_ID} .review-ribbon-tool-btn { min-width: 52px; width: 52px; max-width: 52px; }
     }
   `;

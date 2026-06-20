@@ -1,4 +1,4 @@
-import { getModelRoot, objectId, resolveSafeHideTarget } from './static-selection-resolver.js';
+import { getAreaSelectedRoots, getModelRoot, objectId, resolveSafeHideTarget } from './static-selection-resolver.js';
 
 // Adds compact in-canvas view/navigation tools without touching src/app.js.
 // Tools: previous view, next view, isolate selected, hide selected, show all.
@@ -22,6 +22,7 @@ const visibilitySession = {
   touched: new Map(),
   targets: new Set(),
   selectedId: '',
+  selectedIds: [],
   reason: ''
 };
 
@@ -201,42 +202,44 @@ function applyViewSnapshot(snapshot, reason) {
 function isolateSelected() {
   const rt = runtime();
   const root = getModelRoot(rt);
-  const selected = resolveSafeHideTarget(undefined, { runtime: rt });
-  if (!root || !selected) {
+  const targets = resolveActionTargets(rt);
+  const selected = targets[0];
+  if (!root || !targets.length || !selected) {
     setStatus('Select a component/part before Isolate');
     return false;
   }
 
-  beginVisibilitySession('isolate', selected, 'isolate-selected');
+  beginVisibilitySession('isolate', selected, 'isolate-selected', { targets });
   root.traverse?.((object) => {
     if (object !== root) hideObject(object);
   });
 
-  let cursor = selected;
-  while (cursor && cursor !== root.parent) {
-    showObject(cursor);
-    cursor = cursor.parent;
+  for (const target of targets) {
+    showAncestryAndChildren(target, root);
   }
-  selected.traverse?.((object) => { showObject(object); });
 
   rt?.renderOnce?.('isolate-selected');
   window.dispatchEvent(new CustomEvent('viewer:visibility-tools', {
     detail: {
       action: 'isolate',
       selectedId: objectId(selected),
+      selectedIds: targets.map(objectId).filter(Boolean),
+      selectedCount: targets.length,
+      source: targets.length > 1 ? 'area-select' : 'single-selection',
       resolver: 'shared-selection-resolver',
       active: true,
       touchedCount: visibilitySession.touched.size
     }
   }));
-  setStatus(`Isolated ${objectId(selected) || 'selected component'} — Esc or Show All restores`);
+  setStatus(`Isolated ${targets.length} selected component${targets.length === 1 ? '' : 's'} — Esc or Show All restores`);
   return true;
 }
 
 function hideSelected() {
   const rt = runtime();
-  const selected = resolveSafeHideTarget(undefined, { runtime: rt });
-  if (!selected) {
+  const targets = resolveActionTargets(rt);
+  const selected = targets[0];
+  if (!targets.length || !selected) {
     setStatus('Select a component/part before Hide');
     return false;
   }
@@ -244,21 +247,43 @@ function hideSelected() {
   if (visibilitySession.active && visibilitySession.mode !== 'hide') {
     finishVisibilitySession('before-hide-selected', { makeAllVisible: true, render: false });
   }
-  beginVisibilitySession('hide', selected, 'hide-selected', { append: visibilitySession.mode === 'hide' });
-  hideObject(selected);
+  beginVisibilitySession('hide', selected, 'hide-selected', {
+    append: visibilitySession.mode === 'hide',
+    targets
+  });
+  for (const target of targets) hideObject(target);
 
   rt?.renderOnce?.('hide-selected');
   window.dispatchEvent(new CustomEvent('viewer:visibility-tools', {
     detail: {
       action: 'hide',
       selectedId: objectId(selected),
+      selectedIds: targets.map(objectId).filter(Boolean),
+      selectedCount: targets.length,
+      source: targets.length > 1 ? 'area-select' : 'single-selection',
       resolver: 'shared-selection-resolver',
       active: true,
       hiddenCount: visibilitySession.targets.size
     }
   }));
-  setStatus(`Hidden ${objectId(selected) || 'selected component'} — Esc or Show All restores`);
+  setStatus(`Hidden ${targets.length} selected component${targets.length === 1 ? '' : 's'} — Esc or Show All restores`);
   return true;
+}
+
+function resolveActionTargets(rt = runtime()) {
+  const areaRoots = getAreaSelectedRoots({ runtime: rt });
+  if (areaRoots.length) return areaRoots;
+  const selected = resolveSafeHideTarget(undefined, { runtime: rt });
+  return selected ? [selected] : [];
+}
+
+function showAncestryAndChildren(selected, root) {
+  let cursor = selected;
+  while (cursor && cursor !== root.parent) {
+    showObject(cursor);
+    cursor = cursor.parent;
+  }
+  selected.traverse?.((object) => { showObject(object); });
 }
 
 function showAll(reason = 'show-all') {
@@ -293,11 +318,13 @@ function onVisibilityEscape(event) {
 
 function beginVisibilitySession(mode, selected, reason, options = {}) {
   if (!options.append) clearVisibilitySessionState();
+  const targets = Array.isArray(options.targets) && options.targets.length ? options.targets : (selected ? [selected] : []);
   visibilitySession.active = true;
   visibilitySession.mode = mode;
   visibilitySession.reason = reason;
   visibilitySession.selectedId = objectId(selected);
-  if (selected) visibilitySession.targets.add(selected);
+  visibilitySession.selectedIds = targets.map(objectId).filter(Boolean);
+  for (const target of targets) visibilitySession.targets.add(target);
   document.body?.classList?.toggle('visibility-tool-active', true);
   document.body?.classList?.toggle('visibility-isolate-active', mode === 'isolate');
   document.body?.classList?.toggle('visibility-hide-active', mode === 'hide');
@@ -336,6 +363,7 @@ function clearVisibilitySessionState() {
   visibilitySession.mode = '';
   visibilitySession.reason = '';
   visibilitySession.selectedId = '';
+  visibilitySession.selectedIds = [];
   visibilitySession.touched.clear();
   visibilitySession.targets.clear();
   document.body?.classList?.remove('visibility-tool-active', 'visibility-isolate-active', 'visibility-hide-active');
@@ -346,6 +374,7 @@ function getVisibilityState() {
     active: visibilitySession.active,
     mode: visibilitySession.mode,
     selectedId: visibilitySession.selectedId,
+    selectedIds: visibilitySession.selectedIds.slice(),
     touchedCount: visibilitySession.touched.size,
     targetCount: visibilitySession.targets.size,
     reason: visibilitySession.reason

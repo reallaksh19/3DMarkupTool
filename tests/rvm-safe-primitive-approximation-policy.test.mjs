@@ -84,7 +84,12 @@ assert.deepEqual(report.writerSafeOutputKinds, ALLOWED_RVM_PRIMITIVE_KINDS);
 assert.deepEqual(report.blockedDirectRhbgApproximationCodes, [5, 7]);
 assert.ok(report.approximationPolicies.frustum.reason.includes('external viewer interpretation'), 'Policy report must explain why code 7 remains blocked.');
 
+assert.match(translatorSource, /safeApproximationPolicyForIntent/, 'RVM catalogue translator must resolve central safe approximation policies.');
+assert.match(translatorSource, /assertSafeApproximationPrimitives/, 'RVM catalogue translator must enforce the central safe approximation policy before returning writer output.');
+assert.match(translatorSource, /safeApproximationPolicyApplied:\s*true/, 'RVM catalogue export must expose that safe approximation policy was applied.');
 assert.match(translatorSource, /steppedFrustum/, 'RVM catalogue translator must keep frustum intent approximated through stepped cylinders.');
+assert.match(translatorSource, /sourceIntent:\s*'frustum'/, 'Stepped frustum outputs must preserve frustum intent for fail-closed policy checks.');
+assert.match(translatorSource, /blockedRhbgPrimitiveCode:\s*policy\.rhbgPrimitiveCode/, 'Stepped frustum outputs must record the blocked RHBG code rather than emitting it.');
 assert.match(translatorSource, /kind:\s*'cylinder'/, 'RVM catalogue translator must emit writer-safe cylinders for frustum approximations.');
 assert.doesNotMatch(translatorSource, /rvmPrimitiveCode\s*:\s*[57]/, 'RVM catalogue translator must not request direct RHBG code 5 or 7 emission.');
 assert.match(writerSource, /rvmPrimitiveCodeForKind/, 'RVM writer must continue using named writer-safe kinds instead of raw RHBG codes.');

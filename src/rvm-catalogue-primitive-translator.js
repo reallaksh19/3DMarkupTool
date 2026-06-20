@@ -1,3 +1,4 @@
+import { assertSafeApproximationPrimitives, safeApproximationPolicyForIntent } from './rvm-safe-primitive-approximation-policy.js';
 import { buildValveFlangePrimitiveAdapterPlan } from './valve-flange-primitive-adapter.js';
 
 export const RVM_CATALOGUE_PRIMITIVE_TRANSLATOR_SCHEMA = 'RvmCataloguePrimitiveTranslator.v1';
@@ -36,7 +37,8 @@ export function buildRvmValveFlangeCatalogueExport(element = {}, metrics = {}, f
     }
   }
 
-  if (!primitives.length) return null;
+  const safePrimitives = assertSafeApproximationPrimitives(primitives, 'RVM valve/flange catalogue translator');
+  if (!safePrimitives.length) return null;
 
   return {
     schemaVersion: RVM_CATALOGUE_PRIMITIVE_TRANSLATOR_SCHEMA,
@@ -49,15 +51,16 @@ export function buildRvmValveFlangeCatalogueExport(element = {}, metrics = {}, f
     visualRecipeId: plan.visualRecipeId,
     catalogSchemaVersion: plan.catalogSchemaVersion,
     sourceSpecSchemaVersion: plan.sourceSpecSchemaVersion,
-    primitiveCount: primitives.length,
+    primitiveCount: safePrimitives.length,
     sourcePrimitiveCount: plan.visiblePrimitiveCount,
     skippedExportKinds: Array.from(new Set(skippedExportKinds)),
     supportedPrimitiveKinds: RVM_CATALOGUE_SUPPORTED_PRIMITIVE_KINDS,
-    attributes: rvmCatalogueAttributes(plan, primitives, skippedExportKinds),
-    primitives,
+    attributes: rvmCatalogueAttributes(plan, safePrimitives, skippedExportKinds),
+    primitives: safePrimitives,
     policies: {
       translatedBeforeRvmWriter: true,
-      writerSupportedKindsOnly: primitives.every((primitive) => RVM_CATALOGUE_SUPPORTED_PRIMITIVE_KINDS.includes(primitive.kind)),
+      writerSupportedKindsOnly: safePrimitives.every((primitive) => RVM_CATALOGUE_SUPPORTED_PRIMITIVE_KINDS.includes(primitive.kind)),
+      safeApproximationPolicyApplied: true,
       proportionalFallback: true,
       asmeDimensionalDatabaseBacked: false,
       productionRvmExportEnabled: false
@@ -127,10 +130,24 @@ function cylinderFromSegment(primitive, frame, material, prefix) {
 }
 
 function steppedFrustum(primitive, frame, material, prefix) {
+  const policy = safeApproximationPolicyForIntent('frustum');
+  if (!policy || policy.directEmissionAllowed || !policy.safeOutputKinds.includes('cylinder')) {
+    throw new Error('RVM valve/flange catalogue translator has no safe stepped-cylinder policy for frustum intent.');
+  }
+
   const start = numberOr(primitive.localAxisStart, -primitive.length / 2);
   const end = numberOr(primitive.localAxisEnd, primitive.length / 2);
   const span = end - start;
-  if (!Number.isFinite(span) || Math.abs(span) <= 0.001) return [cylinderFromSegment(primitive, frame, material, prefix)];
+  if (!Number.isFinite(span) || Math.abs(span) <= 0.001) {
+    return assertSafeApproximationPrimitives([
+      {
+        ...cylinderFromSegment(primitive, frame, material, prefix),
+        sourceIntent: 'frustum',
+        safeApproximationPolicy: policy.safeStrategy,
+        blockedRhbgPrimitiveCode: policy.rhbgPrimitiveCode
+      }
+    ], 'RVM valve/flange degenerate frustum approximation');
+  }
 
   const steps = 3;
   const primitives = [];
@@ -150,10 +167,13 @@ function steppedFrustum(primitive, frame, material, prefix) {
       length: Math.max(Math.abs(b - a), 0.001),
       material,
       catalogueRole: primitive.role,
-      catalogueExportKind: 'frustum'
+      catalogueExportKind: 'frustum',
+      sourceIntent: 'frustum',
+      safeApproximationPolicy: policy.safeStrategy,
+      blockedRhbgPrimitiveCode: policy.rhbgPrimitiveCode
     });
   }
-  return primitives;
+  return assertSafeApproximationPrimitives(primitives, 'RVM valve/flange stepped-frustum approximation');
 }
 
 function boltPatternSpheres(primitive, allPrimitives, frame, material, prefix) {

@@ -7,6 +7,7 @@
 const REVIEW_CHUNK_HEADER_MARKER = 1;
 const REVIEW_CONTAINER_CLOSE_BODY_MARKER = 2;
 const REVIEW_END_BODY_MARKER = 1;
+const RVM_PRIMITIVE_TRANSFORM_SCALE = 0.001;
 
 export function writeRvm(exportModel) {
   const writer = createChunkWriter();
@@ -118,11 +119,19 @@ function matrixForPrimitive(primitive) {
   const basis = basisFromDirection(primitive.direction || [0, 0, 1]);
   const center = vector3(primitive.center, 'center');
   return [
-    basis.x[0], basis.x[1], basis.x[2],
-    basis.y[0], basis.y[1], basis.y[2],
-    basis.z[0], basis.z[1], basis.z[2],
-    center[0], center[1], center[2]
+    ...scaleRvmTransformVector(basis.x),
+    ...scaleRvmTransformVector(basis.y),
+    ...scaleRvmTransformVector(basis.z),
+    ...scaleRvmTransformVector(center)
   ];
+}
+
+function scaleRvmTransformVector(vector) {
+  return vector.map((entry) => cleanRvmTransformValue(entry * RVM_PRIMITIVE_TRANSFORM_SCALE));
+}
+
+function cleanRvmTransformValue(value) {
+  return Math.abs(value) < 1e-12 ? 0 : value;
 }
 
 function localBboxForPrimitive(primitive) {

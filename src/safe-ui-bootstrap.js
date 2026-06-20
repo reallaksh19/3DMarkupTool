@@ -37,14 +37,12 @@ const DEFERRED_MODULE_URLS = [
   `./static-viewcube-svg-controller.js?v=${SAFE_UI_VERSION}`,
   `./static-selection-resolver.js?v=${SAFE_UI_VERSION}`,
   `./static-marquee-zoom-controller.js?v=${SAFE_UI_VERSION}`,
-  `./static-area-select-controller.js?v=${SAFE_UI_VERSION}`,
   `./static-saved-views-controller.js?v=${SAFE_UI_VERSION}`,
   `./static-saved-views-context-extension.js?v=${SAFE_UI_VERSION}`,
   `./static-component-search-controller.js?v=${SAFE_UI_VERSION}`,
   `./static-measure-polyline-controller.js?v=${SAFE_UI_VERSION}`,
   `./static-explode-review-controller.js?v=${SAFE_UI_VERSION}`,
   `./static-viewpad-navigation-tools-controller.js?v=${SAFE_UI_VERSION}`,
-  `./static-section-box-from-selection-controller.js?v=${SAFE_UI_VERSION}`,
   `./static-tree-core-controller.js?v=${SAFE_UI_VERSION}`,
   `./static-color-legend-controller.js?v=${SAFE_UI_VERSION}`,
   `./static-workflow-status-controller.js?v=${SAFE_UI_VERSION}`,
@@ -200,84 +198,60 @@ function startSoon(delay) {
   window.setTimeout(startSafeUi, delay);
 }
 
-function startSafeUi() {
-  if (!shouldLoadOptionalUi()) {
-    window.__3D_MARKUP_SAFE_UI_IMPORT_STARTED__ = false;
-    window.__3D_MARKUP_SAFE_UI_SKIPPED__ = true;
-    window.__3D_MARKUP_SAFE_UI_VERSION__ = SAFE_UI_VERSION;
-    setBootstrapStatus('Core Ready');
-    return;
-  }
-
-  attempts += 1;
+async function startSafeUi() {
+  if (window.__3D_MARKUP_SAFE_UI_IMPORT_STARTED__) return;
   window.__3D_MARKUP_SAFE_UI_IMPORT_STARTED__ = true;
   window.__3D_MARKUP_SAFE_UI_VERSION__ = SAFE_UI_VERSION;
-  setBootstrapStatus('Loading Review UI');
-
-  import(SAFE_LOADER_URL)
-    .then((mod) => mod?.loadSafeUi?.())
-    .then(() => {
-      window.__3D_MARKUP_SAFE_UI_IMPORT_COMPLETE__ = true;
-      setBootstrapStatus('Review UI Ready');
-    })
-    .catch((error) => {
-      console.warn('[3DMarkupTool] Safe UI bootstrap failed', error);
-      window.__3D_MARKUP_SAFE_UI_IMPORT_FAILED__ = true;
-      emitBootstrapModuleFailure(SAFE_LOADER_URL, error);
-      if (attempts < MAX_ATTEMPTS) startSoon(250 * attempts);
-      else setBootstrapStatus('Core Ready');
-    });
-}
-
-function importModuleBatch(urls, label) {
-  window.__3D_MARKUP_STATIC_SHELL_IMPORT_STARTED__ = true;
-  window.__3D_MARKUP_STATIC_SHELL_VERSION__ = SAFE_UI_VERSION;
-  return Promise.allSettled(urls.map((url) => import(url))).then((results) => {
-    const rejected = results.filter((r) => r.status === 'rejected');
-    results.forEach((result, index) => {
-      if (result.status === 'rejected') {
-        const url = urls[index];
-        emitBootstrapModuleFailure(url, result.reason);
-      }
-    });
-    if (rejected.length) {
-      console.warn(`[3DMarkupTool] ${label} partial import failure`, rejected.map((r) => r.reason));
-      window.__3D_MARKUP_STATIC_SHELL_IMPORT_PARTIAL_FAILURE__ = true;
-    }
-  });
-}
-
-function importModuleQueue(urls, label) {
-  window.__3D_MARKUP_STATIC_SHELL_IMPORT_STARTED__ = true;
-  window.__3D_MARKUP_STATIC_SHELL_VERSION__ = SAFE_UI_VERSION;
-  const queue = urls.slice();
-  const workers = Array.from({ length: Math.max(1, DEFERRED_IMPORT_BATCH_SIZE) }, () => runNext());
-  return Promise.allSettled(workers).then(() => undefined);
-
-  function runNext() {
-    const url = queue.shift();
-    if (!url) return Promise.resolve();
-    return import(url).catch((error) => {
-      console.warn(`[3DMarkupTool] ${label} import failed`, url, error);
-      window.__3D_MARKUP_STATIC_SHELL_IMPORT_PARTIAL_FAILURE__ = true;
-      emitBootstrapModuleFailure(url, error);
-    }).then(runNext);
+  setBootstrapStatus('UI Loading');
+  try {
+    const mod = await import(SAFE_LOADER_URL);
+    if (typeof mod.loadSafeUi === 'function') await mod.loadSafeUi();
+    setBootstrapStatus('UI Ready');
+  } catch (error) {
+    console.warn('[3DMarkupTool] Safe UI bootstrap failed', error);
+    setBootstrapStatus('UI Limited');
   }
 }
 
-function emitBootstrapModuleFailure(url, error) {
-  const detail = {
-    url: String(url || ''),
-    message: String(error?.message || error || 'Module import failed'),
-    version: SAFE_UI_VERSION,
-    timestamp: Date.now()
-  };
-  window.__3D_MARKUP_BOOTSTRAP_MODULE_FAILURES__ = window.__3D_MARKUP_BOOTSTRAP_MODULE_FAILURES__ || [];
-  window.__3D_MARKUP_BOOTSTRAP_MODULE_FAILURES__.push(detail);
-  window.dispatchEvent(new CustomEvent('3dmarkup:bootstrap-module-failed', { detail }));
+async function importModuleBatch(urls, label) {
+  for (const url of urls) {
+    await importSingleModule(url, label);
+  }
+}
+
+async function importModuleQueue(urls, label) {
+  const queue = urls.slice();
+  while (queue.length) {
+    const batch = queue.splice(0, DEFERRED_IMPORT_BATCH_SIZE);
+    await Promise.all(batch.map((url) => importSingleModule(url, label)));
+    await new Promise((resolve) => scheduleIdle(resolve, 650));
+  }
+}
+
+async function importSingleModule(url, label) {
+  let lastError = null;
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt += 1) {
+    attempts += 1;
+    try {
+      await import(url);
+      return true;
+    } catch (error) {
+      lastError = error;
+      emitBootstrapModuleFailure(url, error, { label, attempt });
+      await new Promise((resolve) => window.setTimeout(resolve, 120 * attempt));
+    }
+  }
+  console.warn(`[3DMarkupTool] ${label} module failed after retries`, url, lastError);
+  return false;
+}
+
+function emitBootstrapModuleFailure(url, error, extra = {}) {
+  window.dispatchEvent(new CustomEvent('viewer:static-shell-module-failed', {
+    detail: { url, message: error?.message || String(error), attempts, ...extra }
+  }));
 }
 
 function setBootstrapStatus(text) {
-  const node = document.getElementById('bootStatus');
-  if (node && text) node.textContent = text;
+  const status = document.getElementById('runtimeStatus');
+  if (status) status.textContent = text;
 }

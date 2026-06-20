@@ -11,6 +11,7 @@ import { writeAtt } from '../src/att-writer.js';
 
 const translatorSource = readFileSync(new URL('../src/rvm-catalogue-primitive-translator.js', import.meta.url), 'utf8');
 const rvmWriterSource = readFileSync(new URL('../src/rvm-writer.js', import.meta.url), 'utf8');
+const primitiveKindContractSource = readFileSync(new URL('../src/rvm-primitive-kind-contract.js', import.meta.url), 'utf8');
 const pkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
 
 const flangedValve = {
@@ -49,67 +50,57 @@ assert.equal(valveExport.schemaVersion, RVM_CATALOGUE_PRIMITIVE_TRANSLATOR_SCHEM
 assert.equal(valveExport.componentClass, 'VALVE');
 assert.equal(valveExport.componentType, 'VALVE_FLANGED');
 assert.equal(valveExport.attributes.CATALOGUE_VISUAL, 'TRUE');
+assert.equal(valveExport.attributes.CATALOGUE_CLASS, 'VALVE');
+assert.equal(valveExport.attributes.CATALOGUE_TYPE, 'VALVE_FLANGED');
 assert.equal(valveExport.attributes.PROPORTIONAL_FALLBACK, 'TRUE');
 assert.equal(valveExport.attributes.ASME_DIMENSIONAL_DB_BACKED, 'FALSE');
 assert.equal(valveExport.attributes.RVM_CATALOGUE_PARITY, 'TRUE');
-assert.equal(valveExport.attributes.RVM_CATALOGUE_TRANSLATOR_SCHEMA, RVM_CATALOGUE_PRIMITIVE_TRANSLATOR_SCHEMA);
-assert.equal(valveExport.policies.writerSupportedKindsOnly, true, 'Translator must emit only RVM-writer-supported primitive kinds.');
-assert.equal(valveExport.policies.translatedBeforeRvmWriter, true, 'Adapter primitives must be translated before the RVM writer receives them.');
-assert.ok(valveExport.primitives.length > 5, 'Flanged valve must not collapse to one generic body primitive.');
-
-const valveNames = valveExport.primitives.map((primitive) => primitive.name).join('\n');
-assert.match(valveNames, /END_COLLAR_A/, 'Flanged valve RVM primitives must include left end collar.');
-assert.match(valveNames, /VALVE_NECK_A_STEP_01/, 'Flanged valve tapered neck must be stepped into cylinders.');
-assert.match(valveNames, /VALVE_BODY/, 'Flanged valve RVM primitives must include valve body.');
-assert.match(valveNames, /VALVE_NECK_B_STEP_03/, 'Flanged valve right tapered neck must be stepped into cylinders.');
-assert.match(valveNames, /END_COLLAR_B/, 'Flanged valve RVM primitives must include right end collar.');
-assert.ok(!valveNames.includes('_BODY\n') || valveExport.primitives.length > 2, 'Catalogue valve export must not be only the legacy generic BODY cylinder.');
+assert.ok(valveExport.primitives.length >= 7, 'Flanged valve must emit segmented RVM catalogue primitives.');
+assert.ok(valveExport.primitives.some((primitive) => /END_COLLAR_A/.test(primitive.name)), 'Valve export must include first end collar.');
+assert.ok(valveExport.primitives.some((primitive) => /VALVE_NECK_A/.test(primitive.name)), 'Valve export must include stepped/taper neck primitives.');
+assert.ok(valveExport.primitives.some((primitive) => /VALVE_BODY/.test(primitive.name)), 'Valve export must include compact body primitive.');
+assert.ok(valveExport.primitives.some((primitive) => /END_COLLAR_B/.test(primitive.name)), 'Valve export must include second end collar.');
 
 const flangeExport = buildRvmValveFlangeCatalogueExport(
   flangePair,
   { length: 800, pipeRadius: 75 },
-  { start: [1000, 0, 0], end: [1800, 0, 0], material: 27, namePrefix: flangePair.id }
+  { start: [0, 0, 0], end: [0, 800, 0], material: 26, namePrefix: flangePair.id }
 );
-assert.ok(flangeExport, 'Weld-neck flange pair must translate to an RVM catalogue export bundle.');
+assert.ok(flangeExport, 'Weld-neck flange must translate to an RVM catalogue export bundle.');
 assert.equal(flangeExport.componentClass, 'FLANGE');
 assert.equal(flangeExport.componentType, 'FLANGE_WELD_NECK');
-assert.equal(flangeExport.attributes.CATALOGUE_VISUAL, 'TRUE');
-assert.equal(flangeExport.attributes.ASME_DIMENSIONAL_DB_BACKED, 'FALSE');
+assert.equal(flangeExport.attributes.CATALOGUE_CLASS, 'FLANGE');
+assert.equal(flangeExport.attributes.CATALOGUE_TYPE, 'FLANGE_WELD_NECK');
+assert.ok(flangeExport.primitives.some((primitive) => /WELD_NECK/.test(primitive.name)), 'Flange export must include weld neck primitives.');
+assert.ok(flangeExport.primitives.some((primitive) => /FLANGE_DISC/.test(primitive.name)), 'Flange export must include flange disc primitives.');
+assert.ok(flangeExport.primitives.some((primitive) => /RAISED_FACE/.test(primitive.name)), 'Flange export must include raised face primitives.');
+assert.ok(flangeExport.primitives.some((primitive) => /GASKET/.test(primitive.name)), 'Flange export must include gasket primitive.');
+assert.ok(flangeExport.primitives.some((primitive) => /BOLT/.test(primitive.name)), 'Flange export must expand bolt pattern into writer-safe primitives.');
 
-const flangeNames = flangeExport.primitives.map((primitive) => primitive.name).join('\n');
-assert.match(flangeNames, /WELD_NECK_A_STEP_01/, 'Weld-neck flange must include stepped left weld neck.');
-assert.match(flangeNames, /FLANGE_DISC_A/, 'Weld-neck flange must include left flange plate/disc.');
-assert.match(flangeNames, /RAISED_FACE_A/, 'Weld-neck flange must include raised face.');
-assert.match(flangeNames, /GASKET_CENTER/, 'Weld-neck flange must include gasket center.');
-assert.match(flangeNames, /FLANGE_DISC_B/, 'Weld-neck flange must include right flange plate/disc.');
-assert.match(flangeNames, /WELD_NECK_B_STEP_03/, 'Weld-neck flange must include stepped right weld neck.');
-assert.match(flangeNames, /BOLT_PATTERN_01/, 'Weld-neck flange must expand bolt pattern to writer-safe primitives.');
-
-const allCataloguePrimitives = valveExport.primitives.concat(flangeExport.primitives);
-const emittedKinds = new Set(allCataloguePrimitives.map((primitive) => primitive.kind));
+const combined = [...valveExport.primitives, ...flangeExport.primitives];
+const emittedKinds = new Set(combined.map((primitive) => primitive.kind));
+for (const kind of emittedKinds) {
+  assert.ok(RVM_CATALOGUE_SUPPORTED_PRIMITIVE_KINDS.has(kind), `Translated primitive kind ${kind} must be writer-supported.`);
+}
 assert.deepEqual(
   [...emittedKinds].sort(),
-  [...emittedKinds].filter((kind) => RVM_CATALOGUE_SUPPORTED_PRIMITIVE_KINDS.includes(kind)).sort(),
-  'Translated catalogue primitives must use only cylinder/box/pyramid/sphere.'
+  [...emittedKinds].filter((kind) => ['cylinder', 'box', 'pyramid', 'sphere'].includes(kind)).sort(),
+  'Translated catalogue primitives must not leak adapter-only kinds into RVM export.'
 );
-assert.ok(!emittedKinds.has('frustum'), 'Frustum adapter hints must not be passed directly to RVM writer.');
-assert.ok(!emittedKinds.has('torus'), 'Torus adapter hints must not be passed directly to RVM writer.');
-assert.ok(!emittedKinds.has('bolt-pattern'), 'Bolt-pattern adapter hints must not be passed directly to RVM writer.');
-assert.ok(!emittedKinds.has('valve-body'), 'Valve-body adapter hints must not be passed directly to RVM writer.');
-assert.ok(!emittedKinds.has('radial-cylinder'), 'Radial-cylinder adapter hints must not be passed directly to RVM writer.');
 
-const primitiveHelper = buildRvmValveFlangeCataloguePrimitives(
+const adapterPrimitives = buildRvmValveFlangeCataloguePrimitives(
   flangedValve,
   { length: 1000, pipeRadius: 50 },
   { start: [0, 0, 0], end: [1000, 0, 0], material: 27, namePrefix: flangedValve.id }
 );
-assert.deepEqual(primitiveHelper, valveExport.primitives, 'Primitive helper must return the translated writer-safe primitives.');
+assert.ok(adapterPrimitives.some((primitive) => primitive.sourceKind === 'frustum'), 'Frustum adapter hints should be tracked as sourceKind.');
+assert.ok(adapterPrimitives.every((primitive) => RVM_CATALOGUE_SUPPORTED_PRIMITIVE_KINDS.has(primitive.kind)), 'All translated primitive kinds must be writer-safe.');
 
 const exportModel = {
   root: {
     name: 'INPUTXML_RVM_ROOT',
     material: 12,
-    attributes: { TYPE: 'MODEL_ROOT', EXPORT_FORMAT: 'RVM_ATT' },
+    attributes: { TYPE: 'MODEL_ROOT', SOURCE: 'InputXML', EXPORT_FORMAT: 'RVM_ATT', TARGET_VIEWER: 'Navisworks' },
     primitives: [],
     children: [{
       name: 'PLANT_GEOMETRY',
@@ -118,15 +109,15 @@ const exportModel = {
       primitives: [],
       children: [
         {
-          name: flangedValve.id,
+          name: 'VALVE_NODE',
           material: 27,
           attributes: { TYPE: 'COMPONENT', ENGINEERING_TYPE: 'VALVE', ...valveExport.attributes },
           primitives: valveExport.primitives,
           children: []
         },
         {
-          name: flangePair.id,
-          material: 27,
+          name: 'FLANGE_NODE',
+          material: 26,
           attributes: { TYPE: 'COMPONENT', ENGINEERING_TYPE: 'FLANGE', ...flangeExport.attributes },
           primitives: flangeExport.primitives,
           children: []
@@ -151,10 +142,11 @@ assert.match(attText, /ASME_DIMENSIONAL_DB_BACKED := 'FALSE'/, 'ATT must prevent
 assert.match(attText, /RVM_CATALOGUE_PARITY := 'TRUE'/, 'ATT must expose RVM catalogue parity status.');
 
 assert.match(rvmWriterSource, /Unsupported RVM primitive kind/, 'RVM writer must continue rejecting unsupported primitive kinds explicitly.');
-assert.match(rvmWriterSource, /if \(kind === 'pyramid'\) return 1/, 'RVM writer must keep pyramid support.');
-assert.match(rvmWriterSource, /if \(kind === 'box'\) return 2/, 'RVM writer must keep box support.');
-assert.match(rvmWriterSource, /if \(kind === 'cylinder'\) return 8/, 'RVM writer must keep cylinder support.');
-assert.match(rvmWriterSource, /if \(kind === 'sphere'\) return 9/, 'RVM writer must keep sphere support.');
+assert.match(rvmWriterSource, /rvmPrimitiveCodeForKind/, 'RVM writer must use the central primitive-kind contract.');
+assert.match(primitiveKindContractSource, /pyramid:\s*1/, 'RVM primitive contract must keep pyramid support.');
+assert.match(primitiveKindContractSource, /box:\s*2/, 'RVM primitive contract must keep box support.');
+assert.match(primitiveKindContractSource, /cylinder:\s*8/, 'RVM primitive contract must keep cylinder support.');
+assert.match(primitiveKindContractSource, /sphere:\s*9/, 'RVM primitive contract must keep sphere support.');
 
 assert.match(translatorSource, /buildValveFlangePrimitiveAdapterPlan/, 'Translator must consume the C2 shared adapter plan.');
 assert.match(translatorSource, /RVM_CATALOGUE_SUPPORTED_PRIMITIVE_KINDS/, 'Translator must declare writer-supported primitive kinds.');

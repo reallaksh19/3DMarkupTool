@@ -13,7 +13,7 @@ try {
   console.warn('[3DMarkupTool] Fresh clip controller skipped inside app bundle.', error);
   window.dispatchEvent(new CustomEvent('viewer:fresh-clip-module-skipped', {
     detail: {
-      version: 'perf-static-drawer-bundle-20260620',
+      version: 'perf-rules-20260620',
       bundled: true,
       reason: error && (error.message || String(error))
     }
@@ -22,5 +22,5 @@ try {
 
 window.__3D_MARKUP_APP_BUNDLE_READY__ = true;
 window.dispatchEvent(new CustomEvent('viewer:app-bundle-ready', {
-  detail: { version: 'perf-static-drawer-bundle-20260620' }
+  detail: { version: 'perf-rules-20260620' }
 }));

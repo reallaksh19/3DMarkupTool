@@ -7,6 +7,7 @@ import { applyReviewStyleNodeNames } from './rvm-review-node-names.js?v=rhbg-rev
 import { assertNavisExportModel } from './navis-export-contract.js?v=navis-contract-1';
 import { writeRvm } from './rvm-writer.js?v=professional-viewer-3';
 import { writeAtt } from './att-writer.js?v=professional-viewer-3';
+import { scanRvmPrimitivePayloads } from './rvm-primitive-payload-decoder.js?v=rvm-payload-contract-1';
 
 /**
  * Converts supported source text into a Navisworks-oriented RVM+ATT pair.
@@ -25,6 +26,7 @@ export function convertInputXmlToRvmAtt(sourceText, options) {
     sourceKind: model.sourceKind || 'InputXML'
   });
   const rvm = writeRvm(exportModel);
+  const rvmPrimitivePayloadContract = assertGeneratedRvmPayloadCompatibility(scanRvmPrimitivePayloads(rvm));
   const att = writeAtt(exportModel);
   return {
     model,
@@ -37,6 +39,7 @@ export function convertInputXmlToRvmAtt(sourceText, options) {
       sourceSchemaVersion: model.sourceSchemaVersion || '',
       diagnostics: model.diagnostics || [],
       navisContract,
+      rvmPrimitivePayloadContract,
       rvmBytes: rvm.byteLength,
       attBytes: new TextEncoder().encode(att).byteLength,
       navisworks: {
@@ -46,5 +49,33 @@ export function convertInputXmlToRvmAtt(sourceText, options) {
         targetViewer: navisContract.targetViewer
       }
     }
+  };
+}
+
+function assertGeneratedRvmPayloadCompatibility(primitives) {
+  const statusCounts = {};
+  const codeCounts = {};
+  const unsafe = [];
+
+  for (const primitive of primitives || []) {
+    const status = primitive.compatibilityStatus || 'unknown';
+    const code = String(primitive.code ?? 'unknown');
+    statusCounts[status] = (statusCounts[status] || 0) + 1;
+    codeCounts[code] = (codeCounts[code] || 0) + 1;
+    if (primitive.rhbgObservedButBlocked || !primitive.supportedForEmission) unsafe.push(primitive);
+  }
+
+  if (unsafe.length > 0) {
+    const summary = unsafe.map((primitive) => `code ${primitive.code} at offset ${primitive.offset ?? 'unknown'}`).join(', ');
+    throw new Error(`Generated RVM contains unsupported primitive payloads: ${summary}`);
+  }
+
+  return {
+    schema: 'GeneratedRvmPrimitivePayloadContract.v1',
+    primitiveCount: primitives?.length || 0,
+    failClosed: true,
+    unsupportedPrimitivePayloadsPresent: false,
+    statusCounts,
+    codeCounts
   };
 }

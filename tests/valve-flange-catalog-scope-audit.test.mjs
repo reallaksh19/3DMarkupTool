@@ -6,6 +6,7 @@ const adapter = readFileSync(new URL('../src/valve-flange-primitive-adapter.js',
 const converter = readFileSync(new URL('../src/converter.js', import.meta.url), 'utf8');
 const exportModel = readFileSync(new URL('../src/export-model.js', import.meta.url), 'utf8');
 const rvmConverter = readFileSync(new URL('../src/rvm-converter.js', import.meta.url), 'utf8');
+const rvmWiring = readFileSync(new URL('../src/rvm-catalogue-export-wiring.js', import.meta.url), 'utf8');
 const auditDoc = readFileSync(new URL('../docs/core-valve-flange-catalog-audit.md', import.meta.url), 'utf8');
 const pkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
 
@@ -54,7 +55,7 @@ assert.match(
 assert.match(
   adapter,
   /productionRvmExportEnabled: false/,
-  'C2 adapter must not silently enable production RVM catalogue export.'
+  'C2 adapter must remain a neutral bridge and must not itself write production RVM.'
 );
 
 assert.doesNotMatch(
@@ -77,26 +78,38 @@ assert.match(
 
 assert.doesNotMatch(
   exportModel,
-  /valve-flange-visual-catalog|valve-flange-primitive-adapter/,
-  'Audit baseline through C2: RVM export-model does not yet import the valve/flange catalogue or adapter. This must only change in C3.'
+  /valve-flange-visual-catalog|valve-flange-primitive-adapter|rvm-catalogue-primitive-translator/,
+  'C3B keeps export-model.js as the neutral base tree builder; catalogue parity is applied at the production RVM converter boundary.'
 );
 
 assert.match(
   exportModel,
   /kind:\s*['"]cylinder['"]/,
-  'Audit baseline: RVM export still emits simplified cylinder primitives for component bodies.'
+  'Neutral export model must retain simplified cylinder fallback primitives for non-catalogue and base-tree paths.'
 );
 
-assert.doesNotMatch(
-  exportModel,
-  /FLANGE_PLATE|RAISED_FACE|VALVE_BODY|TAPERED_SHOULDER/,
-  'Audit baseline: RVM export does not yet emit catalogue primitive roles for valve/flange components.'
+assert.match(
+  rvmWiring,
+  /applyRvmCatalogueExportParity/,
+  'C3B must provide a production wiring step for RVM catalogue parity.'
+);
+
+assert.match(
+  rvmWiring,
+  /buildRvmValveFlangeCatalogueExport/,
+  'C3B wiring must consume the C3 writer-safe catalogue translator.'
+);
+
+assert.match(
+  rvmWiring,
+  /CATALOGUE_EXPORT_PRODUCTION_WIRING/,
+  'C3B wiring must expose production wiring metadata into ATT attributes.'
 );
 
 assert.match(
   rvmConverter,
-  /buildRvmExportModel/,
-  'RVM converter must continue using the renderer-neutral export model boundary.'
+  /buildRvmExportModel[\s\S]*applyRvmCatalogueExportParity[\s\S]*normalizeNavisExportModelNames/,
+  'Production RVM converter must build the base export model, apply catalogue parity, then normalize Navis names.'
 );
 
 assert.match(
@@ -107,8 +120,8 @@ assert.match(
 
 assert.match(
   auditDoc,
-  /RVM export does not yet use the catalogue/,
-  'Audit document must record the current RVM parity gap.'
+  /C3B production RVM converter now applies catalogue parity/,
+  'Audit document must record the current C3B production wiring status.'
 );
 
 assert.match(
@@ -125,8 +138,8 @@ assert.match(
 
 assert.match(
   auditDoc,
-  /C3 — RVM catalogue export parity/,
-  'Audit document must define the RVM parity phase.'
+  /C3B — Production RVM catalogue export wiring/,
+  'Audit document must define the production RVM parity wiring phase.'
 );
 
 assert.match(

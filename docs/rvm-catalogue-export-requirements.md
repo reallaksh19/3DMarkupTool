@@ -1,6 +1,6 @@
 # RVM Catalogue Export Requirements Gate
 
-This document records the C3 safety gate for valve/flange catalogue export parity.
+This document records the C3/C3B safety gate for valve/flange catalogue export parity.
 
 ## Purpose
 
@@ -29,17 +29,18 @@ Therefore C3 requires a translator seam:
 ```text
 valve-flange-primitive-adapter.js
 → rvm-catalogue-primitive-translator.js
-→ export-model.js
+→ rvm-catalogue-export-wiring.js
 → rvm-writer.js
 ```
 
-## Gate added
+## Gates added
 
 ```text
 tests/rvm-catalogue-primitive-requirements.test.mjs
+tests/rvm-catalogue-export-wiring.test.mjs
 ```
 
-The gate verifies:
+The gates verify:
 
 ```text
 1. Flanged valves translate into segmented RVM-safe primitives.
@@ -48,7 +49,20 @@ The gate verifies:
 4. Bolt-pattern hints are expanded into writer-safe sphere primitives.
 5. RVM writer receives only cylinder / box / pyramid / sphere.
 6. ATT metadata exposes catalogue status and fallback/non-ASME flags.
-7. The translator has no Three.js, DOM, polling, or scene traversal dependency.
+7. The translator and production wiring have no Three.js, DOM, polling, or scene traversal dependency.
+8. Production RVM conversion applies catalogue parity before Navis-safe normalization and RVM/ATT writing.
+9. Non-catalogue components keep the existing fallback primitive path.
+```
+
+## Production conversion path
+
+```text
+buildRvmExportModel(model)
+→ applyRvmCatalogueExportParity(exportModel, model)
+→ normalizeNavisExportModelNames(exportModel)
+→ assertNavisExportModel(exportModel)
+→ writeRvm(exportModel)
+→ writeAtt(exportModel)
 ```
 
 ## Metadata required in ATT
@@ -64,8 +78,9 @@ CATALOGUE_SCHEMA := '<schema version>'
 PROPORTIONAL_FALLBACK := 'TRUE'
 ASME_DIMENSIONAL_DB_BACKED := 'FALSE'
 RVM_CATALOGUE_PARITY := 'TRUE'
+CATALOGUE_EXPORT_PRODUCTION_WIRING := 'TRUE'
 ```
 
 ## Current status
 
-This PR adds the translator seam and CI requirements gate. The production `export-model.js` switch is intentionally left for the next PR so the unsafe part is isolated and gated first.
+C3 added the translator seam and requirements gate. C3B wires that seam into the production RVM conversion path while preserving the neutral base export model and fallback behavior.

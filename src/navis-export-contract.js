@@ -243,7 +243,7 @@ function validatePositive(value, path, report) {
 }
 
 function validatePositiveArray(value, length, path, report) {
-  validateFiniteArray(value, length, report, report);
+  validateFiniteArray(value, length, path, report);
   if (!Array.isArray(value) || value.length !== length) return;
   for (const entry of value) validatePositive(entry, path, report);
 }

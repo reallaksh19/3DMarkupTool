@@ -68,9 +68,12 @@ const rawAudit = auditRvmBinary(rvm);
 assert.equal(rawAudit.ok, true, 'raw audit must pass with no issues');
 assert.deepEqual(rawAudit.issues, [], 'binary audit must not report issues for generated writer output');
 
-assert.match(writerSource, /const REVIEW_CHUNK_MARKER = 1/, 'writer must use an explicit Review chunk marker constant');
-assert.match(writerSource, /writer\.writeChunk\('END:', uint32Body\(REVIEW_CHUNK_MARKER\)/, 'writer must emit an END: body marker');
-assert.match(writerSource, /view\.setUint32\(20, REVIEW_CHUNK_MARKER, false\)/, 'writer chunk headers must carry marker value 1');
+assert.match(writerSource, /const REVIEW_CHUNK_HEADER_MARKER = 1/, 'writer must use explicit Review chunk header marker value 1');
+assert.match(writerSource, /const REVIEW_CONTAINER_CLOSE_BODY_MARKER = 2/, 'writer must use RHBG-style CNTE body marker value 2');
+assert.match(writerSource, /const REVIEW_END_BODY_MARKER = 1/, 'writer must use RHBG-style END: body marker value 1');
+assert.match(writerSource, /writer\.writeChunk\('CNTE', uint32Body\(REVIEW_CONTAINER_CLOSE_BODY_MARKER\)/, 'writer must emit CNTE body marker 2');
+assert.match(writerSource, /writer\.writeChunk\('END:', uint32Body\(REVIEW_END_BODY_MARKER\)/, 'writer must emit END: body marker 1');
+assert.match(writerSource, /view\.setUint32\(20, REVIEW_CHUNK_HEADER_MARKER, false\)/, 'writer chunk headers must carry marker value 1');
 assert.match(auditSource, /REQUIRED_REVIEW_CHUNKS/, 'binary audit helper must maintain the required chunk contract');
 assert.match(auditSource, /allChunkMarkersOne/, 'binary audit must check Review-style marker values');
 assert.match(auditSource, /balancedCntbCnte/, 'binary audit must check CNTB/CNTE balance');

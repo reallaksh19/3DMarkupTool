@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { resolveSupportRestraintVisualSpec } from './support-restraint-visual-catalog.js';
+import { buildSupportRestraintPrimitiveRecords, assertSupportRestraintWriterSafePrimitives } from './support-restraint-primitive-adapter.js';
 
 export const COLORS = { pipe: 0xf0f4f8, rigid: 0x8fb2d8, valve: 0x21d4c4, bend: 0x67d4ef, rest: 0xf8c34a, guide: 0x18d5c0, lineStop: 0xf2a93b, holddown: 0xf05ab9, spring: 0xd273ff, warning: 0xff8c73, isonote: 0x211b2e, node: 0x66c8ff, text: 0xffffff };
 
@@ -32,7 +33,7 @@ export function coneArrow(start, dir, length, radius, material, name = 'arrow') 
 
 export function arrowToward(tip, dirTowardTip, length, radius, material, name = 'arrowToward') {
   const d = dirTowardTip.clone().normalize();
-  return coneArrow(tip.clone().sub(d.clone().multiplyScalar(length)), d, length, radius, material, name);
+  return coneArrow(tip.clone().sub(d.clone().multiplyScalar(length)), d, length, radius, name);
 }
 
 export function createTextPlane(text, options = {}) {
@@ -168,7 +169,9 @@ function wrapText(ctx, text, maxWidth, maxLines) {
   return lines;
 }
 
+const SUPPORT_SCENE_SCALE = 0.01;
 const supportUserDataStore = new WeakMap();
+const supportCatalogueGeometryFlag = Symbol.for('3DMarkupTool.supportRestraintCatalogueGeometryAdapter.v1');
 const supportUserDataStampFlag = Symbol.for('3DMarkupTool.supportRestraintCatalogueUserDataStamp.v1');
 
 function installSupportRestraintCatalogueUserDataStamping() {
@@ -184,7 +187,9 @@ function installSupportRestraintCatalogueUserDataStamping() {
       return supportUserDataStore.get(this);
     },
     set(value) {
-      supportUserDataStore.set(this, stampSupportRestraintCatalogueUserData(value));
+      const stamped = stampSupportRestraintCatalogueUserData(value);
+      supportUserDataStore.set(this, stamped);
+      replaceSupportRestraintGeometryWithCatalogueAdapter(this, stamped);
     }
   });
   Object.defineProperty(proto, supportUserDataStampFlag, { configurable: false, value: true });
@@ -209,9 +214,137 @@ function stampSupportRestraintCatalogueUserData(value) {
     supportCatalogueProportionalFallback: spec.proportionalFallback,
     supportCatalogueVendorDimensionalDbBacked: spec.vendorDimensionalDbBacked,
     supportCatalogueExportProductionWiring: true,
-    supportCatalogueSceneParity: 'CATALOGUE_METADATA_STAMPED',
-    supportCatalogueSceneMetadataOnly: true
+    supportCatalogueSceneParity: 'CATALOGUE_GEOMETRY_ADAPTER',
+    supportCatalogueSceneMetadataOnly: false,
+    supportCatalogueSceneGeometryAdapter: true
   };
+}
+
+function replaceSupportRestraintGeometryWithCatalogueAdapter(object, userData) {
+  if (!object || object[supportCatalogueGeometryFlag] || !userData || userData.TYPE !== 'SUPPORT_RESTRAINT') return;
+  const spec = resolveSupportRestraintVisualSpec({ family: userData.family || userData.FAMILY || userData.axis });
+  const context = inferSupportCatalogueSceneContext(object, userData, spec);
+  let primitives = [];
+  try {
+    primitives = buildSupportRestraintPrimitiveRecords(userData, context);
+    assertSupportRestraintWriterSafePrimitives(primitives);
+  } catch (error) {
+    supportUserDataStore.set(object, { ...userData, supportCatalogueSceneGeometryAdapterError: String(error?.message || error) });
+    return;
+  }
+  if (!primitives.length) return;
+  while (object.children?.length) object.remove(object.children[0]);
+  if (object.isMesh) {
+    object.visible = false;
+    object.renderOrder = -1;
+  }
+  for (const primitive of primitives) {
+    const child = createSupportCataloguePrimitiveObject(primitive, spec);
+    if (child) object.add(child);
+  }
+  Object.defineProperty(object, supportCatalogueGeometryFlag, { configurable: false, value: true });
+}
+
+function inferSupportCatalogueSceneContext(object, userData, spec) {
+  const box = new THREE.Box3().setFromObject(object);
+  const center = box.isEmpty() ? new THREE.Vector3() : box.getCenter(new THREE.Vector3());
+  const size = box.isEmpty() ? new THREE.Vector3(1, 1, 1) : box.getSize(new THREE.Vector3());
+  const maxAxis = Math.max(size.x, size.y, size.z, 0.8);
+  const od = Math.max(100, Math.min(800, (maxAxis / SUPPORT_SCENE_SCALE) * 0.45));
+  return {
+    point: [center.x / SUPPORT_SCENE_SCALE, center.y / SUPPORT_SCENE_SCALE, center.z / SUPPORT_SCENE_SCALE],
+    tangent: supportTangentFromUserData(userData),
+    od,
+    gapMm: finiteNumber(userData.gapMm, 0),
+    sourceClass: userData.sourceClass || 'SUPPORT',
+    node: userData.node || 'NODE',
+    material: supportMaterialCodeForFamily(spec.family)
+  };
+}
+
+function createSupportCataloguePrimitiveObject(primitive, spec) {
+  const material = supportMaterialForPrimitive(primitive, spec);
+  const name = primitive.name || `SUPPORT_${primitive.role || primitive.kind}`;
+  let object = null;
+  if (primitive.kind === 'cylinder') {
+    const center = sceneVectorFromArray(primitive.center);
+    const dir = sceneDirectionFromArray(primitive.direction);
+    const half = Math.max(primitive.length * SUPPORT_SCENE_SCALE, 0.0001) / 2;
+    object = cylinderBetween(center.clone().sub(dir.clone().multiplyScalar(half)), center.clone().add(dir.clone().multiplyScalar(half)), Math.max(primitive.radius * SUPPORT_SCENE_SCALE, 0.001), material, 12, name);
+  } else if (primitive.kind === 'pyramid') {
+    const dir = sceneDirectionFromArray(primitive.direction);
+    const height = Math.max(primitive.height * SUPPORT_SCENE_SCALE, 0.0001);
+    const radius = Math.max(Math.max(...(primitive.bottom || [primitive.height * 0.5, primitive.height * 0.5])) * SUPPORT_SCENE_SCALE * 0.5, 0.001);
+    object = new THREE.Mesh(new THREE.ConeGeometry(radius, height, 4), material);
+    object.name = name;
+    object.position.copy(sceneVectorFromArray(primitive.center));
+    object.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir);
+  } else if (primitive.kind === 'box') {
+    const lengths = primitive.lengths || [100, 100, 100];
+    object = new THREE.Mesh(new THREE.BoxGeometry(Math.max(lengths[0] * SUPPORT_SCENE_SCALE, 0.001), Math.max(lengths[1] * SUPPORT_SCENE_SCALE, 0.001), Math.max(lengths[2] * SUPPORT_SCENE_SCALE, 0.001)), material);
+    object.name = name;
+    object.position.copy(sceneVectorFromArray(primitive.center));
+  } else if (primitive.kind === 'sphere') {
+    object = new THREE.Mesh(new THREE.SphereGeometry(Math.max((primitive.diameter || 50) * SUPPORT_SCENE_SCALE * 0.5, 0.001), 12, 8), material);
+    object.name = name;
+    object.position.copy(sceneVectorFromArray(primitive.center));
+  }
+  if (object) {
+    object.userData = {
+      TYPE: 'SUPPORT_RESTRAINT_PART',
+      meshRole: primitive.role,
+      primitiveKind: primitive.kind,
+      supportCataloguePrimitiveAdapter: true,
+      supportCatalogueSceneParity: 'CATALOGUE_GEOMETRY_ADAPTER',
+      supportCatalogueFamily: spec.family,
+      supportCatalogueRecipeId: spec.recipeId,
+      supportCatalogueSchema: spec.catalogSchemaVersion,
+      supportCatalogueProportionalFallback: spec.proportionalFallback,
+      supportCatalogueVendorDimensionalDbBacked: spec.vendorDimensionalDbBacked,
+      supportVisualKey: primitive.supportVisualKey,
+      supportVisualRecipeId: primitive.supportVisualRecipeId,
+      supportVisualFamily: primitive.supportVisualFamily,
+      adapterOrdinal: primitive.adapterOrdinal
+    };
+  }
+  return object;
+}
+
+function supportTangentFromUserData(userData = {}) {
+  const axis = String(userData.axis || '').toUpperCase();
+  if (/^[+-]?[XYZ]$/.test(axis)) {
+    const v = axisVector(axis.startsWith('+') || axis.startsWith('-') ? axis : `+${axis}`);
+    return [v.x, v.y, v.z];
+  }
+  return [1, 0, 0];
+}
+
+function sceneVectorFromArray(value = [0, 0, 0]) {
+  return new THREE.Vector3((Number(value[0]) || 0) * SUPPORT_SCENE_SCALE, (Number(value[1]) || 0) * SUPPORT_SCENE_SCALE, (Number(value[2]) || 0) * SUPPORT_SCENE_SCALE);
+}
+
+function sceneDirectionFromArray(value = [1, 0, 0]) {
+  const v = new THREE.Vector3(Number(value[0]) || 0, Number(value[1]) || 0, Number(value[2]) || 0);
+  return v.lengthSq() > 1e-12 ? v.normalize() : new THREE.Vector3(1, 0, 0);
+}
+
+function supportMaterialCodeForFamily(family) {
+  if (family === 'GUIDE') return COLORS.guide;
+  if (family === 'LINE_STOP' || family === 'LIMIT_STOP' || family === 'AXIS_RESTRAINT') return COLORS.lineStop;
+  if (family === 'HOLDDOWN') return COLORS.holddown;
+  if (family === 'SPRING') return COLORS.spring;
+  if (family === 'UNKNOWN_RESTRAINT') return COLORS.warning;
+  return COLORS.rest;
+}
+
+function supportMaterialForPrimitive(primitive, spec) {
+  const color = Number.isFinite(primitive.material) && primitive.material > 0 ? primitive.material : supportMaterialCodeForFamily(spec.family);
+  return mat(color, { emissive: Math.max(0, color & 0x1f1f1f), emissiveIntensity: 0.16 });
+}
+
+function finiteNumber(value, fallback) {
+  const number = Number(value);
+  return Number.isFinite(number) ? number : fallback;
 }
 
 installSupportRestraintCatalogueUserDataStamping();

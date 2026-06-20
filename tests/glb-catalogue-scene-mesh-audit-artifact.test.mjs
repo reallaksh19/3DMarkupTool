@@ -66,9 +66,10 @@ try {
   const flange = audit.catalogueGroups.find((entry) => entry.componentClass === 'FLANGE');
   assert.ok(flange, 'scene audit must contain a flange group');
   assert.equal(flange.issues.length, 0, 'flange scene group must be clean');
-  const plates = flange.roleMetrics.filter((entry) => /FLANGE_(?:DISC|PLATE)/.test(entry.role));
-  const raisedFace = flange.roleMetrics.find((entry) => /RAISED_FACE/.test(entry.role));
-  const weldNeck = flange.roleMetrics.find((entry) => /WELD_NECK/.test(entry.role));
+  const nonBoltRoles = flange.roleMetrics.filter((entry) => !/_BOLT$/.test(entry.role || '') && !/BOLT_\d+$/.test(entry.name || '') && !Number.isFinite(entry.boltIndex));
+  const plates = nonBoltRoles.filter((entry) => /FLANGE_(?:DISC|PLATE)/.test(entry.role));
+  const raisedFace = nonBoltRoles.find((entry) => /RAISED_FACE/.test(entry.role));
+  const weldNeck = nonBoltRoles.find((entry) => /WELD_NECK/.test(entry.role));
   assert.ok(plates.length >= 1, 'flange scene audit must include flange plate/disc mesh role');
   assert.ok(raisedFace, 'flange scene audit must include raised-face mesh role');
   assert.ok(weldNeck, 'flange scene audit must include weld-neck mesh role');

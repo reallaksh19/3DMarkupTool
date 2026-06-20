@@ -49,6 +49,9 @@ jobs:
       - name: Generate BM_CII GLB catalogue visual regression artifact
         run: npm run artifact:glb-catalogue-visual-regression
 
+      - name: Generate BM_CII support/restraint parity audit
+        run: npm run artifact:support-restraint-parity
+
       - name: Upload RVM catalogue sample artifact
         uses: actions/upload-artifact@v4
         with:
@@ -82,6 +85,13 @@ jobs:
         with:
           name: glb-catalogue-visual-regression
           path: artifacts/glb-catalogue-visual-regression
+          if-no-files-found: error
+
+      - name: Upload support/restraint parity audit artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: support-restraint-parity
+          path: artifacts/support-restraint-parity
           if-no-files-found: error
 
       - name: Upload phase-gate log

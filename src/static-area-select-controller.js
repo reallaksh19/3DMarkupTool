@@ -1,15 +1,18 @@
 import * as THREE from 'three';
 
-// Adds a compact in-canvas Area Select tool without touching src/app.js.
-// Tool: AS = drag a screen window and highlight/select all component roots inside it.
+// Adds a compact in-canvas Area Select workflow without touching src/app.js.
+// Tool: drag a screen window and highlight/select all component roots inside it.
+// The selected roots are exposed to the shared resolver so Hide/Isolate/Export
+// can act on area-selected components without changing model data.
 
-const VERSION = 'area-select-viewpad-20260619';
+const VERSION = 'area-select-workflow-phase8-20260620';
 const STYLE_ID = 'static-area-select-style';
 const TOOL_VIEW = 'areaSelect';
 const TOOL_LABEL = 'AS';
 const TOOL_TITLE = 'Area Select: drag a window to select visible components';
 const MIN_DRAG_PX = 10;
 const HIGHLIGHT_COLOR = 0x37d8ff;
+const CSV_HEADERS = ['selected_index', 'object_id', 'object_name', 'object_type', 'property_key', 'property_value'];
 
 let active = false;
 let drag = null;
@@ -84,14 +87,17 @@ function installApi() {
     activate,
     deactivate,
     clear: clearSelectionHighlights,
+    clearSelection: clearSelectionHighlights,
     isActive: () => active,
     selectedIds: () => selectedRoots.map((root) => objectId(root)).filter(Boolean),
+    selectedRoots: () => selectedRoots.slice(),
+    getSelectedRoots: () => selectedRoots.slice(),
+    getSelectionSummary: () => selectionSummary(),
     selectInClientRect,
+    buildSelectedPropertiesCsv,
+    exportSelectedPropertiesCsv,
     debug: () => ({
-      version: VERSION,
-      active,
-      selectedCount: selectedRoots.length,
-      selectedIds: selectedRoots.map((root) => objectId(root)).filter(Boolean),
+      ...selectionSummary(),
       helperCount: highlightHelpers.length,
       hasRuntime: Boolean(runtime()?.camera)
     })
@@ -205,6 +211,7 @@ function onKeyDown(event) {
     return;
   }
   if (selectedRoots.length) {
+    event.preventDefault();
     clearSelectionHighlights({ source: 'escape' });
   }
 }
@@ -298,6 +305,8 @@ function projectedObjectRect(object, camera, viewport) {
 function applySelectionHighlights(selected, rt = runtime()) {
   clearSelectionHighlights({ source: 'replace', silent: true });
   selectedRoots = selected.slice();
+  window.__3D_MARKUP_AREA_SELECTED_ROOTS__ = selectedRoots.slice();
+
   const helperRoot = rt?.scene || getModelRoot(rt)?.parent || getModelRoot(rt);
   for (const object of selectedRoots) {
     const helper = new THREE.BoxHelper(object, HIGHLIGHT_COLOR);
@@ -322,12 +331,113 @@ function clearSelectionHighlights({ source = 'area-select-clear', silent = false
   }
   highlightHelpers = [];
   selectedRoots = [];
+  window.__3D_MARKUP_AREA_SELECTED_ROOTS__ = [];
   runtime()?.renderOnce?.('area-select-clear');
   if (!silent) {
     setStatus('Area selection cleared');
-    window.dispatchEvent(new CustomEvent('viewer:area-select', { detail: { action: 'clear', source } }));
+    window.dispatchEvent(new CustomEvent('viewer:area-select', { detail: { action: 'clear', source, selectedCount: 0, selectedIds: [] } }));
   }
   return true;
+}
+
+function buildSelectedPropertiesCsv() {
+  const rows = selectedPropertyRows();
+  const csv = [CSV_HEADERS, ...rows].map((row) => row.map(csvCell).join(',')).join('\n');
+  return `${csv}\n`;
+}
+
+function exportSelectedPropertiesCsv() {
+  if (!selectedRoots.length) {
+    setStatus('Area Select: no selected components to export');
+    window.dispatchEvent(new CustomEvent('viewer:area-select', { detail: { action: 'exportCsv', selectedCount: 0, rowCount: 0, skipped: true } }));
+    return '';
+  }
+
+  const csv = buildSelectedPropertiesCsv();
+  const filename = `area-selected-properties-${new Date().toISOString().replace(/[:.]/g, '-')}.csv`;
+  tryDownloadCsv(csv, filename);
+  const rowCount = Math.max(csv.trim().split('\n').length - 1, 0);
+  setStatus(`Exported ${selectedRoots.length} selected component${selectedRoots.length === 1 ? '' : 's'} to CSV`);
+  window.dispatchEvent(new CustomEvent('viewer:area-select', {
+    detail: {
+      action: 'exportCsv',
+      filename,
+      selectedCount: selectedRoots.length,
+      selectedIds: selectedRoots.map(objectId).filter(Boolean),
+      rowCount
+    }
+  }));
+  return csv;
+}
+
+function selectedPropertyRows() {
+  const rows = [];
+  selectedRoots.forEach((object, index) => {
+    const base = {
+      selectedIndex: index + 1,
+      id: objectId(object),
+      name: objectName(object),
+      type: objectType(object)
+    };
+    const entries = objectPropertyEntries(object);
+    if (!entries.length) entries.push(['object_name', base.name], ['object_type', base.type]);
+    for (const [key, value] of entries) {
+      rows.push([
+        base.selectedIndex,
+        base.id,
+        base.name,
+        base.type,
+        key,
+        value
+      ]);
+    }
+  });
+  return rows;
+}
+
+function objectPropertyEntries(object) {
+  const data = object?.userData || {};
+  return Object.entries(data)
+    .filter(([key]) => key !== 'areaSelectHelper')
+    .map(([key, value]) => [key, serializePropertyValue(value)])
+    .filter(([key]) => Boolean(key));
+}
+
+function serializePropertyValue(value) {
+  if (value == null) return '';
+  if (typeof value === 'string') return value;
+  if (typeof value === 'number' || typeof value === 'boolean') return String(value);
+  try {
+    return JSON.stringify(value);
+  } catch (_) {
+    return String(value);
+  }
+}
+
+function tryDownloadCsv(csv, filename) {
+  if (typeof Blob !== 'function' || !document?.createElement) return false;
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  link.style.display = 'none';
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.setTimeout(() => URL.revokeObjectURL(url), 5000);
+  return true;
+}
+
+function selectionSummary() {
+  const selectedIds = selectedRoots.map(objectId).filter(Boolean);
+  return {
+    version: VERSION,
+    active,
+    selectedCount: selectedRoots.length,
+    selectedIds,
+    hasSelection: selectedRoots.length > 0
+  };
 }
 
 function boxCorners(box) {
@@ -396,6 +506,16 @@ function objectId(object) {
   return data.ID || data.id || data.componentId || data.NAME || object?.name || '';
 }
 
+function objectName(object) {
+  const data = object?.userData || {};
+  return data.NAME || data.name || object?.name || objectId(object) || '';
+}
+
+function objectType(object) {
+  const data = object?.userData || {};
+  return data.TYPE || data.type || data.componentClass || data.componentType || object?.type || '';
+}
+
 function createOverlay() {
   removeOverlay();
   const viewer = document.getElementById('viewer');
@@ -427,6 +547,11 @@ function removeOverlay() {
 function setStatus(message) {
   const status = document.getElementById('statusText') || document.getElementById('runtimeStatus');
   if (status && message) status.textContent = message;
+}
+
+function csvCell(value) {
+  const text = String(value ?? '');
+  return /[",\n\r]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
 }
 
 function injectStyles() {

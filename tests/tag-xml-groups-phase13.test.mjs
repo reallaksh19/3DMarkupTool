@@ -14,7 +14,7 @@ assert.match(markupCore, /id:\s*'staticXmlGroup'[\s\S]*label:\s*'XML'[\s\S]*id:\
 assert.match(markupCore, /id:\s*'staticSessionGroup'[\s\S]*id:\s*'staticSaveSessionBtn'[\s\S]*id:\s*'staticRestoreSessionBtn'[\s\S]*id:\s*'staticClearSessionBtn'/, 'Session actions must remain grouped and available.');
 assert.match(markupCore, /static-markup-expander[\s\S]*&gt;&gt;/, 'Grouped controls must show the requested >> expansion icon.');
 assert.match(markupCore, /ensureGroupedMenu\(group, toolGroup\)/, 'Markup controls must be built by the deterministic group builder.');
-assert.match(markupCore, /role", "menuitem"\)/, 'Expanded Tag/XML rows must be menu items.');
+assert.match(markupCore, /setAttribute\('role', 'menuitem'\)/, 'Expanded Tag/XML rows must be menu items.');
 
 [
   'staticTagBtn',

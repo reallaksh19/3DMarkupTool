@@ -22,7 +22,7 @@ assert.match(index, staticKeyPattern, 'Index must use the performance/static she
 assert.doesNotMatch(index, /core-safe-boot-20260619/, 'Index must not revert to the emergency core-safe startup shell.');
 
 assert.match(bootstrap, /static-input-always-visible-controller\.js\?v=\$\{SAFE_UI_VERSION\}/, 'Bootstrap must load the input always-visible controller.');
-assert.match(bootstrap, /SAFE_UI_VERSION = '(perf-static-drawer-bundle-20260620|perf-idle-diagnostics-20260620|perf-static-shell-20260620|phase4a-static-input-panel-cleanup-20260619)'/, 'Bootstrap must use the performance/static shell cache key or newer cleanup key.');
+assert.match(bootstrap, new RegExp(`SAFE_UI_VERSION = '(${staticKeyPattern.source})'`), 'Bootstrap must use the performance/static shell cache key or newer cleanup key.');
 
 assert.match(controller, /const VERSION = 'perf-static-shell-20260620'/, 'Controller must declare the performance static-shell version.');
 assert.match(controller, /No file chosen/, 'Controller must preserve No file chosen status.');

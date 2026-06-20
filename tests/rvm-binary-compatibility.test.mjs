@@ -60,10 +60,11 @@ assert.equal(audit.allChunkMarkersOne, true, 'all chunk headers must use Review-
 assert.equal(audit.balancedCntbCnte, true, 'CNTB/CNTE chunks must be balanced');
 assert.equal(audit.contiguousUntilEnd, true, 'generated RVM must not include trailing bytes after END:');
 assert.equal(audit.primitiveChunkCount, 1, 'PRIM chunk count must equal exported primitive count');
+assert.equal(audit.counts.COLR, 1, 'non-default material id 1 must emit one RMSS-style COLR chunk');
 assert.deepEqual(
   audit.chunks.map((chunk) => chunk.id),
-  ['HEAD', 'MODL', 'CNTB', 'CNTB', 'CNTB', 'PRIM', 'CNTE', 'CNTE', 'CNTE', 'END:'],
-  'synthetic hierarchy must scan as the expected Review chunk sequence'
+  ['HEAD', 'MODL', 'CNTB', 'CNTB', 'CNTB', 'PRIM', 'CNTE', 'CNTE', 'CNTE', 'COLR', 'END:'],
+  'synthetic hierarchy must scan as the expected Review chunk sequence with COLR before END:'
 );
 
 const rawAudit = auditRvmBinary(rvm);
@@ -86,9 +87,16 @@ assert.deepEqual(
 assert.equal(round(primitive.trailing[0], 6), 50, 'cylinder radius payload must remain in source millimetres');
 assert.equal(round(primitive.trailing[1], 6), 1000, 'cylinder length payload must remain in source millimetres');
 
+const color = firstColorBody(rvm);
+assert.equal(color.version, 1, 'COLR body must start with RMSS-style version 1');
+assert.equal(color.materialId, 1, 'COLR material id must match the non-default CNTB material');
+assert.equal(color.packedColor, 0x82828200, 'first generated COLR material uses RMSS-observed neutral grey fallback');
+
 assert.match(writerSource, /const REVIEW_CHUNK_HEADER_MARKER = 1/, 'writer must use explicit Review chunk header marker value 1');
 assert.match(writerSource, /const REVIEW_CONTAINER_CLOSE_BODY_MARKER = 2/, 'writer must use RHBG-style CNTE body marker value 2');
 assert.match(writerSource, /const REVIEW_END_BODY_MARKER = 1/, 'writer must use RHBG-style END: body marker value 1');
+assert.match(writerSource, /collectRvmColrMaterialRecords\(exportModel\)/, 'writer must use the shared COLR material policy');
+assert.match(writerSource, /writer\.writeChunk\('COLR', colorBody\(colorRecord\)/, 'writer must emit RMSS-style COLR chunks before END:');
 assert.match(writerSource, /buildRvmPrimitiveTransform\(primitive\)/, 'writer must delegate primitive matrices to the central axis/basis policy');
 assert.doesNotMatch(writerSource, /function basisFromDirection/, 'writer must not keep ad-hoc primitive basis construction');
 assert.match(axisBasisSource, /export const RVM_PRIMITIVE_TRANSFORM_SCALE = 0\.001/, 'axis/basis policy must own RHBG-style 0.001 primitive transform scale');
@@ -129,6 +137,27 @@ function firstPrimitiveBody(buffer) {
     offset = nextOffset;
   }
   throw new Error('No PRIM chunk found in synthetic RVM output');
+}
+
+function firstColorBody(buffer) {
+  const view = new DataView(buffer);
+  let offset = 0;
+  while (offset + 24 <= buffer.byteLength) {
+    const id = [0, 1, 2, 3]
+      .map((index) => String.fromCharCode(view.getUint32(offset + index * 4, false)))
+      .join('');
+    const nextOffset = view.getUint32(offset + 16, false);
+    if (id === 'COLR') {
+      const bodyView = new DataView(buffer, offset + 24, nextOffset - offset - 24);
+      return {
+        version: bodyView.getUint32(0, false),
+        materialId: bodyView.getUint32(4, false),
+        packedColor: bodyView.getUint32(8, false)
+      };
+    }
+    offset = nextOffset;
+  }
+  throw new Error('No COLR chunk found in synthetic RVM output');
 }
 
 function readFloat32Array(view, byteOffset, count) {

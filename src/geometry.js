@@ -33,7 +33,7 @@ export function coneArrow(start, dir, length, radius, material, name = 'arrow') 
 
 export function arrowToward(tip, dirTowardTip, length, radius, material, name = 'arrowToward') {
   const d = dirTowardTip.clone().normalize();
-  return coneArrow(tip.clone().sub(d.clone().multiplyScalar(length)), d, length, radius, name);
+  return coneArrow(tip.clone().sub(d.clone().multiplyScalar(length)), d, length, radius, material, name);
 }
 
 export function createTextPlane(text, options = {}) {

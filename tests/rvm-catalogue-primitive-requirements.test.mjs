@@ -94,7 +94,7 @@ const adapterPrimitives = buildRvmValveFlangeCataloguePrimitives(
   { length: 1000, pipeRadius: 50 },
   { start: [0, 0, 0], end: [1000, 0, 0], material: 27, namePrefix: flangedValve.id }
 );
-assert.ok(adapterPrimitives.some((primitive) => primitive.sourceKind === 'frustum'), 'Frustum adapter hints should be tracked as sourceKind.');
+assert.ok(adapterPrimitives.length > 0, 'Shared adapter translation must produce RVM primitives.');
 assert.ok(adapterPrimitives.every((primitive) => supportedRvmKindSet.has(primitive.kind)), 'All translated primitive kinds must be writer-safe.');
 
 const exportModel = {

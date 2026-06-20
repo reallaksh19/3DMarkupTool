@@ -149,8 +149,8 @@ assert.equal(cone.supportedForEmission, false, 'RHBG code 5 remains blocked for 
 assert.equal(cone.semanticType, 'rhbg-cone-like');
 assert.equal(cone.candidateEmissionKind, 'cone');
 assert.equal(cone.bboxConsistentWithPayload, true);
-assert.equal(cone.payloadSemantics.radius, 110.25);
-assert.equal(cone.payloadSemantics.height, 102.375);
+assertAlmostEqual(cone.payloadSemantics.radius, 110.25);
+assertAlmostEqual(cone.payloadSemantics.height, 102.375);
 
 const frustumBody = makePrimitiveBody({
   code: 7,
@@ -164,9 +164,9 @@ assert.equal(frustum.supportedForEmission, false, 'RHBG code 7 remains blocked f
 assert.equal(frustum.semanticType, 'rhbg-frustum-like');
 assert.equal(frustum.candidateEmissionKind, 'frustum');
 assert.equal(frustum.bboxConsistentWithPayload, true);
-assert.equal(frustum.payloadSemantics.baseRadius, 111.85);
-assert.equal(frustum.payloadSemantics.topRadius, 84.2);
-assert.equal(frustum.payloadSemantics.height, 111.1);
+assertAlmostEqual(frustum.payloadSemantics.baseRadius, 111.85);
+assertAlmostEqual(frustum.payloadSemantics.topRadius, 84.2);
+assertAlmostEqual(frustum.payloadSemantics.height, 111.1);
 
 const standaloneSemantics = inferRvmPrimitivePayloadSemantics(7, frustum.bbox, frustum.payload, classifyRvmPrimitivePayload(7, 116));
 assert.equal(standaloneSemantics.semanticType, 'rhbg-frustum-like');
@@ -195,4 +195,8 @@ function makePrimitiveBody({ code, bodyLength, bbox, payload }) {
     dataView.setFloat32(80 + index * 4, payload[index], false);
   }
   return body;
+}
+
+function assertAlmostEqual(actual, expected, tolerance = 1e-4) {
+  assert.ok(Math.abs(actual - expected) <= tolerance, `expected ${actual} to be within ${tolerance} of ${expected}`);
 }

@@ -21,9 +21,9 @@ assert.doesNotMatch(bootstrap, /static-properties-actions-controller\.js/, 'boot
 assert.match(bootstrap, /emitBootstrapModuleFailure\(url, result\.reason\)/, 'bootstrap must emit diagnostics for module failures');
 assert.match(bootstrap, /3dmarkup:bootstrap-module-failed/, 'bootstrap must dispatch a module-failed event');
 
-assert.match(controller, /BROWSER_DIAGNOSTICS_VERSION = 'chrome-runtime-diagnostics-20260619'/, 'diagnostic controller must retain the Chrome runtime diagnostics version');
-assert.match(controller, /EXPECTED_SHELL_VERSION = 'chrome-runtime-diagnostics-20260619'/, 'diagnostic controller must retain the Chrome runtime diagnostics expected shell marker');
-assert.match(controller, /STALE_SHELL_VERSION = 'fresh-clip-core-20260619'/, 'diagnostic controller must detect the stale shell key');
+assert.match(controller, /BROWSER_DIAGNOSTICS_VERSION = 'perf-tdz-fix-20260620'/, 'diagnostic controller must use the current performance diagnostics version');
+assert.match(controller, /EXPECTED_SHELL_VERSION = 'perf-tdz-fix-20260620'/, 'diagnostic controller must use the current diagnostics expected shell marker');
+assert.match(controller, /STALE_SHELL_VERSION = 'perf-static-drawer-bundle-20260620'/, 'diagnostic controller must detect the prior stale shell key');
 assert.match(controller, /detectStaleShellAssets/, 'diagnostic controller must detect stale shell assets');
 assert.match(controller, /collectWebglInfo/, 'diagnostic controller must capture WebGL GPU information');
 assert.match(controller, /scheduleHeavyDiagnosticsProbes/, 'diagnostic controller must schedule expensive probes after initial paint/load');
@@ -38,7 +38,11 @@ assert.match(controller, /isEdge/, 'diagnostic controller must distinguish Edge 
 assert.match(controller, /recordModuleFailure/, 'diagnostic controller must expose module failure recording');
 assert.match(controller, /Chrome cache\/module issue detected/, 'Chrome users must receive a clear cache/module help message');
 assert.match(controller, /Chrome frame-time lag detected/, 'Chrome users must receive frame-time lag guidance');
-assert.match(controller, /Chrome wheel-event latency detected/, 'Chrome users must receive wheel latency guidance');
+assert.match(controller, /shouldShowJankWarning\(sample, longTasks\)/, 'frame-time warnings must be behind a strict jank gate');
+assert.match(controller, /sample\.visibilityState === 'visible'/, 'jank gate must require visible tab');
+assert.match(controller, /sample\.hadFocus === true/, 'jank gate must require focused window');
+assert.match(controller, /longTasks\.supported === true[\s\S]*longTasks\.totalMs >= JANK_LONG_TASK_MS_THRESHOLD/, 'jank gate must require long-task evidence');
+assert.doesNotMatch(controller, /type:\s*['"]wheel-latency['"][\s\S]{0,240}recordRuntimeWarning/, 'wheel latency alone must not create a diagnostic banner');
 assert.match(controller, /Ctrl\+F5/, 'diagnostic help must include hard refresh guidance');
 assert.match(controller, /Disable cache/, 'diagnostic help must include DevTools disable-cache guidance');
 assert.match(controller, /clear site data/i, 'diagnostic help must include site-data reset guidance');
@@ -48,6 +52,7 @@ assert.match(controller, /frameTimeProbe: true/, 'runtime API must expose frame-
 assert.match(controller, /wheelLatencyProbe: true/, 'runtime API must expose wheel diagnostics');
 assert.match(controller, /staleShellProbe: true/, 'runtime API must expose stale-shell diagnostics');
 assert.match(controller, /deferredWebglProbe: true/, 'runtime API must report that WebGL probing is deferred');
+assert.match(controller, /jankWarningRequiresLongTasks: true/, 'runtime API must report strict jank-warning gating');
 assert.doesNotMatch(controller, /setInterval\(/, 'browser diagnostics must not poll');
 
 assert.match(checklist, /\| ✅ \| X1 — Chrome-only erratic response \|/, 'checklist must tick the Chrome-only diagnostics item');

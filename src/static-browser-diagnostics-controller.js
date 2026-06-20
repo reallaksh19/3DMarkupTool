@@ -1,8 +1,12 @@
-const BROWSER_DIAGNOSTICS_VERSION = 'chrome-runtime-diagnostics-20260619';
-const EXPECTED_SHELL_VERSION = 'chrome-runtime-diagnostics-20260619';
-const STALE_SHELL_VERSION = 'fresh-clip-core-20260619';
+const BROWSER_DIAGNOSTICS_VERSION = 'perf-tdz-fix-20260620';
+const EXPECTED_SHELL_VERSION = 'perf-tdz-fix-20260620';
+const STALE_SHELL_VERSION = 'perf-static-drawer-bundle-20260620';
 const DISMISS_SESSION_KEY = '3dmarkup.browserDiagnostics.dismissedSession';
 const FORCE_LOCAL_KEY = '3dmarkup.showBrowserDiagnostics';
+const JANK_LONG_TASK_MS_THRESHOLD = 200;
+const SLOW_FRAME_COUNT_THRESHOLD = 8;
+const SLOW_FRAME_P95_THRESHOLD_MS = 80;
+
 const ua = window.navigator && window.navigator.userAgent ? window.navigator.userAgent : '';
 const isEdge = /\bEdg\//.test(ua);
 const isChromium = /\b(?:Chrome|Chromium|CriOS)\//.test(ua) || Boolean(window.chrome);
@@ -42,6 +46,16 @@ if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', onReady, { once: true });
 } else {
   onReady();
+}
+
+function shouldShowJankWarning(sample, longTasks) {
+  if (!sample) return false;
+  const userIsActuallyViewing = sample.visibilityState === 'visible' && sample.hadFocus === true;
+  const slowFrameCadence = sample.slowFrames >= SLOW_FRAME_COUNT_THRESHOLD || sample.p95Ms > SLOW_FRAME_P95_THRESHOLD_MS;
+  const provenMainThreadBlocking = longTasks
+    && longTasks.supported === true
+    && longTasks.totalMs >= JANK_LONG_TASK_MS_THRESHOLD;
+  return Boolean(isChrome && userIsActuallyViewing && slowFrameCadence && provenMainThreadBlocking);
 }
 
 function onReady() {
@@ -166,7 +180,7 @@ function collectBatteryInfo() {
 
 function startLongTaskObserver() {
   if (typeof PerformanceObserver !== 'function') {
-    return { supported: false, count: 0, totalMs: 0, maxMs: 0 };
+    return { supported: false, count: 0, totalMs: 0, maxMs: 0, reason: 'PerformanceObserver unavailable' };
   }
   const stats = { supported: true, count: 0, totalMs: 0, maxMs: 0, _observer: null };
   try {
@@ -201,15 +215,15 @@ function interpretFrameSample(sample, longTasks) {
   if (sample.hadFocus === false) {
     return 'tab-unfocused-throttle (background-window rAF pacing; not real jank)';
   }
-  const slowish = sample.slowFrames >= 8 || sample.p95Ms > 80;
+  const slowish = sample.slowFrames >= SLOW_FRAME_COUNT_THRESHOLD || sample.p95Ms > SLOW_FRAME_P95_THRESHOLD_MS;
   if (!slowish) return 'nominal';
   if (longTasks && longTasks.supported) {
-    if (longTasks.totalMs >= 200) {
+    if (longTasks.totalMs >= JANK_LONG_TASK_MS_THRESHOLD) {
       return `main-thread-blocking (${longTasks.count} long tasks, ${longTasks.totalMs}ms total during sample)`;
     }
     return 'raf-throttle-or-vsync (slow frame cadence but main thread idle — suspect power-save, occlusion, DevTools overhead, or capped refresh rate)';
   }
-  return 'indeterminate (long-task API unavailable; cannot separate throttle from blocking)';
+  return 'indeterminate (long-task API unavailable; suppressing warning because real main-thread jank is unproven)';
 }
 
 function recordModuleFailure(detail) {
@@ -335,25 +349,15 @@ function sampleFrameTime() {
     frameSample.likelyCause = interpretFrameSample(frameSample, longTaskStats);
     console.info('[3DMarkupTool:browser-diagnostics:frame]', frameSample);
 
-    // Only warn when the sample reflects a tab the user is actually looking at
-    // (visible + focused) AND the main thread was genuinely busy (long tasks).
-    // Throttled/occluded samples or idle-main-thread frame pacing are not
-    // actionable jank, so they get an info-level note instead of a banner.
-    const throttleSuspected = startVisibility !== 'visible' || startFocus === false;
-    const mainThreadBusy = longTaskStats && longTaskStats.supported
-      ? longTaskStats.totalMs >= 200
-      : true; // unknown → fall back to legacy behaviour and warn
-    const slowish = slowFrames >= 8 || p95 > 80;
-    const rendererName = webglInfo && (webglInfo.unmaskedRenderer || webglInfo.renderer);
-
-    if (isChrome && slowish && !throttleSuspected && mainThreadBusy) {
+    if (shouldShowJankWarning(frameSample, longTaskStats)) {
+      const rendererName = webglInfo && (webglInfo.unmaskedRenderer || webglInfo.renderer);
       recordRuntimeWarning({
         type: 'frame-lag',
         title: 'Chrome frame-time lag detected',
-        message: 'Chrome is reporting slow frames while the viewer was focused and the main thread was busy. Try Ctrl+F5, then Chrome DevTools → Network → Disable cache and reload. If it persists, disable Chrome hardware acceleration or test Edge for GPU-driver comparison.',
+        message: 'Chrome is reporting slow frames while the viewer was focused and the main thread accumulated long tasks. Try Ctrl+F5, then Chrome DevTools → Network → Disable cache and reload. If it persists, disable Chrome hardware acceleration or test Edge for GPU-driver comparison.',
         detail: `p95=${frameSample.p95Ms}ms, max=${frameSample.maxMs}ms, slowFrames=${slowFrames}, longTasks=${frameSample.longTasksDuringSample} (${frameSample.longTaskMsDuringSample}ms), renderer=${rendererName}`
       });
-    } else if (slowish) {
+    } else if (slowFrames >= SLOW_FRAME_COUNT_THRESHOLD || p95 > SLOW_FRAME_P95_THRESHOLD_MS) {
       console.info('[3DMarkupTool:browser-diagnostics] Slow frame cadence not flagged as jank.', {
         likelyCause: frameSample.likelyCause,
         visibilityState: startVisibility,
@@ -374,19 +378,17 @@ function installWheelLatencyProbe() {
       const latency = frameTime - eventTime;
       wheelLatency = {
         lastMs: round(latency),
-        time: new Date().toISOString()
+        time: new Date().toISOString(),
+        likelyCause: latency > 120
+          ? 'input-latency-observed (info only; not a jank warning without long-task evidence)'
+          : 'nominal'
       };
       if (latency > 120) {
-        recordRuntimeWarning({
-          type: 'wheel-latency',
-          title: 'Chrome wheel-event latency detected',
-          message: 'Mouse wheel input is delayed in Chrome. Use Ctrl+F5 first. If only Chrome is affected, try disabling extensions for this site or disable Chrome hardware acceleration as a GPU-driver test.',
-          detail: `wheelLatency=${round(latency)}ms`
-        });
+        console.info('[3DMarkupTool:browser-diagnostics] Wheel latency observed without warning banner.', wheelLatency);
       }
     });
   };
-  viewer.addEventListener('wheel', handler, { passive: true, capture: true });
+  viewer.addEventListener('wheel', handler, { passive: true, capture: true, once: true });
 }
 
 function shouldShowChromeHint() {
@@ -609,6 +611,7 @@ function checklist() {
     frameTimeProbe: true,
     wheelLatencyProbe: true,
     staleShellProbe: true,
-    deferredWebglProbe: true
+    deferredWebglProbe: true,
+    jankWarningRequiresLongTasks: true
   };
 }

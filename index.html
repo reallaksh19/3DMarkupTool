@@ -6,10 +6,13 @@
   <title>InputXML GLB/RVM Review Viewer</title>
   <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
   <link rel="shortcut icon" href="./favicon.ico" />
+  <link rel="preconnect" href="https://unpkg.com" crossorigin />
   <link rel="stylesheet" href="./src/styles.css?v=perf-idle-diagnostics-20260620" />
   <link rel="stylesheet" href="./src/static-shell-performance.css?v=perf-idle-diagnostics-20260620" />
-  <link rel="stylesheet" href="./src/clip-adjuster.css?v=perf-idle-diagnostics-20260620" />
-  <link rel="stylesheet" href="./src/clip-visual-overlays.css?v=perf-idle-diagnostics-20260620" />
+  <link rel="preload" href="./src/clip-adjuster.css?v=perf-idle-diagnostics-20260620" as="style" onload="this.onload=null;this.rel='stylesheet'" />
+  <noscript><link rel="stylesheet" href="./src/clip-adjuster.css?v=perf-idle-diagnostics-20260620" /></noscript>
+  <link rel="preload" href="./src/clip-visual-overlays.css?v=perf-idle-diagnostics-20260620" as="style" onload="this.onload=null;this.rel='stylesheet'" />
+  <noscript><link rel="stylesheet" href="./src/clip-visual-overlays.css?v=perf-idle-diagnostics-20260620" /></noscript>
   <script type="importmap">
     {
       "imports": {

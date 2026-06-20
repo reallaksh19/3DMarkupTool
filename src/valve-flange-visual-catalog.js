@@ -67,16 +67,16 @@ export function getValveFlangeVisualSpec(element = {}) {
   const tokens = candidateTypeTokens(element, props);
 
   const exactValveType = findExactMappedType(tokens, VALVE_ALIAS_MAP);
-  if (exactValveType) return buildValveSpec(exactValveType, element, props, tokens);
+  if (exactValveType) return buildValveSpec(exactValveType, element, props);
 
   const exactFlangeType = findExactMappedType(tokens, FLANGE_ALIAS_MAP);
-  if (exactFlangeType) return buildFlangeSpec(exactFlangeType, element, props, tokens);
+  if (exactFlangeType) return buildFlangeSpec(exactFlangeType, element, props);
 
   const valveType = findContainsMappedType(tokens, VALVE_ALIAS_MAP, 'VALVE');
-  if (valveType) return buildValveSpec(valveType, element, props, tokens);
+  if (valveType) return buildValveSpec(valveType, element, props);
 
   const flangeType = findContainsMappedType(tokens, FLANGE_ALIAS_MAP, 'FLANGE');
-  if (flangeType) return buildFlangeSpec(flangeType, element, props, tokens);
+  if (flangeType) return buildFlangeSpec(flangeType, element, props);
 
   return null;
 }
@@ -93,9 +93,7 @@ export function buildLinearVisualPrimitivePlan(spec, metrics = {}) {
 }
 
 export function primitiveLocalSpan(primitive = {}) {
-  if (Number.isFinite(primitive.localAxisStart) && Number.isFinite(primitive.localAxisEnd)) {
-    return [primitive.localAxisStart, primitive.localAxisEnd];
-  }
+  if (Number.isFinite(primitive.localAxisStart) && Number.isFinite(primitive.localAxisEnd)) return [primitive.localAxisStart, primitive.localAxisEnd];
   const length = positiveNumber(primitive.length, 0);
   const center = Number.isFinite(primitive.axialOffset) ? primitive.axialOffset : 0;
   return [center - length / 2, center + length / 2];
@@ -146,16 +144,27 @@ function buildSingleFlangePrimitivePlan(spec, length, pipeRadius, half) {
   const raisedFaceAtTo = spec.flangeTopology.raisedFaceEndpoint === 'TO';
   const primitives = [];
 
-  // Single InputXML flanges beside valves are oriented by endpoint topology:
-  // pipe endpoint = weld-neck/taper side, opposite endpoint = raised-face side.
-  // Keep the weld neck at the pipe endpoint. The remaining middle span is only
-  // a same-bore filler so the taper is not visually reversed next to the valve.
+  // Single InputXML flanges beside valves are directional weld-neck flanges.
+  // The raised face is at the valve/mating endpoint.  The weld-neck hub must be
+  // immediately behind the flange plate on the pipe side; any unused axial span
+  // is a same-bore pipe stub outboard of the weld neck.  Do not place pipe-stub
+  // between weld neck and flange plate, otherwise the raised face and neck read
+  // reversed in the viewer.
   if (raisedFaceAtTo) {
-    const neckEnd = Math.min(half, -half + neckLength);
     const raisedFaceStart = half - raisedFaceThickness;
     const plateStart = raisedFaceStart - flangeThickness;
+    const neckStart = Math.max(-half, plateStart - neckLength);
 
-    primitives.push(segmentPrimitive('WELD_NECK_PIPE_SIDE', 'disc', -half, neckEnd, {
+    if (-half < neckStart - 1e-8) {
+      primitives.push(segmentPrimitive('PIPE_STUB_PIPE_SIDE', 'disc', -half, neckStart, {
+        radius: pipeRadius * 1.01,
+        replacesCenterlinePipe: true,
+        continuityFiller: true,
+        visualMaterial: 'pipe-stub',
+        singleFlangePipeSide: 'FROM'
+      }));
+    }
+    primitives.push(segmentPrimitive('WELD_NECK_PIPE_SIDE', 'disc', neckStart, plateStart, {
       radius: neckOuterRadius,
       innerRadius: pipeRadius * 1.02,
       outerRadius: neckOuterRadius,
@@ -166,15 +175,6 @@ function buildSingleFlangePrimitivePlan(spec, length, pipeRadius, half) {
       singleFlangePipeSide: 'FROM',
       boundedSingleFlangeNeck: true
     }));
-    if (neckEnd < plateStart - 1e-8) {
-      primitives.push(segmentPrimitive('PIPE_STUB_PIPE_SIDE', 'disc', neckEnd, plateStart, {
-        radius: pipeRadius * 1.01,
-        replacesCenterlinePipe: true,
-        continuityFiller: true,
-        visualMaterial: 'pipe-stub',
-        singleFlangePipeSide: 'FROM'
-      }));
-    }
     primitives.push(segmentPrimitive('FLANGE_PLATE', 'disc', plateStart, raisedFaceStart, {
       radius: plateRadius,
       replacesCenterlinePipe: true,
@@ -191,7 +191,7 @@ function buildSingleFlangePrimitivePlan(spec, length, pipeRadius, half) {
   } else {
     const raisedFaceEnd = -half + raisedFaceThickness;
     const plateEnd = raisedFaceEnd + flangeThickness;
-    const neckStart = Math.max(-half, half - neckLength);
+    const neckEnd = Math.min(half, plateEnd + neckLength);
 
     primitives.push(segmentPrimitive('RAISED_FACE_VALVE_SIDE', 'disc', -half, raisedFaceEnd, {
       radius: raisedFaceRadius,
@@ -206,16 +206,7 @@ function buildSingleFlangePrimitivePlan(spec, length, pipeRadius, half) {
       proportionalFlangeThickness: true,
       thinPlate: true
     }));
-    if (plateEnd < neckStart - 1e-8) {
-      primitives.push(segmentPrimitive('PIPE_STUB_PIPE_SIDE', 'disc', plateEnd, neckStart, {
-        radius: pipeRadius * 1.01,
-        replacesCenterlinePipe: true,
-        continuityFiller: true,
-        visualMaterial: 'pipe-stub',
-        singleFlangePipeSide: 'TO'
-      }));
-    }
-    primitives.push(segmentPrimitive('WELD_NECK_PIPE_SIDE', 'disc', neckStart, half, {
+    primitives.push(segmentPrimitive('WELD_NECK_PIPE_SIDE', 'disc', plateEnd, neckEnd, {
       radius: neckOuterRadius,
       innerRadius: pipeRadius * 1.02,
       outerRadius: neckOuterRadius,
@@ -226,6 +217,15 @@ function buildSingleFlangePrimitivePlan(spec, length, pipeRadius, half) {
       singleFlangePipeSide: 'TO',
       boundedSingleFlangeNeck: true
     }));
+    if (neckEnd < half - 1e-8) {
+      primitives.push(segmentPrimitive('PIPE_STUB_PIPE_SIDE', 'disc', neckEnd, half, {
+        radius: pipeRadius * 1.01,
+        replacesCenterlinePipe: true,
+        continuityFiller: true,
+        visualMaterial: 'pipe-stub',
+        singleFlangePipeSide: 'TO'
+      }));
+    }
   }
 
   primitives.push({ role: 'BOLT_PATTERN', kind: 'bolt-pattern', boltCount: spec.profile.boltCount, boltCircleRadius: pipeRadius * spec.profile.boltCircleFactor, boltRadius: pipeRadius * spec.profile.boltDiameterFactor, flangeRoles: ['FLANGE_PLATE'] });

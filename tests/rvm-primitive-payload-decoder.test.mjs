@@ -94,32 +94,47 @@ for (const primitive of primitivePayloads) {
   assert.equal(primitive.lengthMatchesKnownLayout, true, `generated code ${primitive.code} must match its known body length`);
 }
 
-const rhbgObservedLayouts = [
-  { code: 2, bodyLength: 92, expectedStatus: 'emitted-layout-supported' },
-  { code: 3, bodyLength: 96, expectedStatus: 'rhbg-observed-layout-blocked' },
-  { code: 4, bodyLength: 92, expectedStatus: 'rhbg-observed-layout-blocked' },
-  { code: 5, bodyLength: 88, expectedStatus: 'rhbg-observed-layout-blocked' },
-  { code: 7, bodyLength: 116, expectedStatus: 'rhbg-observed-layout-blocked' },
-  { code: 8, bodyLength: 88, expectedStatus: 'emitted-layout-supported' },
-  { code: 11, bodyLength: 708, expectedStatus: 'rhbg-observed-layout-blocked' }
+const referenceObservedLayouts = [
+  { code: 1, bodyLength: 108, expectedStatus: 'emitted-layout-supported', rmss: true, rhbg: false },
+  { code: 2, bodyLength: 92, expectedStatus: 'emitted-layout-supported', rmss: true, rhbg: true },
+  { code: 3, bodyLength: 96, expectedStatus: 'reference-observed-layout-blocked', rmss: false, rhbg: true },
+  { code: 4, bodyLength: 92, expectedStatus: 'reference-observed-layout-blocked', rmss: true, rhbg: true },
+  { code: 5, bodyLength: 88, expectedStatus: 'reference-observed-layout-blocked', rmss: true, rhbg: true },
+  { code: 6, bodyLength: 88, expectedStatus: 'reference-observed-layout-blocked', rmss: true, rhbg: false },
+  { code: 7, bodyLength: 116, expectedStatus: 'reference-observed-layout-blocked', rmss: true, rhbg: true },
+  { code: 8, bodyLength: 88, expectedStatus: 'emitted-layout-supported', rmss: true, rhbg: true },
+  { code: 11, bodyLength: 708, expectedStatus: 'reference-observed-layout-blocked', rmss: true, rhbg: true },
+  { code: 11, bodyLength: 18340, expectedStatus: 'reference-observed-layout-blocked', rmss: true, rhbg: true }
 ];
 
-for (const layout of rhbgObservedLayouts) {
+for (const layout of referenceObservedLayouts) {
   const classification = classifyRvmPrimitivePayload(layout.code, layout.bodyLength);
-  assert.equal(classification.compatibilityStatus, layout.expectedStatus, `RHBG-observed code ${layout.code} must have the expected compatibility status`);
-  assert.equal(classification.lengthMatchesKnownLayout, true, `RHBG-observed code ${layout.code} must preserve its observed body length`);
-  if ([3, 4, 5, 7, 11].includes(layout.code)) {
-    assert.equal(classification.supportedForEmission, false, `RHBG-observed code ${layout.code} must remain blocked until its payload semantics are implemented`);
-    assert.equal(classification.rhbgObservedButBlocked, true, `RHBG-observed code ${layout.code} must be explicitly blocked`);
+  assert.equal(classification.compatibilityStatus, layout.expectedStatus, `reference-observed code ${layout.code} must have the expected compatibility status`);
+  assert.equal(classification.lengthMatchesKnownLayout, true, `reference-observed code ${layout.code}:${layout.bodyLength} must preserve its observed body length`);
+  assert.equal(classification.rmssObserved, layout.rmss, `code ${layout.code} RMSS observation flag must match`);
+  assert.equal(classification.rhbgObserved, layout.rhbg, `code ${layout.code} RHBG observation flag must match`);
+  assert.equal(classification.referenceObserved, true, `code ${layout.code} must be in the combined reference-observed set`);
+  if ([3, 4, 5, 6, 7, 11].includes(layout.code)) {
+    assert.equal(classification.supportedForEmission, false, `reference-observed code ${layout.code} must remain blocked until its payload semantics are implemented`);
+    assert.equal(classification.referenceObservedButBlocked, true, `reference-observed code ${layout.code} must be explicitly blocked`);
   }
 }
 
-assert.equal(RVM_PRIMITIVE_PAYLOAD_LAYOUTS[5].semanticType, 'rhbg-cone-like-blocked', 'RHBG code 5 must be identified as cone-like but blocked');
+const unexpectedCode11Length = classifyRvmPrimitivePayload(11, 900);
+assert.equal(unexpectedCode11Length.compatibilityStatus, 'reference-observed-code-unexpected-length');
+assert.equal(unexpectedCode11Length.lengthMatchesKnownLayout, false);
+
+assert.equal(RVM_PRIMITIVE_PAYLOAD_LAYOUTS[4].semanticType, 'rmss-rhbg-elbow-bend-like-blocked', 'RMSS/RHBG code 4 must be identified as elbow/bend-like but blocked');
+assert.deepEqual(RVM_PRIMITIVE_PAYLOAD_LAYOUTS[4].payloadFields, ['bendRadius', 'tubeRadius', 'sweepAngleRad']);
+assert.equal(RVM_PRIMITIVE_PAYLOAD_LAYOUTS[5].semanticType, 'rmss-rhbg-cone-like-blocked', 'RMSS/RHBG code 5 must be identified as cone-like but blocked');
 assert.deepEqual(RVM_PRIMITIVE_PAYLOAD_LAYOUTS[5].payloadFields, ['radius', 'height']);
-assert.equal(RVM_PRIMITIVE_PAYLOAD_LAYOUTS[7].payloadWordCount, 9, 'RHBG code 7 layout length must remain recorded');
-assert.equal(RVM_PRIMITIVE_PAYLOAD_LAYOUTS[7].semanticType, 'rhbg-frustum-like-blocked', 'RHBG code 7 must be identified as frustum-like but blocked');
+assert.equal(RVM_PRIMITIVE_PAYLOAD_LAYOUTS[6].semanticType, 'rmss-cap-dish-like-blocked', 'RMSS code 6 must be identified as cap/dish-like but blocked');
+assert.deepEqual(RVM_PRIMITIVE_PAYLOAD_LAYOUTS[6].payloadFields, ['radius', 'heightOrDepth']);
+assert.equal(RVM_PRIMITIVE_PAYLOAD_LAYOUTS[7].payloadWordCount, 9, 'RMSS/RHBG code 7 layout length must remain recorded');
+assert.equal(RVM_PRIMITIVE_PAYLOAD_LAYOUTS[7].semanticType, 'rmss-rhbg-frustum-like-blocked', 'RMSS/RHBG code 7 must be identified as frustum-like but blocked');
 assert.deepEqual(RVM_PRIMITIVE_PAYLOAD_LAYOUTS[7].payloadFields.slice(0, 3), ['baseRadius', 'topRadius', 'height']);
-assert.equal(RVM_PRIMITIVE_PAYLOAD_LAYOUTS[11].payloadWordCount, 157, 'RHBG code 11 complex payload length must remain recorded');
+assert.equal(RVM_PRIMITIVE_PAYLOAD_LAYOUTS[11].variableBodyLength, true, 'RMSS/RHBG code 11 must be treated as a variable-length mesh/facet candidate');
+assert.deepEqual(RVM_PRIMITIVE_PAYLOAD_LAYOUTS[11].knownBodyLengths, [708, 1316, 1468, 3748, 4508, 16820, 17124, 18340]);
 
 const unknown = classifyRvmPrimitivePayload(99, 124);
 assert.equal(unknown.compatibilityStatus, 'unknown-primitive-payload');
@@ -132,10 +147,26 @@ view.setUint32(4, 8, false);
 view.setFloat32(80, 123, false);
 view.setFloat32(84, 456, false);
 const decoded = decodeRvmPrimitivePayload(syntheticBody);
-assert.equal(decoded.schema, 'RvmPrimitivePayloadDecode.v2');
+assert.equal(decoded.schema, 'RvmPrimitivePayloadDecode.v3');
 assert.equal(decoded.code, 8);
 assert.equal(decoded.parameters.radius, 123);
 assert.equal(decoded.parameters.length, 456);
+
+const elbowBody = makePrimitiveBody({
+  code: 4,
+  bodyLength: 92,
+  bbox: [-414.55, -414.55, -109.55, 414.55, 414.55, 109.55],
+  payload: [305, 109.55, Math.PI / 2]
+});
+const elbow = decodeRvmPrimitivePayload(elbowBody);
+assert.equal(elbow.code, 4);
+assert.equal(elbow.supportedForEmission, false, 'RMSS/RHBG code 4 remains blocked for emission');
+assert.equal(elbow.semanticType, 'rmss-rhbg-elbow-bend-like');
+assert.equal(elbow.candidateEmissionKind, 'elbow');
+assert.equal(elbow.semanticConfidence, 'medium');
+assertAlmostEqual(elbow.payloadSemantics.bendRadius, 305);
+assertAlmostEqual(elbow.payloadSemantics.tubeRadius, 109.55);
+assertAlmostEqual(elbow.payloadSemantics.sweepAngleRad, Math.PI / 2);
 
 const coneBody = makePrimitiveBody({
   code: 5,
@@ -145,12 +176,27 @@ const coneBody = makePrimitiveBody({
 });
 const cone = decodeRvmPrimitivePayload(coneBody);
 assert.equal(cone.code, 5);
-assert.equal(cone.supportedForEmission, false, 'RHBG code 5 remains blocked for emission');
-assert.equal(cone.semanticType, 'rhbg-cone-like');
+assert.equal(cone.supportedForEmission, false, 'RMSS/RHBG code 5 remains blocked for emission');
+assert.equal(cone.semanticType, 'rmss-rhbg-cone-like');
 assert.equal(cone.candidateEmissionKind, 'cone');
 assert.equal(cone.bboxConsistentWithPayload, true);
 assertAlmostEqual(cone.payloadSemantics.radius, 110.25);
 assertAlmostEqual(cone.payloadSemantics.height, 102.375);
+
+const capBody = makePrimitiveBody({
+  code: 6,
+  bodyLength: 88,
+  bbox: [-84, -84, -25, 84, 84, 25],
+  payload: [84, 50]
+});
+const cap = decodeRvmPrimitivePayload(capBody);
+assert.equal(cap.code, 6);
+assert.equal(cap.supportedForEmission, false, 'RMSS code 6 remains blocked for emission');
+assert.equal(cap.semanticType, 'rmss-cap-dish-like');
+assert.equal(cap.candidateEmissionKind, 'cap');
+assert.equal(cap.bboxConsistentWithPayload, true);
+assertAlmostEqual(cap.payloadSemantics.radius, 84);
+assertAlmostEqual(cap.payloadSemantics.heightOrDepth, 50);
 
 const frustumBody = makePrimitiveBody({
   code: 7,
@@ -160,22 +206,42 @@ const frustumBody = makePrimitiveBody({
 });
 const frustum = decodeRvmPrimitivePayload(frustumBody);
 assert.equal(frustum.code, 7);
-assert.equal(frustum.supportedForEmission, false, 'RHBG code 7 remains blocked for emission');
-assert.equal(frustum.semanticType, 'rhbg-frustum-like');
+assert.equal(frustum.supportedForEmission, false, 'RMSS/RHBG code 7 remains blocked for emission');
+assert.equal(frustum.semanticType, 'rmss-rhbg-frustum-like');
 assert.equal(frustum.candidateEmissionKind, 'frustum');
 assert.equal(frustum.bboxConsistentWithPayload, true);
 assertAlmostEqual(frustum.payloadSemantics.baseRadius, 111.85);
 assertAlmostEqual(frustum.payloadSemantics.topRadius, 84.2);
 assertAlmostEqual(frustum.payloadSemantics.height, 111.1);
 
+const meshBody = makePrimitiveBody({
+  code: 11,
+  bodyLength: 708,
+  bbox: [-100, -100, -100, 100, 100, 100],
+  payload: Array.from({ length: 157 }, (_, index) => index + 0.25)
+});
+const mesh = decodeRvmPrimitivePayload(meshBody);
+assert.equal(mesh.code, 11);
+assert.equal(mesh.supportedForEmission, false, 'RMSS/RHBG code 11 remains blocked for emission');
+assert.equal(mesh.semanticType, 'rmss-rhbg-mesh-facet-like');
+assert.equal(mesh.candidateEmissionKind, 'mesh');
+assert.equal(mesh.payloadWordCount, 157);
+assert.equal(mesh.parameters.meshPayload0, 0.25);
+assert.equal(mesh.payloadSemantics.payloadWordCount, 157);
+assert.equal(mesh.payloadSemantics.knownBodyLength, true);
+assert.deepEqual(mesh.payloadSemantics.sampleWords.slice(0, 3), [0.25, 1.25, 2.25]);
+
 const standaloneSemantics = inferRvmPrimitivePayloadSemantics(7, frustum.bbox, frustum.payload, classifyRvmPrimitivePayload(7, 116));
-assert.equal(standaloneSemantics.semanticType, 'rhbg-frustum-like');
+assert.equal(standaloneSemantics.semanticType, 'rmss-rhbg-frustum-like');
 assert.equal(standaloneSemantics.bboxConsistentWithPayload, true);
 
-assert.match(decoderSource, /RHBG_OBSERVED_PRIMITIVE_CODES/, 'decoder must be tied to the central RHBG-observed primitive code contract');
-assert.match(decoderSource, /rhbg-observed-layout-blocked/, 'decoder must keep RHBG-observed but unimplemented layouts blocked');
-assert.match(decoderSource, /rhbg-frustum-like/, 'decoder must preserve RHBG code 7 frustum-like semantics');
-assert.match(decoderSource, /rhbg-cone-like/, 'decoder must preserve RHBG code 5 cone-like semantics');
+assert.match(decoderSource, /RMSS_OBSERVED_PRIMITIVE_CODES/, 'decoder must be tied to the central RMSS-observed primitive code contract');
+assert.match(decoderSource, /RHBG_OBSERVED_PRIMITIVE_CODES/, 'decoder must remain tied to the central RHBG-observed primitive code contract');
+assert.match(decoderSource, /reference-observed-layout-blocked/, 'decoder must keep reference-observed but unimplemented layouts blocked');
+assert.match(decoderSource, /rmss-rhbg-frustum-like/, 'decoder must preserve RMSS/RHBG code 7 frustum-like semantics');
+assert.match(decoderSource, /rmss-rhbg-cone-like/, 'decoder must preserve RMSS/RHBG code 5 cone-like semantics');
+assert.match(decoderSource, /rmss-cap-dish-like/, 'decoder must record RMSS code 6 cap/dish-like semantics');
+assert.match(decoderSource, /rmss-rhbg-mesh-facet-like/, 'decoder must record RMSS/RHBG code 11 mesh/facet-like semantics');
 assert.match(pkg.scripts.test, /rvm-primitive-payload-decoder\.test\.mjs/, 'npm test must include the RVM primitive payload decoder test');
 
 console.log('RVM primitive payload decoder technical test passed');

@@ -25,6 +25,9 @@ assert.ok(basePipeNode, 'baseline export must contain the pipe fallback node');
 assert.equal(baseValveNode.primitives.length, 2, 'baseline rigid valve should be generic body + rigid marker before C3B wiring');
 assert.equal(baseFlangeNode.primitives.length, 2, 'baseline rigid flange should be generic body + rigid marker before C3B wiring');
 assert.equal(basePipeNode.primitives.length, 1, 'baseline pipe fallback should remain one body primitive');
+const baseValvePrimitiveCount = baseValveNode.primitives.length;
+const baseFlangePrimitiveCount = baseFlangeNode.primitives.length;
+const basePipePrimitiveCount = basePipeNode.primitives.length;
 
 const wiredExportModel = normalizeNavisExportModelNames(applyRvmCatalogueExportParity(baseExportModel, model));
 const plant = findChild(wiredExportModel.root, 'PLANT_GEOMETRY');
@@ -36,9 +39,9 @@ assert.ok(valveNode, 'wired export must retain the valve node');
 assert.ok(flangeNode, 'wired export must retain the flange node');
 assert.ok(pipeNode, 'wired export must retain the pipe node');
 
-assert.ok(valveNode.primitives.length > baseValveNode.primitives.length, 'flanged valve must be replaced by segmented catalogue primitives');
-assert.ok(flangeNode.primitives.length > baseFlangeNode.primitives.length, 'weld-neck flange must be replaced by segmented catalogue primitives');
-assert.equal(pipeNode.primitives.length, 1, 'non-catalogue pipe must retain existing fallback primitive path');
+assert.ok(valveNode.primitives.length > baseValvePrimitiveCount, 'flanged valve must be replaced by segmented catalogue primitives');
+assert.ok(flangeNode.primitives.length > baseFlangePrimitiveCount, 'weld-neck flange must be replaced by segmented catalogue primitives');
+assert.equal(pipeNode.primitives.length, basePipePrimitiveCount, 'non-catalogue pipe must retain existing fallback primitive path');
 assert.match(pipeNode.primitives[0].name, /PIPE_10_TO_20_BODY/, 'pipe fallback body primitive must be preserved');
 
 assert.equal(valveNode.attributes.CATALOGUE_VISUAL, 'TRUE');

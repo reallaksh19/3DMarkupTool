@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
 const collapseController = readFileSync('src/static-input-conversion-collapse-controller.js', 'utf8');
+const staticShellCss = readFileSync('src/static-shell-performance.css', 'utf8');
 const bootstrap = readFileSync('src/safe-ui-bootstrap.js', 'utf8');
 
 assert.match(
@@ -14,6 +15,12 @@ assert.match(
   collapseController,
   /section\.dataset\.section\s*=\s*['"]input['"]/, 
   'Input section must be tagged as data-section="input" for non-positional CSS overrides.'
+);
+
+assert.match(
+  collapseController,
+  /layoutOwner:\s*['"]static-css['"]|section\.dataset\.layoutOwner\s*=\s*['"]static-css['"]/,
+  'Collapse controller must declare static CSS as the layout owner.'
 );
 
 assert.match(
@@ -52,28 +59,40 @@ assert.doesNotMatch(
   'Collapse logic must not use positional section fallback; summary cards can change section indexes.'
 );
 
-assert.match(
+assert.doesNotMatch(
   collapseController,
-  /data-section="input"\]\s*>\s*\.file-drop[\s\S]*display:\s*grid\s*!important/,
-  'Input file drop must override older cached positional collapse CSS.'
+  /document\.createElement\(['"]style['"]\)|style\.textContent|appendChild\(style\)/,
+  'Collapse controller must not inject layout CSS at runtime; layout belongs to static CSS.'
 );
 
 assert.match(
-  collapseController,
+  staticShellCss,
+  /panel-section\[data-section="input"\]\s*>\s*\.file-drop[\s\S]*display:\s*grid\s*!important/,
+  'Input file drop must override older cached positional collapse CSS through static marker CSS.'
+);
+
+assert.match(
+  staticShellCss,
+  /panel-section\[data-section="input"\]\s*>\s*\.input-primary-actions[\s\S]*display:\s*flex\s*!important/,
+  'Input action row must remain visible and one-row through static marker CSS.'
+);
+
+assert.match(
+  staticShellCss,
   /data-collapsible="conversion"\]\s*>\s*\.conversion-collapsible-content[\s\S]*display:\s*none\s*!important/,
   'Conversion settings must be hidden through explicit conversion marker while collapsed.'
 );
 
 assert.match(
-  collapseController,
+  staticShellCss,
   /data-collapsible="sideload"\]\s*>\s*\.sideload-collapsible-content[\s\S]*display:\s*none\s*!important/,
   'Sideload fields must be hidden through explicit sideload marker while collapsed.'
 );
 
 assert.match(
   bootstrap,
-  /phase4a-static-input-panel-cleanup-20260619|phase4-global-esc-lifecycle-20260619|esc-tools-export-icons-20260619/,
-  'Safe UI bootstrap version must remain cache-busted so browsers fetch fixed drawer, view-pad, ESC, export, and icon controllers.'
+  /phase4a-static-input-panel-cleanup-20260619|phase4-global-esc-lifecycle-20260619|esc-tools-export-icons-20260619|perf-static-shell-20260620/,
+  'Safe UI bootstrap version must remain cache-busted so browsers fetch fixed drawer, view-pad, ESC, export, icon, and static-shell controllers.'
 );
 
 console.log('input drawer collapse contract passed');

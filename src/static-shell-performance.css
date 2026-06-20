@@ -212,6 +212,31 @@
   line-height: 1;
 }
 
+/* Explicit first-paint collapse contract overrides.
+ *
+ * These marker-based rules intentionally beat older cached positional collapse
+ * CSS. They are static CSS, not controller-injected CSS, so the post-JS layout
+ * remains the same as the initial HTML/CSS layout.
+ */
+#inputDrawer .panel-section[data-section="input"] > .file-drop {
+  display: grid !important;
+  grid-auto-flow: column;
+  place-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+#inputDrawer .panel-section[data-section="input"] > .input-file-status {
+  display: flex !important;
+}
+
+#inputDrawer .panel-section[data-section="input"] > .input-primary-actions {
+  display: flex !important;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: nowrap;
+}
+
 #inputDrawer .phase2-input-sticky-section > .input-primary-actions,
 #inputDrawer .phase4a-input-compact-section > .input-primary-actions,
 #inputDrawer .panel-section[data-phase2-input="always-visible"] > .input-primary-actions {
@@ -280,6 +305,14 @@ body.sideload-expanded #inputDrawer .panel-section[data-collapsible="sideload"] 
 body:not(.conversion-expanded) #inputDrawer .panel-section[data-collapsible="conversion"] > .conversion-collapsible-content,
 body:not(.sideload-expanded) #inputDrawer .panel-section[data-collapsible="sideload"] > .sideload-collapsible-content {
   display: none;
+}
+
+body:not(.conversion-expanded) #inputDrawer .panel-section[data-collapsible="conversion"] > .conversion-collapsible-content {
+  display: none !important;
+}
+
+body:not(.sideload-expanded) #inputDrawer .panel-section[data-collapsible="sideload"] > .sideload-collapsible-content {
+  display: none !important;
 }
 
 #inputDrawer .panel-section[data-collapsible="sideload"] {

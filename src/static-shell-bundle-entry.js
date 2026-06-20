@@ -6,6 +6,7 @@ import './static-toolbar-polish-controller.js';
 import './static-svg-icons-controller.js';
 import './static-viewcube-svg-controller.js';
 import './static-selection-resolver.js';
+import './static-canvas-interaction-coordinator.js';
 import './static-marquee-zoom-controller.js';
 import './static-area-select-controller.js';
 import './static-saved-views-controller.js';

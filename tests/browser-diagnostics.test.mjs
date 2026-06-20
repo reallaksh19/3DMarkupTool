@@ -17,7 +17,7 @@ assert.match(bootstrap, phaseKeyPattern);
 assert.match(bootstrap, /LATE_IDLE_MODULE_URLS[\s\S]*static-browser-diagnostics-controller\.js\?v=\$\{SAFE_UI_VERSION\}/);
 assert.doesNotMatch(bootstrap, /static-properties-actions-controller\.js/);
 assert.match(bootstrap, /emitBootstrapModuleFailure\(/);
-assert.match(bootstrap, /3dmarkup:bootstrap-module-failed/);
+assert.match(bootstrap, /CustomEvent\('viewer:static-shell-module-failed'/);
 assert.match(controller, /BROWSER_DIAGNOSTICS_VERSION = 'perf-tdz-fix-20260620'/);
 assert.match(controller, /EXPECTED_SHELL_VERSION = 'perf-tdz-fix-20260620'/);
 assert.match(controller, /STALE_SHELL_VERSION = 'perf-static-drawer-bundle-20260620'/);

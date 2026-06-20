@@ -4,14 +4,16 @@
  * Output: ArrayBuffer containing HEAD, MODL, CNTB, PRIM, CNTE, and END chunks.
  * Fallback: unsupported primitive kinds raise explicit errors so geometry is not silently dropped.
  */
-const REVIEW_CHUNK_MARKER = 1;
+const REVIEW_CHUNK_HEADER_MARKER = 1;
+const REVIEW_CONTAINER_CLOSE_BODY_MARKER = 2;
+const REVIEW_END_BODY_MARKER = 1;
 
 export function writeRvm(exportModel) {
   const writer = createChunkWriter();
   writer.writeChunk('HEAD', headBody(), null);
   writer.writeChunk('MODL', modelBody(), null);
   writeNode(writer, exportModel.root);
-  writer.writeChunk('END:', uint32Body(REVIEW_CHUNK_MARKER), null);
+  writer.writeChunk('END:', uint32Body(REVIEW_END_BODY_MARKER), null);
   return writer.finish();
 }
 
@@ -23,7 +25,7 @@ function writeNode(writer, node) {
     for (const child of node.children || []) {
       writeNode(writer, child);
     }
-    writer.writeChunk('CNTE', uint32Body(REVIEW_CHUNK_MARKER), null);
+    writer.writeChunk('CNTE', uint32Body(REVIEW_CONTAINER_CLOSE_BODY_MARKER), null);
   });
 }
 
@@ -31,7 +33,7 @@ function headBody() {
   return concatBuffers([
     uint32Body(2),
     rvmString('inputxml-rvm-standalone'),
-    rvmString('InputXML to Navisworks RVM+ATT export'),
+    rvmEmptyString(),
     rvmString(new Date().toISOString()),
     rvmString('Codex'),
     rvmString('UTF-8')
@@ -50,9 +52,9 @@ function groupBody(node) {
   return concatBuffers([
     uint32Body(2),
     rvmString(node.name),
-    float32Body(0),
-    float32Body(0),
-    float32Body(0),
+    rvmEmptyString(),
+    rvmEmptyString(),
+    float32Body(node.reviewValue || 0),
     uint32Body(node.material || 0)
   ]);
 }
@@ -166,7 +168,7 @@ function createChunkWriter() {
       view.setUint32(index * 4, padded.charCodeAt(index), false);
     }
     view.setUint32(16, offset + 24 + body.byteLength, false);
-    view.setUint32(20, REVIEW_CHUNK_MARKER, false);
+    view.setUint32(20, REVIEW_CHUNK_HEADER_MARKER, false);
     append(header);
     append(body);
     if (writeChildren) writeChildren();
@@ -187,6 +189,10 @@ function rvmString(value) {
   view.setUint32(0, wordCount, false);
   new Uint8Array(body, 4).set(encoded);
   return body;
+}
+
+function rvmEmptyString() {
+  return uint32Body(0);
 }
 
 function uint32Body(value) {

@@ -4,7 +4,7 @@ import * as THREE from 'three';
 // Tool: ME = Measure. Click multiple model/canvas points to accumulate segment length.
 // This intentionally avoids src/app.js so conversion/selection/runtime seams remain stable.
 
-const VERSION = 'measure-polyline-viewpad-20260619';
+const VERSION = 'measure-polyline-markers-20260620';
 const TOOL_VIEW = 'measurePolyline';
 const TOOL_LABEL = 'ME';
 const TOOL_TITLE = 'Measure Polyline: click points/components to measure cumulative length';
@@ -12,6 +12,8 @@ const STYLE_ID = 'static-measure-polyline-style';
 const PANEL_ID = 'staticMeasurePolylinePanel';
 const HELPER_GROUP_NAME = '__MEASURE_POLYLINE_HELPERS__';
 const MIN_HIT_DISTANCE = 0.001;
+const POINT_MARKER_PIXEL_SIZE = 8;
+const POINT_MARKER_COLOR = 0xffd166;
 
 let active = false;
 let points = [];
@@ -194,8 +196,24 @@ function clearMeasure() {
   points = [];
   clearHelpers();
   renderPanel();
+  setStatus('Measure polyline cleared');
   requestRender('measure-polyline-clear');
   dispatchMeasure('clear');
+}
+
+function cancelMeasure() {
+  active = false;
+  points = [];
+  clearHelpers();
+  document.body.classList.remove('measure-polyline-active');
+  if (button) {
+    button.classList.remove('tool-active');
+    button.setAttribute('aria-pressed', 'false');
+  }
+  setStatus('Measure polyline cleared');
+  renderPanel();
+  requestRender('measure-polyline-escape-clear');
+  dispatchMeasure('cancel');
 }
 
 function undoPoint() {
@@ -241,7 +259,8 @@ function onKeyDown(event) {
     event.preventDefault();
     event.stopPropagation();
     event.stopImmediatePropagation?.();
-    finishMeasure();
+    cancelMeasure();
+    return;
   }
   if (event.key === 'Enter') {
     event.preventDefault();
@@ -313,24 +332,35 @@ function rebuildHelpers() {
   clearHelpers();
   const group = ensureHelperGroup();
   if (!group) return;
-  const material = new THREE.LineBasicMaterial({ color: 0xffd166, linewidth: 2, depthTest: false });
   for (let i = 1; i < points.length; i += 1) {
     const geometry = new THREE.BufferGeometry().setFromPoints([points[i - 1], points[i]]);
-    const line = new THREE.Line(geometry, material.clone());
+    const line = new THREE.Line(geometry, new THREE.LineBasicMaterial({ color: POINT_MARKER_COLOR, linewidth: 2, depthTest: false }));
     line.name = `MEASURE_SEGMENT_${i}`;
     line.renderOrder = 9998;
     line.userData = { measurePolylineHelper: true, segmentIndex: i - 1, length: points[i - 1].distanceTo(points[i]) };
     group.add(line);
   }
-  const sphereGeometry = new THREE.SphereGeometry(pointMarkerRadius(), 12, 8);
   points.forEach((point, index) => {
-    const marker = new THREE.Mesh(sphereGeometry.clone(), new THREE.MeshBasicMaterial({ color: 0xffd166, depthTest: false }));
-    marker.name = `MEASURE_POINT_${index + 1}`;
-    marker.position.copy(point);
-    marker.renderOrder = 9999;
-    marker.userData = { measurePolylineHelper: true, pointIndex: index };
-    group.add(marker);
+    group.add(createPointMarker(point, index));
   });
+}
+
+function createPointMarker(point, index) {
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute('position', new THREE.Float32BufferAttribute([point.x, point.y, point.z], 3));
+  const material = new THREE.PointsMaterial({
+    color: POINT_MARKER_COLOR,
+    size: POINT_MARKER_PIXEL_SIZE,
+    sizeAttenuation: false,
+    depthTest: false,
+    depthWrite: false
+  });
+  const marker = new THREE.Points(geometry, material);
+  marker.name = `MEASURE_POINT_${index + 1}`;
+  marker.renderOrder = 9999;
+  marker.frustumCulled = false;
+  marker.userData = { measurePolylineHelper: true, pointIndex: index, screenSizeMarker: true };
+  return marker;
 }
 
 function clearHelpers() {
@@ -338,17 +368,16 @@ function clearHelpers() {
   while (helperGroup.children.length) {
     const child = helperGroup.children.pop();
     child.geometry?.dispose?.();
-    child.material?.dispose?.();
+    disposeMaterial(child.material);
   }
 }
 
-function pointMarkerRadius() {
-  const rt = runtime();
-  const box = new THREE.Box3();
-  const root = modelRoot(rt);
-  if (root) box.setFromObject(root);
-  const size = box.isEmpty() ? 1000 : box.getSize(new THREE.Vector3()).length();
-  return Math.max(size * 0.003, 5);
+function disposeMaterial(material) {
+  if (Array.isArray(material)) {
+    material.forEach((entry) => entry?.dispose?.());
+    return;
+  }
+  material?.dispose?.();
 }
 
 function segmentLengths(list = points) {
@@ -403,12 +432,21 @@ function installApi() {
     activate: activateMeasure,
     finish: finishMeasure,
     clear: clearMeasure,
+    cancel: cancelMeasure,
     undo: undoPoint,
     isActive: () => active,
     points: () => points.map(vectorToArray),
     segments: () => segmentLengths(points),
     total: () => totalLength(points),
-    debug: () => ({ active, pointCount: points.length, segmentCount: Math.max(points.length - 1, 0), totalLength: totalLength(points), formattedTotal: formatLength(totalLength(points)) })
+    debug: () => ({
+      active,
+      markerMode: 'screen-size-points',
+      pointMarkerPixelSize: POINT_MARKER_PIXEL_SIZE,
+      pointCount: points.length,
+      segmentCount: Math.max(points.length - 1, 0),
+      totalLength: totalLength(points),
+      formattedTotal: formatLength(totalLength(points))
+    })
   };
 }
 

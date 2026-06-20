@@ -8,11 +8,11 @@
 // navigation-smoothness-20260619 browser-diagnostics-20260619 chrome-runtime-diagnostics-20260619 input-always-visible-20260619 phase3-ribbon-cleanup-20260619
 // phase4-global-esc-lifecycle-20260619 phase4a-static-input-panel-cleanup-20260619 perf-static-shell-20260620 perf-lcp-deferred-app-20260620
 // annotation-billboard-lod-20260620 annotation-density-lod-20260620 annotation-readable-callouts-20260620 annotation-isonote-readable-v2-20260620
-// annotation-isonote-world-facing-20260620
+// annotation-isonote-world-facing-20260620 canvas-tool-manager-20260620
 // Legacy input-panel gate marker only: SAFE_UI_VERSION = 'perf-static-shell-20260620'
 
-const SAFE_UI_VERSION = 'perf-tdz-fix-20260620';
-const CLIP_UI_VERSION = 'perf-tdz-fix-20260620';
+const SAFE_UI_VERSION = 'canvas-tool-manager-20260620';
+const CLIP_UI_VERSION = 'canvas-tool-manager-20260620';
 const BUNDLED_ASSETS = window.__3D_MARKUP_BUNDLED_ASSETS__ || {};
 // Bundle URLs in the manifest are relative to the document, but dynamic
 // import() resolves relative to this module (./src/). Resolve against
@@ -36,7 +36,6 @@ const DEFERRED_MODULE_URLS = [
   `./static-svg-icons-controller.js?v=${SAFE_UI_VERSION}`,
   `./static-viewcube-svg-controller.js?v=${SAFE_UI_VERSION}`,
   `./static-selection-resolver.js?v=${SAFE_UI_VERSION}`,
-  `./static-canvas-interaction-coordinator.js?v=${SAFE_UI_VERSION}`,
   `./static-marquee-zoom-controller.js?v=${SAFE_UI_VERSION}`,
   `./static-area-select-controller.js?v=${SAFE_UI_VERSION}`,
   `./static-saved-views-controller.js?v=${SAFE_UI_VERSION}`,
@@ -51,11 +50,11 @@ const DEFERRED_MODULE_URLS = [
   `./static-workflow-status-controller.js?v=${SAFE_UI_VERSION}`,
   `./static-help-shortcuts-controller.js?v=${SAFE_UI_VERSION}`,
   `./static-markup-core-controller.js?v=${SAFE_UI_VERSION}`,
+  `./navis-manual-tag-safe-controller.js?v=${SAFE_UI_VERSION}`,
   `./static-quick-export-core-controller.js?v=${SAFE_UI_VERSION}`,
   `./static-topbar-layout-controller.js?v=${SAFE_UI_VERSION}`,
   `./static-review-ribbon-tools-controller.js?v=${SAFE_UI_VERSION}`,
-  `./static-canvas-action-regression-controller.js?v=${SAFE_UI_VERSION}`,
-  `./static-canvas-action-dispatch-controller.js?v=${SAFE_UI_VERSION}`,
+  `./static-canvas-tool-manager.js?v=${SAFE_UI_VERSION}`,
   `./static-navigation-smoothness-controller.js?v=${SAFE_UI_VERSION}`,
   `./static-ribbon-dropdown-cleanup-controller.js?v=${SAFE_UI_VERSION}`,
   `./static-global-tool-lifecycle-controller.js?v=${SAFE_UI_VERSION}`

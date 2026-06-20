@@ -1,8 +1,9 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
-const ACTIVE_CACHE_KEY = 'perf-tdz-fix-20260620';
-const dateStampedKey = /^perf-[a-z0-9-]+-20\d{6}$/;
+const ACTIVE_CACHE_KEY = 'canvas-tool-manager-20260620';
+const FIRST_PAINT_CACHE_KEY = 'perf-tdz-fix-20260620';
+const dateStampedKey = /^[a-z0-9-]+-20\d{6}$/;
 
 const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
 
@@ -24,6 +25,10 @@ function assertBefore(source, beforePattern, afterPattern, message) {
   assert.ok(before < after, message);
 }
 
+function escaped(value) {
+  return new RegExp(value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+}
+
 function extractActiveQueryKeys(html) {
   const keys = [];
   for (const match of html.matchAll(/[\s"'](?:href|src)=["'][^"']+\?v=([^"']+)/g)) {
@@ -34,18 +39,24 @@ function extractActiveQueryKeys(html) {
 
 const htmlKeys = extractActiveQueryKeys(index);
 assert.ok(htmlKeys.length >= 4, 'index must expose versioned first-paint assets');
-assert.deepEqual([...new Set(htmlKeys)], [ACTIVE_CACHE_KEY], 'all active index ?v= keys must use the single current cache key');
-assert.match(ACTIVE_CACHE_KEY, dateStampedKey, 'active cache key must be auditable/date-stamped');
+assert.deepEqual([...new Set(htmlKeys)], [FIRST_PAINT_CACHE_KEY], 'all active index ?v= keys must use the first-paint cache key');
+assert.match(ACTIVE_CACHE_KEY, dateStampedKey, 'active bundle cache key must be auditable/date-stamped');
+assert.match(FIRST_PAINT_CACHE_KEY, dateStampedKey, 'first-paint cache key must be auditable/date-stamped');
 
 for (const [name, source] of [
   ['safe-ui-bootstrap.js', safeBootstrap],
-  ['app-loader.js', appLoader],
   ['build-pages.mjs', buildScript]
 ]) {
-  assert.match(source, new RegExp(ACTIVE_CACHE_KEY.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')), `${name} must use the active cache key`);
+  assert.match(source, escaped(ACTIVE_CACHE_KEY), `${name} must use the active canvas manager bundle cache key`);
   assert.doesNotMatch(source, /perf-static-drawer-bundle-20260620/, `${name} must not keep the prior static-drawer bundle key active`);
 }
-assert.match(diagnostics, new RegExp(ACTIVE_CACHE_KEY.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')), 'diagnostics must expose the active cache key');
+
+for (const [name, source] of [
+  ['app-loader.js', appLoader],
+  ['static-browser-diagnostics-controller.js', diagnostics]
+]) {
+  assert.match(source, escaped(FIRST_PAINT_CACHE_KEY), `${name} must use the first-paint cache key`);
+}
 assert.match(diagnostics, /STALE_SHELL_VERSION = 'perf-static-drawer-bundle-20260620'/, 'diagnostics may retain the prior key only as stale-asset detection data');
 
 assertBefore(safeBootstrap, /const SAFE_UI_VERSION/, /scheduleCoreShell\(\)/, 'safe-ui-bootstrap constants must be declared before module-init calls');

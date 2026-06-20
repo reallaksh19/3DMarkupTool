@@ -8,9 +8,7 @@ const CORE_MODULES = [
   { id: 'inputDrawer', label: 'Input drawer', src: `./input-drawer-controller.js?v=${SAFE_UI_VERSION}` },
   { id: 'viewerRuntimeBridge', label: 'Viewer runtime bridge', src: `./viewer-runtime-bridge-controller.js?v=${SAFE_UI_VERSION}` },
   { id: 'selectionResolver', label: 'Selection resolver', src: `./static-selection-resolver.js?v=${SAFE_UI_VERSION}` },
-  { id: 'canvasInteraction', label: 'Canvas interaction ownership', src: `./static-canvas-interaction-coordinator.js?v=${SAFE_UI_VERSION}` },
-  { id: 'canvasActionRegression', label: 'Canvas action regression repair', src: `./static-canvas-action-regression-controller.js?v=${SAFE_UI_VERSION}` },
-  { id: 'canvasActionDispatch', label: 'Canvas action dispatcher', src: `./static-canvas-action-dispatch-controller.js?v=${SAFE_UI_VERSION}` },
+  { id: 'canvasToolManager', label: 'Canvas tool manager', src: `./static-canvas-tool-manager.js?v=${SAFE_UI_VERSION}` },
   { id: 'consoleGuard', label: 'Input guard', src: `./ui-console-guard.js?v=${SAFE_UI_VERSION}` },
   { id: 'coreAppSafety', label: 'Core app safety', src: `./core-app-safety-controller.js?v=${SAFE_UI_VERSION}` },
   { id: 'fit', label: 'Fit', src: `./fit-controller.js?v=${SAFE_UI_VERSION}` },
@@ -57,7 +55,10 @@ const DEPRECATED_MODULES = [
   'phase38-clipbox-ui-cleanup-controller.js',
   'phase40-legacy-hint-compat-controller.js',
   'phase41-tree-clip-controls-controller.js',
-  'conversion-options-compat-controller.js'
+  'conversion-options-compat-controller.js',
+  'static-canvas-interaction-coordinator.js',
+  'static-canvas-action-regression-controller.js',
+  'static-canvas-action-dispatch-controller.js'
 ];
 
 const params = new URLSearchParams(window.location.search);
@@ -72,7 +73,7 @@ const ACTIVE_MODULES = [
 ];
 
 const BATCH_MODULES = SAFE_MODE
-  ? ACTIVE_MODULES.filter((entry) => entry.id === 'staticShellGuard' || entry.id === 'uiDiagnostics' || entry.id === 'canvasInteraction' || entry.id === 'canvasActionRegression' || entry.id === 'canvasActionDispatch' || entry.id === 'uiAcceptanceHarness')
+  ? ACTIVE_MODULES.filter((entry) => entry.id === 'staticShellGuard' || entry.id === 'uiDiagnostics' || entry.id === 'canvasToolManager' || entry.id === 'uiAcceptanceHarness')
   : ACTIVE_MODULES;
 
 const state = {

@@ -1,38 +1,15 @@
 import * as THREE from 'three';
 
-export const COLORS = {
-  pipe: 0xf0f4f8,
-  rigid: 0x8fb2d8,
-  valve: 0x21d4c4,
-  bend: 0x67d4ef,
-  rest: 0xf8c34a,
-  guide: 0x18d5c0,
-  lineStop: 0xf2a93b,
-  holddown: 0xf05ab9,
-  spring: 0xd273ff,
-  warning: 0xff8c73,
-  isonote: 0x211b2e,
-  node: 0x66c8ff,
-  text: 0xffffff
-};
+export const COLORS = { pipe: 0xf0f4f8, rigid: 0x8fb2d8, valve: 0x21d4c4, bend: 0x67d4ef, rest: 0xf8c34a, guide: 0x18d5c0, lineStop: 0xf2a93b, holddown: 0xf05ab9, spring: 0xd273ff, warning: 0xff8c73, isonote: 0x211b2e, node: 0x66c8ff, text: 0xffffff };
 
-export function mat(color, opts = {}) {
-  return new THREE.MeshStandardMaterial({ color, roughness: 0.72, metalness: 0.04, side: THREE.DoubleSide, ...opts });
-}
-
-export function vectorFrom(p, scale = 0.01) {
-  return new THREE.Vector3(p.x * scale, p.y * scale, p.z * scale);
-}
+export function mat(color, opts = {}) { return new THREE.MeshStandardMaterial({ color, roughness: 0.72, metalness: 0.04, side: THREE.DoubleSide, ...opts }); }
+export function vectorFrom(p, scale = 0.01) { return new THREE.Vector3(p.x * scale, p.y * scale, p.z * scale); }
 
 export function cylinderBetween(a, b, radius, material, radialSegments = 16, name = 'cylinder') {
-  const start = a.clone();
-  const end = b.clone();
-  const delta = end.clone().sub(start);
-  const length = delta.length();
-  const geom = new THREE.CylinderGeometry(radius, radius, Math.max(length, 0.0001), radialSegments, 1, false);
-  const mesh = new THREE.Mesh(geom, material);
+  const delta = b.clone().sub(a);
+  const mesh = new THREE.Mesh(new THREE.CylinderGeometry(radius, radius, Math.max(delta.length(), 0.0001), radialSegments, 1, false), material);
   mesh.name = name;
-  mesh.position.copy(start).add(end).multiplyScalar(0.5);
+  mesh.position.copy(a).add(b).multiplyScalar(0.5);
   mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), delta.clone().normalize());
   return mesh;
 }
@@ -43,34 +20,22 @@ export function coneArrow(start, dir, length, radius, material, name = 'arrow') 
   const d = dir.clone().normalize();
   const stemLen = length * 0.68;
   const headLen = length * 0.32;
-  const stem = cylinderBetween(start, start.clone().add(d.clone().multiplyScalar(stemLen)), radius * 0.35, material, 12, `${name}_stem`);
+  group.add(cylinderBetween(start, start.clone().add(d.clone().multiplyScalar(stemLen)), radius * 0.35, material, 12, `${name}_stem`));
   const cone = new THREE.Mesh(new THREE.ConeGeometry(radius, headLen, 18), material);
   cone.name = `${name}_head`;
   cone.position.copy(start).add(d.clone().multiplyScalar(stemLen + headLen / 2));
   cone.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), d);
-  group.add(stem, cone);
+  group.add(cone);
   return group;
 }
 
 export function arrowToward(tip, dirTowardTip, length, radius, material, name = 'arrowToward') {
   const d = dirTowardTip.clone().normalize();
-  const start = tip.clone().sub(d.clone().multiplyScalar(length));
-  return coneArrow(start, d, length, radius, material, name);
+  return coneArrow(tip.clone().sub(d.clone().multiplyScalar(length)), d, length, radius, material, name);
 }
 
 export function createTextPlane(text, options = {}) {
-  const {
-    width = 512,
-    height = 192,
-    fontSize = 34,
-    bg = 'rgba(20,18,32,0.90)',
-    fg = '#ffffff',
-    border = '#ffc56e',
-    lineHeight = 1.18,
-    padding = 18,
-    scale = 1,
-    name = 'text-plane'
-  } = options;
+  const { width = 512, height = 192, fontSize = 34, bg = 'rgba(20,18,32,0.90)', fg = '#ffffff', border = '#ffc56e', lineHeight = 1.18, padding = 18, scale = 1, name = 'text-plane' } = options;
   const canvas = document.createElement('canvas');
   canvas.width = width;
   canvas.height = height;
@@ -98,10 +63,10 @@ export function createNodeLabel(label, position, scale = 0.55) {
 
 export function createWarningTriangle(label = '!', scale = 0.8) {
   const shape = new THREE.Shape();
-  shape.moveTo(0, 1.0);
-  shape.lineTo(-1.0, -0.75);
-  shape.lineTo(1.0, -0.75);
-  shape.lineTo(0, 1.0);
+  shape.moveTo(0, 1);
+  shape.lineTo(-1, -0.75);
+  shape.lineTo(1, -0.75);
+  shape.closePath();
   const tri = new THREE.Mesh(new THREE.ShapeGeometry(shape), mat(COLORS.warning, { emissive: 0x330010, emissiveIntensity: 0.2 }));
   tri.name = 'warning_triangle';
   tri.scale.setScalar(scale);
@@ -117,21 +82,23 @@ export function createSpringCoil(center, axis = new THREE.Vector3(0, 1, 0), radi
   const points = [];
   const coils = 5;
   const steps = 96;
-  const dir = axis.clone().normalize();
+  const dir = resolveSpringCoilAxis(axis, name);
   const a = orthogonal(dir);
   const b = new THREE.Vector3().crossVectors(dir, a).normalize();
   for (let i = 0; i <= steps; i += 1) {
     const t = i / steps;
     const theta = t * coils * Math.PI * 2;
-    points.push(center.clone()
-      .add(dir.clone().multiplyScalar((t - 0.5) * length))
-      .add(a.clone().multiplyScalar(Math.cos(theta) * radius))
-      .add(b.clone().multiplyScalar(Math.sin(theta) * radius)));
+    points.push(center.clone().add(dir.clone().multiplyScalar((t - 0.5) * length)).add(a.clone().multiplyScalar(Math.cos(theta) * radius)).add(b.clone().multiplyScalar(Math.sin(theta) * radius)));
   }
-  const curve = new THREE.CatmullRomCurve3(points);
-  const tube = new THREE.Mesh(new THREE.TubeGeometry(curve, 120, 0.035, 8, false), material);
+  const tube = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(points), 120, 0.035, 8, false), material);
   tube.name = name;
   return tube;
+}
+
+export function resolveSpringCoilAxis(axis = new THREE.Vector3(0, 1, 0), name = 'spring_coil') {
+  const n = String(name || '').toUpperCase();
+  if (n.includes('SPRING_WARNING') && n.includes('BELOW_PIPE')) return new THREE.Vector3(0, 1, 0);
+  return axis.clone().normalize();
 }
 
 export function orthogonal(dir) {
@@ -139,11 +106,9 @@ export function orthogonal(dir) {
   const worldUp = new THREE.Vector3(0, 1, 0);
   const projectedUp = worldUp.clone().sub(d.clone().multiplyScalar(worldUp.dot(d)));
   if (projectedUp.lengthSq() > 1e-8) return projectedUp.normalize();
-
   const worldX = new THREE.Vector3(1, 0, 0);
   const projectedX = worldX.clone().sub(d.clone().multiplyScalar(worldX.dot(d)));
   if (projectedX.lengthSq() > 1e-8) return projectedX.normalize();
-
   return new THREE.Vector3(0, 0, 1);
 }
 
@@ -156,7 +121,7 @@ export function dominantAxis(vec) {
 
 export function axisVector(axis) {
   const sign = String(axis).startsWith('-') ? -1 : 1;
-  const a = String(axis).replace(/[+\-±]/g, '').toUpperCase();
+  const a = String(axis).replace(/[+\-]/g, '').toUpperCase();
   if (a === 'X') return new THREE.Vector3(sign, 0, 0);
   if (a === 'Y') return new THREE.Vector3(0, sign, 0);
   return new THREE.Vector3(0, 0, sign);
@@ -172,11 +137,7 @@ function roundRect(ctx, x, y, w, h, r, fill, stroke, lineWidth) {
   ctx.closePath();
   ctx.fillStyle = fill;
   ctx.fill();
-  if (stroke) {
-    ctx.lineWidth = lineWidth;
-    ctx.strokeStyle = stroke;
-    ctx.stroke();
-  }
+  if (stroke) { ctx.lineWidth = lineWidth; ctx.strokeStyle = stroke; ctx.stroke(); }
 }
 
 function wrapText(ctx, text, maxWidth, maxLines) {
@@ -185,17 +146,14 @@ function wrapText(ctx, text, maxWidth, maxLines) {
   let line = '';
   for (const word of words) {
     const trial = line ? `${line} ${word}` : word;
-    if (ctx.measureText(trial).width <= maxWidth || !line) {
-      line = trial;
-    } else {
+    if (ctx.measureText(trial).width <= maxWidth || !line) line = trial;
+    else {
       lines.push(line);
       line = word;
       if (lines.length >= maxLines - 1) break;
     }
   }
   if (line && lines.length < maxLines) lines.push(line);
-  if (words.length && lines.length === maxLines && words.join(' ').length > lines.join(' ').length) {
-    lines[maxLines - 1] = `${lines[maxLines - 1].replace(/\s+\S+$/, '')} …`;
-  }
+  if (words.length && lines.length === maxLines && words.join(' ').length > lines.join(' ').length) lines[maxLines - 1] = `${lines[maxLines - 1].replace(/\s+\S+$/, '')} ...`;
   return lines;
 }

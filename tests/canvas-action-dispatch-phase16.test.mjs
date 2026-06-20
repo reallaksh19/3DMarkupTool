@@ -38,7 +38,8 @@ assert.match(dispatch, /if \(!object \|\| isUnsafeRoot\(object\)\) return/);
 
 assert.doesNotMatch(dispatch, /MutationObserver\s*\(/);
 assert.doesNotMatch(dispatch, /setInterval\s*\(/);
-assert.doesNotMatch(dispatch, /viewer canvas.*traverse/s, 'No startup canvas binding should traverse the model.');
+const startupBindingBlock = dispatch.slice(dispatch.indexOf('function refreshBindings'), dispatch.indexOf('function patchAreaSelectApi'));
+assert.doesNotMatch(startupBindingBlock, /\.traverse\s*\(/, 'Startup binding/patching must not traverse the model.');
 
 const order = [
   'static-canvas-action-regression-controller.js',

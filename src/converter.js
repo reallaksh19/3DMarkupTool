@@ -654,6 +654,9 @@ function createSupportSymbols(model, rec, elementByNode, sourceClass) {
       gapMm: rec.gapMm,
       sourceNoteName: rec.sourceNoteName,
       mappingContract: 'common-support-mapper-standalone',
+      boreMm: od / SCALE,
+      tangentVec: [tangent.x, tangent.y, tangent.z],
+      pointVec: [p.x, p.y, p.z],
       ...extra
     };
     return obj;

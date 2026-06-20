@@ -451,14 +451,20 @@ function ensureStyles() {
       align-items: stretch;
       gap: 8px;
       contain: layout style;
+      overflow: visible;
     }
-    .static-markup-group { position: relative; display: inline-flex; }
+    .markup-ribbon { overflow: visible !important; }
+    .static-markup-group { position: relative; display: inline-flex; overflow: visible; }
     .static-markup-group-toggle {
-      min-width: 76px;
-      display: inline-grid;
+      width: auto !important;
+      min-width: 72px !important;
+      max-width: none !important;
+      height: 56px !important;
+      display: inline-grid !important;
       grid-template-columns: auto minmax(0, 1fr) auto;
       align-items: center;
       gap: 5px;
+      padding: 0 8px;
     }
     .static-markup-group-toggle .static-markup-expander {
       font-size: 11px;
@@ -477,7 +483,7 @@ function ensureStyles() {
       position: absolute;
       top: calc(100% + 8px);
       left: 0;
-      z-index: 92;
+      z-index: 2500;
       min-width: 190px;
       display: grid;
       gap: 5px;
@@ -488,9 +494,12 @@ function ensureStyles() {
       box-shadow: 0 18px 44px rgba(0,0,0,.42);
     }
     .static-markup-menu[hidden] { display: none; }
-    .static-markup-menu-item {
-      width: 100%;
-      min-height: 34px;
+    .static-markup-menu .static-markup-menu-item {
+      width: 100% !important;
+      min-width: 160px !important;
+      max-width: none !important;
+      height: auto !important;
+      min-height: 34px !important;
       justify-content: flex-start;
       display: flex;
       align-items: center;
@@ -499,6 +508,7 @@ function ensureStyles() {
       padding: 6px 9px;
       font-size: 11px;
       text-align: left;
+      white-space: nowrap;
     }
     .static-markup-menu-note {
       padding: 5px 7px 2px;

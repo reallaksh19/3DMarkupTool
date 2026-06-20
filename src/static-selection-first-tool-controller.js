@@ -151,6 +151,9 @@ function runTool(mode) {
     if (mode === 'sectionBox') return applySectionBox(targets, 'existing-selection');
     return applyVisibility(mode, targets, 'existing-selection');
   }
+  if (mode === 'sectionBox') {
+    if (window.__3D_MARKUP_CANVAS_TOOL_MANAGER__?.activateSectionBoxDrag?.()) return true;
+  }
   return startPickMode(mode);
 }
 
@@ -422,7 +425,7 @@ function applyVisibility(mode, targets, source = 'visibility') {
     setStatus(`Select component(s)/part(s) before ${mode === 'hide' ? 'Hide' : 'Isolate'}`);
     return false;
   }
-  clearVisibility({ render: false });
+  if (mode === 'isolate') clearVisibility({ render: false });
   state.visibilityActive = true;
   if (mode === 'isolate') {
     root.traverse?.((object) => { if (object !== root) hideObject(object); });

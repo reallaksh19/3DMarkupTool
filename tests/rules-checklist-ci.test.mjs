@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
-const ACTIVE_CACHE_KEY = 'selection-first-tools-20260620';
-const FIRST_PAINT_CACHE_KEY = 'perf-tdz-fix-20260620';
+const ACTIVE_CACHE_KEY = 'tool-fixes-v2-20260620';
+const FIRST_PAINT_CACHE_KEY = 'tool-fixes-v2-20260620';
 const dateStampedKey = /^[a-z0-9-]+-20\d{6}$/;
 
 const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');

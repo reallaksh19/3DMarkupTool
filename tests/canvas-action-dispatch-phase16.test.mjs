@@ -20,7 +20,8 @@ assert.match(manager, /pickSafeComponentFromClientPoint/);
 assert.match(manager, /selectSafeComponentsInClientRect/);
 assert.match(manager, /selectionRule: 'safe-root-center-in-rect'/);
 assert.match(manager, /coversMostOfModel/);
-assert.match(manager, /startPickMode\('sectionBox'\)/);
+assert.match(manager, /activateSectionBoxDrag/);
+assert.match(manager, /applySectionBoxToUnion/);
 assert.match(manager, /runVisibilityAction\('isolate'\)/);
 assert.match(manager, /runVisibilityAction\('hide'\)/);
 assert.match(manager, /staticTagBtn/);
@@ -47,7 +48,7 @@ assert.match(bootstrap, /static-canvas-tool-manager\.js/);
 assert.match(bootstrap, /navis-manual-tag-safe-controller\.js/);
 assert.match(safeLoader, /canvasToolManager/);
 assert.doesNotMatch(safeLoader, /canvasActionDispatch/);
-assert.match(buildPages, /selection-first-tools-20260620/);
+assert.match(buildPages, /tool-fixes-v2-20260620/);
 assert.match(pkg.scripts.test, /canvas-action-dispatch-phase16\.test\.mjs/);
 
 class ClassList {

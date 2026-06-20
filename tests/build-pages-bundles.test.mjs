@@ -16,7 +16,7 @@ assert.match(buildScript, /assets\/app\.bundle\.js/, 'Pages build must write the
 assert.match(buildScript, /assets\/static-shell\.bundle\.js/, 'Pages build must write the shell bundle.');
 assert.match(buildScript, /stripVersionQueryPlugin/, 'Pages build must strip cache query suffixes from local source imports.');
 assert.match(buildScript, /id === 'three' \|\| id === 'lucide' \|\| id\.startsWith\('three\/'\)/, 'Rollup build must keep CDN/importmap vendor modules external.');
-assert.match(buildScript, /const VERSION = 'selection-first-tools-20260620'/, 'Pages bundle cache key must expose the selection-first UI release.');
+assert.match(buildScript, /const VERSION = 'tool-fixes-v2-20260620'/, 'Pages bundle cache key must expose the active tool-fixes UI release.');
 
 assert.match(workflow, /npm install/, 'GitHub Pages workflow must install build dependencies.');
 assert.match(workflow, /npm test/, 'GitHub Pages workflow must run regression tests before deploy.');
@@ -30,6 +30,6 @@ assert.ok(packageJson.devDependencies?.rollup, 'Rollup must be declared as a bui
 
 assert.match(appLoader, /APP_BUNDLE_URL/, 'App loader must consume the built app bundle manifest.');
 assert.match(safeBootstrap, /STATIC_SHELL_BUNDLE_URL/, 'Static UI bootstrap must consume the built shell bundle manifest.');
-assert.match(safeBootstrap, /SAFE_UI_VERSION = 'selection-first-tools-20260620'/, 'Static UI fallback imports must use the selection-first cache key.');
+assert.match(safeBootstrap, /SAFE_UI_VERSION = 'tool-fixes-v2-20260620'/, 'Static UI fallback imports must use the active tool-fixes cache key.');
 
 console.log('Pages bundle build regression gate passed');

@@ -1,13 +1,14 @@
 import assert from 'node:assert/strict';
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, relative } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import {
   APPROVED_APP_CONVERSION_ENTRYPOINTS,
   approvedAppConversionPathSet,
   assertAppConversionBoundaryManifest
 } from '../src/app-conversion-boundary-manifest.js';
 
-const repoRoot = new URL('..', import.meta.url).pathname;
+const repoRoot = fileURLToPath(new URL('..', import.meta.url));
 const srcRoot = join(repoRoot, 'src');
 
 function listJsFiles(dir) {

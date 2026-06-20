@@ -1,5 +1,5 @@
-const BROWSER_DIAGNOSTICS_VERSION = 'perf-tdz-fix-20260620';
-const EXPECTED_SHELL_VERSION = 'perf-tdz-fix-20260620';
+const BROWSER_DIAGNOSTICS_VERSION = 'tool-fixes-v2-20260620';
+const EXPECTED_SHELL_VERSION = 'tool-fixes-v2-20260620';
 const STALE_SHELL_VERSION = 'perf-static-drawer-bundle-20260620';
 const DISMISS_SESSION_KEY = '3dmarkup.browserDiagnostics.dismissedSession';
 const FORCE_LOCAL_KEY = '3dmarkup.showBrowserDiagnostics';

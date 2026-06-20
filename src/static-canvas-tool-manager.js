@@ -49,6 +49,7 @@ function installApi() {
     registerTool: () => true,
     activateTool,
     cancelActiveTool,
+    activateSectionBoxDrag,
     getRuntimeCanvas: runtimeCanvas,
     getRuntimeCameraSceneControls,
     pickSafeComponentFromClientPoint,
@@ -161,6 +162,7 @@ function patchSectionBoxApi() {
   if (api.__canvasToolManagerPatched === VERSION) return true;
   api.version = api.version || VERSION;
   api.apply = () => runSectionBoxAction();
+  api.activateDrag = () => activateSectionBoxDrag();
   api.clear = () => clearSectionBox({ source: 'api-section-box-clear' });
   api.debug = () => ({ active: state.sectionBoxActive, version: VERSION, mode: runtime()?.clippingMode || 'none' });
   api.__canvasToolManagerPatched = VERSION;
@@ -284,6 +286,7 @@ function activateTool(id) {
 
 function cancelActiveTool(reason = 'cancel') {
   if (state.mode === 'areaSelect') deactivateAreaSelect(reason === 'escape' ? 'Area Select canceled' : '');
+  if (state.mode === 'sectionBoxDrag') deactivateSectionBoxDrag(reason === 'escape' ? 'Section Box drag canceled' : '');
   if (state.mode === 'sectionBox' || state.mode === 'hide' || state.mode === 'isolate') cancelPickMode(reason);
   state.drag = null;
   state.pick = null;
@@ -318,6 +321,59 @@ function deactivateAreaSelect(message = '') {
   return true;
 }
 
+function activateSectionBoxDrag() {
+  const ctx = getRuntimeCameraSceneControls();
+  if (!ctx.canvas || !ctx.camera || !ctx.modelRoot) {
+    setStatus('Section Box unavailable: viewer canvas/model is not ready');
+    return false;
+  }
+  cancelActiveTool('switch-sectionBoxDrag');
+  state.mode = 'sectionBoxDrag';
+  document.body.classList.add(AREA_CLASS, `${AREA_CLASS}--sectionBox`);
+  lockControls('section-box-drag');
+  setStatus('Section Box: drag a rectangle in the canvas to define the clipping region');
+  return true;
+}
+
+function deactivateSectionBoxDrag(message = '') {
+  if (state.mode === 'sectionBoxDrag') state.mode = '';
+  state.drag = null;
+  removeOverlay();
+  document.body.classList.remove(AREA_CLASS, `${AREA_CLASS}--sectionBox`);
+  restoreControls('section-box-drag-end');
+  if (message) setStatus(message);
+  return true;
+}
+
+function applySectionBoxToUnion(objects, source = 'section-box-union') {
+  const unionBox = new THREE.Box3();
+  for (const obj of objects) {
+    const b = validBoxFor(obj);
+    if (b) unionBox.union(b);
+  }
+  if (unionBox.isEmpty()) {
+    setStatus('Section Box failed: could not compute bounding box for selected components');
+    return false;
+  }
+  const rt = runtime();
+  const renderer = rt.renderer;
+  const expanded = unionBox.clone().expandByScalar(sectionPadding(unionBox));
+  const planes = planesForBox(expanded);
+  const ids = objects.map((o) => objectId(o)).filter(Boolean);
+  const meta = { mode: 'box', source: 'canvas-tool-manager-section-box-union', trigger: source, resolver: 'canvas-tool-manager', selectedIds: ids, selectedCount: objects.length, box: boxSummary(expanded) };
+  if (typeof rt.applyClipping === 'function') rt.applyClipping(planes, meta);
+  if (renderer) { renderer.localClippingEnabled = true; renderer.clippingPlanes = planes; }
+  rt.clippingPlanes = planes;
+  rt.clippingMode = 'box';
+  window.__3D_MARKUP_VIEWER_RUNTIME__ = rt;
+  window.__3D_MARKUP_CLIP_RUNTIME__ = rt;
+  state.sectionBoxActive = true;
+  rt.renderOnce?.('section-box-union-manager');
+  window.dispatchEvent(new CustomEvent('viewer:section-box', { detail: { action: 'apply', ...meta, planeCount: planes.length } }));
+  setStatus(`Section Box applied to ${objects.length} component${objects.length === 1 ? '' : 's'}`);
+  return true;
+}
+
 function updateAreaButtons(active) {
   document.querySelectorAll('[data-review-tool="areaSelect"], [data-review-menu-tool="areaSelect"], .view-pad [data-view="areaSelect"]').forEach((button) => {
     button.classList.toggle('tool-active', Boolean(active));
@@ -328,8 +384,8 @@ function updateAreaButtons(active) {
 function runSectionBoxAction() {
   refresh('section-box-action');
   const targets = actionTargets();
-  if (targets.length) return applySectionBox(targets[0], 'existing-selection');
-  return startPickMode('sectionBox');
+  if (targets.length) return applySectionBoxToUnion(targets, 'existing-selection');
+  return activateSectionBoxDrag();
 }
 
 function runVisibilityAction(mode) {
@@ -372,7 +428,7 @@ function cancelPickMode(reason = 'cancel') {
 
 function onCanvasPointerDown(event) {
   if (event.button !== 0) return;
-  if (state.mode === 'areaSelect') return beginAreaDrag(event);
+  if (state.mode === 'areaSelect' || state.mode === 'sectionBoxDrag') return beginAreaDrag(event);
   if (state.mode === 'sectionBox' || state.mode === 'hide' || state.mode === 'isolate') return beginPick(event);
 }
 
@@ -416,10 +472,21 @@ function finishAreaDrag(event) {
   event.stopPropagation();
   event.stopImmediatePropagation?.();
   const drag = state.drag;
+  const modeSnapshot = state.mode;
   runtimeCanvas()?.releasePointerCapture?.(drag.pointerId);
   const rect = normalizedClientRect(drag.startX, drag.startY, event.clientX, event.clientY);
   state.drag = null;
   removeOverlay();
+  if (modeSnapshot === 'sectionBoxDrag') {
+    if (rect.right - rect.left < MIN_DRAG_PX || rect.bottom - rect.top < MIN_DRAG_PX) {
+      deactivateSectionBoxDrag('Section Box: drag too small — try again');
+      return false;
+    }
+    const selected = selectSafeComponentsInClientRect(rect, { source: 'section-box-drag' });
+    deactivateSectionBoxDrag(selected.length ? '' : 'Section Box: no components found in rectangle');
+    if (selected.length) return applySectionBoxToUnion(selected, 'drag-select');
+    return false;
+  }
   if (rect.right - rect.left < MIN_DRAG_PX || rect.bottom - rect.top < MIN_DRAG_PX) return deactivateAreaSelect('Area Select canceled');
   const selected = selectSafeComponentsInClientRect(rect, { source: 'canvas-tool-manager-drag' });
   return deactivateAreaSelect(`Area selected ${selected.length} component${selected.length === 1 ? '' : 's'}`);
@@ -692,7 +759,7 @@ function applyVisibility(mode, targets, source = 'visibility') {
     setStatus(`Select a component/part before ${mode === 'hide' ? 'Hide' : 'Isolate'}`);
     return false;
   }
-  clearVisibility({ render: false });
+  if (mode === 'isolate') clearVisibility({ render: false });
   state.visibilityActive = true;
   if (mode === 'isolate') {
     root.traverse?.((object) => { if (object !== root) hideObject(object); });

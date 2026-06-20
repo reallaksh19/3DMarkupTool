@@ -7,19 +7,19 @@ const controller = readFileSync(new URL('../src/static-browser-diagnostics-contr
 const checklist = readFileSync(new URL('../docs/post-pr133-recovery-checklist.md', import.meta.url), 'utf8');
 const pkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
 
-const phaseKeyPattern = /input-always-visible-20260619|phase4-global-esc-lifecycle-20260619|phase4a-static-input-panel-cleanup-20260619|perf-static-shell-20260620|perf-lcp-deferred-app-20260620|perf-idle-diagnostics-20260620|perf-tdz-fix-20260620|canvas-tool-manager-20260620/;
+const phaseKeyPattern = /input-always-visible-20260619|phase4-global-esc-lifecycle-20260619|phase4a-static-input-panel-cleanup-20260619|perf-static-shell-20260620|perf-lcp-deferred-app-20260620|perf-idle-diagnostics-20260620|perf-tdz-fix-20260620|canvas-tool-manager-20260620|tool-fixes-v2-20260620/;
 const onReadyBody = controller.match(/function onReady\(\) \{([\s\S]*?)\n\}/)?.[1] || '';
 
 assert.match(index, phaseKeyPattern);
 assert.doesNotMatch(index, /fresh-clip-core-20260619/);
-assert.match(index, /safe-ui-bootstrap\.js\?v=perf-tdz-fix-20260620/);
+assert.match(index, /safe-ui-bootstrap\.js\?v=tool-fixes-v2-20260620/);
 assert.match(bootstrap, phaseKeyPattern);
 assert.match(bootstrap, /LATE_IDLE_MODULE_URLS[\s\S]*static-browser-diagnostics-controller\.js\?v=\$\{SAFE_UI_VERSION\}/);
 assert.doesNotMatch(bootstrap, /static-properties-actions-controller\.js/);
 assert.match(bootstrap, /emitBootstrapModuleFailure\(/);
 assert.match(bootstrap, /CustomEvent\('viewer:static-shell-module-failed'/);
-assert.match(controller, /BROWSER_DIAGNOSTICS_VERSION = 'perf-tdz-fix-20260620'/);
-assert.match(controller, /EXPECTED_SHELL_VERSION = 'perf-tdz-fix-20260620'/);
+assert.match(controller, /BROWSER_DIAGNOSTICS_VERSION = 'tool-fixes-v2-20260620'/);
+assert.match(controller, /EXPECTED_SHELL_VERSION = 'tool-fixes-v2-20260620'/);
 assert.match(controller, /STALE_SHELL_VERSION = 'perf-static-drawer-bundle-20260620'/);
 assert.match(controller, /detectStaleShellAssets/);
 assert.match(controller, /collectWebglInfo/);

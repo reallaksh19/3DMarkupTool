@@ -28,7 +28,8 @@ assert.match(manager, /AREA_SELECT_/, 'Filtered Area Select helpers must be expl
 assert.match(manager, /api\.isolateSelected = \(\) => runVisibilityAction\('isolate'\)/, 'Isolate must route through safe action/pick mode.');
 assert.match(manager, /api\.hideSelected = \(\) => runVisibilityAction\('hide'\)/, 'Hide must route through safe action/pick mode.');
 assert.match(manager, /api\.apply = \(\) => runSectionBoxAction\(\)/, 'Section Box must route through safe action/pick mode.');
-assert.match(manager, /startPickMode\('sectionBox'\)/, 'Section Box must enter canvas pick mode when no valid selection exists.');
+assert.match(manager, /activateSectionBoxDrag\(\)/, 'Section Box must enter canvas drag mode when no valid selection exists.');
+assert.match(manager, /applySectionBoxToUnion/, 'Section Box drag mode must apply a union box from selected components.');
 assert.match(manager, /startPickMode\(mode\)/, 'Hide/Isolate must enter canvas pick mode when no valid selection exists.');
 assert.match(manager, /lockControls/, 'Canvas pick mode must lock OrbitControls.');
 assert.match(manager, /controls\.enabled = false/, 'Canvas pick mode must disable OrbitControls.');

@@ -240,6 +240,18 @@ function replaceSupportRestraintGeometryWithCatalogueAdapter(object, userData) {
 }
 
 function inferSupportCatalogueSceneContext(object, userData, spec) {
+  if (Number.isFinite(userData.boreMm) && userData.boreMm > 0 && Array.isArray(userData.pointVec)) {
+    const [px, py, pz] = userData.pointVec;
+    return {
+      point: [px / SUPPORT_SCENE_SCALE, py / SUPPORT_SCENE_SCALE, pz / SUPPORT_SCENE_SCALE],
+      tangent: Array.isArray(userData.tangentVec) ? userData.tangentVec : supportTangentFromUserData(userData),
+      od: userData.boreMm,
+      gapMm: finiteNumber(userData.gapMm, 0),
+      sourceClass: userData.sourceClass || 'SUPPORT',
+      node: userData.node || 'NODE',
+      material: supportMaterialCodeForFamily(spec.family)
+    };
+  }
   const box = new THREE.Box3().setFromObject(object);
   const center = box.isEmpty() ? new THREE.Vector3() : box.getCenter(new THREE.Vector3());
   const size = box.isEmpty() ? new THREE.Vector3(1, 1, 1) : box.getSize(new THREE.Vector3());

@@ -36,6 +36,15 @@ export function arrowToward(tip, dirTowardTip, length, radius, material, name = 
 
 export function createTextPlane(text, options = {}) {
   const { width = 512, height = 192, fontSize = 34, bg = 'rgba(20,18,32,0.90)', fg = '#ffffff', border = '#ffc56e', lineHeight = 1.18, padding = 18, scale = 1, name = 'text-plane' } = options;
+  if (typeof document === 'undefined' || typeof document.createElement !== 'function') {
+    const fallback = new THREE.Mesh(
+      new THREE.PlaneGeometry((width / 120) * scale, (height / 120) * scale),
+      new THREE.MeshBasicMaterial({ color: COLORS.text, transparent: true, opacity: 0.72, side: THREE.DoubleSide })
+    );
+    fallback.name = name;
+    fallback.userData = { textPlaneFallback: true, text: String(text || '') };
+    return fallback;
+  }
   const canvas = document.createElement('canvas');
   canvas.width = width;
   canvas.height = height;

@@ -52,6 +52,9 @@ jobs:
       - name: Generate BM_CII support/restraint parity audit
         run: npm run artifact:support-restraint-parity
 
+      - name: Generate BM_CII GLB support/restraint scene audit
+        run: npm run artifact:glb-support-restraint-scene-audit
+
       - name: Upload RVM catalogue sample artifact
         uses: actions/upload-artifact@v4
         with:
@@ -92,6 +95,13 @@ jobs:
         with:
           name: support-restraint-parity
           path: artifacts/support-restraint-parity
+          if-no-files-found: error
+
+      - name: Upload GLB support/restraint scene audit artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: glb-support-restraint-scene-audit
+          path: artifacts/glb-support-restraint-scene-audit
           if-no-files-found: error
 
       - name: Upload phase-gate log

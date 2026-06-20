@@ -1,4 +1,4 @@
-const APP_LOADER_VERSION = 'perf-static-drawer-bundle-20260620';
+const APP_LOADER_VERSION = 'perf-tdz-fix-20260620';
 const APP_MODULE_URL = `./app.js?v=${APP_LOADER_VERSION}`;
 const CLIP_HOOK_MODULE_URL = `./clip-render-hook.js?v=${APP_LOADER_VERSION}`;
 const FRESH_CLIP_MODULE_URL = `./fresh-clip-controller.js?v=${APP_LOADER_VERSION}`;

@@ -16,7 +16,7 @@ assert.match(manager, /exportSelectedPropertiesCsv/);
 assert.match(manager, /selected_index/);
 assert.match(manager, /object_id/);
 assert.match(manager, /property_value/);
-assert.match(manager, /exportCsv/);
+assert.match(manager, /exportAreaSelectionCsv|exportSelectedPropertiesCsv/);
 assert.match(manager, /action:\s*'clear'/);
 assert.match(manager, /getSafeComponentRoots/);
 assert.match(manager, /sanitizeTargets/);

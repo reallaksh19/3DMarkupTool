@@ -16,9 +16,19 @@ const SNAPSHOT_EPS = 1e-4;
 
 const undoStack = [];
 const redoStack = [];
+const visibilitySession = {
+  active: false,
+  mode: '',
+  touched: new Map(),
+  targets: new Set(),
+  selectedId: '',
+  reason: ''
+};
+
 let changeTimer = 0;
 let historyAttachedToControls = null;
 let suppressHistory = false;
+let visibilityEscBound = false;
 
 installViewpadTools();
 
@@ -27,6 +37,7 @@ function installViewpadTools() {
     injectStyles();
     ensureButtons();
     attachHistoryCapture();
+    attachVisibilityEsc();
     window.__3D_MARKUP_VIEWPAD_TOOLS__ = {
       recordView: () => recordCurrentView('manual'),
       previousView,
@@ -34,6 +45,8 @@ function installViewpadTools() {
       isolateSelected,
       hideSelected,
       showAll,
+      clearVisibility: () => showAll('api-clear-visibility'),
+      visibility: getVisibilityState,
       history: () => ({ previous: undoStack.length, next: redoStack.length })
     };
   };
@@ -193,18 +206,30 @@ function isolateSelected() {
     setStatus('Select a component/part before Isolate');
     return false;
   }
+
+  beginVisibilitySession('isolate', selected, 'isolate-selected');
   root.traverse?.((object) => {
-    if (object !== root) object.visible = false;
+    if (object !== root) hideObject(object);
   });
+
   let cursor = selected;
   while (cursor && cursor !== root.parent) {
-    cursor.visible = true;
+    showObject(cursor);
     cursor = cursor.parent;
   }
-  selected.traverse?.((object) => { object.visible = true; });
+  selected.traverse?.((object) => { showObject(object); });
+
   rt?.renderOnce?.('isolate-selected');
-  window.dispatchEvent(new CustomEvent('viewer:visibility-tools', { detail: { action: 'isolate', selectedId: objectId(selected), resolver: 'shared-selection-resolver' } }));
-  setStatus(`Isolated ${objectId(selected) || 'selected component'}`);
+  window.dispatchEvent(new CustomEvent('viewer:visibility-tools', {
+    detail: {
+      action: 'isolate',
+      selectedId: objectId(selected),
+      resolver: 'shared-selection-resolver',
+      active: true,
+      touchedCount: visibilitySession.touched.size
+    }
+  }));
+  setStatus(`Isolated ${objectId(selected) || 'selected component'} — Esc or Show All restores`);
   return true;
 }
 
@@ -215,25 +240,116 @@ function hideSelected() {
     setStatus('Select a component/part before Hide');
     return false;
   }
-  selected.visible = false;
+
+  if (visibilitySession.active && visibilitySession.mode !== 'hide') {
+    finishVisibilitySession('before-hide-selected', { makeAllVisible: true, render: false });
+  }
+  beginVisibilitySession('hide', selected, 'hide-selected', { append: visibilitySession.mode === 'hide' });
+  hideObject(selected);
+
   rt?.renderOnce?.('hide-selected');
-  window.dispatchEvent(new CustomEvent('viewer:visibility-tools', { detail: { action: 'hide', selectedId: objectId(selected), resolver: 'shared-selection-resolver' } }));
-  setStatus(`Hidden ${objectId(selected) || 'selected component'}`);
+  window.dispatchEvent(new CustomEvent('viewer:visibility-tools', {
+    detail: {
+      action: 'hide',
+      selectedId: objectId(selected),
+      resolver: 'shared-selection-resolver',
+      active: true,
+      hiddenCount: visibilitySession.targets.size
+    }
+  }));
+  setStatus(`Hidden ${objectId(selected) || 'selected component'} — Esc or Show All restores`);
   return true;
 }
 
-function showAll() {
+function showAll(reason = 'show-all') {
   const rt = runtime();
   const root = getModelRoot(rt);
   if (!root) {
+    clearVisibilitySessionState();
     setStatus('No model loaded');
     return false;
   }
+  finishVisibilitySession(reason, { makeAllVisible: true, render: false });
   root.traverse?.((object) => { object.visible = true; });
-  rt?.renderOnce?.('show-all');
-  window.dispatchEvent(new CustomEvent('viewer:visibility-tools', { detail: { action: 'showAll' } }));
-  setStatus('All components shown');
+  rt?.renderOnce?.(reason === 'escape' ? 'show-all-escape' : 'show-all');
+  window.dispatchEvent(new CustomEvent('viewer:visibility-tools', {
+    detail: { action: 'showAll', reason, active: false }
+  }));
+  setStatus(reason === 'escape' ? 'Visibility restored' : 'All components shown');
   return true;
+}
+
+function attachVisibilityEsc() {
+  if (visibilityEscBound) return;
+  visibilityEscBound = true;
+  document.addEventListener('keydown', onVisibilityEscape, { capture: true });
+}
+
+function onVisibilityEscape(event) {
+  if (event.key !== 'Escape' || !visibilitySession.active) return;
+  event.preventDefault();
+  showAll('escape');
+}
+
+function beginVisibilitySession(mode, selected, reason, options = {}) {
+  if (!options.append) clearVisibilitySessionState();
+  visibilitySession.active = true;
+  visibilitySession.mode = mode;
+  visibilitySession.reason = reason;
+  visibilitySession.selectedId = objectId(selected);
+  if (selected) visibilitySession.targets.add(selected);
+  document.body?.classList?.toggle('visibility-tool-active', true);
+  document.body?.classList?.toggle('visibility-isolate-active', mode === 'isolate');
+  document.body?.classList?.toggle('visibility-hide-active', mode === 'hide');
+}
+
+function hideObject(object) {
+  if (!object) return;
+  recordOriginalVisibility(object);
+  object.visible = false;
+}
+
+function showObject(object) {
+  if (!object) return;
+  recordOriginalVisibility(object);
+  object.visible = true;
+}
+
+function recordOriginalVisibility(object) {
+  if (!object || visibilitySession.touched.has(object)) return;
+  visibilitySession.touched.set(object, object.visible !== false);
+}
+
+function finishVisibilitySession(reason = 'show-all', options = {}) {
+  const rt = runtime();
+  if (options.makeAllVisible !== true) {
+    for (const [object, wasVisible] of visibilitySession.touched.entries()) {
+      object.visible = wasVisible;
+    }
+  }
+  clearVisibilitySessionState();
+  if (options.render !== false) rt?.renderOnce?.(reason);
+}
+
+function clearVisibilitySessionState() {
+  visibilitySession.active = false;
+  visibilitySession.mode = '';
+  visibilitySession.reason = '';
+  visibilitySession.selectedId = '';
+  visibilitySession.touched.clear();
+  visibilitySession.targets.clear();
+  document.body?.classList?.remove('visibility-tool-active', 'visibility-isolate-active', 'visibility-hide-active');
+}
+
+function getVisibilityState() {
+  return {
+    active: visibilitySession.active,
+    mode: visibilitySession.mode,
+    selectedId: visibilitySession.selectedId,
+    touchedCount: visibilitySession.touched.size,
+    targetCount: visibilitySession.targets.size,
+    reason: visibilitySession.reason
+  };
 }
 
 function updateButtons() {

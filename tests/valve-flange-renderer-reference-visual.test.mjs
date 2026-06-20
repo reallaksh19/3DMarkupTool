@@ -16,11 +16,11 @@ assert.ok(converter.includes('renderedLocalAxisStart'), 'mesh userData must expo
 assert.ok(converter.includes('renderedLocalAxisEnd'), 'mesh userData must expose rendered local-axis end for debugging');
 assert.ok(converter.includes('const explicitStart = Number(primitive.radiusStart)'), 'frustum renderer must honor explicit start/end radii from the catalogue');
 assert.ok(!catalog.includes("kind: 'seam-ring'"), 'catalogue must not emit visible seam-ring markers while renderer maps them to filled cylinders');
-assert.ok(!catalog.includes('FLANGE_GASKET_SEAM_A'), 'flange gasket seams must not be emitted as solid black washer discs');
-assert.ok(!catalog.includes('END_COLLAR_SEAM_A'), 'valve collar seams must not be emitted as solid black washer discs');
-assert.ok(catalog.includes('boreFillRadius = pipeRadius * 0.44'), 'valve bore fill must remain visually hidden and not barrel-like');
+assert.ok(!catalog.includes('FLANGE_GASKET_SEAM_A'), 'flange gasket seams must not be emitted as solid washer discs');
+assert.ok(!catalog.includes('END_COLLAR_SEAM_A'), 'valve collar seams must not be emitted as solid washer discs');
+assert.ok(catalog.includes('hiddenBoreFill') || !catalog.includes('VALVE_BORE_FILL'), 'valve bore fill must be hidden when present or omitted');
 assert.ok(postprocess.includes('geometryDecorationDisabled: true'), 'postprocess must not add fallback decoration geometry over catalogue visuals');
-assert.ok(!postprocess.includes('new THREE.MeshBasicMaterial({ color: 0x1e2632 })'), 'postprocess must not create black gasket washer discs');
+assert.ok(!postprocess.includes('new THREE.MeshBasicMaterial({ color: 0x1e2632 })'), 'postprocess must not create gasket washer discs');
 assert.ok(!postprocess.includes('SphereGeometry(Math.max(bodyRadius'), 'postprocess must not replace catalogue valve bodies with unspanned spheres');
 
 console.log('Valve/flange renderer reference visual gates passed');

@@ -1,48 +1,82 @@
-const VERSION = 'static-markup-core-row-20260618';
+const VERSION = 'static-markup-grouped-controls-20260620';
 const STORAGE_KEY = '3dmarkup.staticMarkupCore.v1';
-
-const TOOLS = [
-  { id: 'staticTagBtn', label: 'Tag', icon: '↗', action: manualTag, title: 'Manual leader tag placeholder. Full leader authoring remains in advanced mode.' },
-  { id: 'staticIsonoteXmlBtn', label: 'ISONOTE XML', icon: '⌖', action: openIsonoteSummary, title: 'Summarize ISONOTE/name-plate data available in the current scene.' },
-  { id: 'staticImportXmlBtn', label: 'Import XML', icon: '⇣', action: importTagXml, title: 'Import Navis tag XML text into the static session buffer.' },
-  { id: 'staticTagViewsBtn', label: 'Tag Views', icon: '☰', action: togglePanel, title: 'Show imported, ISONOTE, and exported static tag viewpoints.' },
-  { id: 'staticSaveSessionBtn', label: 'Save Session', icon: '▣', action: saveSession, title: 'Save the static tag XML/session buffer in this browser.' },
-  { id: 'staticRestoreSessionBtn', label: 'Restore', icon: '⟲', action: restoreSession, title: 'Restore static tag XML/session buffer from this browser.' },
-  { id: 'staticClearSessionBtn', label: 'Clear Session', icon: '⌫', action: clearSession, title: 'Clear static tag XML/session buffer.' },
-  { id: 'staticXmlQaBtn', label: 'XML QA', icon: '☑', action: runXmlQa, title: 'Run a lightweight QA summary of static tag XML data.' },
-  { id: 'staticExportXmlBtn', label: 'Export XML', icon: '⇩', action: exportXml, title: 'Export a lightweight static tag XML snapshot. Not an RVM/Navis certification feature.' }
-];
 
 const state = {
   importedXml: '',
   lastReport: null,
-  panelOpen: false
+  panelOpen: false,
+  openGroupId: ''
 };
 
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', initStaticMarkupCore, { once: true });
-} else {
-  initStaticMarkupCore();
-}
+const GROUPS = [
+  {
+    id: 'staticTagGroup',
+    label: 'Tag',
+    icon: '🏷',
+    title: 'Tag-related review tools',
+    note: 'Tag tools only. Advanced leader authoring remains deferred.',
+    tools: [
+      { id: 'staticTagBtn', label: 'Tag', icon: '↗', action: manualTag, title: 'Manual leader tag placeholder. Full leader authoring remains in advanced mode.' },
+      { id: 'staticTagViewsBtn', label: 'Tag Views', icon: '☰', action: togglePanel, title: 'Show imported, ISONOTE, and exported static tag viewpoints.' }
+    ]
+  },
+  {
+    id: 'staticXmlGroup',
+    label: 'XML',
+    icon: '⌘',
+    title: 'XML-related import, QA, and export tools',
+    note: 'XML tools use the static tag/session buffer and do not change GLB/RVM export contracts.',
+    tools: [
+      { id: 'staticIsonoteXmlBtn', label: 'ISONOTE XML', icon: '⌖', action: openIsonoteSummary, title: 'Summarize ISONOTE/name-plate data available in the current scene.' },
+      { id: 'staticImportXmlBtn', label: 'Import XML', icon: '⇣', action: importTagXml, title: 'Import Navis tag XML text into the static session buffer.' },
+      { id: 'staticXmlQaBtn', label: 'XML QA', icon: '☑', action: runXmlQa, title: 'Run a lightweight QA summary of static tag XML data.' },
+      { id: 'staticExportXmlBtn', label: 'Export XML', icon: '⇩', action: exportXml, title: 'Export a lightweight static tag XML snapshot. Not an RVM/Navis certification feature.' }
+    ]
+  },
+  {
+    id: 'staticSessionGroup',
+    label: 'Session',
+    icon: '▣',
+    title: 'Browser session tools for static markup/XML state',
+    note: 'Session tools are local to this browser.',
+    tools: [
+      { id: 'staticSaveSessionBtn', label: 'Save Session', icon: '▣', action: saveSession, title: 'Save the static tag XML/session buffer in this browser.' },
+      { id: 'staticRestoreSessionBtn', label: 'Restore', icon: '⟲', action: restoreSession, title: 'Restore static tag XML/session buffer from this browser.' },
+      { id: 'staticClearSessionBtn', label: 'Clear Session', icon: '⌫', action: clearSession, title: 'Clear static tag XML/session buffer.' }
+    ]
+  }
+];
 
+runWhenReady(initStaticMarkupCore);
 window.addEventListener('markup:render-context', () => refreshPanel(false));
 window.addEventListener('viewer:model-loaded', () => refreshPanel(false));
 window.addEventListener('viewer:selection-changed', () => refreshPanel(false));
+
+function runWhenReady(callback) {
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', callback, { once: true });
+  } else {
+    callback();
+  }
+}
 
 function initStaticMarkupCore() {
   ensureStyles();
   const group = ensureToolGroup();
   if (!group) return;
-  TOOLS.forEach((tool) => ensureButton(group, tool));
+  GROUPS.forEach((toolGroup) => ensureGroupedMenu(group, toolGroup));
+  bindGroupCloseEvents();
   ensurePanel();
   restoreSession(false);
   updateButtonState();
   queueUiScore();
   window.__3D_MARKUP_STATIC_MARKUP__ = {
     version: VERSION,
+    groups: GROUPS.map((entry) => entry.label),
     collectTags,
     buildXml,
-    runXmlQa: () => buildReport(collectTags())
+    runXmlQa: () => buildReport(collectTags()),
+    closeGroups
   };
 }
 
@@ -54,25 +88,105 @@ function ensureToolGroup() {
   if (!group) {
     group = document.querySelector('.navis-tag-tools') || document.createElement('div');
     group.className = 'tool-group toolbar-group navis-tag-tools tag-lite-host static-markup-tools';
-    group.setAttribute('aria-label', 'Markup, XML, and session tools');
+    group.setAttribute('aria-label', 'Grouped Tag, XML, and session tools');
     if (!group.parentElement) ribbon.appendChild(group);
   }
+  group.dataset.groupedControls = 'tag-xml-session';
+  group.setAttribute('aria-label', 'Grouped Tag, XML, and session tools');
   return group;
 }
 
-function ensureButton(group, tool) {
+function ensureGroupedMenu(host, toolGroup) {
+  let wrap = document.getElementById(toolGroup.id);
+  if (!wrap) {
+    wrap = document.createElement('div');
+    wrap.id = toolGroup.id;
+    wrap.className = 'static-markup-group';
+    wrap.dataset.markupGroup = toolGroup.label.toLowerCase();
+    wrap.innerHTML = `
+      <button id="${toolGroup.id}Toggle" type="button" class="tool-btn static-markup-group-toggle" aria-expanded="false" aria-controls="${toolGroup.id}Menu" title="${escapeHtml(toolGroup.title)}">
+        <span class="static-tool-icon" aria-hidden="true">${toolGroup.icon}</span>
+        <span>${escapeHtml(toolGroup.label)}</span>
+        <span class="static-markup-expander" aria-hidden="true">&gt;&gt;</span>
+      </button>
+      <div id="${toolGroup.id}Menu" class="static-markup-menu" hidden role="menu" aria-label="${escapeHtml(toolGroup.label)} tools"></div>
+    `;
+    host.appendChild(wrap);
+  }
+
+  const toggle = wrap.querySelector('.static-markup-group-toggle');
+  const menu = wrap.querySelector('.static-markup-menu');
+  if (toggle && !toggle.dataset.boundGroupToggle) {
+    toggle.dataset.boundGroupToggle = '1';
+    toggle.addEventListener('click', (event) => {
+      event.stopPropagation();
+      toggleGroup(toolGroup.id);
+    });
+  }
+
+  if (menu && !menu.dataset.boundGroupMenu) {
+    menu.dataset.boundGroupMenu = '1';
+    toolGroup.tools.forEach((tool) => ensureButton(menu, tool));
+    const note = document.createElement('div');
+    note.className = 'static-markup-menu-note';
+    note.textContent = toolGroup.note;
+    menu.appendChild(note);
+  }
+  return wrap;
+}
+
+function ensureButton(menu, tool) {
   let btn = document.getElementById(tool.id);
   if (!btn) {
     btn = document.createElement('button');
     btn.id = tool.id;
     btn.type = 'button';
-    btn.className = 'tool-btn static-markup-btn';
-    btn.innerHTML = `<span class="static-tool-icon" aria-hidden="true">${tool.icon}</span><span>${tool.label}</span>`;
-    group.appendChild(btn);
+    btn.className = 'tool-btn static-markup-btn static-markup-menu-item';
+    btn.innerHTML = `<span class="static-tool-icon" aria-hidden="true">${tool.icon}</span><span>${escapeHtml(tool.label)}</span>`;
+    menu.appendChild(btn);
   }
   btn.title = tool.title;
-  btn.addEventListener('click', tool.action);
+  btn.setAttribute('role', 'menuitem');
+  btn.dataset.markupTool = tool.label;
+  if (!btn.dataset.boundStaticMarkupAction) {
+    btn.dataset.boundStaticMarkupAction = '1';
+    btn.addEventListener('click', (event) => {
+      event.stopPropagation();
+      tool.action();
+      closeGroups();
+    });
+  }
   return btn;
+}
+
+function toggleGroup(groupId) {
+  const wrap = document.getElementById(groupId);
+  if (!wrap) return;
+  const menu = wrap.querySelector('.static-markup-menu');
+  const toggle = wrap.querySelector('.static-markup-group-toggle');
+  const willOpen = Boolean(menu?.hidden);
+  closeGroups();
+  if (!menu || !toggle || !willOpen) return;
+  state.openGroupId = groupId;
+  menu.hidden = false;
+  toggle.setAttribute('aria-expanded', 'true');
+}
+
+function closeGroups() {
+  state.openGroupId = '';
+  document.querySelectorAll('.static-markup-menu').forEach((menu) => { menu.hidden = true; });
+  document.querySelectorAll('.static-markup-group-toggle[aria-expanded="true"]').forEach((toggle) => toggle.setAttribute('aria-expanded', 'false'));
+}
+
+function bindGroupCloseEvents() {
+  if (document.body.dataset.staticMarkupGroupCloseBound === 'true') return;
+  document.body.dataset.staticMarkupGroupCloseBound = 'true';
+  window.addEventListener('click', (event) => {
+    if (!event.target?.closest?.('.static-markup-group')) closeGroups();
+  });
+  window.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') closeGroups();
+  });
 }
 
 function manualTag() {
@@ -331,8 +445,67 @@ function ensureStyles() {
   const style = document.createElement('style');
   style.id = 'staticMarkupCoreStyles';
   style.textContent = `
-    .static-markup-tools { min-width: max-content; }
-    .static-markup-btn .static-tool-icon { font-weight: 900; font-size: 14px; line-height: 1; }
+    .static-markup-tools {
+      min-width: max-content;
+      display: flex;
+      align-items: stretch;
+      gap: 8px;
+      contain: layout style;
+    }
+    .static-markup-group { position: relative; display: inline-flex; }
+    .static-markup-group-toggle {
+      min-width: 76px;
+      display: inline-grid;
+      grid-template-columns: auto minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 5px;
+    }
+    .static-markup-group-toggle .static-markup-expander {
+      font-size: 11px;
+      font-weight: 1000;
+      opacity: .82;
+      letter-spacing: -.08em;
+    }
+    .static-markup-group-toggle[aria-expanded="true"] .static-markup-expander { transform: rotate(90deg); }
+    .static-markup-btn .static-tool-icon,
+    .static-markup-group-toggle .static-tool-icon {
+      font-weight: 900;
+      font-size: 14px;
+      line-height: 1;
+    }
+    .static-markup-menu {
+      position: absolute;
+      top: calc(100% + 8px);
+      left: 0;
+      z-index: 92;
+      min-width: 190px;
+      display: grid;
+      gap: 5px;
+      padding: 8px;
+      border: 1px solid rgba(83,125,176,.45);
+      border-radius: 12px;
+      background: rgba(4, 14, 28, .98);
+      box-shadow: 0 18px 44px rgba(0,0,0,.42);
+    }
+    .static-markup-menu[hidden] { display: none; }
+    .static-markup-menu-item {
+      width: 100%;
+      min-height: 34px;
+      justify-content: flex-start;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      border-radius: 8px;
+      padding: 6px 9px;
+      font-size: 11px;
+      text-align: left;
+    }
+    .static-markup-menu-note {
+      padding: 5px 7px 2px;
+      color: #94abc6;
+      font-size: 10px;
+      line-height: 1.3;
+    }
     .static-markup-panel {
       position: absolute;
       left: 16px;

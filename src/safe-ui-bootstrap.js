@@ -11,7 +11,15 @@
 const SAFE_UI_VERSION = 'perf-static-drawer-bundle-20260620';
 const CLIP_UI_VERSION = 'perf-static-drawer-bundle-20260620';
 const BUNDLED_ASSETS = window.__3D_MARKUP_BUNDLED_ASSETS__ || {};
-const STATIC_SHELL_BUNDLE_URL = BUNDLED_ASSETS.shell || '';
+// Bundle URLs in the manifest are relative to the document, but dynamic
+// import() resolves relative to this module (./src/). Resolve against
+// document.baseURI so ./assets/ maps to the site root, not src/assets/.
+const STATIC_SHELL_BUNDLE_URL = resolveFromBase(BUNDLED_ASSETS.shell || '');
+
+function resolveFromBase(url) {
+  if (!url || !url.startsWith('./')) return url;
+  try { return new URL(url, document.baseURI).href; } catch (_) { return url; }
+}
 
 const EARLY_MODULE_URLS = [
   `./static-shell-core-controller.js?v=${SAFE_UI_VERSION}`,

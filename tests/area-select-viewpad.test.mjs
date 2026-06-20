@@ -12,12 +12,14 @@ assert.match(bootstrap, /static-canvas-tool-manager\.js\?v=\$\{SAFE_UI_VERSION\}
 assert.match(bundleEntry, /static-canvas-tool-manager\.js/);
 assert.match(manager, /areaSelect/);
 assert.match(manager, /Area Select/);
-assert.match(manager, /ensureButtons/);
+assert.match(manager, /patchAreaSelectApi/);
+assert.match(manager, /patchReviewButtons/);
+assert.match(manager, /onDocumentClickCapture/);
 assert.match(manager, /setPointerCapture/);
 assert.match(manager, /stopImmediatePropagation/);
 assert.match(manager, /new THREE\.Box3\(\)\.setFromObject/);
 assert.match(manager, /project\(camera\)/);
-assert.match(manager, /rectsIntersect/);
+assert.match(manager, /rectsIntersect|pointInRect/);
 assert.match(manager, /new THREE\.BoxHelper/);
 assert.match(manager, /viewer:area-select/);
 assert.match(manager, /__3D_MARKUP_AREA_SELECT__/);

@@ -55,6 +55,9 @@ jobs:
       - name: Generate BM_CII GLB support/restraint scene audit
         run: npm run artifact:glb-support-restraint-scene-audit
 
+      - name: Generate BM_CII GLB support/restraint visual regression artifact
+        run: npm run artifact:glb-support-restraint-visual-regression
+
       - name: Upload RVM catalogue sample artifact
         uses: actions/upload-artifact@v4
         with:
@@ -102,6 +105,13 @@ jobs:
         with:
           name: glb-support-restraint-scene-audit
           path: artifacts/glb-support-restraint-scene-audit
+          if-no-files-found: error
+
+      - name: Upload GLB support/restraint visual regression artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: glb-support-restraint-visual-regression
+          path: artifacts/glb-support-restraint-visual-regression
           if-no-files-found: error
 
       - name: Upload phase-gate log

@@ -4,6 +4,8 @@ import {
   evaluateRvmCode4ElbowEmissionCandidate
 } from './rvm-code4-elbow-emission-candidate-policy.js';
 
+export { RVM_CODE4_ELBOW_EXPERIMENTAL_TOKEN, RVM_CODE4_ELBOW_PRIMITIVE_CODE };
+
 export const RVM_EXPERIMENTAL_CODE4_ELBOW_WRITER_POLICY_SCHEMA = 'RvmExperimentalCode4ElbowWriterPolicy.v1';
 export const RVM_CODE4_ELBOW_BODY_BYTES = 92;
 

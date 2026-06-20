@@ -3,6 +3,11 @@ import { rvmPrimitiveCodeForKind } from './rvm-primitive-kind-contract.js';
 import { buildRvmPrimitiveTransform } from './rvm-axis-basis-policy.js';
 import { resolveRvmCntbPosition } from './rvm-cntb-coordinate-policy.js';
 import { RVM_COLR_BODY_VERSION, collectRvmColrMaterialRecords } from './rvm-colr-material-policy.js';
+import {
+  RVM_CODE4_ELBOW_PRIMITIVE_CODE,
+  assertExperimentalRvmCode4ElbowWriterCandidate,
+  buildRvmCode4ElbowLocalBbox
+} from './rvm-experimental-code4-elbow-writer-policy.js';
 
 /**
  * Writes a compact binary AVEVA Review Model tree for Navisworks import.
@@ -12,17 +17,19 @@ import { RVM_COLR_BODY_VERSION, collectRvmColrMaterialRecords } from './rvm-colr
  * version, Review name, x, y, z, material id.
  * COLR payloads use RMSS-style material color records:
  * version, material id, packed color.
+ * Default primitive emission stays writer-safe. Code 4 elbow/bend PRIM emission is
+ * experimental-only and requires explicit writeRvm() options plus the code 4 candidate gate.
  * Fallback: unsupported primitive kinds raise explicit errors so geometry is not silently dropped.
  */
 const REVIEW_CHUNK_HEADER_MARKER = 1;
 const REVIEW_CONTAINER_CLOSE_BODY_MARKER = 2;
 const REVIEW_END_BODY_MARKER = 1;
 
-export function writeRvm(exportModel) {
+export function writeRvm(exportModel, options = {}) {
   const writer = createChunkWriter();
   writer.writeChunk('HEAD', headBody(), null);
   writer.writeChunk('MODL', modelBody(), null);
-  writeNode(writer, exportModel.root);
+  writeNode(writer, exportModel.root, options);
   for (const colorRecord of collectRvmColrMaterialRecords(exportModel)) {
     writer.writeChunk('COLR', colorBody(colorRecord), null);
   }
@@ -30,13 +37,13 @@ export function writeRvm(exportModel) {
   return writer.finish();
 }
 
-function writeNode(writer, node) {
+function writeNode(writer, node, options = {}) {
   writer.writeChunk('CNTB', groupBody(node), () => {
     for (const primitive of node.primitives || []) {
-      writer.writeChunk('PRIM', primitiveBody(primitive), null);
+      writer.writeChunk('PRIM', primitiveBody(primitive, options), null);
     }
     for (const child of node.children || []) {
-      writeNode(writer, child);
+      writeNode(writer, child, options);
     }
     writer.writeChunk('CNTE', uint32Body(REVIEW_CONTAINER_CLOSE_BODY_MARKER), null);
   });
@@ -85,16 +92,24 @@ function reviewNodeName(node) {
   return node?.reviewName || node?.name || 'UNNAMED';
 }
 
-function primitiveBody(primitive) {
+function primitiveBody(primitive, options = {}) {
   assertPrimitiveMaterial(primitive);
   const matrix = buildRvmPrimitiveTransform(primitive);
   const bbox = localBboxForPrimitive(primitive);
+  const code = primitive.kind === 'elbow'
+    ? RVM_CODE4_ELBOW_PRIMITIVE_CODE
+    : rvmPrimitiveCodeForKind(primitive.kind);
   const common = [
     uint32Body(1),
-    uint32Body(rvmPrimitiveCodeForKind(primitive.kind)),
+    uint32Body(code),
     float32ArrayBody(matrix),
     float32ArrayBody(bbox)
   ];
+
+  if (primitive.kind === 'elbow') {
+    const candidate = assertExperimentalRvmCode4ElbowWriterCandidate(primitive, bbox, options);
+    return concatBuffers(common.concat(candidate.payload.map((value) => float32Body(value))));
+  }
 
   if (primitive.kind === 'cylinder') {
     return concatBuffers(common.concat([
@@ -136,6 +151,10 @@ function assertPrimitiveMaterial(primitive) {
 }
 
 function localBboxForPrimitive(primitive) {
+  if (primitive.kind === 'elbow') {
+    return buildRvmCode4ElbowLocalBbox(primitive);
+  }
+
   if (primitive.kind === 'cylinder') {
     const radius = positiveNumber(primitive.radius, 'radius');
     const half = positiveNumber(primitive.length, 'length') / 2;

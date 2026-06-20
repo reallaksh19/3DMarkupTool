@@ -122,8 +122,8 @@ assert.ok(report.requiredVerification.includes('bend-plane-orientation'));
 
 assert.equal(Object.prototype.hasOwnProperty.call(RVM_PRIMITIVE_KIND_CODES, 'elbow'), false, 'writer primitive kind contract must not add elbow in this PR');
 assert.doesNotMatch(kindContractSource, /elbow\s*:/, 'primitive-kind contract must not expose elbow as a production writer kind');
-assert.match(writerSource, /rvmPrimitiveCodeForKind/, 'writer must continue resolving primitive codes from the central safe kind contract');
-assert.doesNotMatch(writerSource, /case\s+['"]elbow['"]/, 'writer must not add an elbow production emission branch in the candidate-gate PR');
+assert.match(writerSource, /rvmPrimitiveCodeForKind/, 'writer must continue resolving production primitive codes from the central safe kind contract');
+assert.match(writerSource, /assertExperimentalRvmCode4ElbowWriterCandidate/, 'writer may only reach code 4 through the explicit experimental candidate gate');
 assert.match(pkg.scripts.test, /rvm-code4-elbow-emission-candidate-policy\.test\.mjs/, 'npm test must include the code 4 elbow candidate gate');
 
 console.log('RVM code 4 elbow emission candidate policy gate passed');

@@ -55,6 +55,7 @@ const DEFERRED_MODULE_URLS = [
   `./static-topbar-layout-controller.js?v=${SAFE_UI_VERSION}`,
   `./static-review-ribbon-tools-controller.js?v=${SAFE_UI_VERSION}`,
   `./static-canvas-action-regression-controller.js?v=${SAFE_UI_VERSION}`,
+  `./static-canvas-action-dispatch-controller.js?v=${SAFE_UI_VERSION}`,
   `./static-navigation-smoothness-controller.js?v=${SAFE_UI_VERSION}`,
   `./static-ribbon-dropdown-cleanup-controller.js?v=${SAFE_UI_VERSION}`,
   `./static-global-tool-lifecycle-controller.js?v=${SAFE_UI_VERSION}`

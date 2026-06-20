@@ -8,30 +8,45 @@ function validExportModel(overrides = {}) {
     material: 12,
     attributes: { TYPE: 'MODEL_ROOT' },
     primitives: [],
-    children: [{
-      name: 'PIPE_1',
-      reviewName: 'PIPE 1 of ZONE /INPUTXML-PI',
-      material: 12,
-      attributes: { TYPE: 'COMPONENT', ENGINEERING_TYPE: 'PIPE' },
-      primitives: [{
-        kind: 'cylinder',
-        name: 'PIPE_1_BODY',
-        center: [100, 0, 0],
-        direction: [1, 0, 0],
-        radius: 50,
-        length: 200,
-        material: 12
-      }, {
-        kind: 'sphere',
-        name: 'PIPE_1_MARKER',
-        center: [0, 0, 0],
-        diameter: 20,
-        material: 12
-      }],
-      children: []
-    }]
+    children: [validPipeNode()]
   };
   return { root: deepMerge(root, overrides.root || {}) };
+}
+
+function validPipeNode(overrides = {}) {
+  const node = {
+    name: 'PIPE_1',
+    reviewName: 'PIPE 1 of ZONE /INPUTXML-PI',
+    material: 12,
+    attributes: { TYPE: 'COMPONENT', ENGINEERING_TYPE: 'PIPE' },
+    primitives: [validCylinder(), validSphere()],
+    children: []
+  };
+  return deepMerge(node, overrides);
+}
+
+function validCylinder(overrides = {}) {
+  return {
+    kind: 'cylinder',
+    name: 'PIPE_1_BODY',
+    center: [100, 0, 0],
+    direction: [1, 0, 0],
+    radius: 50,
+    length: 200,
+    material: 12,
+    ...overrides
+  };
+}
+
+function validSphere(overrides = {}) {
+  return {
+    kind: 'sphere',
+    name: 'PIPE_1_MARKER',
+    center: [0, 0, 0],
+    diameter: 20,
+    material: 12,
+    ...overrides
+  };
 }
 
 function deepMerge(base, patch) {
@@ -57,23 +72,21 @@ function deepMerge(base, patch) {
 }
 
 assert.throws(
-  () => assertRvmExportModelPreflight(validExportModel({ root: { children: [{ reviewName: '' }] } })),
+  () => assertRvmExportModelPreflight(validExportModel({ root: { children: [validPipeNode({ reviewName: '' })] } })),
   /node\.reviewName/
 );
 
 assert.throws(
   () => assertRvmExportModelPreflight(validExportModel({
     root: {
-      children: [{
-        primitives: [{
+      children: [validPipeNode({
+        primitives: [validCylinder({
           kind: 'frustum',
           name: 'BAD_FRUSTUM',
-          center: [0, 0, 0],
-          direction: [0, 0, 1],
           radius: 1,
           length: 10
-        }]
-      }]
+        })]
+      })]
     }
   })),
   /unsupported RVM primitive kind: frustum/
@@ -82,17 +95,12 @@ assert.throws(
 assert.throws(
   () => assertRvmExportModelPreflight(validExportModel({
     root: {
-      children: [{
-        primitives: [{
-          kind: 'cylinder',
+      children: [validPipeNode({
+        primitives: [validCylinder({
           name: 'BAD_DIRECT_CODE',
-          center: [0, 0, 0],
-          direction: [0, 0, 1],
-          radius: 1,
-          length: 10,
           rvmPrimitiveCode: 7
-        }]
-      }]
+        })]
+      })]
     }
   })),
   /direct primitive-code emission/
@@ -101,16 +109,12 @@ assert.throws(
 assert.throws(
   () => assertRvmExportModelPreflight(validExportModel({
     root: {
-      children: [{
-        primitives: [{
-          kind: 'cylinder',
+      children: [validPipeNode({
+        primitives: [validCylinder({
           name: 'BAD_ZERO_DIRECTION',
-          center: [0, 0, 0],
-          direction: [0, 0, 0],
-          radius: 1,
-          length: 10
-        }]
-      }]
+          direction: [0, 0, 0]
+        })]
+      })]
     }
   })),
   /direction must be a non-zero vector/
@@ -119,7 +123,7 @@ assert.throws(
 assert.throws(
   () => assertRvmExportModelPreflight(validExportModel({
     root: {
-      children: [{
+      children: [validPipeNode({
         primitives: [{
           kind: 'box',
           name: 'BAD_BOX',
@@ -127,7 +131,7 @@ assert.throws(
           direction: [0, 0, 1],
           lengths: [10, 0, 10]
         }]
-      }]
+      })]
     }
   })),
   /lengths entries must be positive/

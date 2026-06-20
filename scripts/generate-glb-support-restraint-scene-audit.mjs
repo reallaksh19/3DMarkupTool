@@ -66,18 +66,21 @@ function auditSupportSymbol(object) {
   const sceneMetadata = sceneSupportCatalogueMetadata(userData);
   const issues = [];
   const warnings = [];
+
   if (userData.TYPE !== 'SUPPORT_RESTRAINT') issues.push('Support symbol must retain TYPE=SUPPORT_RESTRAINT in scene userData.');
   if (!userData.family) issues.push('Support symbol must retain family metadata in scene userData.');
   if (!userData.node) issues.push('Support symbol must retain node metadata in scene userData.');
   if (!userData.sourceClass) issues.push('Support symbol must retain sourceClass metadata in scene userData.');
   if (!meshCount) issues.push('Support symbol must contain at least one actual mesh descendant.');
   if (!finiteBounds) issues.push('Support symbol world bounds must be finite after GLB scene construction.');
-  if (!sceneMetadata.hasCatalogueMetadata) {
-    warnings.push('GLB support/restraint scene object is still legacy inline metadata; SUPPORT_CATALOGUE_* scene stamping is pending C18.');
-  }
-  if (sceneMetadata.schema && sceneMetadata.schema !== SUPPORT_RESTRAINT_CATALOG_SCHEMA_VERSION) {
-    issues.push(`Support catalogue scene schema mismatch: ${sceneMetadata.schema}`);
-  }
+  if (!sceneMetadata.complete) issues.push('Support symbol must expose complete SUPPORT_CATALOGUE_* scene metadata after C18.');
+  if (sceneMetadata.schema && sceneMetadata.schema !== SUPPORT_RESTRAINT_CATALOG_SCHEMA_VERSION) issues.push(`Support catalogue scene schema mismatch: ${sceneMetadata.schema}`);
+  if (sceneMetadata.family && sceneMetadata.family !== expectedSpec.family) issues.push(`Support catalogue scene family mismatch: ${sceneMetadata.family} !== ${expectedSpec.family}`);
+  if (sceneMetadata.recipeId && sceneMetadata.recipeId !== expectedSpec.recipeId) issues.push(`Support catalogue scene recipe mismatch: ${sceneMetadata.recipeId} !== ${expectedSpec.recipeId}`);
+  if (sceneMetadata.visual !== true) issues.push('Support catalogue scene metadata must mark visual=true.');
+  if (sceneMetadata.proportionalFallback !== true) issues.push('Support catalogue scene metadata must keep proportional fallback explicit.');
+  if (sceneMetadata.vendorDimensionalDbBacked !== false) issues.push('Support catalogue scene metadata must keep vendor dimensional DB backing false.');
+
   return {
     symbolName: object.name,
     objectType: object.type,
@@ -116,15 +119,26 @@ function sceneSupportCatalogueMetadata(userData = {}) {
   const schema = userData.SUPPORT_CATALOGUE_SCHEMA ?? userData.supportCatalogueSchema ?? userData.supportVisualSchema;
   const proportionalFallback = userData.SUPPORT_CATALOGUE_PROPORTIONAL_FALLBACK ?? userData.supportCatalogueProportionalFallback ?? userData.proportionalFallback;
   const vendorDb = userData.SUPPORT_CATALOGUE_VENDOR_DIMENSIONAL_DB_BACKED ?? userData.supportCatalogueVendorDimensionalDbBacked ?? userData.vendorDimensionalDbBacked;
-  return {
+  const exportWiring = userData.SUPPORT_CATALOGUE_EXPORT_PRODUCTION_WIRING ?? userData.supportCatalogueExportProductionWiring;
+  const sceneParity = userData.supportCatalogueSceneParity || '';
+  const normalized = {
     hasCatalogueMetadata: Boolean(visualFlag || family || recipeId || schema),
     visual: normalBoolean(visualFlag),
     family: family || '',
     recipeId: recipeId || '',
     schema: schema || '',
     proportionalFallback: normalBoolean(proportionalFallback),
-    vendorDimensionalDbBacked: normalBoolean(vendorDb)
+    vendorDimensionalDbBacked: normalBoolean(vendorDb),
+    exportProductionWiring: normalBoolean(exportWiring),
+    sceneParity
   };
+  normalized.complete = normalized.visual === true
+    && Boolean(normalized.family)
+    && Boolean(normalized.recipeId)
+    && Boolean(normalized.schema)
+    && normalized.proportionalFallback === true
+    && normalized.vendorDimensionalDbBacked === false;
+  return normalized;
 }
 
 function buildAudit(conversion, supportGroup, symbols) {
@@ -132,13 +146,13 @@ function buildAudit(conversion, supportGroup, symbols) {
   const warnings = symbols.flatMap((entry) => entry.warnings.map((message) => ({ symbolName: entry.symbolName, family: entry.family, sourceClass: entry.sourceClass, message })));
   if (!supportGroup) issues.push({ symbolName: 'supports.restraints', message: 'GLB scene must contain supports.restraints group.' });
   if (!symbols.length) issues.push({ symbolName: 'supports.restraints', message: 'BM_CII GLB scene must emit support/restraint symbols.' });
-  const metadataCount = symbols.filter((entry) => entry.sceneCatalogueMetadata.hasCatalogueMetadata).length;
-  const parity = metadataCount === symbols.length && symbols.length > 0 ? 'PRODUCTION_WIRED' : 'LEGACY_INLINE_SYMBOLS';
+  const metadataCount = symbols.filter((entry) => entry.sceneCatalogueMetadata.complete).length;
+  const parity = metadataCount === symbols.length && symbols.length > 0 ? 'CATALOGUE_METADATA_STAMPED' : 'LEGACY_INLINE_SYMBOLS';
   const families = unique(symbols.map((entry) => entry.family));
   const expectedFamilies = unique(symbols.map((entry) => entry.expectedCatalogueFamily));
   const sourceClasses = unique(symbols.map((entry) => entry.sourceClass));
   return {
-    schema: 'GlbSupportRestraintSceneVisualAudit.v1',
+    schema: 'GlbSupportRestraintSceneVisualAudit.v2',
     generatedAt: new Date().toISOString(),
     sample: 'samples/BM_CII_Enriched_v8_lite.XML',
     sourceKind: conversion.model?.sourceKind || conversion.scene?.userData?.sourceKind || 'unknown',
@@ -146,14 +160,16 @@ function buildAudit(conversion, supportGroup, symbols) {
       converterBoundary: 'convertInputXmlToGlb()',
       sceneSource: 'Three.js Scene returned by src/converter.js',
       supportSceneGroup: 'supports.restraints',
-      note: 'This audit inspects actual GLB scene support/restraint symbols. C17 is an audit phase; production support catalogue scene stamping is a follow-up.'
+      note: 'This audit inspects actual GLB scene support/restraint symbols and requires C18 support catalogue metadata stamping.'
     },
     contract: {
       scope: 'GLB support/restraint scene visual audit',
       glbSupportCatalogueSceneParity: parity,
+      supportCatalogueSceneMetadataRequired: true,
       proportionalFallback: true,
       vendorDimensionalDbBacked: false,
       asmeDimensionalDbBacked: false,
+      geometryProductionSwitch: false,
       rvmWriterUnaffected: true,
       uiUnaffected: true,
       externalViewerExecutedInCi: false
@@ -180,8 +196,8 @@ function buildAudit(conversion, supportGroup, symbols) {
     },
     policies: {
       actualThreeSceneAudit: true,
-      supportCatalogueSceneMetadataRequired: false,
-      supportCatalogueSceneMetadataFollowUp: 'C18',
+      supportCatalogueSceneMetadataRequired: true,
+      supportCatalogueSceneMetadataPhase: 'C18',
       proportionalFallback: true,
       vendorDimensionalDatabaseBacked: false,
       rvmWriterUnaffected: true,
@@ -201,9 +217,11 @@ function renderMarkdownSummary(audit) {
     `Schema: \`${audit.schema}\`\n\n` +
     `Sample: \`${audit.sample}\`\n\n` +
     `## Scope\n\n` +
-    `This report audits actual Three.js scene objects emitted by \`convertInputXmlToGlb()\` for support/restraint symbols. It verifies presence, finite bounds, source/family/node metadata, and records the current GLB-side catalogue parity status.\n\n` +
+    `This report audits actual Three.js scene objects emitted by \`convertInputXmlToGlb()\` for support/restraint symbols. It verifies presence, finite bounds, source/family/node metadata, and C18 support catalogue scene metadata stamping.\n\n` +
     `| Contract item | Value |\n|---|---:|\n` +
     `| GLB support catalogue scene parity | ${c.glbSupportCatalogueSceneParity} |\n` +
+    `| Support catalogue scene metadata required | ${c.supportCatalogueSceneMetadataRequired ? 'TRUE' : 'FALSE'} |\n` +
+    `| Geometry production switch | ${c.geometryProductionSwitch ? 'TRUE' : 'FALSE'} |\n` +
     `| Proportional fallback | ${c.proportionalFallback ? 'TRUE' : 'FALSE'} |\n` +
     `| Vendor dimensional DB backed | ${c.vendorDimensionalDbBacked ? 'TRUE' : 'FALSE'} |\n` +
     `| ASME dimensional DB backed | ${c.asmeDimensionalDbBacked ? 'TRUE' : 'FALSE'} |\n` +
@@ -225,14 +243,15 @@ function renderMarkdownSummary(audit) {
     `## Families\n\n${renderList(s.families)}\n` +
     `## Expected catalogue families\n\n${renderList(s.expectedCatalogueFamilies)}\n` +
     `## Source classes\n\n${renderList(s.sourceClasses)}\n` +
-    `## C17 result\n\n` +
+    `## C18 result\n\n` +
     `- ${s.ok ? '✅' : '❌'} support/restraint scene objects are present and finite\n` +
-    `- ${s.glbSupportCatalogueSceneParity === 'LEGACY_INLINE_SYMBOLS' ? '⚠️' : '✅'} GLB support catalogue scene parity: \`${s.glbSupportCatalogueSceneParity}\`\n` +
+    `- ${s.glbSupportCatalogueSceneParity === 'CATALOGUE_METADATA_STAMPED' ? '✅' : '❌'} GLB support catalogue scene parity: \`${s.glbSupportCatalogueSceneParity}\`\n` +
+    `- ✅ support catalogue scene metadata is required and stamped\n` +
     `- ✅ proportional fallback remains explicit\n` +
     `- ✅ no vendor/ASME dimensional database claim\n` +
     `- ✅ no UI or RVM writer behavior change\n\n` +
     `## Follow-up\n\n` +
-    `C18 should wire/stamp the support-restraint catalogue into the GLB scene path so support/restraint scene objects expose SUPPORT_CATALOGUE_* or equivalent camelCase userData, matching the RVM/ATT path already proven by C16.\n`;
+    `C19 can replace the remaining GLB legacy inline support symbol geometry with catalogue primitive adapter output. C18 only stamps metadata and leaves symbol geometry unchanged.\n`;
 }
 
 function countDescendantMeshes(object) { let count = 0; object.traverse?.((child) => { if (child.isMesh) count += 1; }); return count; }

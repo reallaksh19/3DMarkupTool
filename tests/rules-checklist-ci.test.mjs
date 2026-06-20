@@ -40,12 +40,13 @@ assert.match(ACTIVE_CACHE_KEY, dateStampedKey, 'active cache key must be auditab
 for (const [name, source] of [
   ['safe-ui-bootstrap.js', safeBootstrap],
   ['app-loader.js', appLoader],
-  ['static-browser-diagnostics-controller.js', diagnostics],
   ['build-pages.mjs', buildScript]
 ]) {
   assert.match(source, new RegExp(ACTIVE_CACHE_KEY.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')), `${name} must use the active cache key`);
   assert.doesNotMatch(source, /perf-static-drawer-bundle-20260620/, `${name} must not keep the prior static-drawer bundle key active`);
 }
+assert.match(diagnostics, new RegExp(ACTIVE_CACHE_KEY.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')), 'diagnostics must expose the active cache key');
+assert.match(diagnostics, /STALE_SHELL_VERSION = 'perf-static-drawer-bundle-20260620'/, 'diagnostics may retain the prior key only as stale-asset detection data');
 
 assertBefore(safeBootstrap, /const SAFE_UI_VERSION/, /scheduleCoreShell\(\)/, 'safe-ui-bootstrap constants must be declared before module-init calls');
 assertBefore(safeBootstrap, /const _searchParams/, /const CLIP_MODULE_URLS/, 'safe-ui-bootstrap query params must be declared before shouldLoadClipTools init-time use');

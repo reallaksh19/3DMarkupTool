@@ -2,13 +2,16 @@ import { normalizeRvmMaterialId, rvmMaterialIdForNode } from './rvm-material-lay
 import { rvmPrimitiveCodeForKind } from './rvm-primitive-kind-contract.js';
 import { buildRvmPrimitiveTransform } from './rvm-axis-basis-policy.js';
 import { resolveRvmCntbPosition } from './rvm-cntb-coordinate-policy.js';
+import { RVM_COLR_BODY_VERSION, collectRvmColrMaterialRecords } from './rvm-colr-material-policy.js';
 
 /**
  * Writes a compact binary AVEVA Review Model tree for Navisworks import.
  * Parameters: export tree from buildRvmExportModel with named nodes and primitive records.
- * Output: ArrayBuffer containing HEAD, MODL, CNTB, PRIM, CNTE, and END chunks.
+ * Output: ArrayBuffer containing HEAD, MODL, CNTB, PRIM, CNTE, optional COLR, and END chunks.
  * CNTB payloads use RMSS/RHBG-style node reference coordinates:
  * version, Review name, x, y, z, material id.
+ * COLR payloads use RMSS-style material color records:
+ * version, material id, packed color.
  * Fallback: unsupported primitive kinds raise explicit errors so geometry is not silently dropped.
  */
 const REVIEW_CHUNK_HEADER_MARKER = 1;
@@ -20,6 +23,9 @@ export function writeRvm(exportModel) {
   writer.writeChunk('HEAD', headBody(), null);
   writer.writeChunk('MODL', modelBody(), null);
   writeNode(writer, exportModel.root);
+  for (const colorRecord of collectRvmColrMaterialRecords(exportModel)) {
+    writer.writeChunk('COLR', colorBody(colorRecord), null);
+  }
   writer.writeChunk('END:', uint32Body(REVIEW_END_BODY_MARKER), null);
   return writer.finish();
 }
@@ -64,6 +70,14 @@ function groupBody(node) {
     float32Body(y),
     float32Body(z),
     uint32Body(rvmMaterialIdForNode(node))
+  ]);
+}
+
+function colorBody(record) {
+  return concatBuffers([
+    uint32Body(RVM_COLR_BODY_VERSION),
+    uint32Body(record.materialId),
+    uint32Body(record.packedColor)
   ]);
 }
 

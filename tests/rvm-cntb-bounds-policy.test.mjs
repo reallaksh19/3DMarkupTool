@@ -66,7 +66,7 @@ assert.deepEqual(
   ],
   'CNTB payload must decode as explicit x/y/z coordinates, not reserved strings or bbox fields'
 );
-assert.equal(records[0].bodyLength, 44, 'CNTB body length must stay RMSS-compatible for /INPUTXML name');
+assert.equal(records[0].bodyLength, 36, 'CNTB body length must match version + /INPUTXML string + x/y/z + material id');
 
 const policy = assertRvmCntbBoundsPolicy(rvm, exportModel);
 assert.equal(policy.schema, 'RvmCntbBoundsPolicy.v2');

@@ -39,4 +39,5 @@ assert.doesNotMatch(review, /setInterval\s*\(/, 'Review ribbon integration must 
 
 assert.match(pkg.scripts.test, /area-select-workflow-phase8\.test\.mjs/, 'npm test must include the Phase 8 Area Select workflow gate.');
 
+// CI trigger: refresh Phase 8 PR head so GitHub Actions runs against the current workflow configuration.
 console.log('area-select workflow phase8 gate passed');

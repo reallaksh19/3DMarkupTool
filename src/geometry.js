@@ -3,8 +3,6 @@ import { resolveSupportRestraintVisualSpec } from './support-restraint-visual-ca
 
 export const COLORS = { pipe: 0xf0f4f8, rigid: 0x8fb2d8, valve: 0x21d4c4, bend: 0x67d4ef, rest: 0xf8c34a, guide: 0x18d5c0, lineStop: 0xf2a93b, holddown: 0xf05ab9, spring: 0xd273ff, warning: 0xff8c73, isonote: 0x211b2e, node: 0x66c8ff, text: 0xffffff };
 
-installSupportRestraintCatalogueUserDataStamping();
-
 export function mat(color, opts = {}) { return new THREE.MeshStandardMaterial({ color, roughness: 0.72, metalness: 0.04, side: THREE.DoubleSide, ...opts }); }
 export function vectorFrom(p, scale = 0.01) { return new THREE.Vector3(p.x * scale, p.y * scale, p.z * scale); }
 
@@ -215,3 +213,5 @@ function stampSupportRestraintCatalogueUserData(value) {
     supportCatalogueSceneMetadataOnly: true
   };
 }
+
+installSupportRestraintCatalogueUserDataStamping();

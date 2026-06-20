@@ -5,6 +5,7 @@ import { writeRvm } from '../src/rvm-writer.js';
 import { auditRvmBinary, assertRvmBinaryCompatibility } from '../src/rvm-binary-audit.js';
 
 const writerSource = readFileSync(new URL('../src/rvm-writer.js', import.meta.url), 'utf8');
+const axisBasisSource = readFileSync(new URL('../src/rvm-axis-basis-policy.js', import.meta.url), 'utf8');
 const auditSource = readFileSync(new URL('../src/rvm-binary-audit.js', import.meta.url), 'utf8');
 const artifactScript = readFileSync(new URL('../scripts/generate-rvm-catalogue-sample-artifact.mjs', import.meta.url), 'utf8');
 const pkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
@@ -87,9 +88,11 @@ assert.equal(round(primitive.trailing[1], 6), 1000, 'cylinder length payload mus
 assert.match(writerSource, /const REVIEW_CHUNK_HEADER_MARKER = 1/, 'writer must use explicit Review chunk header marker value 1');
 assert.match(writerSource, /const REVIEW_CONTAINER_CLOSE_BODY_MARKER = 2/, 'writer must use RHBG-style CNTE body marker value 2');
 assert.match(writerSource, /const REVIEW_END_BODY_MARKER = 1/, 'writer must use RHBG-style END: body marker value 1');
-assert.match(writerSource, /const RVM_PRIMITIVE_TRANSFORM_SCALE = 0\.001/, 'writer must use RHBG-style 0.001 primitive transform scale');
-assert.match(writerSource, /scaleRvmTransformVector\(basis\.x\)/, 'writer must scale primitive basis vectors before writing PRIM matrices');
-assert.match(writerSource, /scaleRvmTransformVector\(center\)/, 'writer must scale primitive translations before writing PRIM matrices');
+assert.match(writerSource, /buildRvmPrimitiveTransform\(primitive\)/, 'writer must delegate primitive matrices to the central axis/basis policy');
+assert.doesNotMatch(writerSource, /function basisFromDirection/, 'writer must not keep ad-hoc primitive basis construction');
+assert.match(axisBasisSource, /export const RVM_PRIMITIVE_TRANSFORM_SCALE = 0\.001/, 'axis/basis policy must own RHBG-style 0.001 primitive transform scale');
+assert.match(axisBasisSource, /scaleRvmTransformVector\(basis\.x\)/, 'axis/basis policy must scale primitive basis vectors before writing PRIM matrices');
+assert.match(axisBasisSource, /scaleRvmTransformVector\(center\)/, 'axis/basis policy must scale primitive translations before writing PRIM matrices');
 assert.match(writerSource, /writer\.writeChunk\('CNTE', uint32Body\(REVIEW_CONTAINER_CLOSE_BODY_MARKER\)/, 'writer must emit CNTE body marker 2');
 assert.match(writerSource, /writer\.writeChunk\('END:', uint32Body\(REVIEW_END_BODY_MARKER\)/, 'writer must emit END: body marker 1');
 assert.match(writerSource, /view\.setUint32\(20, REVIEW_CHUNK_HEADER_MARKER, false\)/, 'writer chunk headers must carry marker value 1');
@@ -100,6 +103,7 @@ assert.match(auditSource, /endBodyLength !== 4/, 'binary compatibility assertion
 assert.match(artifactScript, /assertRvmBinaryCompatibility/, 'CI artifact generator must run binary compatibility audit');
 assert.match(artifactScript, /rvmBinaryAudit/, 'CI artifact audit JSON must include binary audit summary');
 assert.match(pkg.scripts.test, /rvm-binary-compatibility\.test\.mjs/, 'npm test must include the C6 RVM binary compatibility gate');
+assert.match(pkg.scripts.test, /rvm-axis-basis-policy\.test\.mjs/, 'npm test must include the RVM axis/basis policy gate');
 
 console.log('RVM binary compatibility gate passed');
 

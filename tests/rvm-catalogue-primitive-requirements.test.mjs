@@ -13,6 +13,7 @@ const translatorSource = readFileSync(new URL('../src/rvm-catalogue-primitive-tr
 const rvmWriterSource = readFileSync(new URL('../src/rvm-writer.js', import.meta.url), 'utf8');
 const primitiveKindContractSource = readFileSync(new URL('../src/rvm-primitive-kind-contract.js', import.meta.url), 'utf8');
 const pkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
+const supportedRvmKindSet = new Set(RVM_CATALOGUE_SUPPORTED_PRIMITIVE_KINDS);
 
 const flangedValve = {
   id: 'PE_004_VALVE_40_TO_50',
@@ -80,7 +81,7 @@ assert.ok(flangeExport.primitives.some((primitive) => /BOLT/.test(primitive.name
 const combined = [...valveExport.primitives, ...flangeExport.primitives];
 const emittedKinds = new Set(combined.map((primitive) => primitive.kind));
 for (const kind of emittedKinds) {
-  assert.ok(RVM_CATALOGUE_SUPPORTED_PRIMITIVE_KINDS.has(kind), `Translated primitive kind ${kind} must be writer-supported.`);
+  assert.ok(supportedRvmKindSet.has(kind), `Translated primitive kind ${kind} must be writer-supported.`);
 }
 assert.deepEqual(
   [...emittedKinds].sort(),
@@ -94,7 +95,7 @@ const adapterPrimitives = buildRvmValveFlangeCataloguePrimitives(
   { start: [0, 0, 0], end: [1000, 0, 0], material: 27, namePrefix: flangedValve.id }
 );
 assert.ok(adapterPrimitives.some((primitive) => primitive.sourceKind === 'frustum'), 'Frustum adapter hints should be tracked as sourceKind.');
-assert.ok(adapterPrimitives.every((primitive) => RVM_CATALOGUE_SUPPORTED_PRIMITIVE_KINDS.has(primitive.kind)), 'All translated primitive kinds must be writer-safe.');
+assert.ok(adapterPrimitives.every((primitive) => supportedRvmKindSet.has(primitive.kind)), 'All translated primitive kinds must be writer-safe.');
 
 const exportModel = {
   root: {

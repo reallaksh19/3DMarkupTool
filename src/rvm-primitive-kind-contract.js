@@ -2,7 +2,7 @@
  * Central RVM primitive-kind compatibility contract.
  *
  * The writer intentionally emits only the primitive kinds that are already mapped
- * through the current export model contract. RHBG.RVM reference inspection shows
+ * through the current export model contract. RMSS/RHBG reference inspection shows
  * additional Review primitive codes, but those remain blocked until each payload
  * layout is implemented and externally verified.
  */
@@ -16,10 +16,22 @@ export const RVM_PRIMITIVE_KIND_CODES = Object.freeze({
 
 export const ALLOWED_RVM_PRIMITIVE_KINDS = Object.freeze(Object.keys(RVM_PRIMITIVE_KIND_CODES));
 
+export const RMSS_OBSERVED_PRIMITIVE_CODES = Object.freeze([1, 2, 4, 5, 6, 7, 8, 11]);
 export const RHBG_OBSERVED_PRIMITIVE_CODES = Object.freeze([2, 3, 4, 5, 7, 8, 11]);
+export const REFERENCE_OBSERVED_PRIMITIVE_CODES = Object.freeze(
+  Array.from(new Set([...RMSS_OBSERVED_PRIMITIVE_CODES, ...RHBG_OBSERVED_PRIMITIVE_CODES])).sort((a, b) => a - b)
+);
 
+const EMITTED_CODE_SET = new Set(Object.values(RVM_PRIMITIVE_KIND_CODES));
+
+export const UNEMITTED_RMSS_PRIMITIVE_CODES = Object.freeze(
+  RMSS_OBSERVED_PRIMITIVE_CODES.filter((code) => !EMITTED_CODE_SET.has(code))
+);
 export const UNEMITTED_RHBG_PRIMITIVE_CODES = Object.freeze(
-  RHBG_OBSERVED_PRIMITIVE_CODES.filter((code) => !Object.values(RVM_PRIMITIVE_KIND_CODES).includes(code))
+  RHBG_OBSERVED_PRIMITIVE_CODES.filter((code) => !EMITTED_CODE_SET.has(code))
+);
+export const UNEMITTED_REFERENCE_PRIMITIVE_CODES = Object.freeze(
+  REFERENCE_OBSERVED_PRIMITIVE_CODES.filter((code) => !EMITTED_CODE_SET.has(code))
 );
 
 const ALLOWED_KIND_SET = new Set(ALLOWED_RVM_PRIMITIVE_KINDS);
@@ -44,8 +56,12 @@ export function rvmPrimitiveKindCompatibilityReport() {
   return {
     policy: 'fail-closed',
     emittedKinds: ALLOWED_RVM_PRIMITIVE_KINDS.map((kind) => ({ kind, code: RVM_PRIMITIVE_KIND_CODES[kind] })),
+    rmssObservedPrimitiveCodes: [...RMSS_OBSERVED_PRIMITIVE_CODES],
     rhbgObservedPrimitiveCodes: [...RHBG_OBSERVED_PRIMITIVE_CODES],
+    referenceObservedPrimitiveCodes: [...REFERENCE_OBSERVED_PRIMITIVE_CODES],
+    rmssObservedCodesNotEmitted: [...UNEMITTED_RMSS_PRIMITIVE_CODES],
     rhbgObservedCodesNotEmitted: [...UNEMITTED_RHBG_PRIMITIVE_CODES],
-    note: 'Observed RHBG primitive codes are not emitted until the payload layout is implemented and verified.'
+    referenceObservedCodesNotEmitted: [...UNEMITTED_REFERENCE_PRIMITIVE_CODES],
+    note: 'Observed RMSS/RHBG primitive codes are not emitted until each payload layout is implemented and verified.'
   };
 }

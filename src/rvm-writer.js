@@ -1,3 +1,4 @@
+import { normalizeRvmMaterialId, rvmMaterialIdForNode } from './rvm-material-layer-contract.js';
 import { rvmPrimitiveCodeForKind } from './rvm-primitive-kind-contract.js';
 
 /**
@@ -58,7 +59,7 @@ function groupBody(node) {
     rvmEmptyString(),
     rvmEmptyString(),
     float32Body(node.reviewValue || 0),
-    uint32Body(node.material || 0)
+    uint32Body(rvmMaterialIdForNode(node))
   ]);
 }
 
@@ -67,6 +68,7 @@ function reviewNodeName(node) {
 }
 
 function primitiveBody(primitive) {
+  assertPrimitiveMaterial(primitive);
   const matrix = matrixForPrimitive(primitive);
   const bbox = localBboxForPrimitive(primitive);
   const common = [
@@ -107,6 +109,12 @@ function primitiveBody(primitive) {
   }
 
   throw new Error(`Unsupported RVM primitive kind: ${primitive.kind}`);
+}
+
+function assertPrimitiveMaterial(primitive) {
+  if (primitive.material !== undefined && primitive.material !== null && primitive.material !== '') {
+    normalizeRvmMaterialId(primitive.material, `RVM primitive material for ${primitive.name || 'UNNAMED_PRIMITIVE'}`);
+  }
 }
 
 function matrixForPrimitive(primitive) {

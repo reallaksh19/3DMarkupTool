@@ -6,6 +6,7 @@ import { normalizeNavisExportModelNames } from './navis-safe-export-model.js?v=n
 import { applyReviewStyleNodeNames } from './rvm-review-node-names.js?v=rhbg-review-names-1';
 import { assertNavisExportModel } from './navis-export-contract.js?v=navis-contract-1';
 import { assertRvmMaterialLayerContract } from './rvm-material-layer-contract.js?v=rvm-material-layer-1';
+import { assertRvmMaterialTableContract } from './rvm-material-table-contract.js?v=rvm-material-table-1';
 import { writeRvm } from './rvm-writer.js?v=professional-viewer-3';
 import { writeAtt } from './att-writer.js?v=professional-viewer-3';
 import { scanRvmPrimitivePayloads } from './rvm-primitive-payload-decoder.js?v=rvm-payload-contract-1';
@@ -28,6 +29,7 @@ export function convertInputXmlToRvmAtt(sourceText, options) {
   });
   const rvmMaterialLayerContract = assertRvmMaterialLayerContract(exportModel);
   const rvm = writeRvm(exportModel);
+  const rvmMaterialTableContract = assertRvmMaterialTableContract(rvm, rvmMaterialLayerContract);
   const rvmPrimitivePayloadContract = assertGeneratedRvmPayloadCompatibility(scanRvmPrimitivePayloads(rvm));
   const att = writeAtt(exportModel);
   return {
@@ -42,6 +44,7 @@ export function convertInputXmlToRvmAtt(sourceText, options) {
       diagnostics: model.diagnostics || [],
       navisContract,
       rvmMaterialLayerContract,
+      rvmMaterialTableContract,
       rvmPrimitivePayloadContract,
       rvmBytes: rvm.byteLength,
       attBytes: new TextEncoder().encode(att).byteLength,

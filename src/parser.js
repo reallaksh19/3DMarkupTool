@@ -248,7 +248,12 @@ export function parseIsonoteExpectedRecords(model, options = {}) {
         records.push(baseRec(node, note, 'HOLDDOWN', '±Y', loadFromClause(clause), gapMm));
       }
       if (/CAN\s+SPRING|SPRING\s+CAN/.test(c)) {
-        records.push({ ...baseRec(node, note, 'SPRING_WARNING', 'BELOW_PIPE', null, gapMm), sourceMode: 'WARNING_ISONOTE', warningText: 'Can Spring / Spring Can' });
+        records.push({
+          ...baseRec(node, note, 'SPRING_WARNING', 'BELOW_PIPE, FACING_UPWARD', null, gapMm),
+          sign: '+Y / UPWARD',
+          sourceMode: 'WARNING_ISONOTE',
+          warningText: 'Can Spring / Spring Can'
+        });
       }
       const single = c.match(/SINGLE\s+AXIS\s+([XYZ])/);
       if (single) {

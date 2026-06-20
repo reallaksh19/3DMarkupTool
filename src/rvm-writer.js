@@ -1,3 +1,5 @@
+import { rvmPrimitiveCodeForKind } from './rvm-primitive-kind-contract.js';
+
 /**
  * Writes a compact binary AVEVA Review Model tree for Navisworks import.
  * Parameters: export tree from buildRvmExportModel with named nodes and primitive records.
@@ -69,7 +71,7 @@ function primitiveBody(primitive) {
   const bbox = localBboxForPrimitive(primitive);
   const common = [
     uint32Body(1),
-    uint32Body(primitiveKind(primitive.kind)),
+    uint32Body(rvmPrimitiveCodeForKind(primitive.kind)),
     float32ArrayBody(matrix),
     float32ArrayBody(bbox)
   ];
@@ -105,14 +107,6 @@ function primitiveBody(primitive) {
   }
 
   throw new Error(`Unsupported RVM primitive kind: ${primitive.kind}`);
-}
-
-function primitiveKind(kind) {
-  if (kind === 'pyramid') return 1;
-  if (kind === 'box') return 2;
-  if (kind === 'cylinder') return 8;
-  if (kind === 'sphere') return 9;
-  throw new Error(`Unsupported RVM primitive kind: ${kind}`);
 }
 
 function matrixForPrimitive(primitive) {

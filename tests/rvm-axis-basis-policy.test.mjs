@@ -100,5 +100,6 @@ console.log('RVM axis/basis policy technical test passed');
 
 function round(value, decimals) {
   const factor = 10 ** decimals;
-  return Math.round(value * factor) / factor;
+  const rounded = Math.round(value * factor) / factor;
+  return Object.is(rounded, -0) ? 0 : rounded;
 }

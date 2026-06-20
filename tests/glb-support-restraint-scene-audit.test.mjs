@@ -63,7 +63,7 @@ for (const symbol of audit.supportSymbols) {
 
 assert.match(summary, /GLB Support \/ Restraint Scene Visual Audit/);
 assert.match(summary, /LEGACY_INLINE_SYMBOLS/);
-assert.match(summary, /supports\.restraints/);
+assert.match(summary, /Support scene group present/);
 assert.match(summary, /Symbols with finite bounds/);
 assert.match(summary, /Symbols with support catalogue scene metadata/);
 assert.match(summary, /Expected catalogue families/);

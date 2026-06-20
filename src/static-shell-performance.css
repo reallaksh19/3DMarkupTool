@@ -352,3 +352,17 @@ body:not(.sideload-expanded) #inputDrawer .panel-section[data-collapsible="sidel
 .panel-section {
   contain: layout style;
 }
+
+/* The markup ribbon is a separate row from .main-ribbon and was not covered
+ * by the rules above. Its tag/markup tool host is decorated post-boot, so
+ * containing it keeps those updates from reflowing the whole header/body.
+ * `contain: paint` is again omitted so tag-tool dropdowns can overflow. */
+.markup-ribbon {
+  contain: layout style;
+}
+
+.markup-ribbon .tool-group,
+.markup-ribbon .toolbar-group,
+.static-markup-tools {
+  contain: layout style;
+}

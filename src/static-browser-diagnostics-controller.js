@@ -15,6 +15,11 @@ let wheelLatency = null;
 let webglInfo = null;
 let diagnosticsScheduled = false;
 let diagnosticsComplete = false;
+let environmentInfo = null;
+let navigationTiming = null;
+let memoryInfo = null;
+let longTaskStats = null;
+let batteryInfo = null;
 
 window.__3D_MARKUP_BROWSER_DIAGNOSTICS__ = {
   version: BROWSER_DIAGNOSTICS_VERSION,
@@ -81,9 +86,130 @@ function runHeavyDiagnosticsProbes() {
   if (diagnosticsComplete) return;
   diagnosticsComplete = true;
   webglInfo = collectWebglInfo();
+  environmentInfo = collectEnvironmentInfo();
+  navigationTiming = collectNavigationTiming();
+  memoryInfo = collectMemoryInfo();
+  collectBatteryInfo();
   installWheelLatencyProbe();
   sampleFrameTime();
   console.info('[3DMarkupTool:browser-diagnostics:late]', checklist());
+}
+
+function collectEnvironmentInfo() {
+  const nav = window.navigator || {};
+  const conn = nav.connection || nav.mozConnection || nav.webkitConnection || null;
+  const reduceMotion = typeof window.matchMedia === 'function'
+    && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  return {
+    hardwareConcurrency: nav.hardwareConcurrency || null,
+    deviceMemoryGb: nav.deviceMemory || null,
+    devicePixelRatio: window.devicePixelRatio || 1,
+    viewport: { width: window.innerWidth, height: window.innerHeight },
+    screen: window.screen
+      ? { width: window.screen.width, height: window.screen.height, colorDepth: window.screen.colorDepth }
+      : null,
+    connection: conn
+      ? { effectiveType: conn.effectiveType, downlinkMbps: conn.downlink, rttMs: conn.rtt, saveData: conn.saveData }
+      : null,
+    prefersReducedMotion: reduceMotion,
+    online: typeof nav.onLine === 'boolean' ? nav.onLine : null
+  };
+}
+
+function collectNavigationTiming() {
+  try {
+    const navEntry = performance.getEntriesByType('navigation')[0];
+    const paints = performance.getEntriesByType('paint') || [];
+    const fcp = paints.find((p) => p.name === 'first-contentful-paint');
+    if (!navEntry) return { firstContentfulPaintMs: fcp ? round(fcp.startTime) : null };
+    return {
+      ttfbMs: round(navEntry.responseStart),
+      domInteractiveMs: round(navEntry.domInteractive),
+      domContentLoadedMs: round(navEntry.domContentLoadedEventEnd),
+      loadEventMs: round(navEntry.loadEventEnd),
+      firstContentfulPaintMs: fcp ? round(fcp.startTime) : null,
+      transferKb: navEntry.transferSize ? Math.round(navEntry.transferSize / 1024) : null
+    };
+  } catch (error) {
+    return { error: error && (error.message || String(error)) };
+  }
+}
+
+function collectMemoryInfo() {
+  const m = performance && performance.memory;
+  if (!m) return { supported: false };
+  return {
+    supported: true,
+    usedHeapMb: round(m.usedJSHeapSize / 1048576),
+    totalHeapMb: round(m.totalJSHeapSize / 1048576),
+    limitMb: round(m.jsHeapSizeLimit / 1048576)
+  };
+}
+
+function collectBatteryInfo() {
+  if (!window.navigator || typeof window.navigator.getBattery !== 'function') {
+    batteryInfo = { supported: false };
+    return;
+  }
+  window.navigator.getBattery()
+    .then((b) => {
+      batteryInfo = {
+        supported: true,
+        charging: b.charging,
+        levelPct: Math.round(b.level * 100)
+      };
+    })
+    .catch((error) => {
+      batteryInfo = { supported: false, reason: error && (error.message || String(error)) };
+    });
+}
+
+function startLongTaskObserver() {
+  if (typeof PerformanceObserver !== 'function') {
+    return { supported: false, count: 0, totalMs: 0, maxMs: 0 };
+  }
+  const stats = { supported: true, count: 0, totalMs: 0, maxMs: 0, _observer: null };
+  try {
+    const observer = new PerformanceObserver((list) => {
+      for (const entry of list.getEntries()) {
+        stats.count += 1;
+        stats.totalMs = round(stats.totalMs + entry.duration);
+        stats.maxMs = Math.max(stats.maxMs, round(entry.duration));
+      }
+    });
+    observer.observe({ type: 'longtask', buffered: false });
+    stats._observer = observer;
+  } catch (error) {
+    return { supported: false, reason: error && (error.message || String(error)), count: 0, totalMs: 0, maxMs: 0 };
+  }
+  return stats;
+}
+
+function finalizeLongTaskObserver(stats) {
+  if (stats && stats._observer) {
+    try { stats._observer.takeRecords && stats._observer.takeRecords().forEach(() => {}); } catch (_) {}
+    try { stats._observer.disconnect(); } catch (_) {}
+    delete stats._observer;
+  }
+  return stats;
+}
+
+function interpretFrameSample(sample, longTasks) {
+  if (sample.visibilityState && sample.visibilityState !== 'visible') {
+    return 'tab-hidden-throttle (frames are paced by the browser, not the app; not real jank)';
+  }
+  if (sample.hadFocus === false) {
+    return 'tab-unfocused-throttle (background-window rAF pacing; not real jank)';
+  }
+  const slowish = sample.slowFrames >= 8 || sample.p95Ms > 80;
+  if (!slowish) return 'nominal';
+  if (longTasks && longTasks.supported) {
+    if (longTasks.totalMs >= 200) {
+      return `main-thread-blocking (${longTasks.count} long tasks, ${longTasks.totalMs}ms total during sample)`;
+    }
+    return 'raf-throttle-or-vsync (slow frame cadence but main thread idle — suspect power-save, occlusion, DevTools overhead, or capped refresh rate)';
+  }
+  return 'indeterminate (long-task API unavailable; cannot separate throttle from blocking)';
 }
 
 function recordModuleFailure(detail) {
@@ -166,6 +292,9 @@ function sampleFrameTime() {
   if (!window.requestAnimationFrame) return;
   const samples = [];
   const maxFrames = 90;
+  const startVisibility = document.visibilityState;
+  const startFocus = typeof document.hasFocus === 'function' ? document.hasFocus() : null;
+  const ltStats = startLongTaskObserver();
   const start = performance.now();
   let last = start;
   function step(now) {
@@ -176,25 +305,60 @@ function sampleFrameTime() {
       window.requestAnimationFrame(step);
       return;
     }
+    const elapsed = now - start;
     const sorted = samples.slice().sort((a, b) => a - b);
     const average = samples.reduce((sum, value) => sum + value, 0) / Math.max(samples.length, 1);
     const max = Math.max(...samples, 0);
+    const min = sorted.length ? sorted[0] : 0;
+    const median = sorted.length ? sorted[Math.floor(sorted.length / 2)] : 0;
     const p95 = sorted.length ? sorted[Math.floor(sorted.length * 0.95)] : 0;
     const slowFrames = samples.filter((value) => value > 50).length;
+    longTaskStats = finalizeLongTaskObserver(ltStats);
     frameSample = {
       sampleCount: samples.length,
+      elapsedMs: round(elapsed),
       averageMs: round(average),
+      minMs: round(min),
+      medianMs: round(median),
       p95Ms: round(p95),
       maxMs: round(max),
       slowFrames,
+      effectiveFps: round(1000 / Math.max(average, 0.0001)),
+      terminatedBy: samples.length >= maxFrames ? 'frame-target' : 'time-cap',
+      visibilityState: startVisibility,
+      hadFocus: startFocus,
+      longTasksDuringSample: longTaskStats && longTaskStats.supported ? longTaskStats.count : null,
+      longTaskMsDuringSample: longTaskStats && longTaskStats.supported ? longTaskStats.totalMs : null,
+      maxLongTaskMs: longTaskStats && longTaskStats.supported ? longTaskStats.maxMs : null,
       startedAt: new Date(start + performance.timeOrigin).toISOString()
     };
-    if (isChrome && (slowFrames >= 8 || p95 > 80)) {
+    frameSample.likelyCause = interpretFrameSample(frameSample, longTaskStats);
+    console.info('[3DMarkupTool:browser-diagnostics:frame]', frameSample);
+
+    // Only warn when the sample reflects a tab the user is actually looking at
+    // (visible + focused) AND the main thread was genuinely busy (long tasks).
+    // Throttled/occluded samples or idle-main-thread frame pacing are not
+    // actionable jank, so they get an info-level note instead of a banner.
+    const throttleSuspected = startVisibility !== 'visible' || startFocus === false;
+    const mainThreadBusy = longTaskStats && longTaskStats.supported
+      ? longTaskStats.totalMs >= 200
+      : true; // unknown → fall back to legacy behaviour and warn
+    const slowish = slowFrames >= 8 || p95 > 80;
+    const rendererName = webglInfo && (webglInfo.unmaskedRenderer || webglInfo.renderer);
+
+    if (isChrome && slowish && !throttleSuspected && mainThreadBusy) {
       recordRuntimeWarning({
         type: 'frame-lag',
         title: 'Chrome frame-time lag detected',
-        message: 'Chrome is reporting slow frames in the viewer shell. Try Ctrl+F5, then Chrome DevTools → Network → Disable cache and reload. If it persists, disable Chrome hardware acceleration or test Edge for GPU-driver comparison.',
-        detail: `p95=${frameSample.p95Ms}ms, max=${frameSample.maxMs}ms, slowFrames=${slowFrames}, renderer=${webglInfo && (webglInfo.unmaskedRenderer || webglInfo.renderer)}`
+        message: 'Chrome is reporting slow frames while the viewer was focused and the main thread was busy. Try Ctrl+F5, then Chrome DevTools → Network → Disable cache and reload. If it persists, disable Chrome hardware acceleration or test Edge for GPU-driver comparison.',
+        detail: `p95=${frameSample.p95Ms}ms, max=${frameSample.maxMs}ms, slowFrames=${slowFrames}, longTasks=${frameSample.longTasksDuringSample} (${frameSample.longTaskMsDuringSample}ms), renderer=${rendererName}`
+      });
+    } else if (slowish) {
+      console.info('[3DMarkupTool:browser-diagnostics] Slow frame cadence not flagged as jank.', {
+        likelyCause: frameSample.likelyCause,
+        visibilityState: startVisibility,
+        hadFocus: startFocus,
+        longTaskMs: frameSample.longTaskMsDuringSample
       });
     }
   }
@@ -394,6 +558,29 @@ function round(value) {
   return Math.round(Number(value || 0) * 10) / 10;
 }
 
+function summarizeLongTasks(stats) {
+  if (!stats) return null;
+  return {
+    supported: stats.supported,
+    count: stats.count || 0,
+    totalMs: stats.totalMs || 0,
+    maxMs: stats.maxMs || 0,
+    reason: stats.reason
+  };
+}
+
+function collectAppBootState() {
+  return {
+    appReady: Boolean(window.__3D_MARKUP_APP_READY__),
+    bootComplete: Boolean(window.__3D_MARKUP_APP_BOOT_COMPLETE__),
+    bootBundled: Boolean(window.__3D_MARKUP_APP_BOOT_BUNDLED__),
+    bootFailed: Boolean(window.__3D_MARKUP_APP_BOOT_FAILED__),
+    shellBundleComplete: Boolean(window.__3D_MARKUP_STATIC_SHELL_BUNDLED_IMPORT_COMPLETE__),
+    shellBundleFailed: Boolean(window.__3D_MARKUP_STATIC_SHELL_BUNDLED_IMPORT_FAILED__),
+    safeUiSkipped: Boolean(window.__3D_MARKUP_SAFE_UI_SKIPPED__)
+  };
+}
+
 function checklist() {
   return {
     version: BROWSER_DIAGNOSTICS_VERSION,
@@ -407,9 +594,16 @@ function checklist() {
     runtimeWarningCount: runtimeWarnings.length,
     diagnosticsScheduled,
     diagnosticsComplete,
+    capturedAt: new Date().toISOString(),
     webglInfo,
     frameSample,
     wheelLatency,
+    environmentInfo,
+    navigationTiming,
+    memoryInfo,
+    longTaskStats: summarizeLongTasks(longTaskStats),
+    batteryInfo,
+    appBoot: collectAppBootState(),
     helpApi: true,
     noIntervalPolling: true,
     frameTimeProbe: true,

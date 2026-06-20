@@ -1,3 +1,5 @@
+import { getModelRoot, objectId, resolveSafeHideTarget } from './static-selection-resolver.js';
+
 // Adds compact in-canvas view/navigation tools without touching src/app.js.
 // Tools: previous view, next view, isolate selected, hide selected, show all.
 
@@ -16,7 +18,6 @@ const undoStack = [];
 const redoStack = [];
 let changeTimer = 0;
 let historyAttachedToControls = null;
-let pollTimer = 0;
 let suppressHistory = false;
 
 installViewpadTools();
@@ -62,11 +63,14 @@ function ensureButtons() {
       button.setAttribute('aria-label', descriptor.title);
       pad.insertBefore(button, anchor);
     }
-    button.addEventListener('click', (event) => {
-      event.preventDefault();
-      event.stopPropagation();
-      onToolClick(descriptor.key);
-    });
+    if (!button.__viewpadNavToolBound) {
+      button.addEventListener('click', (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        onToolClick(descriptor.key);
+      });
+      button.__viewpadNavToolBound = true;
+    }
   }
 }
 
@@ -83,29 +87,6 @@ function runtime() {
   return window.__3D_MARKUP_VIEWER_RUNTIME__ || window.__3D_MARKUP_CLIP_RUNTIME__ || null;
 }
 
-function getModelRoot(rt = runtime()) {
-  return rt?.getModelRoot?.() || rt?.modelRoot || null;
-}
-
-function selectedObject(rt = runtime()) {
-  return rt?.selectedObject || rt?.selectedMesh || null;
-}
-
-function selectedComponentRoot(rt = runtime()) {
-  const root = getModelRoot(rt);
-  let object = selectedObject(rt);
-  if (!object) return null;
-  while (object.parent && object.parent !== root && object.parent.type !== 'Scene') {
-    const data = object.parent.userData || {};
-    if (data.ID || data.id || data.componentId || data.componentClass || data.TYPE === 'COMPONENT') {
-      object = object.parent;
-      continue;
-    }
-    break;
-  }
-  return object;
-}
-
 function attachHistoryCapture() {
   recordCurrentView('initial');
   window.addEventListener('viewer:runtime-context', () => {
@@ -115,12 +96,6 @@ function attachHistoryCapture() {
   window.addEventListener('viewer:model-loaded', () => scheduleHistoryRecord('model-loaded'));
   window.addEventListener('resize', () => scheduleHistoryRecord('resize'));
   attachControlsListener();
-  if (!pollTimer) {
-    pollTimer = window.setInterval(() => {
-      attachControlsListener();
-      scheduleHistoryRecord('poll');
-    }, 2000);
-  }
 }
 
 function attachControlsListener() {
@@ -213,9 +188,9 @@ function applyViewSnapshot(snapshot, reason) {
 function isolateSelected() {
   const rt = runtime();
   const root = getModelRoot(rt);
-  const selected = selectedComponentRoot(rt);
+  const selected = resolveSafeHideTarget(undefined, { runtime: rt });
   if (!root || !selected) {
-    setStatus('Select a component to isolate');
+    setStatus('Select a component/part before Isolate');
     return false;
   }
   root.traverse?.((object) => {
@@ -228,21 +203,21 @@ function isolateSelected() {
   }
   selected.traverse?.((object) => { object.visible = true; });
   rt?.renderOnce?.('isolate-selected');
-  window.dispatchEvent(new CustomEvent('viewer:visibility-tools', { detail: { action: 'isolate', selectedId: objectId(selected) } }));
+  window.dispatchEvent(new CustomEvent('viewer:visibility-tools', { detail: { action: 'isolate', selectedId: objectId(selected), resolver: 'shared-selection-resolver' } }));
   setStatus(`Isolated ${objectId(selected) || 'selected component'}`);
   return true;
 }
 
 function hideSelected() {
   const rt = runtime();
-  const selected = selectedComponentRoot(rt);
+  const selected = resolveSafeHideTarget(undefined, { runtime: rt });
   if (!selected) {
-    setStatus('Select a component to hide');
+    setStatus('Select a component/part before Hide');
     return false;
   }
   selected.visible = false;
   rt?.renderOnce?.('hide-selected');
-  window.dispatchEvent(new CustomEvent('viewer:visibility-tools', { detail: { action: 'hide', selectedId: objectId(selected) } }));
+  window.dispatchEvent(new CustomEvent('viewer:visibility-tools', { detail: { action: 'hide', selectedId: objectId(selected), resolver: 'shared-selection-resolver' } }));
   setStatus(`Hidden ${objectId(selected) || 'selected component'}`);
   return true;
 }
@@ -292,11 +267,6 @@ function snapshotsNear(a, b) {
 function arraysNear(a, b) {
   if (!Array.isArray(a) || !Array.isArray(b) || a.length !== b.length) return false;
   return a.every((value, index) => Math.abs(value - b[index]) < SNAPSHOT_EPS);
-}
-
-function objectId(object) {
-  const data = object?.userData || {};
-  return data.ID || data.id || data.componentId || data.NAME || object?.name || '';
 }
 
 function setStatus(message) {

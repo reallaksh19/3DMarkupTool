@@ -6,7 +6,7 @@ import { rollup } from 'rollup';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const SITE_DIR = path.join(ROOT, '_site');
 const ASSET_DIR = path.join(SITE_DIR, 'assets');
-const VERSION = 'perf-tdz-fix-20260620';
+const VERSION = 'canvas-tool-manager-20260620';
 
 await rm(SITE_DIR, { recursive: true, force: true });
 await copyStaticSite(ROOT, SITE_DIR);

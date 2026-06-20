@@ -81,9 +81,9 @@ for (const blocked of RVM_BLOCKED_MATERIAL_TABLE_CHUNKS) {
 }
 
 assert.throws(
-  () => assertRvmMaterialTableContract(fakeChunk('FOO!'), materialLayer),
+  () => assertRvmMaterialTableContract(fakeChunk('ZBAD'), materialLayer),
   /unsupported non-core chunks/,
-  'unknown RVM chunks must fail closed before writer support is defined'
+  'unknown valid-format RVM chunks must fail closed before writer support is defined'
 );
 
 console.log('RVM material table/color contract checks passed');

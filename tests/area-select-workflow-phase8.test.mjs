@@ -18,7 +18,7 @@ assert.match(manager, /object_id/);
 assert.match(manager, /property_value/);
 assert.match(manager, /exportAreaSelectionCsv|exportSelectedPropertiesCsv/);
 assert.match(manager, /action:\s*'clear'/);
-assert.match(manager, /getSafeComponentRoots/);
+assert.match(manager, /resolveSafeComponentRoot/);
 assert.match(manager, /sanitizeTargets/);
 assert.doesNotMatch(manager, /setInterval\s*\(/);
 assert.doesNotMatch(manager, /MutationObserver/);

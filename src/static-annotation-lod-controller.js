@@ -3,7 +3,7 @@
 // engineering geometry. The converter exports annotation boards as mesh planes;
 // this viewer-side controller treats them as overlay callouts.
 
-const CONTROLLER_VERSION = 'annotation-density-lod-20260620';
+const CONTROLLER_VERSION = 'annotation-readable-callouts-20260620';
 const BOARD_TYPES = new Set(['ISONOTE_NAME_PLATE']);
 const LEADER_TYPES = new Set(['ISONOTE_LEADER']);
 const NODE_LABEL_PREFIX = 'NODE_LABEL_';
@@ -11,15 +11,21 @@ const ISONOTE_BOARD_PREFIX = 'ISONOTE_BOARD_';
 const ISONOTE_LEADER_PREFIX = 'ISONOTE_LEADER_';
 
 // Visual policy:
-// - ISONOTE boards remain visible callouts, but smaller and camera-facing.
-// - Node labels are diagnostic metadata, not primary geometry. Dense node stacks
-//   around valves/flanges are culled by screen-space spacing and max count.
+// - ISONOTE boards are primary callouts and must remain readable in review views.
+// - Node labels are secondary metadata: show fewer, larger labels with a minimum
+//   screen-space separation instead of many tiny labels pasted onto components.
+// - Labels are offset in camera screen space and slightly above the model so they
+//   do not sit directly on valve/flange/pipe silhouettes.
 // - Leaders should not draw through the model as solid foreground geometry.
-const NODE_LABEL_MAX_VISIBLE = 28;
-const NODE_LABEL_MIN_SCREEN_PX = 56;
-const NODE_LABEL_GRID_PX = 112;
+const NODE_LABEL_MAX_VISIBLE = 10;
+const NODE_LABEL_MIN_SCREEN_PX = 132;
+const NODE_LABEL_GRID_PX = 190;
 const NODE_LABEL_MAX_PER_GRID_CELL = 1;
-const NODE_LABEL_VERTICAL_OFFSET_FACTOR = 1.65;
+const NODE_LABEL_VERTICAL_OFFSET_FACTOR = 3.6;
+const NODE_LABEL_SCREEN_RIGHT_OFFSET_FACTOR = 0.92;
+const NODE_LABEL_SCREEN_UP_OFFSET_FACTOR = 1.15;
+const NODE_LABEL_TARGET_SCREEN_FRACTION = 0.056;
+const ISONOTE_TARGET_SCREEN_FRACTION = 0.082;
 
 let modelRoot = null;
 let camera = null;
@@ -117,27 +123,32 @@ function prepareBoard(object, type, name) {
   object.userData.annotationBaseScale = object.userData.annotationBaseScale || [object.scale.x, object.scale.y, object.scale.z];
   object.userData.annotationBasePosition = object.userData.annotationBasePosition || [object.position.x, object.position.y, object.position.z];
   object.userData.annotationBaseHeight = object.userData.annotationBaseHeight || geometryHeight(object);
-  object.renderOrder = Math.max(object.renderOrder || 0, isIsonote ? 90 : 84);
+  object.userData.annotationStableJitter = object.userData.annotationStableJitter ?? stableJitter(name || type || 'annotation');
+  object.renderOrder = Math.max(object.renderOrder || 0, isIsonote ? 120 : 112);
 
-  if (object.material) {
-    object.material.depthTest = false;
-    object.material.depthWrite = false;
-    object.material.transparent = true;
-    object.material.opacity = isIsonote ? Math.min(Number.isFinite(object.material.opacity) ? object.material.opacity : 1, 0.88) : 0.92;
-    object.material.needsUpdate = true;
-  }
+  applyMaterial(object, (material) => {
+    material.depthTest = false;
+    material.depthWrite = false;
+    material.transparent = true;
+    material.opacity = isIsonote ? 0.98 : 1.0;
+    material.needsUpdate = true;
+    if (material.map) {
+      material.map.generateMipmaps = false;
+      material.map.needsUpdate = true;
+    }
+  });
 }
 
 function prepareLeader(object) {
-  object.renderOrder = Math.max(object.renderOrder || 0, 72);
+  object.renderOrder = Math.max(object.renderOrder || 0, 62);
   object.userData.annotationLodManaged = true;
   object.userData.annotationLodType = 'isonote-leader';
   applyMaterial(object, (material) => {
-    // Leaders should not become foreground wires crossing the pipe run.
+    // Leaders should support the callout without becoming foreground wires.
     material.depthTest = true;
     material.depthWrite = false;
     material.transparent = true;
-    material.opacity = Math.min(Number.isFinite(material.opacity) ? material.opacity : 1, 0.18);
+    material.opacity = Math.min(Number.isFinite(material.opacity) ? material.opacity : 1, 0.12);
     material.needsUpdate = true;
   });
 }
@@ -153,6 +164,7 @@ function updateIsonoteBoards() {
     if (!object?.parent) continue;
     const distance = distanceToCamera(object);
     object.quaternion.copy(camera.quaternion);
+    applyIsonoteOffset(object, distance);
     applyScreenStableScale(object, distance, 'isonote-board');
     setManagedVisible(object, true);
   }
@@ -173,8 +185,8 @@ function updateNodeLabels() {
     candidates.push({ object, screen, distance: distanceToCamera(object) });
   }
 
-  // Prefer near labels, but enforce screen spacing so valve/flange node stacks do
-  // not form unreadable piles. This is deterministic for the same camera pose.
+  // Prefer labels close to the active view, but enforce wide spacing and a low
+  // count so a valve/flange station does not become a pile of unreadable tags.
   candidates.sort((a, b) => a.distance - b.distance || String(a.object.name).localeCompare(String(b.object.name)));
 
   const accepted = [];
@@ -194,7 +206,7 @@ function updateNodeLabels() {
   for (const item of accepted) {
     const object = item.object;
     object.quaternion.copy(camera.quaternion);
-    applyNodeLabelOffset(object);
+    applyNodeLabelOffset(object, item.distance);
     applyScreenStableScale(object, item.distance, 'node-label');
     setManagedVisible(object, true);
   }
@@ -204,13 +216,25 @@ function setManagedVisible(object, visible) {
   object.visible = (object.userData.annotationOriginalVisible !== false) && visible;
 }
 
-function applyNodeLabelOffset(object) {
+function applyIsonoteOffset(object, distance) {
   const basePosition = object.userData.annotationBasePosition || [object.position.x, object.position.y, object.position.z];
   const baseHeight = Math.max(Number(object.userData.annotationBaseHeight) || 1, 0.001);
-  // Node labels belong above the inspected point, not directly pasted over pipe
-  // cylinders or valve/flange plates. Keep this small so it remains local.
-  const offset = clamp(baseHeight * NODE_LABEL_VERTICAL_OFFSET_FACTOR, 0.75, 8);
+  const offset = clamp(baseHeight * 0.95 + worldUnitsForScreenFraction(distance, 0.018), 1.2, 14);
   object.position.set(basePosition[0], basePosition[1] + offset, basePosition[2]);
+}
+
+function applyNodeLabelOffset(object, distance) {
+  const basePosition = object.userData.annotationBasePosition || [object.position.x, object.position.y, object.position.z];
+  const baseHeight = Math.max(Number(object.userData.annotationBaseHeight) || 1, 0.001);
+  const worldPx = worldUnitsForScreenFraction(distance, 0.012);
+  const verticalOffset = clamp(baseHeight * NODE_LABEL_VERTICAL_OFFSET_FACTOR + worldPx * NODE_LABEL_SCREEN_UP_OFFSET_FACTOR, 1.4, 16);
+  const sideOffset = clamp(worldPx * NODE_LABEL_SCREEN_RIGHT_OFFSET_FACTOR, 0.6, 7.5) * stableSide(object);
+  const right = cameraRightVector();
+  object.position.set(
+    basePosition[0] + right.x * sideOffset,
+    basePosition[1] + verticalOffset,
+    basePosition[2] + right.z * sideOffset
+  );
 }
 
 function getViewportSize() {
@@ -256,12 +280,45 @@ function distanceToCamera(object) {
 function applyScreenStableScale(object, distance, kind) {
   const baseScale = object.userData.annotationBaseScale || [1, 1, 1];
   const baseHeight = Math.max(Number(object.userData.annotationBaseHeight) || 1, 0.001);
-  const fovRad = ((Number(camera.fov) || 48) * Math.PI) / 180;
-  const visibleHeight = 2 * Math.tan(fovRad / 2) * distance;
-  const desiredScreenFraction = kind === 'isonote-board' ? 0.048 : 0.026;
-  const rawScale = (visibleHeight * desiredScreenFraction) / baseHeight;
-  const scale = kind === 'isonote-board' ? clamp(rawScale, 0.075, 0.24) : clamp(rawScale, 0.22, 0.68);
+  const desiredScreenFraction = kind === 'isonote-board' ? ISONOTE_TARGET_SCREEN_FRACTION : NODE_LABEL_TARGET_SCREEN_FRACTION;
+  const rawScale = (visibleWorldHeightAtDistance(distance) * desiredScreenFraction) / baseHeight;
+  const scale = kind === 'isonote-board' ? clamp(rawScale, 0.16, 0.48) : clamp(rawScale, 0.82, 1.65);
   object.scale.set(baseScale[0] * scale, baseScale[1] * scale, baseScale[2] * scale);
+}
+
+function visibleWorldHeightAtDistance(distance) {
+  if (camera?.isOrthographicCamera) {
+    const zoom = Math.max(Number(camera.zoom) || 1, 0.001);
+    return Math.max(Math.abs((Number(camera.top) || 1) - (Number(camera.bottom) || -1)) / zoom, 0.001);
+  }
+  const fovRad = ((Number(camera?.fov) || 48) * Math.PI) / 180;
+  return 2 * Math.tan(fovRad / 2) * Math.max(distance, 0.001);
+}
+
+function worldUnitsForScreenFraction(distance, fraction) {
+  return visibleWorldHeightAtDistance(distance) * fraction;
+}
+
+function cameraRightVector() {
+  const Vector3 = camera?.position?.constructor;
+  if (!Vector3) return { x: 1, y: 0, z: 0 };
+  const right = new Vector3(1, 0, 0);
+  if (typeof right.applyQuaternion === 'function' && camera?.quaternion) right.applyQuaternion(camera.quaternion);
+  right.y = 0;
+  if (typeof right.normalize === 'function' && right.lengthSq?.() > 1e-8) right.normalize();
+  return right;
+}
+
+function stableJitter(value) {
+  let hash = 0;
+  const text = String(value || '');
+  for (let i = 0; i < text.length; i += 1) hash = ((hash << 5) - hash + text.charCodeAt(i)) | 0;
+  return hash;
+}
+
+function stableSide(object) {
+  const value = Number(object.userData.annotationStableJitter) || stableJitter(object.name || 'node-label');
+  return (Math.abs(value) % 2) === 0 ? 1 : -1;
 }
 
 function geometryHeight(object) {

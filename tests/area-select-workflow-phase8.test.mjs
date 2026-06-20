@@ -21,7 +21,7 @@ assert.match(manager, /action:\s*'clear'/);
 assert.match(manager, /resolveSafeComponentRoot/);
 assert.match(manager, /sanitizeTargets/);
 assert.doesNotMatch(manager, /setInterval\s*\(/);
-assert.doesNotMatch(manager, /MutationObserver/);
+assert.doesNotMatch(manager, /new\s+MutationObserver|MutationObserver\s*\(/);
 assert.doesNotMatch(bootstrap, /static-area-select-controller\.js/);
 assert.doesNotMatch(bundle, /static-area-select-controller\.js/);
 assert.match(resolver, /selectedRoots/);

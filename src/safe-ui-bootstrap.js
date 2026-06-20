@@ -9,8 +9,8 @@
 // phase4-global-esc-lifecycle-20260619 phase4a-static-input-panel-cleanup-20260619 perf-static-shell-20260620 perf-lcp-deferred-app-20260620
 // annotation-billboard-lod-20260620
 
-const SAFE_UI_VERSION = 'perf-tdz-fix-20260620';
-const CLIP_UI_VERSION = 'perf-tdz-fix-20260620';
+const SAFE_UI_VERSION = 'perf-static-drawer-bundle-20260620';
+const CLIP_UI_VERSION = 'perf-static-drawer-bundle-20260620';
 const BUNDLED_ASSETS = window.__3D_MARKUP_BUNDLED_ASSETS__ || {};
 // Bundle URLs in the manifest are relative to the document, but dynamic
 // import() resolves relative to this module (./src/). Resolve against

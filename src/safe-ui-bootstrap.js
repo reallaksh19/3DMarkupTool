@@ -7,6 +7,7 @@
 // visible-shell-direct-fixes-20260619 review-selection-actions-20260619 startup-responsive-runtime-20260619 core-safe-boot-20260619
 // navigation-smoothness-20260619 browser-diagnostics-20260619 chrome-runtime-diagnostics-20260619 input-always-visible-20260619 phase3-ribbon-cleanup-20260619
 // phase4-global-esc-lifecycle-20260619 phase4a-static-input-panel-cleanup-20260619 perf-static-shell-20260620 perf-lcp-deferred-app-20260620
+// annotation-billboard-lod-20260620
 
 const SAFE_UI_VERSION = 'perf-tdz-fix-20260620';
 const CLIP_UI_VERSION = 'perf-tdz-fix-20260620';
@@ -55,6 +56,7 @@ const DEFERRED_MODULE_URLS = [
 ];
 
 const LATE_IDLE_MODULE_URLS = [
+  './static-annotation-lod-controller.js?v=annotation-billboard-lod-20260620',
   `./static-browser-diagnostics-controller.js?v=${SAFE_UI_VERSION}`
 ];
 

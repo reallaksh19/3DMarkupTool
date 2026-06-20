@@ -24,6 +24,7 @@ import './static-markup-core-controller.js';
 import './static-quick-export-core-controller.js';
 import './static-topbar-layout-controller.js';
 import './static-review-ribbon-tools-controller.js';
+import './static-canvas-action-regression-controller.js';
 import './static-navigation-smoothness-controller.js';
 import './static-ribbon-dropdown-cleanup-controller.js';
 import './static-global-tool-lifecycle-controller.js';

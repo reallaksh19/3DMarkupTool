@@ -21,6 +21,11 @@ assert.match(source, /appConversionPipeline/);
 assert.match(source, /LEGACY_FALLBACK_ONLY/);
 assert.doesNotMatch(source, /activeRenderer:\s*'CONTRACT_RENDERER'/);
 
+const parserSource = await readFile(path.join(repoRoot, 'src', 'parser.js'), 'utf8');
+assert.match(parserSource, /'SPRING_WARNING',\s*'BELOW_PIPE, FACING_UPWARD'/);
+assert.match(parserSource, /sign:\s*'\+Y \/ UPWARD'/);
+assert.doesNotMatch(parserSource, /SPRING_WARNING',\s*'BELOW_PIPE',/);
+
 const packageJson = JSON.parse(await readFile(path.join(repoRoot, 'package.json'), 'utf8'));
 assert.match(packageJson.scripts.test, /app-conversion-pipeline\.test\.mjs/);
 

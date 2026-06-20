@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
+// Phase 15 nudge: keeps PR CI trigger deterministic after branch updates.
 const action = readFileSync('src/static-canvas-action-regression-controller.js', 'utf8');
 const bootstrap = readFileSync('src/safe-ui-bootstrap.js', 'utf8');
 const bundle = readFileSync('src/static-shell-bundle-entry.js', 'utf8');

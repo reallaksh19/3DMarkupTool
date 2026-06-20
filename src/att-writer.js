@@ -14,7 +14,7 @@ export function writeAtt(exportModel) {
 
 function writeNode(lines, node, depth) {
   const indent = '  '.repeat(depth);
-  lines.push(`${indent}NEW ${node.name}`);
+  lines.push(`${indent}NEW ${attNodeName(node)}`);
   const attributes = node.attributes || {};
   for (const [key, value] of Object.entries(attributes)) {
     lines.push(`${indent}  ${safeKey(key)} := '${safeValue(value)}'`);
@@ -23,6 +23,10 @@ function writeNode(lines, node, depth) {
     writeNode(lines, child, depth + 1);
   }
   lines.push(`${indent}END`);
+}
+
+function attNodeName(node) {
+  return node?.reviewName || node?.name || 'UNNAMED';
 }
 
 function safeKey(key) {

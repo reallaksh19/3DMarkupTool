@@ -7,19 +7,18 @@
 // visible-shell-direct-fixes-20260619 review-selection-actions-20260619 startup-responsive-runtime-20260619 core-safe-boot-20260619
 // navigation-smoothness-20260619 browser-diagnostics-20260619 chrome-runtime-diagnostics-20260619 input-always-visible-20260619 phase3-ribbon-cleanup-20260619
 // phase4-global-esc-lifecycle-20260619 phase4a-static-input-panel-cleanup-20260619 perf-static-shell-20260620 perf-lcp-deferred-app-20260620
+// perf-idle-diagnostics-20260620 perf-static-drawer-bundle-20260620 perf-tdz-fix-20260620
 
-const SAFE_UI_VERSION = 'perf-static-drawer-bundle-20260620';
-const CLIP_UI_VERSION = 'perf-static-drawer-bundle-20260620';
+const SAFE_UI_VERSION = 'perf-rules-20260620';
+const CLIP_UI_VERSION = 'perf-rules-20260620';
+const SAFE_LOADER_URL = `./safe-ui-loader.js?v=${SAFE_UI_VERSION}`;
+const MAX_ATTEMPTS = 4;
+const DEFERRED_IMPORT_BATCH_SIZE = 3;
+const LATE_IDLE_TIMEOUT_MS = 4200;
+
 const BUNDLED_ASSETS = window.__3D_MARKUP_BUNDLED_ASSETS__ || {};
-// Bundle URLs in the manifest are relative to the document, but dynamic
-// import() resolves relative to this module (./src/). Resolve against
-// document.baseURI so ./assets/ maps to the site root, not src/assets/.
 const STATIC_SHELL_BUNDLE_URL = resolveFromBase(BUNDLED_ASSETS.shell || '');
-
-function resolveFromBase(url) {
-  if (!url || !url.startsWith('./')) return url;
-  try { return new URL(url, document.baseURI).href; } catch (_) { return url; }
-}
+const searchParams = new URLSearchParams(window.location.search);
 
 const EARLY_MODULE_URLS = [
   `./static-shell-core-controller.js?v=${SAFE_UI_VERSION}`,
@@ -55,22 +54,14 @@ const DEFERRED_MODULE_URLS = [
 ];
 
 const LATE_IDLE_MODULE_URLS = [
+  `./static-drawer-summary-controller.js?v=${SAFE_UI_VERSION}`,
   `./static-browser-diagnostics-controller.js?v=${SAFE_UI_VERSION}`
 ];
-
-// Parse once; both functions share the result so we only allocate one
-// URLSearchParams and do not re-parse the query string on every call.
-const _searchParams = new URLSearchParams(window.location.search);
 
 const CLIP_MODULE_URLS = shouldLoadClipTools() ? [
   `./fresh-clip-controller.js?v=${CLIP_UI_VERSION}`,
   `./fresh-clip-box-adjust-controller.js?v=${CLIP_UI_VERSION}`
 ] : [];
-
-const SAFE_LOADER_URL = `./safe-ui-loader.js?v=${SAFE_UI_VERSION}`;
-const MAX_ATTEMPTS = 4;
-const DEFERRED_IMPORT_BATCH_SIZE = 3;
-const LATE_IDLE_TIMEOUT_MS = 4200;
 
 let attempts = 0;
 let coreShellStarted = false;
@@ -79,6 +70,14 @@ let lateShellStarted = false;
 
 scheduleCoreShell();
 scheduleStart();
+
+function resolveFromBase(url) {
+  // Bundle URLs in the manifest are relative to the document, but dynamic
+  // import() resolves relative to this module (./src/). Resolve against
+  // document.baseURI so ./assets/ maps to the site root, not src/assets/.
+  if (!url || !url.startsWith('./')) return url;
+  try { return new URL(url, document.baseURI).href; } catch (_) { return url; }
+}
 
 function scheduleCoreShell() {
   if (coreShellStarted) return;
@@ -161,10 +160,10 @@ function scheduleStart() {
 }
 
 function shouldLoadOptionalUi() {
-  return _searchParams.has('uiBehavior')
-    || _searchParams.has('uiAdvanced')
-    || _searchParams.has('uiAcceptance')
-    || _searchParams.has('safe')
+  return searchParams.has('uiBehavior')
+    || searchParams.has('uiAdvanced')
+    || searchParams.has('uiAcceptance')
+    || searchParams.has('safe')
     || window.localStorage.getItem('3dmarkup.uiBehavior') === '1'
     || window.localStorage.getItem('3dmarkup.uiAdvanced') === '1'
     || window.localStorage.getItem('3dmarkup.uiAcceptance') === '1'
@@ -172,7 +171,7 @@ function shouldLoadOptionalUi() {
 }
 
 function shouldLoadClipTools() {
-  return _searchParams.has('clipTools') || window.localStorage.getItem('3dmarkup.clipTools') === '1';
+  return searchParams.has('clipTools') || window.localStorage.getItem('3dmarkup.clipTools') === '1';
 }
 
 function startSoon(delayMs) {

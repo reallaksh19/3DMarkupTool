@@ -1,0 +1,111 @@
+/* INPUT panel final-state contract.
+ *
+ * This file is static CSS only. It exists to make the first paint and the
+ * post-JS state identical for the left drawer INPUT block.
+ *
+ * Guardrails:
+ * - no runtime layout correction
+ * - no MutationObserver / polling dependency
+ * - no DOM relocation
+ * - no fake duplicate controls
+ */
+
+#inputDrawer > #drawerSummaryCard.drawer-summary-card {
+  display: none !important;
+}
+
+#inputDrawer .panel-section[data-section="input"] {
+  display: block;
+  padding: 8px 0 10px !important;
+  margin: 0;
+  border-top: 1px solid rgba(83, 125, 176, .18);
+  background: transparent;
+  box-shadow: none;
+}
+
+#inputDrawer .panel-section[data-section="input"] > h3 {
+  min-height: 24px;
+  margin: 0 0 6px !important;
+  cursor: default;
+}
+
+#inputDrawer .panel-section[data-section="input"] > h3::after {
+  content: none !important;
+  display: none !important;
+}
+
+#inputDrawer .panel-section[data-section="input"] > #inputFileStatus.input-file-status {
+  display: flex !important;
+  align-items: center;
+  min-height: 24px !important;
+  max-height: 26px;
+  margin: 0 0 6px !important;
+  padding: 3px 8px !important;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#inputDrawer .panel-section[data-section="input"] > .file-drop {
+  display: grid !important;
+  grid-auto-flow: column;
+  grid-template-columns: auto auto;
+  place-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 32px !important;
+  max-height: 34px;
+  margin: 0 0 6px !important;
+  padding: 5px 10px !important;
+  line-height: 1 !important;
+}
+
+#inputDrawer .panel-section[data-section="input"] > .file-drop .lucide {
+  width: 14px;
+  height: 14px;
+}
+
+#inputDrawer .panel-section[data-section="input"] > .file-drop span {
+  line-height: 1;
+  white-space: nowrap;
+}
+
+#inputDrawer .panel-section[data-section="input"] > .input-primary-actions {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  align-items: center;
+  gap: 6px !important;
+  flex-wrap: nowrap !important;
+  margin: 0;
+}
+
+#inputDrawer .panel-section[data-section="input"] > .input-primary-actions > button {
+  min-width: 0;
+  min-height: 32px;
+  padding: 6px 6px !important;
+  white-space: nowrap;
+}
+
+#inputDrawer .panel-section[data-section="input"] > .input-primary-actions > button span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#inputDrawer .panel-section[data-collapsible="conversion"],
+#inputDrawer .panel-section[data-collapsible="sideload"] {
+  padding-top: 10px;
+  padding-bottom: 10px;
+}
+
+#inputDrawer .panel-section[data-collapsible="conversion"] > h3,
+#inputDrawer .panel-section[data-collapsible="sideload"] > h3 {
+  min-height: 28px;
+  margin-bottom: 0 !important;
+}
+
+body:not(.conversion-expanded) #inputDrawer .panel-section[data-collapsible="conversion"] > .conversion-collapsible-content,
+body:not(.sideload-expanded) #inputDrawer .panel-section[data-collapsible="sideload"] > .sideload-collapsible-content {
+  display: none !important;
+}

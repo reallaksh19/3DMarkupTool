@@ -7,6 +7,7 @@ import {
 const COMMON_PRIMITIVE_BODY_BYTES = 80;
 const MATRIX_FLOAT_COUNT = 12;
 const BBOX_FLOAT_COUNT = 6;
+const SEMANTIC_TOLERANCE = 1e-3;
 
 export const RVM_PRIMITIVE_PAYLOAD_LAYOUTS = Object.freeze({
   1: Object.freeze({
@@ -15,6 +16,7 @@ export const RVM_PRIMITIVE_PAYLOAD_LAYOUTS = Object.freeze({
     bodyLength: 108,
     payloadWordCount: 7,
     payloadFields: Object.freeze(['bottomX', 'bottomY', 'topX', 'topY', 'offsetX', 'offsetY', 'height']),
+    semanticType: 'rectangular-pyramid',
     emissionStatus: 'emitted'
   }),
   2: Object.freeze({
@@ -23,6 +25,7 @@ export const RVM_PRIMITIVE_PAYLOAD_LAYOUTS = Object.freeze({
     bodyLength: 92,
     payloadWordCount: 3,
     payloadFields: Object.freeze(['lengthX', 'lengthY', 'lengthZ']),
+    semanticType: 'box',
     emissionStatus: 'emitted'
   }),
   3: Object.freeze({
@@ -30,7 +33,8 @@ export const RVM_PRIMITIVE_PAYLOAD_LAYOUTS = Object.freeze({
     emittedKind: null,
     bodyLength: 96,
     payloadWordCount: 4,
-    payloadFields: Object.freeze(['rhbgPayload0', 'rhbgPayload1', 'rhbgPayload2', 'rhbgPayload3']),
+    payloadFields: Object.freeze(['rhbgRadiusOrMajorRadius', 'rhbgArcOrExtent', 'rhbgThickness', 'rhbgSweepAngleRad']),
+    semanticType: 'rhbg-arc-like-blocked',
     emissionStatus: 'rhbg-observed-blocked'
   }),
   4: Object.freeze({
@@ -38,7 +42,8 @@ export const RVM_PRIMITIVE_PAYLOAD_LAYOUTS = Object.freeze({
     emittedKind: null,
     bodyLength: 92,
     payloadWordCount: 3,
-    payloadFields: Object.freeze(['rhbgPayload0', 'rhbgPayload1', 'rhbgPayload2']),
+    payloadFields: Object.freeze(['rhbgRadiusOrExtent', 'rhbgThicknessOrHalfHeight', 'rhbgAngleRad']),
+    semanticType: 'rhbg-sector-or-arc-like-blocked',
     emissionStatus: 'rhbg-observed-blocked'
   }),
   5: Object.freeze({
@@ -46,7 +51,9 @@ export const RVM_PRIMITIVE_PAYLOAD_LAYOUTS = Object.freeze({
     emittedKind: null,
     bodyLength: 88,
     payloadWordCount: 2,
-    payloadFields: Object.freeze(['rhbgPayload0', 'rhbgPayload1']),
+    payloadFields: Object.freeze(['radius', 'height']),
+    semanticType: 'rhbg-cone-like-blocked',
+    candidateEmissionKind: 'cone',
     emissionStatus: 'rhbg-observed-blocked'
   }),
   7: Object.freeze({
@@ -55,16 +62,18 @@ export const RVM_PRIMITIVE_PAYLOAD_LAYOUTS = Object.freeze({
     bodyLength: 116,
     payloadWordCount: 9,
     payloadFields: Object.freeze([
-      'rhbgPayload0',
-      'rhbgPayload1',
-      'rhbgPayload2',
-      'rhbgPayload3',
-      'rhbgPayload4',
-      'rhbgPayload5',
-      'rhbgPayload6',
-      'rhbgPayload7',
-      'rhbgPayload8'
+      'baseRadius',
+      'topRadius',
+      'height',
+      'offsetX',
+      'offsetY',
+      'offsetZ',
+      'reserved0',
+      'reserved1',
+      'reserved2'
     ]),
+    semanticType: 'rhbg-frustum-like-blocked',
+    candidateEmissionKind: 'frustum',
     emissionStatus: 'rhbg-observed-blocked'
   }),
   8: Object.freeze({
@@ -73,6 +82,7 @@ export const RVM_PRIMITIVE_PAYLOAD_LAYOUTS = Object.freeze({
     bodyLength: 88,
     payloadWordCount: 2,
     payloadFields: Object.freeze(['radius', 'length']),
+    semanticType: 'cylinder',
     emissionStatus: 'emitted'
   }),
   9: Object.freeze({
@@ -81,6 +91,7 @@ export const RVM_PRIMITIVE_PAYLOAD_LAYOUTS = Object.freeze({
     bodyLength: 84,
     payloadWordCount: 1,
     payloadFields: Object.freeze(['diameter']),
+    semanticType: 'sphere',
     emissionStatus: 'emitted'
   }),
   11: Object.freeze({
@@ -88,7 +99,8 @@ export const RVM_PRIMITIVE_PAYLOAD_LAYOUTS = Object.freeze({
     emittedKind: null,
     bodyLength: 708,
     payloadWordCount: 157,
-    payloadFields: Object.freeze(Array.from({ length: 157 }, (_, index) => `rhbgPayload${index}`)),
+    payloadFields: Object.freeze(Array.from({ length: 157 }, (_, index) => `rhbgMeshPayload${index}`)),
+    semanticType: 'rhbg-mesh-like-blocked',
     emissionStatus: 'rhbg-observed-blocked'
   })
 });
@@ -115,9 +127,10 @@ export function decodeRvmPrimitivePayload(body) {
   const bbox = readFloat32Array(view, 56, BBOX_FLOAT_COUNT);
   const payload = readFloat32Array(view, COMMON_PRIMITIVE_BODY_BYTES, (arrayBuffer.byteLength - COMMON_PRIMITIVE_BODY_BYTES) / 4);
   const classification = classifyRvmPrimitivePayload(code, arrayBuffer.byteLength);
+  const semantics = inferRvmPrimitivePayloadSemantics(code, bbox, payload, classification);
 
   return {
-    schema: 'RvmPrimitivePayloadDecode.v1',
+    schema: 'RvmPrimitivePayloadDecode.v2',
     version,
     code,
     bodyLength: arrayBuffer.byteLength,
@@ -126,7 +139,8 @@ export function decodeRvmPrimitivePayload(body) {
     payload,
     payloadWordCount: payload.length,
     parameters: parameterObject(classification.layout, payload),
-    ...classification
+    ...classification,
+    ...semantics
   };
 }
 
@@ -147,6 +161,64 @@ export function classifyRvmPrimitivePayload(code, bodyLength) {
     rhbgObservedButBlocked,
     lengthMatchesKnownLayout,
     compatibilityStatus: compatibilityStatus({ emittedKind, rhbgObserved, rhbgObservedButBlocked, lengthMatchesKnownLayout, layout })
+  };
+}
+
+export function inferRvmPrimitivePayloadSemantics(code, bbox = [], payload = [], classification = {}) {
+  const normalizedCode = Number(code);
+  const layout = classification.layout || RVM_PRIMITIVE_PAYLOAD_LAYOUTS[normalizedCode] || null;
+  const emittedKind = classification.emittedKind || layout?.emittedKind || null;
+
+  if (normalizedCode === 5) {
+    const [radius, height] = payload;
+    const bboxConsistentWithPayload = finitePositive(radius) && finiteNonNegative(height) && bboxMatches(bbox, [-radius, -radius, 0, radius, radius, height]);
+    return {
+      semanticType: 'rhbg-cone-like',
+      semanticConfidence: bboxConsistentWithPayload ? 'high' : 'low',
+      candidateEmissionKind: 'cone',
+      bboxConsistentWithPayload,
+      payloadSemantics: { radius, height },
+      semanticNotes: 'RHBG code 5 payload matches radius/height with a local bbox from z=0 to z=height; emission stays blocked until cone orientation and viewer interpretation are verified.'
+    };
+  }
+
+  if (normalizedCode === 7) {
+    const [baseRadius, topRadius, height, offsetX = 0, offsetY = 0, offsetZ = 0, reserved0 = 0, reserved1 = 0, reserved2 = 0] = payload;
+    const maxRadius = Math.max(Math.abs(baseRadius || 0), Math.abs(topRadius || 0));
+    const halfHeight = (height || 0) / 2;
+    const bboxConsistentWithPayload =
+      finitePositive(maxRadius) &&
+      finiteNonNegative(height) &&
+      bboxMatches(bbox, [-maxRadius, -maxRadius, -halfHeight, maxRadius, maxRadius, halfHeight]);
+    const offsetsAreZero = [offsetX, offsetY, offsetZ, reserved0, reserved1, reserved2].every((value) => approx(value, 0));
+    return {
+      semanticType: 'rhbg-frustum-like',
+      semanticConfidence: bboxConsistentWithPayload && offsetsAreZero ? 'high' : 'medium',
+      candidateEmissionKind: 'frustum',
+      bboxConsistentWithPayload,
+      payloadSemantics: { baseRadius, topRadius, height, offsetX, offsetY, offsetZ, reserved0, reserved1, reserved2 },
+      semanticNotes: 'RHBG code 7 payload matches base/top radius plus axial height; remaining words are zero in the observed sample. Emission stays blocked until frustum taper direction and viewer interpretation are verified.'
+    };
+  }
+
+  if (emittedKind) {
+    return {
+      semanticType: layout?.semanticType || emittedKind,
+      semanticConfidence: 'writer-owned',
+      candidateEmissionKind: emittedKind,
+      bboxConsistentWithPayload: null,
+      payloadSemantics: parameterObject(layout, payload),
+      semanticNotes: 'Writer-emitted primitive layout.'
+    };
+  }
+
+  return {
+    semanticType: layout?.semanticType || 'unknown-primitive-payload',
+    semanticConfidence: layout ? 'recorded-layout' : 'unknown',
+    candidateEmissionKind: layout?.candidateEmissionKind || null,
+    bboxConsistentWithPayload: null,
+    payloadSemantics: parameterObject(layout, payload),
+    semanticNotes: layout ? 'Recorded RHBG-observed layout; emission remains blocked.' : 'Unknown primitive layout.'
   };
 }
 
@@ -199,6 +271,22 @@ function parameterObject(layout, payload) {
     return Object.fromEntries(payload.map((value, index) => [`payload${index}`, value]));
   }
   return Object.fromEntries(payload.map((value, index) => [layout.payloadFields[index] || `payload${index}`, value]));
+}
+
+function bboxMatches(actual, expected) {
+  return Array.isArray(actual) && actual.length === 6 && expected.every((value, index) => approx(actual[index], value));
+}
+
+function approx(actual, expected, tolerance = SEMANTIC_TOLERANCE) {
+  return Number.isFinite(actual) && Number.isFinite(expected) && Math.abs(actual - expected) <= tolerance;
+}
+
+function finitePositive(value) {
+  return Number.isFinite(value) && value > 0;
+}
+
+function finiteNonNegative(value) {
+  return Number.isFinite(value) && value >= 0;
 }
 
 function toArrayBuffer(buffer) {

@@ -1,23 +1,26 @@
 import * as THREE from 'three';
 
-// Adds a self-contained Explode Review tool to the in-canvas right-side view pad.
-// Tool: XP = Explode. Temporarily offsets component roots by type/class or line metadata.
-// This is a visual review transform only; it does not alter geometry/export data.
+// Explode Review is a temporary visual-review transform only.
+// It never writes original positions into object.userData and never changes export/parser data.
+// Traversal is performed only after the user invokes Apply; startup only installs bounded handlers.
 
-const VERSION = 'explode-review-viewpad-20260619';
+const VERSION = 'explode-reassemble-phase9-20260620';
 const TOOL_VIEW = 'explodeReview';
 const TOOL_LABEL = 'XP';
 const TOOL_TITLE = 'Explode Review: separate components by type or line number';
 const STYLE_ID = 'static-explode-review-style';
 const PANEL_ID = 'staticExplodeReviewPanel';
-const ORIGINAL_POSITION_KEY = '__explodeReviewOriginalPosition';
 const DEFAULT_DISTANCE = 250;
+
+const originalPositions = new Map();
 
 let button = null;
 let currentMode = 'type';
 let currentAxis = 'X';
 let currentDistance = DEFAULT_DISTANCE;
 let lastGroups = [];
+let explodeActive = false;
+let explodeEscBound = false;
 
 installExplodeReviewTool();
 
@@ -26,6 +29,7 @@ function installExplodeReviewTool() {
     injectStyles();
     ensureButton();
     ensurePanel();
+    attachExplodeEsc();
     installApi();
   };
 
@@ -91,7 +95,7 @@ function renderPanel(panel = document.getElementById(PANEL_ID)) {
 
   const header = document.createElement('div');
   header.className = 'explode-review-panel__header';
-  header.innerHTML = '<strong>Explode</strong><span>review spacing only</span>';
+  header.innerHTML = '<strong>Explode</strong><span>temporary review only</span>';
   panel.appendChild(header);
 
   const grid = document.createElement('div');
@@ -112,15 +116,15 @@ function renderPanel(panel = document.getElementById(PANEL_ID)) {
 
   const stats = document.createElement('div');
   stats.className = 'explode-review-panel__stats';
-  stats.textContent = lastGroups.length
-    ? `Last explode: ${lastGroups.length} group(s)`
-    : 'No explode applied in this session.';
+  stats.textContent = explodeActive
+    ? `Active explode: ${lastGroups.length} group(s), ${originalPositions.size} moved root(s)`
+    : (lastGroups.length ? `Last explode: ${lastGroups.length} group(s)` : 'No explode applied in this session.');
   panel.appendChild(stats);
 
   const actions = document.createElement('div');
   actions.className = 'explode-review-panel__actions';
   actions.appendChild(panelButton('Apply', 'Explode current model by selected grouping', () => applyExplode(currentMode)));
-  actions.appendChild(panelButton('Reset', 'Restore original component positions', resetExplode));
+  actions.appendChild(panelButton('Reassemble', 'Restore original component positions', () => reassembleExplode('panel')));
   actions.appendChild(panelButton('Close', 'Close explode panel', () => { panel.hidden = true; }));
   panel.appendChild(actions);
 }
@@ -185,6 +189,20 @@ function togglePanel() {
     renderPanel(panel);
     setStatus('Explode Review: choose grouping and Apply');
   }
+}
+
+function openPanel() {
+  const panel = ensurePanel();
+  panel.hidden = false;
+  renderPanel(panel);
+  setStatus('Explode Review: choose grouping and Apply');
+  return true;
+}
+
+function closePanel() {
+  const panel = document.getElementById(PANEL_ID);
+  if (panel) panel.hidden = true;
+  return true;
 }
 
 function runtime() {
@@ -300,7 +318,7 @@ function applyExplode(mode = currentMode) {
     return false;
   }
 
-  resetExplode({ silent: true });
+  resetExplode({ silent: true, render: false });
   const groups = groupComponents(components, mode);
   const axis = axisVector(currentAxis);
   const middle = (groups.length - 1) / 2;
@@ -309,48 +327,63 @@ function applyExplode(mode = currentMode) {
     group.objects.forEach((object) => moveObjectByWorldOffset(object, offset));
   });
 
+  explodeActive = originalPositions.size > 0;
+  document.body?.classList?.toggle('explode-review-active', explodeActive);
   lastGroups = groups.map((group) => ({ key: group.key, count: group.objects.length }));
   rt?.renderOnce?.('explode-review');
-  dispatchExplode('apply', { mode, axis: currentAxis, distance: currentDistance, groups: lastGroups });
-  setStatus(`Exploded ${components.length} component(s) into ${groups.length} ${mode === 'line' ? 'line' : 'type'} group(s)`);
+  dispatchExplode('apply', {
+    mode,
+    axis: currentAxis,
+    distance: currentDistance,
+    groups: lastGroups,
+    movedCount: originalPositions.size,
+    active: explodeActive
+  });
+  setStatus(`Exploded ${components.length} component(s) into ${groups.length} ${mode === 'line' ? 'line' : 'type'} group(s) — Esc or Reassemble restores`);
   renderPanel();
   return true;
 }
 
+function reassembleExplode(source = 'api') {
+  return resetExplode({ source, reason: source === 'escape' ? 'explode-review-escape' : 'explode-review-reassemble' });
+}
+
 function resetExplode(options = {}) {
-  const root = modelRoot();
-  if (!root) return false;
+  const rt = runtime();
   let resetCount = 0;
-  root.traverse?.((object) => {
-    const original = object.userData?.[ORIGINAL_POSITION_KEY];
-    if (!Array.isArray(original)) return;
-    object.position.set(original[0], original[1], original[2]);
-    delete object.userData[ORIGINAL_POSITION_KEY];
+  for (const [object, original] of originalPositions.entries()) {
+    if (!object?.position || !original) continue;
+    if (typeof object.position.copy === 'function') object.position.copy(original);
+    else object.position.set?.(original.x || 0, original.y || 0, original.z || 0);
     resetCount += 1;
-  });
-  lastGroups = [];
-  runtime()?.renderOnce?.('explode-review-reset');
+  }
+
+  originalPositions.clear();
+  explodeActive = false;
+  document.body?.classList?.remove('explode-review-active');
+
+  if (options.render !== false) rt?.renderOnce?.(options.reason || 'explode-review-reset');
   if (!options.silent) {
-    dispatchExplode('reset', { resetCount });
-    setStatus(resetCount ? `Explode reset: ${resetCount} component(s)` : 'Explode reset: no moved components');
+    dispatchExplode(options.source === 'escape' ? 'escape-reset' : 'reset', { resetCount, active: false });
+    setStatus(resetCount ? `Reassembled ${resetCount} exploded component(s)` : 'Explode reset: no moved components');
     renderPanel();
   }
   return true;
 }
 
 function moveObjectByWorldOffset(object, worldOffset) {
-  if (!object.userData) object.userData = {};
-  if (!Array.isArray(object.userData[ORIGINAL_POSITION_KEY])) {
-    object.userData[ORIGINAL_POSITION_KEY] = [object.position.x, object.position.y, object.position.z];
+  if (!object || !object.position) return;
+  if (!originalPositions.has(object)) {
+    originalPositions.set(object, object.position.clone?.() || new THREE.Vector3(object.position.x || 0, object.position.y || 0, object.position.z || 0));
   }
+  const originalLocal = originalPositions.get(object).clone();
   if (object.parent) {
-    const originalLocal = new THREE.Vector3().fromArray(object.userData[ORIGINAL_POSITION_KEY]);
     const originalWorld = object.parent.localToWorld(originalLocal.clone());
     const targetWorld = originalWorld.add(worldOffset);
     const targetLocal = object.parent.worldToLocal(targetWorld);
     object.position.copy(targetLocal);
   } else {
-    object.position.fromArray(object.userData[ORIGINAL_POSITION_KEY]).add(worldOffset);
+    object.position.copy(originalLocal.add(worldOffset));
   }
 }
 
@@ -365,6 +398,19 @@ function clampDistance(value) {
   return Math.max(0, Math.min(5000, Math.round(value)));
 }
 
+function attachExplodeEsc() {
+  if (explodeEscBound) return;
+  explodeEscBound = true;
+  document.addEventListener('keydown', onExplodeEscape, { capture: true });
+}
+
+function onExplodeEscape(event) {
+  if (event.key !== 'Escape' || !explodeActive) return;
+  event.preventDefault();
+  closePanel();
+  reassembleExplode('escape');
+}
+
 function setStatus(text) {
   const status = document.getElementById('coreStatus') || document.getElementById('statusText') || document.getElementById('uiHealthBadge');
   if (status) status.textContent = text;
@@ -372,7 +418,7 @@ function setStatus(text) {
 
 function dispatchExplode(action, extra = {}) {
   window.dispatchEvent(new CustomEvent('viewer:explode-review', {
-    detail: { action, ...extra }
+    detail: { action, version: VERSION, ...extra }
   }));
 }
 
@@ -427,15 +473,29 @@ function injectStyles() {
       font-weight: 700;
     }
     .explode-review-panel__actions button:hover { background: rgba(51, 65, 85, 0.96); }
+    body.explode-review-active .viewpad-explode-review-btn { border-color: rgba(251, 191, 36, 0.85); color: #fde68a; }
   `;
   document.head.appendChild(style);
 }
 
 function installApi() {
   window.__3D_MARKUP_EXPLODE_REVIEW__ = {
+    version: VERSION,
+    open: openPanel,
+    close: closePanel,
+    toggle: togglePanel,
     apply: (mode = currentMode) => applyExplode(mode),
     reset: () => resetExplode(),
+    reassemble: () => reassembleExplode('api'),
+    clear: () => resetExplode({ source: 'api-clear' }),
     groups: (mode = currentMode) => groupComponents(collectComponentRoots(), mode).map((group) => ({ key: group.key, count: group.objects.length })),
-    state: () => ({ mode: currentMode, axis: currentAxis, distance: currentDistance, lastGroups: [...lastGroups] })
+    state: () => ({
+      mode: currentMode,
+      axis: currentAxis,
+      distance: currentDistance,
+      active: explodeActive,
+      movedCount: originalPositions.size,
+      lastGroups: [...lastGroups]
+    })
   };
 }

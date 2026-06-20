@@ -9,7 +9,6 @@ const outDir = resolveOutDir(process.argv);
 const baseName = 'BM_CII_glb_catalogue_visual_regression';
 const viewNames = ['top', 'side', 'isometric'];
 
-const THREE = await import('three');
 const { convertInputXmlToGlb } = await import('../src/converter.js');
 const { VALVE_FLANGE_VISUAL_CATALOG_SCHEMA } = await import('../src/valve-flange-visual-catalog.js');
 
@@ -27,9 +26,7 @@ const groups = collectCatalogueGroups(conversion.scene).map(auditCatalogueGroup)
 const audit = buildAudit(conversion, groups);
 
 mkdirSync(outDir, { recursive: true });
-for (const view of viewNames) {
-  writeFileSync(join(outDir, `${baseName}.${view}.svg`), renderSnapshotSvg(audit, view));
-}
+for (const view of viewNames) writeFileSync(join(outDir, `${baseName}.${view}.svg`), renderSnapshotSvg(audit, view));
 writeFileSync(join(outDir, `${baseName}.audit.json`), `${JSON.stringify(audit, null, 2)}\n`);
 writeFileSync(join(outDir, `${baseName}.summary.md`), renderMarkdownSummary(audit));
 
@@ -64,10 +61,10 @@ function auditCatalogueGroup(group) {
   });
 
   const roleMetrics = roleObjects.map((object) => auditRoleObject(object, group));
-  const spanRoles = roleMetrics.filter((entry) => entry.replacesCenterlinePipe && !entry.overlayOnly && hasFiniteSpan(entry)).sort((a, b) => a.renderedLocalAxisStart - b.renderedLocalAxisStart);
+  const spanRoles = roleMetrics
+    .filter((entry) => entry.replacesCenterlinePipe && !entry.overlayOnly && hasFiniteSpan(entry))
+    .sort((a, b) => a.renderedLocalAxisStart - b.renderedLocalAxisStart);
   const spanContinuity = evaluateRenderedSpanContinuity(spanRoles);
-  const box = new THREE.Box3().setFromObject(group);
-  const size = box.getSize(new THREE.Vector3());
   const issues = [];
   if (userData.visualCatalogSchema !== VALVE_FLANGE_VISUAL_CATALOG_SCHEMA) issues.push('Catalogue visual group must carry visualCatalogSchema for visual regression snapshots.');
   if (!spanRoles.length) issues.push('Catalogue visual group must expose at least one rendered centerline span role for visual snapshot generation.');
@@ -85,12 +82,6 @@ function auditCatalogueGroup(group) {
     roleObjectCount: roleObjects.length,
     roleCounts: countBy(roleMetrics, (entry) => entry.role),
     geometryKindCounts: countBy(roleMetrics, (entry) => entry.geometryKind || 'UNSTAMPED'),
-    worldBounds: {
-      x: round(size.x),
-      y: round(size.y),
-      z: round(size.z),
-      maxAxis: round(Math.max(size.x, size.y, size.z))
-    },
     spanContinuity,
     visualProfile: buildVisualProfile(spanRoles, roleMetrics),
     issues,
@@ -100,8 +91,6 @@ function auditCatalogueGroup(group) {
 
 function auditRoleObject(object, group) {
   const userData = object.userData || {};
-  const box = new THREE.Box3().setFromObject(object);
-  const size = box.getSize(new THREE.Vector3());
   return {
     name: object.name,
     role: userData.meshRole,
@@ -127,12 +116,6 @@ function auditRoleObject(object, group) {
     radiusEnd: finiteOrUndefined(userData.radiusEnd),
     boltIndex: finiteOrUndefined(userData.boltIndex),
     boltCount: finiteOrUndefined(userData.boltCount),
-    worldSize: {
-      x: round(size.x),
-      y: round(size.y),
-      z: round(size.z),
-      maxAxis: round(Math.max(size.x, size.y, size.z))
-    },
     parentGroupName: group.name
   };
 }
@@ -140,7 +123,7 @@ function auditRoleObject(object, group) {
 function buildVisualProfile(spanRoles, roleMetrics) {
   const start = Math.min(...spanRoles.map((entry) => entry.renderedLocalAxisStart));
   const end = Math.max(...spanRoles.map((entry) => entry.renderedLocalAxisEnd));
-  const maxRadius = Math.max(0, ...roleMetrics.map((entry) => roleRadius(entry)).filter(Number.isFinite));
+  const maxRadius = Math.max(0, ...spanRoles.flatMap((entry) => roleRadiusValues(entry)).filter(Number.isFinite));
   return {
     spanStart: round(start),
     spanEnd: round(end),
@@ -148,19 +131,25 @@ function buildVisualProfile(spanRoles, roleMetrics) {
     maxRadius: round(maxRadius),
     spanRoleCount: spanRoles.length,
     overlayRoleCount: roleMetrics.filter((entry) => entry.overlayOnly || !entry.replacesCenterlinePipe).length,
-    roles: spanRoles.map((entry) => ({
-      role: entry.role,
-      geometryKind: entry.geometryKind,
-      start: round(entry.renderedLocalAxisStart),
-      end: round(entry.renderedLocalAxisEnd),
-      length: round(entry.renderedAxisLength),
-      radiusStart: round(roleRadiusStart(entry)),
-      radiusEnd: round(roleRadiusEnd(entry)),
-      radius: round(roleRadius(entry)),
-      thinPlate: entry.thinPlate === true,
-      thinRaisedFace: entry.thinRaisedFace === true,
-      proportionalShoulder: entry.proportionalShoulder === true
-    }))
+    roles: spanRoles.map((entry) => {
+      const radii = roleRadiusValues(entry);
+      const radiusStart = firstFinite(entry.radiusStart, entry.radius, radii[0], 0);
+      const radiusEnd = firstFinite(entry.radiusEnd, entry.radius, radii.at(-1), radiusStart, 0);
+      const radius = firstFinite(entry.radius, Math.max(radiusStart, radiusEnd), 0);
+      return {
+        role: entry.role,
+        geometryKind: entry.geometryKind,
+        start: round(entry.renderedLocalAxisStart),
+        end: round(entry.renderedLocalAxisEnd),
+        length: round(entry.renderedAxisLength),
+        radiusStart: round(radiusStart),
+        radiusEnd: round(radiusEnd),
+        radius: round(radius),
+        thinPlate: entry.thinPlate === true,
+        thinRaisedFace: entry.thinRaisedFace === true,
+        proportionalShoulder: entry.proportionalShoulder === true
+      };
+    })
   };
 }
 
@@ -201,7 +190,7 @@ function buildAudit(conversion, groups) {
     generatedAt: new Date().toISOString(),
     sample: 'samples/BM_CII_Enriched_v8_lite.XML',
     sourceBoundary: 'convertInputXmlToGlb()',
-    snapshotSource: 'actual Three.js scene userData and role spans emitted by src/converter.js',
+    snapshotSource: 'actual Three.js scene userData and role spans emitted by src/converter.js as deterministic SVG snapshots',
     visualCatalogSchema: VALVE_FLANGE_VISUAL_CATALOG_SCHEMA,
     summary: {
       parsedElementCount: conversion.model?.elements?.length || 0,
@@ -238,7 +227,6 @@ function buildAudit(conversion, groups) {
       visualCatalogSchema: entry.visualCatalogSchema,
       meshCount: entry.meshCount,
       roleObjectCount: entry.roleObjectCount,
-      worldBounds: entry.worldBounds,
       spanContinuity: entry.spanContinuity,
       visualProfile: entry.visualProfile,
       issues: entry.issues
@@ -257,11 +245,7 @@ function renderSnapshotSvg(audit, view) {
   const body = audit.catalogueGroups.map((group, index) => renderGroupCard(group, index, view, width, headerHeight, rowHeight)).join('\n');
   return `<?xml version="1.0" encoding="UTF-8"?>\n` +
     `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" role="img" aria-label="BM_CII GLB catalogue ${view} visual regression snapshot">\n` +
-    `<defs>\n` +
-    `<style><![CDATA[\n` +
-    `.bg{fill:#f8fafc}.panel{fill:#ffffff;stroke:#cbd5e1;stroke-width:1}.axis{stroke:#94a3b8;stroke-width:1;stroke-dasharray:4 4}.title{font:700 20px Arial,sans-serif;fill:#0f172a}.subtitle{font:12px Arial,sans-serif;fill:#475569}.label{font:11px Arial,sans-serif;fill:#0f172a}.small{font:10px Arial,sans-serif;fill:#475569}.role-cyl{fill:#dbeafe;stroke:#2563eb;stroke-width:1}.role-frustum{fill:#ede9fe;stroke:#7c3aed;stroke-width:1}.role-body{fill:#dcfce7;stroke:#16a34a;stroke-width:1}.role-face{fill:#fef3c7;stroke:#d97706;stroke-width:1}.role-other{fill:#e2e8f0;stroke:#64748b;stroke-width:1}.warning{fill:#fff7ed;stroke:#fb923c;stroke-width:1}.ok{fill:#ecfdf5;stroke:#10b981;stroke-width:1}\n` +
-    `]]></style>\n` +
-    `</defs>\n` +
+    `<defs><style><![CDATA[.bg{fill:#f8fafc}.panel{fill:#ffffff;stroke:#cbd5e1;stroke-width:1}.axis{stroke:#94a3b8;stroke-width:1;stroke-dasharray:4 4}.title{font:700 20px Arial,sans-serif;fill:#0f172a}.subtitle{font:12px Arial,sans-serif;fill:#475569}.label{font:11px Arial,sans-serif;fill:#0f172a}.small{font:10px Arial,sans-serif;fill:#475569}.role-cyl{fill:#dbeafe;stroke:#2563eb;stroke-width:1}.role-frustum{fill:#ede9fe;stroke:#7c3aed;stroke-width:1}.role-body{fill:#dcfce7;stroke:#16a34a;stroke-width:1}.role-face{fill:#fef3c7;stroke:#d97706;stroke-width:1}.role-other{fill:#e2e8f0;stroke:#64748b;stroke-width:1}.warning{fill:#fff7ed;stroke:#fb923c;stroke-width:1}.ok{fill:#ecfdf5;stroke:#10b981;stroke-width:1}]]></style></defs>\n` +
     `<rect class="bg" x="0" y="0" width="${width}" height="${height}"/>\n` +
     `<text class="title" x="28" y="34">BM_CII GLB Catalogue Visual Regression — ${escapeXml(title)}</text>\n` +
     `<text class="subtitle" x="28" y="58">Scene-derived deterministic SVG from convertInputXmlToGlb(); proportional fallback only, not ASME/rating-size dimensional validation.</text>\n` +
@@ -296,8 +280,7 @@ function renderGroupCard(group, index, view, width, headerHeight, rowHeight) {
     `<text class="small" x="48" y="${y + 56}">recipe: ${escapeXml(group.visualRecipeId || '')}</text>\n` +
     `<text class="small" x="48" y="${y + 74}">roles: ${profile.spanRoleCount}, meshes: ${group.meshCount}</text>\n` +
     `<line class="axis" x1="${chartX}" y1="${centerY}" x2="${chartX + chartW}" y2="${centerY}"/>\n` +
-    `${roleShapes}\n` +
-    `</g>`;
+    `${roleShapes}\n</g>`;
 }
 
 function renderRoleShape(role, view, chartX, centerY, spanStart, scaleX, scaleY) {
@@ -314,13 +297,8 @@ function renderRoleShape(role, view, chartX, centerY, spanStart, scaleX, scaleY)
   const labelX = x1 + width / 2 + skew / 2;
   const labelY = centerY - Math.max(heightStart, heightEnd) - 7 - lift;
   if (role.geometryKind === 'FRUSTUM') {
-    const points = [
-      [x1 + skew, centerY - heightStart - lift],
-      [x2 + skew, centerY - heightEnd - lift],
-      [x2, centerY + heightEnd],
-      [x1, centerY + heightStart]
-    ].map((point) => point.join(',')).join(' ');
-    return `<polygon class="${cssClass}" points="${points}" data-role="${escapeXml(role.role)}"/>\n` + renderRoleLabel(role, labelX, labelY);
+    const points = [[x1 + skew, centerY - heightStart - lift], [x2 + skew, centerY - heightEnd - lift], [x2, centerY + heightEnd], [x1, centerY + heightStart]].map((point) => point.map(round).join(',')).join(' ');
+    return `<polygon class="${cssClass}" points="${points}" data-role="${escapeXml(role.role)}"/>\n${renderRoleLabel(role, labelX, labelY)}`;
   }
   const y = centerY - Math.max(heightStart, heightEnd) - lift;
   const h = Math.max(heightStart, heightEnd) * 2;
@@ -338,49 +316,19 @@ function renderRoleLabel(role, x, y) {
 function renderMarkdownSummary(audit) {
   const s = audit.summary;
   return `# BM_CII GLB Catalogue Visual Regression Artifact\n\n` +
-    `Schema: \`${audit.schema}\`\n\n` +
-    `Sample: \`${audit.sample}\`\n\n` +
-    `## Purpose\n\n` +
-    `This artifact provides deterministic screenshot-style SVG snapshots derived from the actual Three.js scene emitted by \`convertInputXmlToGlb()\`. It is intended for human review of valve/flange catalogue proportions after automated structural gates pass.\n\n` +
-    `## Generated files\n\n` +
-    `- \`${s.snapshotFiles.top}\`\n` +
-    `- \`${s.snapshotFiles.side}\`\n` +
-    `- \`${s.snapshotFiles.isometric}\`\n` +
-    `- \`${baseName}.audit.json\`\n` +
-    `- \`${baseName}.summary.md\`\n\n` +
-    `## Summary\n\n` +
-    `| Metric | Value |\n|---|---:|\n` +
-    `| Parsed elements | ${s.parsedElementCount} |\n` +
-    `| GLB bytes | ${s.glbByteLength} |\n` +
-    `| Catalogue groups | ${s.catalogueGroupCount} |\n` +
-    `| Valve groups | ${s.valveGroupCount} |\n` +
-    `| Flange groups | ${s.flangeGroupCount} |\n` +
-    `| Rendered span roles | ${s.renderedSpanRoleCount} |\n` +
-    `| SVG snapshots | ${s.svgSnapshotCount} |\n` +
-    `| Continuous groups | ${s.groupsWithContinuousSpans} / ${s.catalogueGroupCount} |\n` +
-    `| Visual-regression issues | ${s.issueCount} |\n\n` +
-    `## Visual checks\n\n` +
-    `- ${s.allGroupsContinuous ? '✅' : '❌'} rendered catalogue spans remain continuous\n` +
-    `- ${s.issueCount === 0 ? '✅' : '❌'} deterministic SVG artifact generation is clean\n` +
-    `- ✅ artifact is derived from actual Three.js scene metadata\n` +
-    `- ✅ proportional fallback is explicit\n` +
-    `- ✅ no RVM writer behavior change\n` +
-    `- ✅ no ASME/rating-size dimensional database claim\n\n` +
-    `## Scope note\n\n` +
-    `These SVGs are CI-safe visual-regression cards, not WebGL raster screenshots and not ASME dimensional validation. They are designed to make detached collars, oversized flange plates, missing tapered shoulders, and discontinuous axial spans easy to spot in artifacts.\n`;
+    `Schema: \`${audit.schema}\`\n\nSample: \`${audit.sample}\`\n\n` +
+    `## Purpose\n\nThis artifact provides deterministic screenshot-style SVG snapshots derived from the actual Three.js scene emitted by \`convertInputXmlToGlb()\`. It is intended for human review of valve/flange catalogue proportions after automated structural gates pass.\n\n` +
+    `## Generated files\n\n- \`${s.snapshotFiles.top}\`\n- \`${s.snapshotFiles.side}\`\n- \`${s.snapshotFiles.isometric}\`\n- \`${baseName}.audit.json\`\n- \`${baseName}.summary.md\`\n\n` +
+    `## Summary\n\n| Metric | Value |\n|---|---:|\n` +
+    `| Parsed elements | ${s.parsedElementCount} |\n| GLB bytes | ${s.glbByteLength} |\n| Catalogue groups | ${s.catalogueGroupCount} |\n| Valve groups | ${s.valveGroupCount} |\n| Flange groups | ${s.flangeGroupCount} |\n| Rendered span roles | ${s.renderedSpanRoleCount} |\n| SVG snapshots | ${s.svgSnapshotCount} |\n| Continuous groups | ${s.groupsWithContinuousSpans} / ${s.catalogueGroupCount} |\n| Visual-regression issues | ${s.issueCount} |\n\n` +
+    `## Visual checks\n\n- ${s.allGroupsContinuous ? '✅' : '❌'} rendered catalogue spans remain continuous\n- ${s.issueCount === 0 ? '✅' : '❌'} deterministic SVG artifact generation is clean\n- ✅ artifact is derived from actual Three.js scene metadata\n- ✅ proportional fallback is explicit\n- ✅ no RVM writer behavior change\n- ✅ no ASME/rating-size dimensional database claim\n\n` +
+    `## Scope note\n\nThese SVGs are CI-safe visual-regression cards, not WebGL raster screenshots and not ASME dimensional validation. They are designed to make detached collars, oversized flange plates, missing tapered shoulders, and discontinuous axial spans easy to spot in artifacts.\n`;
 }
 
-function roleClass(role) {
-  if (role.geometryKind === 'SPAN_FILLED_VALVE_BODY') return 'role-body';
-  if (role.geometryKind === 'FRUSTUM') return 'role-frustum';
-  if (/RAISED_FACE|GASKET/.test(role.role || '')) return 'role-face';
-  if (role.geometryKind === 'CYLINDER') return 'role-cyl';
-  return 'role-other';
-}
+function roleClass(role) { if (role.geometryKind === 'SPAN_FILLED_VALVE_BODY') return 'role-body'; if (role.geometryKind === 'FRUSTUM') return 'role-frustum'; if (/RAISED_FACE|GASKET/.test(role.role || '')) return 'role-face'; if (role.geometryKind === 'CYLINDER') return 'role-cyl'; return 'role-other'; }
 function viewHeightFactor(view) { return view === 'top' ? 0.72 : view === 'isometric' ? 0.86 : 1; }
-function roleRadius(entry) { const value = Number(entry.radius); return Number.isFinite(value) ? value : Math.max(roleRadiusStart(entry), roleRadiusEnd(entry)); }
-function roleRadiusStart(entry) { const value = Number(entry.radiusStart); return Number.isFinite(value) ? value : roleRadius(entry); }
-function roleRadiusEnd(entry) { const value = Number(entry.radiusEnd); return Number.isFinite(value) ? value : roleRadius(entry); }
+function roleRadiusValues(entry) { return [entry.radius, entry.radiusStart, entry.radiusEnd].map(Number).filter(Number.isFinite); }
+function firstFinite(...values) { for (const value of values) { const n = Number(value); if (Number.isFinite(n)) return n; } return undefined; }
 function hasFiniteSpan(entry) { return Number.isFinite(entry.renderedLocalAxisStart) && Number.isFinite(entry.renderedLocalAxisEnd) && Number.isFinite(entry.renderedAxisLength); }
 function finiteOrUndefined(value) { const n = Number(value); return Number.isFinite(n) ? n : undefined; }
 function countBy(values, keyFn) { const counts = {}; for (const value of values || []) { const key = keyFn(value) || 'UNKNOWN'; counts[key] = (counts[key] || 0) + 1; } return counts; }
@@ -392,48 +340,13 @@ function escapeXml(value) { return String(value ?? '').replace(/&/g, '&amp;').re
 function installMinimalBrowserApis() {
   installMinimalDomParser();
   if (!globalThis.FileReader) {
-    globalThis.FileReader = class MinimalFileReader {
-      constructor() { this.result = null; this.onerror = null; this.onloadend = null; }
-      async readAsArrayBuffer(blob) {
-        try { this.result = await blob.arrayBuffer(); this.onloadend?.({ target: this }); } catch (error) { this.onerror?.(error); }
-      }
-    };
+    globalThis.FileReader = class MinimalFileReader { constructor() { this.result = null; this.onerror = null; this.onloadend = null; } async readAsArrayBuffer(blob) { try { this.result = await blob.arrayBuffer(); this.onloadend?.({ target: this }); } catch (error) { this.onerror?.(error); } } };
   }
 }
 function installMinimalDomParser() {
   if (globalThis.DOMParser) return;
-  class MinimalXmlNode {
-    constructor(tagName = '', attributes = {}) { this.tagName = tagName; this.attributes = attributes; this.children = []; this._text = ''; }
-    getAttribute(name) { return this.attributes[name] ?? this.attributes[String(name).toLowerCase()] ?? null; }
-    get textContent() { return decodeXmlEntities(this._text + this.children.map((child) => child.textContent).join('')); }
-    getElementsByTagName(name) { const wanted = String(name || '').toUpperCase(); const hits = []; const visit = (node) => { if (String(node.tagName || '').toUpperCase() === wanted) hits.push(node); for (const child of node.children) visit(child); }; for (const child of this.children) visit(child); return hits; }
-    querySelector(selector) { return selector === 'parsererror' ? null : null; }
-  }
-  globalThis.DOMParser = class MinimalDomParser {
-    parseFromString(text) {
-      const document = new MinimalXmlNode('#document', {});
-      const stack = [document];
-      const pattern = /<([^>]+)>|([^<]+)/g;
-      let match;
-      while ((match = pattern.exec(String(text || '')))) {
-        const tag = match[1];
-        const rawText = match[2];
-        if (rawText) { stack[stack.length - 1]._text += rawText; continue; }
-        const trimmed = String(tag || '').trim();
-        if (!trimmed || trimmed.startsWith('?') || trimmed.startsWith('!')) continue;
-        if (trimmed.startsWith('/')) { const closing = normalizeTagName(trimmed.slice(1).trim().split(/\s+/)[0]); while (stack.length > 1 && stack[stack.length - 1].tagName !== closing) stack.pop(); if (stack.length > 1) stack.pop(); continue; }
-        const selfClosing = /\/\s*$/.test(trimmed);
-        const cleaned = trimmed.replace(/\/\s*$/, '').trim();
-        const spaceIndex = cleaned.search(/\s/);
-        const rawName = spaceIndex === -1 ? cleaned : cleaned.slice(0, spaceIndex);
-        const attrText = spaceIndex === -1 ? '' : cleaned.slice(spaceIndex + 1);
-        const node = new MinimalXmlNode(normalizeTagName(rawName), parseAttributes(attrText));
-        stack[stack.length - 1].children.push(node);
-        if (!selfClosing) stack.push(node);
-      }
-      return document;
-    }
-  };
+  class MinimalXmlNode { constructor(tagName = '', attributes = {}) { this.tagName = tagName; this.attributes = attributes; this.children = []; this._text = ''; } getAttribute(name) { return this.attributes[name] ?? this.attributes[String(name).toLowerCase()] ?? null; } get textContent() { return decodeXmlEntities(this._text + this.children.map((child) => child.textContent).join('')); } getElementsByTagName(name) { const wanted = String(name || '').toUpperCase(); const hits = []; const visit = (node) => { if (String(node.tagName || '').toUpperCase() === wanted) hits.push(node); for (const child of node.children) visit(child); }; for (const child of this.children) visit(child); return hits; } querySelector(selector) { return selector === 'parsererror' ? null : null; } }
+  globalThis.DOMParser = class MinimalDomParser { parseFromString(text) { const document = new MinimalXmlNode('#document', {}); const stack = [document]; const pattern = /<([^>]+)>|([^<]+)/g; let match; while ((match = pattern.exec(String(text || '')))) { const tag = match[1]; const rawText = match[2]; if (rawText) { stack[stack.length - 1]._text += rawText; continue; } const trimmed = String(tag || '').trim(); if (!trimmed || trimmed.startsWith('?') || trimmed.startsWith('!')) continue; if (trimmed.startsWith('/')) { const closing = normalizeTagName(trimmed.slice(1).trim().split(/\s+/)[0]); while (stack.length > 1 && stack[stack.length - 1].tagName !== closing) stack.pop(); if (stack.length > 1) stack.pop(); continue; } const selfClosing = /\/\s*$/.test(trimmed); const cleaned = trimmed.replace(/\/\s*$/, '').trim(); const spaceIndex = cleaned.search(/\s/); const rawName = spaceIndex === -1 ? cleaned : cleaned.slice(0, spaceIndex); const attrText = spaceIndex === -1 ? '' : cleaned.slice(spaceIndex + 1); const node = new MinimalXmlNode(normalizeTagName(rawName), parseAttributes(attrText)); stack[stack.length - 1].children.push(node); if (!selfClosing) stack.push(node); } return document; } };
 }
 function normalizeTagName(name) { return String(name || '').split(':').pop().toUpperCase(); }
 function parseAttributes(text) { const attrs = {}; const pattern = /([A-Za-z_:][\w:.-]*)\s*=\s*("([^"]*)"|'([^']*)')/g; let match; while ((match = pattern.exec(String(text || '')))) { const key = match[1]; const value = decodeXmlEntities(match[3] ?? match[4] ?? ''); attrs[key] = value; attrs[key.toLowerCase()] = value; } return attrs; }

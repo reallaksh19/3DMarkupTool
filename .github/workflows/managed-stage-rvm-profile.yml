@@ -1,0 +1,27 @@
+name: Managed Stage RVM Profile
+
+on:
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  managed-stage-rvm-profile:
+    name: Managed-stage RVM profile gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Node dependencies
+        run: npm install --no-audit --no-fund
+
+      - name: Run managed-stage RVM profile test
+        run: node tests/managed-stage-rvm-profile.test.mjs

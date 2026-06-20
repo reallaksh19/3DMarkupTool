@@ -3,13 +3,11 @@
 // menu, and a canvas right-click menu all come from one registry. Older text-only
 // view-pad shortcut buttons are hidden implementation hooks only.
 
-const VERSION = 'review-ribbon-icons-20260619';
+const VERSION = 'phase11-ui-integration-20260620';
 const STYLE_ID = 'staticReviewRibbonToolsStyle';
 const RIBBON_GROUP_ID = 'staticReviewRibbonGroup';
 const TOP_MENU_ID = 'topReviewMenu';
 const CONTEXT_MENU_ID = 'staticReviewContextMenu';
-const RETRY_MS = 220;
-const MAX_RETRIES = 35;
 
 const REVIEW_TOOL_REGISTRY = [
   { key: 'marqueeZoom', label: 'Zoom Box', menuLabel: 'Zoom Box', icon: 'zoom-box', title: 'Drag a box on the canvas to zoom into that area', api: ['__3D_MARKUP_MARQUEE_ZOOM__', 'activate'], ribbon: true },
@@ -26,13 +24,13 @@ const REVIEW_TOOL_REGISTRY = [
   { key: 'viewPrevious', label: 'Prev', menuLabel: 'Previous View', icon: 'undo-view', title: 'Go to the previous camera view', api: ['__3D_MARKUP_VIEWPAD_TOOLS__', 'previousView'], ribbon: true },
   { key: 'viewNext', label: 'Next', menuLabel: 'Next View', icon: 'redo-view', title: 'Go to the next camera view', api: ['__3D_MARKUP_VIEWPAD_TOOLS__', 'nextView'], ribbon: true },
   { key: 'measurePolyline', label: 'Polyline', menuLabel: 'Measure Polyline', icon: 'polyline-measure', title: 'Click multiple points to measure cumulative length', api: ['__3D_MARKUP_MEASURE_POLYLINE__', 'activate'], ribbon: true },
-  { key: 'explodeReview', label: 'Explode', menuLabel: 'Explode Review', icon: 'explode', title: 'Separate components by type or line for review', ribbon: true }
+  { key: 'explodeReview', label: 'Explode', menuLabel: 'Explode Review', icon: 'explode', title: 'Separate components by type or line for review', api: ['__3D_MARKUP_EXPLODE_REVIEW__', 'open'], ribbon: true },
+  { key: 'reassembleReview', label: 'Reset', menuLabel: 'Reassemble / Reset', icon: 'reassemble', title: 'Restore exploded components to their original positions', api: ['__3D_MARKUP_EXPLODE_REVIEW__', 'reassemble'], ribbon: true }
 ];
 
 const HIDDEN_VIEWPAD_KEYS = REVIEW_TOOL_REGISTRY.filter((tool) => tool.key).map((tool) => tool.key);
 let contextMenu;
 let attachedContextTarget;
-let retryCount = 0;
 
 runWhenReady(initReviewRibbonTools);
 
@@ -47,7 +45,6 @@ function initReviewRibbonTools() {
   refreshIntegration();
   attachContextMenu();
   attachRefreshEvents();
-  retryRefresh();
 }
 
 function refreshIntegration() {
@@ -315,14 +312,8 @@ function attachRefreshEvents() {
   window.addEventListener('click', (event) => {
     if (!event.target?.closest?.('.review-top-menu-wrap')) closeTopReviewMenus();
   });
-  ['markup:app-ready', 'viewer:model-loaded', 'viewer:selection-changed', 'viewer:ui-score-changed', 'viewer:area-select', 'viewer:visibility-tools']
+  ['markup:app-ready', 'viewer:model-loaded', 'viewer:selection-changed', 'viewer:ui-score-changed', 'viewer:area-select', 'viewer:visibility-tools', 'viewer:explode-review']
     .forEach((eventName) => window.addEventListener(eventName, refreshIntegration));
-}
-
-function retryRefresh() {
-  if (refreshIntegration() || retryCount >= MAX_RETRIES) return;
-  retryCount += 1;
-  window.setTimeout(retryRefresh, RETRY_MS);
 }
 
 function installApi() {
@@ -333,7 +324,10 @@ function installApi() {
     refresh: refreshIntegration,
     openMenu: (x, y) => showContextMenu(Number(x) || window.innerWidth / 2, Number(y) || window.innerHeight / 2),
     closeMenu: closeContextMenu,
-    run: runTool
+    run: runTool,
+    noPolling: true,
+    noRetryLoop: true,
+    noSceneTraversal: true
   };
   window.__3D_MARKUP_REVIEW_RIBBON_INTEGRATION__ = api;
   window.__3D_MARKUP_VIEWPAD_INTEGRATION__ = api;
@@ -351,11 +345,14 @@ function buildChecklist() {
       icon: tool.icon,
       hasRibbonButton: Boolean(ribbonButton),
       hasRibbonIcon: Boolean(ribbonButton?.querySelector?.('svg.review-ribbon-tool-icon')),
+      hasRibbonLabel: Boolean(ribbonButton?.querySelector?.('span')?.textContent?.trim()),
       hasRibbonTooltip: Boolean(ribbonButton?.title || ribbonButton?.getAttribute?.('aria-label')),
       hasReviewMenu: Boolean(topMenuButton),
       hasReviewMenuIcon: Boolean(topMenuButton?.querySelector?.('svg')),
+      hasReviewMenuLabel: Boolean(topMenuButton?.querySelector?.('[class$="__label"], span')?.textContent?.trim()),
       hasContextMenu: Boolean(contextButton),
       hasContextMenuIcon: Boolean(contextButton?.querySelector?.('svg')),
+      hasContextMenuLabel: Boolean(contextButton?.querySelector?.('[class$="__label"], span')?.textContent?.trim()),
       shortcutHidden: !shortcutHook || shortcutHook.classList.contains('review-shortcut-hidden-hook') || getComputedStyle(shortcutHook).display === 'none'
     };
   });
@@ -394,6 +391,7 @@ function iconMarkup(name) {
     'redo-view': `<path d="M15 7l5 5-5 5" ${common}/><path d="M20 12H10a6 6 0 0 0-6 6" ${common}/>` ,
     'polyline-measure': `<path d="M4 17l5-8 5 5 6-9" ${common}/><circle cx="4" cy="17" r="1.8" ${filled}/><circle cx="9" cy="9" r="1.8" ${filled}/><circle cx="14" cy="14" r="1.8" ${filled}/><circle cx="20" cy="5" r="1.8" ${filled}/>` ,
     explode: `<path d="M12 12L5 5M12 12l7-7M12 12l7 7M12 12l-7 7" ${common}/><path d="M5 5h5M5 5v5M19 5h-5M19 5v5M19 19h-5M19 19v-5M5 19h5M5 19v-5" ${common}/>` ,
+    reassemble: `<path d="M4 8l8-4 8 4-8 4-8-4z" ${common}/><path d="M6 12h12" ${common}/><path d="M8 16h8" ${common}/><path d="M9 19h6" ${common}/><path d="M7 6l-3-2M17 6l3-2M7 18l-3 2M17 18l3 2" ${common} opacity=".55"/>`,
     'review-menu': `<path d="M5 5h14v14H5z" ${common}/><path d="M8 9h8M8 13h5" ${common}/><path d="M16 16l3 3" ${common}/>`
   };
   return icons[name] || icons['review-menu'];
@@ -425,7 +423,7 @@ function injectStyles() {
   const style = document.createElement('style');
   style.id = STYLE_ID;
   style.textContent = `
-    #${RIBBON_GROUP_ID}.review-ribbon-group { max-width: 520px; overflow-x: auto; overflow-y: hidden; scrollbar-width: none; scroll-snap-type: x proximity; padding-right: 6px; }
+    #${RIBBON_GROUP_ID}.review-ribbon-group { max-width: 560px; overflow-x: auto; overflow-y: hidden; scrollbar-width: none; scroll-snap-type: x proximity; padding-right: 6px; }
     #${RIBBON_GROUP_ID}.review-ribbon-group::-webkit-scrollbar { display: none; }
     #${RIBBON_GROUP_ID} .review-ribbon-tool-btn { min-width: 56px; width: 56px; max-width: 56px; scroll-snap-align: start; }
     #${RIBBON_GROUP_ID} .review-ribbon-tool-btn span { max-width: 48px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -445,7 +443,7 @@ function injectStyles() {
     .review-context-menu__item__icon { width: 22px; height: 22px; padding: 3px; display: inline-flex; align-items: center; justify-content: center; border-radius: 7px; background: rgba(30, 64, 120, .62); color: #bfdbfe; }
     .review-context-menu__item__label { font-weight: 750; }
     @media (max-width: 1500px) {
-      #${RIBBON_GROUP_ID}.review-ribbon-group { max-width: 390px; }
+      #${RIBBON_GROUP_ID}.review-ribbon-group { max-width: 430px; }
       #${RIBBON_GROUP_ID} .review-ribbon-tool-btn { min-width: 52px; width: 52px; max-width: 52px; }
     }
   `;

@@ -330,3 +330,20 @@ body:not(.sideload-expanded) #inputDrawer .panel-section[data-collapsible="sidel
 .properties-body.empty-state {
   min-height: 65%;
 }
+
+/* ─── Layout containment ────────────────────────────────────────────────────
+ * Scoping layout/style recalculations to the ribbon and its tool groups
+ * prevents bundle-injected content changes from triggering full-page reflows.
+ * `contain: paint` is intentionally omitted: tool-group descendants
+ * (e.g. popover menus) may need to overflow the group border box.
+ */
+.main-ribbon {
+  contain: layout style;
+  /* Stabilise height so incoming bundle content cannot shift the ribbon row. */
+  min-height: 68px;
+}
+
+.main-ribbon .tool-group,
+.main-ribbon .toolbar-group {
+  contain: layout style;
+}

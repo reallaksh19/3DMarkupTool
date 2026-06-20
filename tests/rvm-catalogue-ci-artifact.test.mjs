@@ -21,7 +21,8 @@ assert.match(generator, /\$\{baseName\}\.rvm/, 'artifact generator must write th
 assert.match(generator, /\$\{baseName\}\.att/, 'artifact generator must write the matching ATT file.');
 assert.match(generator, /\$\{baseName\}\.audit\.json/, 'artifact generator must write a machine-readable audit JSON.');
 assert.match(generator, /\$\{baseName\}\.summary\.md/, 'artifact generator must write a human-readable summary.');
-assert.match(generator, /RvmCatalogueSampleArtifact\.v1/, 'artifact generator must declare the artifact schema.');
+assert.match(generator, /RvmCatalogueSampleArtifact\.v2/, 'artifact generator must declare the C6 artifact schema with binary audit data.');
+assert.match(generator, /rvmBinaryAudit/, 'artifact audit must include the C6 binary compatibility audit summary.');
 assert.match(generator, /CATALOGUE_EXPORT_PRODUCTION_WIRING/, 'artifact audit must include production catalogue wiring metadata.');
 assert.match(generator, /ASME_DIMENSIONAL_DB_BACKED/, 'artifact audit must preserve the non-ASME dimensional DB flag.');
 assert.match(generator, /PROPORTIONAL_FALLBACK/, 'artifact audit must preserve the proportional fallback flag.');

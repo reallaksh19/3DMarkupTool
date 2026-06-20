@@ -4,12 +4,14 @@
  * Output: ArrayBuffer containing HEAD, MODL, CNTB, PRIM, CNTE, and END chunks.
  * Fallback: unsupported primitive kinds raise explicit errors so geometry is not silently dropped.
  */
+const REVIEW_CHUNK_MARKER = 1;
+
 export function writeRvm(exportModel) {
   const writer = createChunkWriter();
   writer.writeChunk('HEAD', headBody(), null);
   writer.writeChunk('MODL', modelBody(), null);
   writeNode(writer, exportModel.root);
-  writer.writeChunk('END:', new ArrayBuffer(0), null);
+  writer.writeChunk('END:', uint32Body(REVIEW_CHUNK_MARKER), null);
   return writer.finish();
 }
 
@@ -21,7 +23,7 @@ function writeNode(writer, node) {
     for (const child of node.children || []) {
       writeNode(writer, child);
     }
-    writer.writeChunk('CNTE', uint32Body(1), null);
+    writer.writeChunk('CNTE', uint32Body(REVIEW_CHUNK_MARKER), null);
   });
 }
 
@@ -164,7 +166,7 @@ function createChunkWriter() {
       view.setUint32(index * 4, padded.charCodeAt(index), false);
     }
     view.setUint32(16, offset + 24 + body.byteLength, false);
-    view.setUint32(20, 0, false);
+    view.setUint32(20, REVIEW_CHUNK_MARKER, false);
     append(header);
     append(body);
     if (writeChildren) writeChildren();
@@ -262,7 +264,11 @@ function lengths3(value) {
   if (!Array.isArray(value) || value.length !== 3) {
     throw new Error('Invalid RVM length triple');
   }
-  return value.map((entry) => positiveNumber(entry, 'length triple'));
+  return value.map((entry) => {
+    const parsed = Number(entry);
+    if (!Number.isFinite(parsed)) throw new Error('Invalid RVM length triple: contains non-finite value');
+    return Math.max(parsed, 0.001);
+  });
 }
 
 function positiveNumber(value, fieldName) {
@@ -273,22 +279,16 @@ function positiveNumber(value, fieldName) {
   return parsed;
 }
 
+function normalize(vector) {
+  const length = Math.hypot(vector[0], vector[1], vector[2]);
+  if (!Number.isFinite(length) || length <= 1e-9) return [0, 0, 1];
+  return vector.map((entry) => entry / length);
+}
+
 function cross(a, b) {
   return [
     a[1] * b[2] - a[2] * b[1],
     a[2] * b[0] - a[0] * b[2],
     a[0] * b[1] - a[1] * b[0]
   ];
-}
-
-function length(vector) {
-  return Math.hypot(vector[0], vector[1], vector[2]);
-}
-
-function normalize(vector) {
-  const value = length(vector);
-  if (value <= 1e-12) {
-    throw new Error('Invalid RVM direction: zero-length vector');
-  }
-  return [vector[0] / value, vector[1] / value, vector[2] / value];
 }

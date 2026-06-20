@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
-const ACTIVE_CACHE_KEY = 'canvas-tool-manager-20260620';
+const ACTIVE_CACHE_KEY = 'selection-first-tools-20260620';
 const FIRST_PAINT_CACHE_KEY = 'perf-tdz-fix-20260620';
 const dateStampedKey = /^[a-z0-9-]+-20\d{6}$/;
 
@@ -47,7 +47,7 @@ for (const [name, source] of [
   ['safe-ui-bootstrap.js', safeBootstrap],
   ['build-pages.mjs', buildScript]
 ]) {
-  assert.match(source, escaped(ACTIVE_CACHE_KEY), `${name} must use the active canvas manager bundle cache key`);
+  assert.match(source, escaped(ACTIVE_CACHE_KEY), `${name} must use the active selection-first bundle cache key`);
   assert.doesNotMatch(source, /perf-static-drawer-bundle-20260620/, `${name} must not keep the prior static-drawer bundle key active`);
 }
 

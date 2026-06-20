@@ -11,8 +11,8 @@
 // annotation-isonote-world-facing-20260620 canvas-tool-manager-20260620 selection-first-tools-20260620
 // Legacy input-panel gate marker only: SAFE_UI_VERSION = 'perf-static-shell-20260620'
 
-const SAFE_UI_VERSION = 'canvas-tool-manager-20260620';
-const CLIP_UI_VERSION = 'canvas-tool-manager-20260620';
+const SAFE_UI_VERSION = 'selection-first-tools-20260620';
+const CLIP_UI_VERSION = 'selection-first-tools-20260620';
 const BUNDLED_ASSETS = window.__3D_MARKUP_BUNDLED_ASSETS__ || {};
 // Bundle URLs in the manifest are relative to the document, but dynamic
 // import() resolves relative to this module (./src/). Resolve against

@@ -146,18 +146,36 @@ function flangeMetrics(spec, length, pipeRadius) {
   const plateRadius = pipeRadius * spec.profile.flangeDiameterFactor;
   const raisedFaceRadius = pipeRadius * spec.profile.raisedFaceDiameterFactor;
   const neckOuterRadius = Math.max(pipeRadius * positiveNumber(spec.profile.neckDiameterFactor, 1.08), pipeRadius * 1.06);
-  return { flangeThickness, raisedFaceThickness, gasketThickness, plateRadius, raisedFaceRadius, neckOuterRadius };
+  const rawNeckLength = pipeRadius * positiveNumber(spec.profile.neckLengthFactor, 0.40);
+  const maxNeckLength = Math.max(pipeRadius * 0.14, Math.min(length * 0.28, pipeRadius * 0.38));
+  const neckLength = clamp(rawNeckLength, pipeRadius * 0.10, maxNeckLength);
+  return { flangeThickness, raisedFaceThickness, gasketThickness, plateRadius, raisedFaceRadius, neckOuterRadius, neckLength };
 }
 
 function buildSingleFlangePrimitivePlan(spec, length, pipeRadius, half) {
-  const { flangeThickness, raisedFaceThickness, plateRadius, raisedFaceRadius, neckOuterRadius } = flangeMetrics(spec, length, pipeRadius);
+  const { flangeThickness, raisedFaceThickness, plateRadius, raisedFaceRadius, neckOuterRadius, neckLength } = flangeMetrics(spec, length, pipeRadius);
   const raisedFaceAtTo = spec.flangeTopology.raisedFaceEndpoint === 'TO';
   const primitives = [];
 
+  // A CAESAR/InputXML TYPE="Flange" next to a valve stores the component span
+  // from pipe node to valve node. Only the valve-side end owns the full flange
+  // plate / raised-face silhouette. Do not stretch the weld neck across the
+  // whole span; that creates reducer-like cones. The pipe-side remainder is a
+  // same-bore continuation and only the short bounded neck expands into the plate.
   if (raisedFaceAtTo) {
     const raisedFaceStart = half - raisedFaceThickness;
     const plateStart = raisedFaceStart - flangeThickness;
-    primitives.push(segmentPrimitive('WELD_NECK_PIPE_SIDE', 'disc', -half, plateStart, {
+    const neckStart = Math.max(-half, plateStart - neckLength);
+    if (neckStart > -half + 1e-8) {
+      primitives.push(segmentPrimitive('PIPE_STUB_PIPE_SIDE', 'disc', -half, neckStart, {
+        radius: pipeRadius * 1.01,
+        replacesCenterlinePipe: true,
+        continuityFiller: true,
+        visualMaterial: 'pipe-stub',
+        singleFlangePipeSide: 'FROM'
+      }));
+    }
+    primitives.push(segmentPrimitive('WELD_NECK_PIPE_SIDE', 'disc', neckStart, plateStart, {
       radius: neckOuterRadius,
       innerRadius: pipeRadius * 1.02,
       outerRadius: neckOuterRadius,
@@ -165,7 +183,8 @@ function buildSingleFlangePrimitivePlan(spec, length, pipeRadius, half) {
       radiusEnd: neckOuterRadius,
       replacesCenterlinePipe: true,
       proportionalShoulder: true,
-      singleFlangePipeSide: 'FROM'
+      singleFlangePipeSide: 'FROM',
+      boundedSingleFlangeNeck: true
     }));
     primitives.push(segmentPrimitive('FLANGE_PLATE', 'disc', plateStart, raisedFaceStart, {
       radius: plateRadius,
@@ -183,6 +202,7 @@ function buildSingleFlangePrimitivePlan(spec, length, pipeRadius, half) {
   } else {
     const raisedFaceEnd = -half + raisedFaceThickness;
     const plateEnd = raisedFaceEnd + flangeThickness;
+    const neckEnd = Math.min(half, plateEnd + neckLength);
     primitives.push(segmentPrimitive('RAISED_FACE_VALVE_SIDE', 'disc', -half, raisedFaceEnd, {
       radius: raisedFaceRadius,
       replacesCenterlinePipe: true,
@@ -196,7 +216,7 @@ function buildSingleFlangePrimitivePlan(spec, length, pipeRadius, half) {
       proportionalFlangeThickness: true,
       thinPlate: true
     }));
-    primitives.push(segmentPrimitive('WELD_NECK_PIPE_SIDE', 'disc', plateEnd, half, {
+    primitives.push(segmentPrimitive('WELD_NECK_PIPE_SIDE', 'disc', plateEnd, neckEnd, {
       radius: neckOuterRadius,
       innerRadius: pipeRadius * 1.02,
       outerRadius: neckOuterRadius,
@@ -204,8 +224,18 @@ function buildSingleFlangePrimitivePlan(spec, length, pipeRadius, half) {
       radiusEnd: pipeRadius * 1.02,
       replacesCenterlinePipe: true,
       proportionalShoulder: true,
-      singleFlangePipeSide: 'TO'
+      singleFlangePipeSide: 'TO',
+      boundedSingleFlangeNeck: true
     }));
+    if (neckEnd < half - 1e-8) {
+      primitives.push(segmentPrimitive('PIPE_STUB_PIPE_SIDE', 'disc', neckEnd, half, {
+        radius: pipeRadius * 1.01,
+        replacesCenterlinePipe: true,
+        continuityFiller: true,
+        visualMaterial: 'pipe-stub',
+        singleFlangePipeSide: 'TO'
+      }));
+    }
   }
 
   primitives.push({

@@ -101,6 +101,37 @@
         <button id="closeInputBtn" type="button" class="icon-btn" title="Close input panel"><i data-lucide="chevrons-left"></i></button>
       </div>
 
+      <section
+        id="drawerSummaryCard"
+        class="drawer-summary-card"
+        aria-label="Input and export summary"
+        data-static-summary="true"
+      >
+        <div class="drawer-summary-head">
+          <span>Review Flow</span>
+          <small id="drawerSummaryStamp">init</small>
+        </div>
+
+        <div class="drawer-summary-grid" aria-label="Workflow status">
+          <div id="drawerSummary_input" class="drawer-summary-step" data-state="idle">
+            <strong>Input</strong>
+            <span>Waiting</span>
+          </div>
+          <div id="drawerSummary_model" class="drawer-summary-step" data-state="idle">
+            <strong>Model</strong>
+            <span>Not converted</span>
+          </div>
+          <div id="drawerSummary_export" class="drawer-summary-step" data-state="idle">
+            <strong>Export</strong>
+            <span>Locked</span>
+          </div>
+        </div>
+
+        <p id="drawerSummaryHint" class="drawer-summary-hint">
+          Load InputXML or BM_CII sample to begin.
+        </p>
+      </section>
+
       <section class="panel-section phase2-input-sticky-section phase4a-input-compact-section" data-section="input" data-phase2-input="always-visible" data-phase4a-input="compact-static">
         <h3><span class="section-no">1</span> Input</h3>
         <div id="inputFileStatus" class="input-file-status" aria-live="polite">No file chosen</div>

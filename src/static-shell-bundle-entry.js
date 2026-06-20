@@ -17,6 +17,7 @@ import './static-section-box-from-selection-controller.js';
 import './static-tree-core-controller.js';
 import './static-color-legend-controller.js';
 import './static-workflow-status-controller.js';
+import './static-drawer-summary-controller.js';
 import './static-help-shortcuts-controller.js';
 import './static-markup-core-controller.js';
 import './static-quick-export-core-controller.js';

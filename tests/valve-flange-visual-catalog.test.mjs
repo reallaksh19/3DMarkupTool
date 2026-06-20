@@ -39,6 +39,13 @@ function assertOrderedContinuous(plan, roles, length, message, tolerance = 1e-4)
   return spans;
 }
 
+function orderedRoles(plan) {
+  return plan
+    .filter((p) => p.replacesCenterlinePipe && !p.hiddenBoreFill && !p.overlayOnly)
+    .sort((a, b) => spanOf(plan, a.role)[0] - spanOf(plan, b.role)[0])
+    .map((p) => p.role);
+}
+
 function singleFlangeSpec(id, pipeEndpoint, raisedFaceEndpoint) {
   return getValveFlangeVisualSpec({
     id,
@@ -58,7 +65,7 @@ function singleFlangeSpec(id, pipeEndpoint, raisedFaceEndpoint) {
 function assertSingleFlange(plan, length, message) {
   assertNoFilledSeamRings(plan, message);
   assert.ok(!plan.some((p) => ['FLANGE_DISC_A', 'FLANGE_DISC_B', 'FLANGE_CENTER_BORE_FILL', 'GASKET_CENTER', 'WELD_NECK_A', 'WELD_NECK_B'].includes(p.role)), `${message}: must not emit symmetric flange-pair pieces`);
-  assertOrderedContinuous(plan, ['WELD_NECK_PIPE_SIDE', 'FLANGE_PLATE', 'RAISED_FACE_VALVE_SIDE'].sort((a, b) => spanOf(plan, a)[0] - spanOf(plan, b)[0]), length, message, 1e-5);
+  assertOrderedContinuous(plan, orderedRoles(plan), length, message, 1e-5);
 }
 
 function run() {
@@ -108,8 +115,10 @@ function run() {
   assert.equal(leftSingle.flangeTopology.raisedFaceEndpoint, 'TO');
   const leftPlan = buildLinearVisualPrimitivePlan(leftSingle, { length: 0.85724998, pipeRadius: 0.571499975 });
   assertSingleFlange(leftPlan, 0.85724998, 'BM_CII 80->83 single flange');
-  assert.ok(Math.abs(spanOf(leftPlan, 'WELD_NECK_PIPE_SIDE')[0] + 0.85724998 / 2) < 1e-5, '80->83 weld neck must start at FROM pipe side');
+  assert.deepEqual(orderedRoles(leftPlan), ['PIPE_STUB_PIPE_SIDE', 'WELD_NECK_PIPE_SIDE', 'FLANGE_PLATE', 'RAISED_FACE_VALVE_SIDE']);
+  assert.ok(Math.abs(spanOf(leftPlan, 'PIPE_STUB_PIPE_SIDE')[0] + 0.85724998 / 2) < 1e-5, '80->83 pipe stub must start at FROM pipe side');
   assert.ok(Math.abs(spanOf(leftPlan, 'RAISED_FACE_VALVE_SIDE')[1] - 0.85724998 / 2) < 1e-5, '80->83 raised face must end at TO valve side');
+  assert.ok(spanOf(leftPlan, 'WELD_NECK_PIPE_SIDE')[1] - spanOf(leftPlan, 'WELD_NECK_PIPE_SIDE')[0] < 0.85724998 * 0.35, '80->83 weld neck must be bounded and must not consume the full flange span');
   assert.ok(leftPlan.find((p) => p.role === 'WELD_NECK_PIPE_SIDE').radiusStart < leftPlan.find((p) => p.role === 'WELD_NECK_PIPE_SIDE').radiusEnd);
 
   const rightSingle = singleFlangeSpec('PE_008_FLANGE_86_TO_90', 'TO', 'FROM');
@@ -117,8 +126,10 @@ function run() {
   assert.equal(rightSingle.flangeTopology.raisedFaceEndpoint, 'FROM');
   const rightPlan = buildLinearVisualPrimitivePlan(rightSingle, { length: 0.85724998, pipeRadius: 0.571499975 });
   assertSingleFlange(rightPlan, 0.85724998, 'BM_CII 86->90 single flange');
+  assert.deepEqual(orderedRoles(rightPlan), ['RAISED_FACE_VALVE_SIDE', 'FLANGE_PLATE', 'WELD_NECK_PIPE_SIDE', 'PIPE_STUB_PIPE_SIDE']);
   assert.ok(Math.abs(spanOf(rightPlan, 'RAISED_FACE_VALVE_SIDE')[0] + 0.85724998 / 2) < 1e-5, '86->90 raised face must start at FROM valve side');
-  assert.ok(Math.abs(spanOf(rightPlan, 'WELD_NECK_PIPE_SIDE')[1] - 0.85724998 / 2) < 1e-5, '86->90 weld neck must end at TO pipe side');
+  assert.ok(Math.abs(spanOf(rightPlan, 'PIPE_STUB_PIPE_SIDE')[1] - 0.85724998 / 2) < 1e-5, '86->90 pipe stub must end at TO pipe side');
+  assert.ok(spanOf(rightPlan, 'WELD_NECK_PIPE_SIDE')[1] - spanOf(rightPlan, 'WELD_NECK_PIPE_SIDE')[0] < 0.85724998 * 0.35, '86->90 weld neck must be bounded and must not consume the full flange span');
   assert.ok(rightPlan.find((p) => p.role === 'WELD_NECK_PIPE_SIDE').radiusStart > rightPlan.find((p) => p.role === 'WELD_NECK_PIPE_SIDE').radiusEnd);
 
   assert.ok(orthogonal(new THREE.Vector3(0, 0, -1)).distanceTo(new THREE.Vector3(0, 1, 0)) < 1e-8, 'horizontal Z pipe valve stem must be world-vertical');

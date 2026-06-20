@@ -7,6 +7,7 @@ const CORE_MODULES = [
   { id: 'uiDiagnostics', label: 'UI diagnostics', src: `./ui-diagnostics-controller.js?v=${SAFE_UI_VERSION}` },
   { id: 'inputDrawer', label: 'Input drawer', src: `./input-drawer-controller.js?v=${SAFE_UI_VERSION}` },
   { id: 'viewerRuntimeBridge', label: 'Viewer runtime bridge', src: `./viewer-runtime-bridge-controller.js?v=${SAFE_UI_VERSION}` },
+  { id: 'canvasInteraction', label: 'Canvas interaction ownership', src: `./static-canvas-interaction-coordinator.js?v=${SAFE_UI_VERSION}` },
   { id: 'consoleGuard', label: 'Input guard', src: `./ui-console-guard.js?v=${SAFE_UI_VERSION}` },
   { id: 'coreAppSafety', label: 'Core app safety', src: `./core-app-safety-controller.js?v=${SAFE_UI_VERSION}` },
   { id: 'fit', label: 'Fit', src: `./fit-controller.js?v=${SAFE_UI_VERSION}` },
@@ -22,7 +23,6 @@ const ADVANCED_MODULES = [
   { id: 'modelTreePanel', label: 'Model tree panel', src: `./model-tree-panel.js?v=${SAFE_UI_VERSION}` },
   { id: 'treeVisibility', label: 'Visibility context menu', src: `./visibility-context-menu.js?v=${SAFE_UI_VERSION}` },
   { id: 'treePanelBridge', label: 'Tree panel bridge', src: `./tree-panel-bridge-controller.js?v=${SAFE_UI_VERSION}` },
-  { id: 'treeSelectionBridge', label: 'Tree selection bridge', src: `./tree-selection-bridge-controller.js?v=${SAFE_UI_VERSION}` },
   { id: 'marqueeZoom', label: 'Marquee zoom', src: `./marquee-zoom-controller.js?v=${SAFE_UI_VERSION}` },
   { id: 'originManager', label: 'Origin manager', src: `./origin-manager-controller.js?v=${SAFE_UI_VERSION}` },
   { id: 'rvmQa', label: 'RVM QA', src: `./rvm-compat-validator-controller.js?v=${SAFE_UI_VERSION}` },
@@ -68,7 +68,7 @@ const ACTIVE_MODULES = [
 ];
 
 const BATCH_MODULES = SAFE_MODE
-  ? ACTIVE_MODULES.filter((entry) => entry.id === 'staticShellGuard' || entry.id === 'uiDiagnostics' || entry.id === 'uiAcceptanceHarness')
+  ? ACTIVE_MODULES.filter((entry) => entry.id === 'staticShellGuard' || entry.id === 'uiDiagnostics' || entry.id === 'canvasInteraction' || entry.id === 'uiAcceptanceHarness')
   : ACTIVE_MODULES;
 
 const state = {

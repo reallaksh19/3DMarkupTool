@@ -22,6 +22,7 @@ import './navis-manual-tag-safe-controller.js';
 import './static-quick-export-core-controller.js';
 import './static-topbar-layout-controller.js';
 import './static-review-ribbon-tools-controller.js';
+import './static-selection-first-tool-controller.js';
 import './static-canvas-tool-manager.js';
 import './static-navigation-smoothness-controller.js';
 import './static-ribbon-dropdown-cleanup-controller.js';
@@ -29,5 +30,5 @@ import './static-global-tool-lifecycle-controller.js';
 
 window.__3D_MARKUP_STATIC_SHELL_BUNDLE_READY__ = true;
 window.dispatchEvent(new CustomEvent('viewer:static-shell-bundle-ready', {
-  detail: { version: 'canvas-tool-manager-20260620' }
+  detail: { version: 'selection-first-tools-20260620' }
 }));

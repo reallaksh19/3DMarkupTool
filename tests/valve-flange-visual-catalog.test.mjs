@@ -115,8 +115,8 @@ function run() {
   assert.equal(leftSingle.flangeTopology.raisedFaceEndpoint, 'TO');
   const leftPlan = buildLinearVisualPrimitivePlan(leftSingle, { length: 0.85724998, pipeRadius: 0.571499975 });
   assertSingleFlange(leftPlan, 0.85724998, 'BM_CII 80->83 single flange');
-  assert.deepEqual(orderedRoles(leftPlan), ['PIPE_STUB_PIPE_SIDE', 'WELD_NECK_PIPE_SIDE', 'FLANGE_PLATE', 'RAISED_FACE_VALVE_SIDE']);
-  assert.ok(Math.abs(spanOf(leftPlan, 'PIPE_STUB_PIPE_SIDE')[0] + 0.85724998 / 2) < 1e-5, '80->83 pipe stub must start at FROM pipe side');
+  assert.deepEqual(orderedRoles(leftPlan), ['WELD_NECK_PIPE_SIDE', 'PIPE_STUB_PIPE_SIDE', 'FLANGE_PLATE', 'RAISED_FACE_VALVE_SIDE']);
+  assert.ok(Math.abs(spanOf(leftPlan, 'WELD_NECK_PIPE_SIDE')[0] + 0.85724998 / 2) < 1e-5, '80->83 weld neck must start at FROM pipe side');
   assert.ok(Math.abs(spanOf(leftPlan, 'RAISED_FACE_VALVE_SIDE')[1] - 0.85724998 / 2) < 1e-5, '80->83 raised face must end at TO valve side');
   assert.ok(spanOf(leftPlan, 'WELD_NECK_PIPE_SIDE')[1] - spanOf(leftPlan, 'WELD_NECK_PIPE_SIDE')[0] < 0.85724998 * 0.35, '80->83 weld neck must be bounded and must not consume the full flange span');
   assert.ok(leftPlan.find((p) => p.role === 'WELD_NECK_PIPE_SIDE').radiusStart < leftPlan.find((p) => p.role === 'WELD_NECK_PIPE_SIDE').radiusEnd);
@@ -126,9 +126,9 @@ function run() {
   assert.equal(rightSingle.flangeTopology.raisedFaceEndpoint, 'FROM');
   const rightPlan = buildLinearVisualPrimitivePlan(rightSingle, { length: 0.85724998, pipeRadius: 0.571499975 });
   assertSingleFlange(rightPlan, 0.85724998, 'BM_CII 86->90 single flange');
-  assert.deepEqual(orderedRoles(rightPlan), ['RAISED_FACE_VALVE_SIDE', 'FLANGE_PLATE', 'WELD_NECK_PIPE_SIDE', 'PIPE_STUB_PIPE_SIDE']);
+  assert.deepEqual(orderedRoles(rightPlan), ['RAISED_FACE_VALVE_SIDE', 'FLANGE_PLATE', 'PIPE_STUB_PIPE_SIDE', 'WELD_NECK_PIPE_SIDE']);
   assert.ok(Math.abs(spanOf(rightPlan, 'RAISED_FACE_VALVE_SIDE')[0] + 0.85724998 / 2) < 1e-5, '86->90 raised face must start at FROM valve side');
-  assert.ok(Math.abs(spanOf(rightPlan, 'PIPE_STUB_PIPE_SIDE')[1] - 0.85724998 / 2) < 1e-5, '86->90 pipe stub must end at TO pipe side');
+  assert.ok(Math.abs(spanOf(rightPlan, 'WELD_NECK_PIPE_SIDE')[1] - 0.85724998 / 2) < 1e-5, '86->90 weld neck must end at TO pipe side');
   assert.ok(spanOf(rightPlan, 'WELD_NECK_PIPE_SIDE')[1] - spanOf(rightPlan, 'WELD_NECK_PIPE_SIDE')[0] < 0.85724998 * 0.35, '86->90 weld neck must be bounded and must not consume the full flange span');
   assert.ok(rightPlan.find((p) => p.role === 'WELD_NECK_PIPE_SIDE').radiusStart > rightPlan.find((p) => p.role === 'WELD_NECK_PIPE_SIDE').radiusEnd);
 

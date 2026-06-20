@@ -1,17 +1,25 @@
 import { buildRvmAxisBasis } from './rvm-axis-basis-policy.js';
 import { normalizeRvmMaterialId, rvmMaterialIdForNode } from './rvm-material-layer-contract.js';
+import {
+  RVM_CNTB_COORDINATE_LAYOUT,
+  RVM_CNTB_COORDINATE_SCHEMA,
+  RVM_CNTB_COORDINATE_UNIT,
+  normalizeRvmCntbPosition,
+  resolveRvmCntbPosition
+} from './rvm-cntb-coordinate-policy.js';
 
-export const RVM_CNTB_BOUNDS_POLICY_SCHEMA = 'RvmCntbBoundsPolicy.v1';
+export const RVM_CNTB_BOUNDS_POLICY_SCHEMA = 'RvmCntbBoundsPolicy.v2';
 
 const CNTB_BODY_VERSION = 2;
 const BBOX_EPSILON = 1e-6;
+const POSITION_EPSILON = 1e-4;
 
 /**
  * Defines and validates the generated CNTB payload layout plus recursive export
- * extents. The current writer intentionally keeps CNTB payloads conservative:
- * version, review name, two reserved empty strings, review value, material id.
- * Bounding boxes are computed and audited from writer-ready primitives instead
- * of writing unsupported CNTB bbox fields before the binary contract is decoded.
+ * extents. RMSS/RHBG reference files show the generated CNTB body should carry:
+ * version, Review name, x/y/z node reference coordinates, material id.
+ * Bounding boxes remain computed and audited from writer-ready primitives instead
+ * of being written into unsupported CNTB bbox payload fields.
  */
 export function assertRvmCntbBoundsPolicy(rvmBuffer, exportModel = {}) {
   if (!exportModel || !exportModel.root) {
@@ -29,12 +37,14 @@ export function assertRvmCntbBoundsPolicy(rvmBuffer, exportModel = {}) {
     const node = expectedNodes[index];
     const expectedName = reviewNodeName(node);
     const expectedMaterial = rvmMaterialIdForNode(node);
+    const expectedPosition = resolveRvmCntbPosition(node);
     if (record.name !== expectedName) {
       throw new Error(`RVM CNTB review-name mismatch at index ${index}: expected ${expectedName}, got ${record.name}`);
     }
     if (record.materialId !== expectedMaterial) {
       throw new Error(`RVM CNTB material mismatch for ${expectedName}: expected ${expectedMaterial}, got ${record.materialId}`);
     }
+    assertPositionClose(record.position, expectedPosition, `RVM CNTB coordinate mismatch for ${expectedName}`);
     materialIds.add(record.materialId);
   });
 
@@ -47,7 +57,11 @@ export function assertRvmCntbBoundsPolicy(rvmBuffer, exportModel = {}) {
     schema: RVM_CNTB_BOUNDS_POLICY_SCHEMA,
     failClosed: true,
     cntbPayloadVersion: CNTB_BODY_VERSION,
-    cntbPayloadLayout: 'uint32 version, reviewName, reservedStringA, reservedStringB, float32 reviewValue, uint32 materialId',
+    cntbPayloadLayout: RVM_CNTB_COORDINATE_LAYOUT,
+    cntbCoordinateSchema: RVM_CNTB_COORDINATE_SCHEMA,
+    cntbCoordinateFieldsWritten: true,
+    cntbCoordinateUnit: RVM_CNTB_COORDINATE_UNIT,
+    cntbPositionSource: 'explicit-node-coordinate-or-direct-primitive-centroid-or-origin',
     cntbBboxFieldsWritten: false,
     bboxSource: 'recursive-export-model-primitives',
     bboxUnit: 'millimetres',
@@ -61,7 +75,8 @@ export function assertRvmCntbBoundsPolicy(rvmBuffer, exportModel = {}) {
     emptyLeafNodeCount: bounds.emptyLeafNodeCount,
     materialIds: Array.from(materialIds).sort((a, b) => a - b),
     reviewNamesMatchCntb: true,
-    groupMaterialIdsMatchCntb: true
+    groupMaterialIdsMatchCntb: true,
+    cntbCoordinatesMatchExportModel: true
   };
 }
 
@@ -103,26 +118,25 @@ function parseCntbBody(bodyView, chunkOffset) {
 
   const nameResult = readRvmString(bodyView, offset, 'CNTB review name');
   offset = nameResult.nextOffset;
-  const reservedA = readRvmString(bodyView, offset, 'CNTB reserved string A');
-  offset = reservedA.nextOffset;
-  const reservedB = readRvmString(bodyView, offset, 'CNTB reserved string B');
-  offset = reservedB.nextOffset;
-  if (reservedA.value !== '' || reservedB.value !== '') {
-    throw new Error(`RVM CNTB reserved strings must be empty at chunk offset ${chunkOffset}`);
-  }
-  if (offset + 8 !== bodyView.byteLength) {
-    throw new Error(`RVM CNTB body has unexpected trailing bytes at chunk offset ${chunkOffset}`);
+  if (offset + 16 !== bodyView.byteLength) {
+    throw new Error(`RVM CNTB body must contain x/y/z/materialId after name at chunk offset ${chunkOffset}`);
   }
 
-  const reviewValue = bodyView.getFloat32(offset, false);
-  offset += 4;
+  const position = normalizeRvmCntbPosition([
+    bodyView.getFloat32(offset, false),
+    bodyView.getFloat32(offset + 4, false),
+    bodyView.getFloat32(offset + 8, false)
+  ], `RVM CNTB coordinate at chunk offset ${chunkOffset}`);
+  offset += 12;
   const materialId = normalizeRvmMaterialId(bodyView.getUint32(offset, false), `RVM CNTB material at chunk offset ${chunkOffset}`);
-  if (!Number.isFinite(reviewValue)) throw new Error(`RVM CNTB review value is non-finite at chunk offset ${chunkOffset}`);
 
   return {
     version,
     name: nameResult.value,
-    reviewValue,
+    x: position[0],
+    y: position[1],
+    z: position[2],
+    position,
     materialId,
     chunkOffset,
     bodyLength: bodyView.byteLength
@@ -273,6 +287,16 @@ function assertValidBbox(bbox, context) {
   }
   if (diagonal(bbox) <= BBOX_EPSILON) {
     throw new Error(`${context} must have non-empty extents`);
+  }
+}
+
+function assertPositionClose(actual, expected, context) {
+  const actualPosition = normalizeRvmCntbPosition(actual, `${context} actual`);
+  const expectedPosition = normalizeRvmCntbPosition(expected, `${context} expected`);
+  for (let index = 0; index < 3; index += 1) {
+    if (Math.abs(actualPosition[index] - expectedPosition[index]) > POSITION_EPSILON) {
+      throw new Error(`${context}: expected ${expectedPosition.join(',')}, got ${actualPosition.join(',')}`);
+    }
   }
 }
 

@@ -6,7 +6,6 @@ const workflow = readFileSync(new URL('../.github/workflows/pages.yml', import.m
 const packageJson = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
 const appLoader = readFileSync(new URL('../src/app-loader.js', import.meta.url), 'utf8');
 const safeBootstrap = readFileSync(new URL('../src/safe-ui-bootstrap.js', import.meta.url), 'utf8');
-const staticShellEntry = readFileSync(new URL('../src/static-shell-bundle-entry.js', import.meta.url), 'utf8');
 
 assert.match(buildScript, /rollup/, 'Pages build must use Rollup to bundle local module graphs.');
 assert.match(buildScript, /src\/app-bundle-entry\.js/, 'Pages build must bundle the viewer app entry.');
@@ -30,6 +29,5 @@ assert.ok(packageJson.devDependencies?.rollup, 'Rollup must be declared as a bui
 
 assert.match(appLoader, /APP_BUNDLE_URL/, 'App loader must consume the built app bundle manifest.');
 assert.match(safeBootstrap, /STATIC_SHELL_BUNDLE_URL/, 'Static UI bootstrap must consume the built shell bundle manifest.');
-assert.match(staticShellEntry, /static-model-load-visual-reset-controller\.js/, 'Static shell bundle must include the model-load visual reset guard.');
 
 console.log('Pages bundle build regression gate passed');

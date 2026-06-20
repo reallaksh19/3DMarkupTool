@@ -33,7 +33,7 @@ export function coneArrow(start, dir, length, radius, material, name = 'arrow') 
 
 export function arrowToward(tip, dirTowardTip, length, radius, material, name = 'arrowToward') {
   const d = dirTowardTip.clone().normalize();
-  return coneArrow(tip.clone().sub(d.clone().multiplyScalar(length)), d, length, radius, material, name);
+  return coneArrow(tip.clone().sub(d.clone().multiplyScalar(length)), d, length, radius, name);
 }
 
 export function createTextPlane(text, options = {}) {
@@ -93,7 +93,7 @@ export function createSpringCoil(center, axis = new THREE.Vector3(0, 1, 0), radi
   const points = [];
   const coils = 5;
   const steps = 96;
-  const dir = resolveSpringCoilAxis(axis, name);
+  const dir = axis.clone().normalize();
   const a = orthogonal(dir);
   const b = new THREE.Vector3().crossVectors(dir, a).normalize();
   for (let i = 0; i <= steps; i += 1) {
@@ -104,12 +104,6 @@ export function createSpringCoil(center, axis = new THREE.Vector3(0, 1, 0), radi
   const tube = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(points), 120, 0.035, 8, false), material);
   tube.name = name;
   return tube;
-}
-
-export function resolveSpringCoilAxis(axis = new THREE.Vector3(0, 1, 0), name = 'spring_coil') {
-  const n = String(name || '').toUpperCase();
-  if (n.includes('SPRING_WARNING') && n.includes('BELOW_PIPE')) return new THREE.Vector3(0, 1, 0);
-  return axis.clone().normalize();
 }
 
 export function orthogonal(dir) {

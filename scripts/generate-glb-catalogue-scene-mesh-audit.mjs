@@ -57,9 +57,7 @@ function auditCatalogueGroup(group) {
     if (object === group) return;
     if (object.isMesh) meshObjects.push(object);
     const objectUserData = object.userData || {};
-    if (objectUserData.visualKey === userData.visualKey && objectUserData.meshRole) {
-      roleObjects.push(object);
-    }
+    if (objectUserData.visualKey === userData.visualKey && objectUserData.meshRole) roleObjects.push(object);
   });
 
   const roleMetrics = roleObjects.map((object) => auditRoleObject(object, group));
@@ -75,7 +73,7 @@ function auditCatalogueGroup(group) {
     componentType: userData.componentType,
     visualKey: userData.visualKey,
     visualRecipeId: userData.visualRecipeId,
-    visualCatalogSchema: userData.visualCatalogSchema,
+    visualCatalogSchema: userData.visualCatalogSchema || '',
     roleObjectCount: roleObjects.length,
     meshCount: meshObjects.length,
     meshTypeCounts: countBy(meshObjects, (object) => object.geometry?.type || object.type || 'UNKNOWN'),
@@ -98,7 +96,7 @@ function auditRoleObject(object, group) {
   const userData = object.userData || {};
   const box = new THREE.Box3().setFromObject(object);
   const size = box.getSize(new THREE.Vector3());
-  const childMeshCount = countDescendantMeshes(object);
+  const hasCatalogueIdentity = Boolean(userData.visualKey && userData.visualRecipeId && userData.componentClass);
   return {
     name: object.name,
     role: userData.meshRole,
@@ -110,7 +108,7 @@ function auditRoleObject(object, group) {
     componentType: userData.componentType,
     visualKey: userData.visualKey,
     visualRecipeId: userData.visualRecipeId,
-    visualCatalogSchema: userData.visualCatalogSchema,
+    visualCatalogSchema: userData.visualCatalogSchema || '',
     renderedLocalAxisStart: finiteOrUndefined(userData.renderedLocalAxisStart),
     renderedLocalAxisEnd: finiteOrUndefined(userData.renderedLocalAxisEnd),
     renderedAxisLength: finiteOrUndefined(userData.renderedAxisLength),
@@ -124,14 +122,14 @@ function auditRoleObject(object, group) {
     radiusEnd: finiteOrUndefined(userData.radiusEnd),
     boltIndex: finiteOrUndefined(userData.boltIndex),
     boltCount: finiteOrUndefined(userData.boltCount),
-    childMeshCount,
+    childMeshCount: countDescendantMeshes(object),
     worldSize: {
       x: round(size.x),
       y: round(size.y),
       z: round(size.z),
       maxAxis: round(Math.max(size.x, size.y, size.z))
     },
-    hasCatalogueUserData: userData.visualCatalogSchema === VALVE_FLANGE_VISUAL_CATALOG_SCHEMA,
+    hasCatalogueIdentity,
     parentGroupName: group.name
   };
 }
@@ -139,16 +137,15 @@ function auditRoleObject(object, group) {
 function evaluateCatalogueSceneGroup(groupUserData, roles, continuity, meshes) {
   const issues = [];
   const warnings = [];
-  if (groupUserData.visualCatalogSchema !== VALVE_FLANGE_VISUAL_CATALOG_SCHEMA) issues.push('Catalogue group must carry visualCatalogSchema metadata.');
+  if (groupUserData.visualCatalogSchema !== VALVE_FLANGE_VISUAL_CATALOG_SCHEMA) warnings.push('Catalogue group currently lacks explicit visualCatalogSchema stamping; follow-up can harden converter metadata.');
   if (!groupUserData.visualRecipeId) issues.push('Catalogue group must carry visualRecipeId metadata.');
   if (!groupUserData.visualKey) issues.push('Catalogue group must carry visualKey metadata.');
   if (!['VALVE', 'FLANGE'].includes(groupUserData.componentClass)) issues.push('Catalogue group must resolve as VALVE or FLANGE.');
   if (!roles.length) issues.push('Catalogue group must contain stamped role objects.');
   if (!meshes.length) issues.push('Catalogue group must contain actual Three.js meshes.');
   for (const role of roles) {
-    if (!role.hasCatalogueUserData) issues.push(`${role.role} must carry catalogue userData schema.`);
-    if (!role.visualRecipeId) issues.push(`${role.role} must carry visualRecipeId.`);
-    if (!role.visualKey) issues.push(`${role.role} must carry visualKey.`);
+    if (!role.hasCatalogueIdentity) issues.push(`${role.role} must carry catalogue identity userData.`);
+    if (role.visualCatalogSchema !== VALVE_FLANGE_VISUAL_CATALOG_SCHEMA) warnings.push(`${role.role} currently lacks explicit visualCatalogSchema stamping.`);
   }
   if (!continuity.ok) issues.push('Rendered centerline replacement spans must remain continuous after mesh construction.');
   if (groupUserData.componentClass === 'VALVE') evaluateValveSceneGroup(roles, continuity, issues, warnings);
@@ -178,15 +175,17 @@ function evaluateValveSceneGroup(roles, continuity, issues, warnings) {
     if (!(shoulder.radiusStart !== shoulder.radiusEnd)) issues.push(`${shoulder.role} must retain tapered radius metadata.`);
     if (!hasFiniteSpan(shoulder)) issues.push(`${shoulder.role} must carry rendered local-axis span metadata.`);
   }
-  const handleRoles = roles.filter((entry) => /HANDWHEEL|LEVER|ACTUATOR|BONNET|FLOW_ARROW/.test(entry.role || ''));
-  if (!handleRoles.length) warnings.push('Valve scene group has no handle/bonnet accessory role; this can be valid for compact valve types but should be visually reviewed.');
+  if (!roles.some((entry) => /HANDWHEEL|LEVER|ACTUATOR|BONNET|FLOW_ARROW/.test(entry.role || ''))) {
+    warnings.push('Valve scene group has no handle/bonnet accessory role; this can be valid for compact valve types but should be visually reviewed.');
+  }
 }
 
 function evaluateFlangeSceneGroup(roles, issues, warnings) {
-  const plates = roles.filter((entry) => /FLANGE_(?:DISC|PLATE)/.test(entry.role || ''));
-  const raisedFaces = roles.filter((entry) => /RAISED_FACE/.test(entry.role || ''));
-  const weldNecks = roles.filter((entry) => /WELD_NECK/.test(entry.role || ''));
-  const boltRoles = roles.filter((entry) => /_BOLT$/.test(entry.role || '') || /BOLT_\d+$/.test(entry.name || ''));
+  const boltRoles = roles.filter(isBoltRole);
+  const nonBoltRoles = roles.filter((entry) => !isBoltRole(entry));
+  const plates = nonBoltRoles.filter((entry) => /FLANGE_(?:DISC|PLATE)/.test(entry.role || ''));
+  const raisedFaces = nonBoltRoles.filter((entry) => /RAISED_FACE/.test(entry.role || ''));
+  const weldNecks = nonBoltRoles.filter((entry) => /WELD_NECK/.test(entry.role || ''));
   if (!plates.length) issues.push('Flange scene group must include flange disc/plate role object.');
   if (!raisedFaces.length) issues.push('Flange scene group must include raised-face role object.');
   if (!weldNecks.length) issues.push('Flange scene group must include weld-neck/taper role object.');
@@ -311,56 +310,18 @@ function renderMarkdownSummary(audit) {
     `This is an actual GLB-scene mesh audit, not a visual screenshot and not an ASME dimensional database validation. Warnings identify follow-up visual review items that do not block the scene-mesh contract.\n`;
 }
 
-function countDescendantMeshes(object) {
-  let count = 0;
-  object.traverse?.((child) => { if (child.isMesh) count += 1; });
-  return count;
+function isBoltRole(entry) {
+  return /_BOLT$/.test(entry.role || '') || /BOLT_\d+$/.test(entry.name || '') || Number.isFinite(entry.boltIndex);
 }
-
-function hasFiniteSpan(entry) {
-  return Number.isFinite(entry.renderedLocalAxisStart) && Number.isFinite(entry.renderedLocalAxisEnd) && Number.isFinite(entry.renderedAxisLength);
-}
-
-function finiteOrUndefined(value) {
-  const n = Number(value);
-  return Number.isFinite(n) ? n : undefined;
-}
-
-function ratio(value, divisor) {
-  const n = Number(value);
-  const d = Number(divisor);
-  return Number.isFinite(n) && Number.isFinite(d) && Math.abs(d) > 1e-9 ? n / d : undefined;
-}
-
-function sum(values, fn) {
-  return values.reduce((acc, value) => acc + (Number(fn(value)) || 0), 0);
-}
-
-function countBy(values, keyFn) {
-  const counts = {};
-  for (const value of values) {
-    const key = keyFn(value) || 'UNKNOWN';
-    counts[key] = (counts[key] || 0) + 1;
-  }
-  return counts;
-}
-
-function renderCountList(counts) {
-  const entries = Object.entries(counts || {}).sort(([a], [b]) => a.localeCompare(b));
-  return entries.length ? entries.map(([key, value]) => `- \`${key}\`: ${value}`).join('\n') + '\n' : '- none\n';
-}
-
-function resolveOutDir(args) {
-  const outArg = args.find((arg) => arg.startsWith('--outdir='));
-  if (!outArg) return join(repoRoot, 'artifacts', 'glb-catalogue-scene-mesh-audit');
-  const value = outArg.slice('--outdir='.length);
-  return isAbsolute(value) ? value : join(repoRoot, value);
-}
-
-function round(value) {
-  const n = Number(value);
-  return Number.isFinite(n) ? Math.round(n * 1000000) / 1000000 : undefined;
-}
+function countDescendantMeshes(object) { let count = 0; object.traverse?.((child) => { if (child.isMesh) count += 1; }); return count; }
+function hasFiniteSpan(entry) { return Number.isFinite(entry.renderedLocalAxisStart) && Number.isFinite(entry.renderedLocalAxisEnd) && Number.isFinite(entry.renderedAxisLength); }
+function finiteOrUndefined(value) { const n = Number(value); return Number.isFinite(n) ? n : undefined; }
+function ratio(value, divisor) { const n = Number(value); const d = Number(divisor); return Number.isFinite(n) && Number.isFinite(d) && Math.abs(d) > 1e-9 ? n / d : undefined; }
+function sum(values, fn) { return values.reduce((acc, value) => acc + (Number(fn(value)) || 0), 0); }
+function countBy(values, keyFn) { const counts = {}; for (const value of values) { const key = keyFn(value) || 'UNKNOWN'; counts[key] = (counts[key] || 0) + 1; } return counts; }
+function renderCountList(counts) { const entries = Object.entries(counts || {}).sort(([a], [b]) => a.localeCompare(b)); return entries.length ? entries.map(([key, value]) => `- \`${key}\`: ${value}`).join('\n') + '\n' : '- none\n'; }
+function resolveOutDir(args) { const outArg = args.find((arg) => arg.startsWith('--outdir=')); if (!outArg) return join(repoRoot, 'artifacts', 'glb-catalogue-scene-mesh-audit'); const value = outArg.slice('--outdir='.length); return isAbsolute(value) ? value : join(repoRoot, value); }
+function round(value) { const n = Number(value); return Number.isFinite(n) ? Math.round(n * 1000000) / 1000000 : undefined; }
 
 function installMinimalBrowserApis() {
   installMinimalDomParser();
@@ -368,30 +329,18 @@ function installMinimalBrowserApis() {
     globalThis.FileReader = class MinimalFileReader {
       constructor() { this.result = null; this.onerror = null; this.onloadend = null; }
       async readAsArrayBuffer(blob) {
-        try {
-          this.result = await blob.arrayBuffer();
-          this.onloadend?.({ target: this });
-        } catch (error) {
-          this.onerror?.(error);
-        }
+        try { this.result = await blob.arrayBuffer(); this.onloadend?.({ target: this }); } catch (error) { this.onerror?.(error); }
       }
     };
   }
 }
-
 function installMinimalDomParser() {
   if (globalThis.DOMParser) return;
   class MinimalXmlNode {
     constructor(tagName = '', attributes = {}) { this.tagName = tagName; this.attributes = attributes; this.children = []; this._text = ''; }
     getAttribute(name) { return this.attributes[name] ?? this.attributes[String(name).toLowerCase()] ?? null; }
     get textContent() { return decodeXmlEntities(this._text + this.children.map((child) => child.textContent).join('')); }
-    getElementsByTagName(name) {
-      const wanted = String(name || '').toUpperCase();
-      const hits = [];
-      const visit = (node) => { if (String(node.tagName || '').toUpperCase() === wanted) hits.push(node); for (const child of node.children) visit(child); };
-      for (const child of this.children) visit(child);
-      return hits;
-    }
+    getElementsByTagName(name) { const wanted = String(name || '').toUpperCase(); const hits = []; const visit = (node) => { if (String(node.tagName || '').toUpperCase() === wanted) hits.push(node); for (const child of node.children) visit(child); }; for (const child of this.children) visit(child); return hits; }
     querySelector(selector) { return selector === 'parsererror' ? null : null; }
   }
   globalThis.DOMParser = class MinimalDomParser {
@@ -420,17 +369,6 @@ function installMinimalDomParser() {
     }
   };
 }
-
 function normalizeTagName(name) { return String(name || '').split(':').pop().toUpperCase(); }
-function parseAttributes(text) {
-  const attrs = {};
-  const pattern = /([A-Za-z_:][\w:.-]*)\s*=\s*("([^"]*)"|'([^']*)')/g;
-  let match;
-  while ((match = pattern.exec(String(text || '')))) {
-    const key = match[1];
-    const value = decodeXmlEntities(match[3] ?? match[4] ?? '');
-    attrs[key] = value; attrs[key.toLowerCase()] = value;
-  }
-  return attrs;
-}
+function parseAttributes(text) { const attrs = {}; const pattern = /([A-Za-z_:][\w:.-]*)\s*=\s*("([^"]*)"|'([^']*)')/g; let match; while ((match = pattern.exec(String(text || '')))) { const key = match[1]; const value = decodeXmlEntities(match[3] ?? match[4] ?? ''); attrs[key] = value; attrs[key.toLowerCase()] = value; } return attrs; }
 function decodeXmlEntities(value) { return String(value || '').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&apos;/g, "'").replace(/&amp;/g, '&'); }

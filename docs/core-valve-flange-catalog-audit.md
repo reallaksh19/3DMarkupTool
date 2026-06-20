@@ -17,6 +17,7 @@ This is a core rendering/export audit only. It is not a UI task.
 
 ```text
 src/valve-flange-visual-catalog.js
+src/valve-flange-primitive-adapter.js
 src/converter.js
 src/valve-flange-scene-postprocess.js
 src/export-model.js
@@ -26,6 +27,8 @@ tests/valve-flange-renderer-reference-visual.test.mjs
 tests/valve-flange-scene-postprocess.test.mjs
 tests/flanged-valve-upright-visual.test.mjs
 tests/valve-flange-catalog-orientation.test.mjs
+tests/valve-flange-catalog-scope-audit.test.mjs
+tests/valve-flange-primitive-adapter.test.mjs
 ```
 
 ## Current catalogue classification
@@ -33,6 +36,7 @@ tests/valve-flange-catalog-orientation.test.mjs
 | Area | Current status | Audit result |
 |---|---|---|
 | GLB visual preview | Uses proportional valve/flange catalogue | Acceptable as fallback visual layer |
+| Shared primitive adapter | Converts catalogue plans to renderer-neutral records | C2 bridge implemented; not production RVM output yet |
 | RVM export | Does not yet use valve/flange catalogue primitives | Gap |
 | ATT metadata | Still component-level metadata, not catalogue primitive metadata | Gap |
 | ASME/rating dimensions | Not present | Gap |
@@ -100,6 +104,22 @@ getValveFlangeVisualSpec
 
 and uses those specs to create grouped Three.js visual primitives for valves/flanges.
 
+### 5. Shared primitive adapter now exists
+
+`src/valve-flange-primitive-adapter.js` converts the same catalogue primitive plan into renderer-neutral records such as:
+
+```text
+cylinder
+frustum
+valve-body
+radial-cylinder
+torus
+direction-arrow
+bolt-pattern
+```
+
+The adapter is intentionally not Three.js-dependent and intentionally does not write RVM. It is the bridge for C3.
+
 ## Core gaps
 
 ## Gap 1 — RVM export does not yet use the catalogue
@@ -122,7 +142,7 @@ GLB preview: valve/flange catalogue geometry
 RVM export: simplified cylinder/marker geometry
 ```
 
-This is the highest-priority core gap.
+This is the highest-priority core gap after the C2 bridge.
 
 ## Gap 2 — Catalogue is not dimensional / ASME-backed
 
@@ -148,6 +168,7 @@ The current pipeline has multiple responsibilities:
 
 ```text
 catalogue     -> proposes visual primitive plan
+adapter       -> normalizes primitive plan into export-neutral records
 converter     -> renders GLB meshes
 postprocess   -> hides legacy base cylinders / adjusts some single-flange cases
 export-model  -> independently emits RVM primitives
@@ -179,13 +200,16 @@ BM_CII sample valve/flange components render/export consistently
 
 ## Required future architecture
 
-The next implementation phase should introduce a shared adapter boundary:
+The implementation now has the first shared adapter boundary:
 
 ```text
 valve-flange-visual-catalog.js
   → buildLinearVisualPrimitivePlan()
 
-new shared adapter / contract
+valve-flange-primitive-adapter.js
+  → renderer-neutral primitive records
+
+future adapters
   → GLB mesh adapter
   → RVM primitive adapter
 ```
@@ -196,7 +220,7 @@ This avoids maintaining two different visual/export concepts.
 
 ### C1 — Audit and guardrail
 
-Status: this document and the related test.
+Status: complete.
 
 Purpose:
 
@@ -209,22 +233,32 @@ Prevent accidental claims that the catalogue is ASME/dimensional or RVM-ready.
 
 ### C2 — Shared valve/flange primitive adapter
 
-Create a common adapter that transforms catalogue plan primitives into renderer-neutral primitive records.
+Status: complete when `src/valve-flange-primitive-adapter.js` and `tests/valve-flange-primitive-adapter.test.mjs` are merged.
 
-Expected output roles:
+Creates a common adapter that transforms catalogue plan primitives into renderer-neutral primitive records.
+
+Expected output roles include:
 
 ```text
 VALVE_BODY
-TAPERED_SHOULDER
-FLANGE_PLATE
-RAISED_FACE
-GASKET
-WELD_NECK_PIPE_SIDE
+END_COLLAR_A / END_COLLAR_B
+VALVE_NECK_A / VALVE_NECK_B
+FLANGE_DISC_A / FLANGE_DISC_B
+RAISED_FACE_A / RAISED_FACE_B
+GASKET_CENTER
+WELD_NECK_A / WELD_NECK_B
 BONNET_STEM
 HANDWHEEL
 ACTUATOR
 FLOW_ARROW
-BOLTS
+BOLT_PATTERN
+```
+
+C2 does not enable production RVM export. The adapter policy must continue to report:
+
+```text
+productionRvmExportEnabled: false
+asmeDimensionalDatabaseBacked: false
 ```
 
 ### C3 — RVM catalogue export parity
@@ -263,7 +297,7 @@ RVM export complete
 Navis export parity complete
 ```
 
-until C2/C3/C6 are implemented and tested.
+until C3/C6 are implemented and tested.
 
 Do not break the existing fallback behavior:
 

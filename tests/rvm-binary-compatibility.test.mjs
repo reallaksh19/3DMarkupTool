@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 
 import { writeRvm } from '../src/rvm-writer.js';
 import { auditRvmBinary, assertRvmBinaryCompatibility } from '../src/rvm-binary-audit.js';
+import './rvm-reference-format-profiler.test.mjs';
 
 const writerSource = readFileSync(new URL('../src/rvm-writer.js', import.meta.url), 'utf8');
 const axisBasisSource = readFileSync(new URL('../src/rvm-axis-basis-policy.js', import.meta.url), 'utf8');

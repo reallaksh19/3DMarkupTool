@@ -5,6 +5,7 @@ import { applySupportRestraintCatalogueExportParity } from './rvm-support-restra
 import { normalizeNavisExportModelNames } from './navis-safe-export-model.js?v=navis-safe-names-1';
 import { applyReviewStyleNodeNames } from './rvm-review-node-names.js?v=rhbg-review-names-1';
 import { assertNavisExportModel } from './navis-export-contract.js?v=navis-contract-1';
+import { assertRvmMaterialAssignmentPolicy } from './rvm-material-assignment-policy.js?v=rvm-material-assignment-1';
 import { assertRvmMaterialLayerContract } from './rvm-material-layer-contract.js?v=rvm-material-layer-1';
 import { assertRvmMaterialTableContract } from './rvm-material-table-contract.js?v=rvm-material-table-1';
 import { writeRvm } from './rvm-writer.js?v=professional-viewer-3';
@@ -27,6 +28,7 @@ export function convertInputXmlToRvmAtt(sourceText, options) {
   const navisContract = assertNavisExportModel(exportModel, {
     sourceKind: model.sourceKind || 'InputXML'
   });
+  const rvmMaterialAssignmentPolicy = assertRvmMaterialAssignmentPolicy(exportModel);
   const rvmMaterialLayerContract = assertRvmMaterialLayerContract(exportModel);
   const rvm = writeRvm(exportModel);
   const rvmMaterialTableContract = assertRvmMaterialTableContract(rvm, rvmMaterialLayerContract);
@@ -43,6 +45,7 @@ export function convertInputXmlToRvmAtt(sourceText, options) {
       sourceSchemaVersion: model.sourceSchemaVersion || '',
       diagnostics: model.diagnostics || [],
       navisContract,
+      rvmMaterialAssignmentPolicy,
       rvmMaterialLayerContract,
       rvmMaterialTableContract,
       rvmPrimitivePayloadContract,

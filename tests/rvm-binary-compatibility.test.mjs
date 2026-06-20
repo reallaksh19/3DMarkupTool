@@ -68,9 +68,28 @@ const rawAudit = auditRvmBinary(rvm);
 assert.equal(rawAudit.ok, true, 'raw audit must pass with no issues');
 assert.deepEqual(rawAudit.issues, [], 'binary audit must not report issues for generated writer output');
 
+const primitive = firstPrimitiveBody(rvm);
+assert.equal(primitive.version, 1, 'PRIM body must start with primitive record version 1');
+assert.equal(primitive.kind, 8, 'synthetic primitive must be written as Review cylinder kind 8');
+assert.deepEqual(
+  primitive.matrix.map((value) => round(value, 6)),
+  [0, 0, -0.001, 0, 0.001, 0, 0.001, 0, 0, 0.5, 0, 0],
+  'RVM primitive matrix must use RHBG-style 0.001 basis scale and meter translation while local dimensions remain in mm'
+);
+assert.deepEqual(
+  primitive.bbox.map((value) => round(value, 6)),
+  [-50, -50, -500, 50, 50, 500],
+  'RVM local primitive bounding box must remain in source millimetres'
+);
+assert.equal(round(primitive.trailing[0], 6), 50, 'cylinder radius payload must remain in source millimetres');
+assert.equal(round(primitive.trailing[1], 6), 1000, 'cylinder length payload must remain in source millimetres');
+
 assert.match(writerSource, /const REVIEW_CHUNK_HEADER_MARKER = 1/, 'writer must use explicit Review chunk header marker value 1');
 assert.match(writerSource, /const REVIEW_CONTAINER_CLOSE_BODY_MARKER = 2/, 'writer must use RHBG-style CNTE body marker value 2');
 assert.match(writerSource, /const REVIEW_END_BODY_MARKER = 1/, 'writer must use RHBG-style END: body marker value 1');
+assert.match(writerSource, /const RVM_PRIMITIVE_TRANSFORM_SCALE = 0\.001/, 'writer must use RHBG-style 0.001 primitive transform scale');
+assert.match(writerSource, /scaleRvmTransformVector\(basis\.x\)/, 'writer must scale primitive basis vectors before writing PRIM matrices');
+assert.match(writerSource, /scaleRvmTransformVector\(center\)/, 'writer must scale primitive translations before writing PRIM matrices');
 assert.match(writerSource, /writer\.writeChunk\('CNTE', uint32Body\(REVIEW_CONTAINER_CLOSE_BODY_MARKER\)/, 'writer must emit CNTE body marker 2');
 assert.match(writerSource, /writer\.writeChunk\('END:', uint32Body\(REVIEW_END_BODY_MARKER\)/, 'writer must emit END: body marker 1');
 assert.match(writerSource, /view\.setUint32\(20, REVIEW_CHUNK_HEADER_MARKER, false\)/, 'writer chunk headers must carry marker value 1');
@@ -83,3 +102,35 @@ assert.match(artifactScript, /rvmBinaryAudit/, 'CI artifact audit JSON must incl
 assert.match(pkg.scripts.test, /rvm-binary-compatibility\.test\.mjs/, 'npm test must include the C6 RVM binary compatibility gate');
 
 console.log('RVM binary compatibility gate passed');
+
+function firstPrimitiveBody(buffer) {
+  const view = new DataView(buffer);
+  let offset = 0;
+  while (offset + 24 <= buffer.byteLength) {
+    const id = [0, 1, 2, 3]
+      .map((index) => String.fromCharCode(view.getUint32(offset + index * 4, false)))
+      .join('');
+    const nextOffset = view.getUint32(offset + 16, false);
+    if (id === 'PRIM') {
+      const bodyView = new DataView(buffer, offset + 24, nextOffset - offset - 24);
+      return {
+        version: bodyView.getUint32(0, false),
+        kind: bodyView.getUint32(4, false),
+        matrix: readFloat32Array(bodyView, 8, 12),
+        bbox: readFloat32Array(bodyView, 56, 6),
+        trailing: readFloat32Array(bodyView, 80, 2)
+      };
+    }
+    offset = nextOffset;
+  }
+  throw new Error('No PRIM chunk found in synthetic RVM output');
+}
+
+function readFloat32Array(view, byteOffset, count) {
+  return Array.from({ length: count }, (_, index) => view.getFloat32(byteOffset + index * 4, false));
+}
+
+function round(value, decimals) {
+  const factor = 10 ** decimals;
+  return Math.round(value * factor) / factor;
+}

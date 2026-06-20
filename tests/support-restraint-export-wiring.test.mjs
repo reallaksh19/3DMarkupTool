@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { applySupportRestraintCatalogueExportParity } from '../src/rvm-support-restraint-export-wiring.js';
+import { assertSupportRestraintWriterSafePrimitives } from '../src/support-restraint-primitive-adapter.js';
 
 const writerSafeKinds = new Set(['cylinder', 'box', 'pyramid', 'sphere']);
 
@@ -56,9 +57,24 @@ for (const node of supportNodes) {
   for (const primitive of node.primitives) {
     assert.equal(primitive.supportCatalogue, true, `${node.name}/${primitive.name} must be catalogue stamped`);
     assert.equal(primitive.supportVisualSchema, node.attributes.SUPPORT_CATALOGUE_SCHEMA);
+    assert.equal(primitive.safeApproximationPolicyApplied, true, `${primitive.name} must be safe-approximation stamped`);
     assert.ok(writerSafeKinds.has(primitive.kind), `${primitive.name} leaked unsupported kind ${primitive.kind}`);
   }
 }
+
+assert.throws(
+  () => assertSupportRestraintWriterSafePrimitives([{
+    kind: 'cylinder',
+    name: 'BAD_DIRECT_RHBG_CODE_7',
+    center: [0, 0, 0],
+    direction: [1, 0, 0],
+    radius: 1,
+    length: 10,
+    rvmPrimitiveCode: 7
+  }]),
+  /blocked RHBG primitive code 7|direct blocked RHBG primitive code 7/,
+  'support/restraint RVM export must fail closed on direct blocked RHBG code 7'
+);
 
 const guideNode = supportNodes.find((node) => node.attributes.SUPPORT_CATALOGUE_FAMILY === 'GUIDE');
 const unknownNode = supportNodes.find((node) => node.attributes.SUPPORT_CATALOGUE_FAMILY === 'UNKNOWN_RESTRAINT');

@@ -32,6 +32,13 @@ assert.equal(result.audit.rvmCatalogueParity, true, 'sample export must enable R
 assert.equal(result.audit.rvmCatalogueExportWiringSchema, 'RvmCatalogueExportWiring.v1', 'sample audit must expose the production catalogue wiring schema');
 assert.ok(result.audit.rvmCatalogueComponentCount >= 6, 'BM_CII sample must produce multiple catalogue-rendered valve/flange components');
 assert.ok(result.audit.rvmCataloguePrimitiveCount > result.audit.rvmCatalogueComponentCount * 4, 'catalogue sample output must be segmented, not one primitive per component');
+assert.equal(result.audit.rvmPrimitivePayloadContract?.schema, 'GeneratedRvmPrimitivePayloadContract.v1', 'generated RVM audit must expose primitive payload contract schema');
+assert.equal(result.audit.rvmPrimitivePayloadContract.failClosed, true, 'generated RVM payload contract must be fail-closed');
+assert.equal(result.audit.rvmPrimitivePayloadContract.unsupportedPrimitivePayloadsPresent, false, 'generated RVM must not contain unsupported primitive payloads');
+assert.ok(result.audit.rvmPrimitivePayloadContract.primitiveCount > 0, 'generated RVM payload contract must decode emitted PRIM chunks');
+assert.ok(result.audit.rvmPrimitivePayloadContract.statusCounts['emitted-layout-supported'] > 0, 'generated RVM payloads must decode as writer-supported layouts');
+assert.ok(!result.audit.rvmPrimitivePayloadContract.codeCounts['5'], 'generated RVM must not emit blocked RHBG cone code 5');
+assert.ok(!result.audit.rvmPrimitivePayloadContract.codeCounts['7'], 'generated RVM must not emit blocked RHBG frustum code 7');
 
 const plant = findChild(result.exportModel.root, 'PLANT_GEOMETRY');
 assert.ok(plant, 'sample export model must retain PLANT_GEOMETRY');
@@ -106,6 +113,8 @@ for (const { plan } of catalogueCandidateElements.slice(0, 12)) {
 assert.match(converterSource, /getValveFlangeVisualSpec/, 'GLB preview converter must keep using the valve/flange visual catalogue resolver');
 assert.match(converterSource, /buildLinearVisualPrimitivePlan/, 'GLB preview converter must keep using the length-partitioned catalogue primitive plan');
 assert.match(rvmConverterSource, /applyRvmCatalogueExportParity/, 'RVM production converter must apply catalogue parity to sample exports');
+assert.match(rvmConverterSource, /scanRvmPrimitivePayloads/, 'RVM production converter must decode generated primitive payloads');
+assert.match(rvmConverterSource, /assertGeneratedRvmPayloadCompatibility/, 'RVM production converter must assert generated primitive payload compatibility');
 assert.match(pkg.scripts.test, /rvm-catalogue-sample-parity\.test\.mjs/, 'npm test must include the C4 BM_CII sample parity gate');
 
 console.log('BM_CII RVM/ATT catalogue sample parity gate passed');
@@ -219,10 +228,10 @@ function normalizeTagName(name) {
 
 function parseAttributes(text) {
   const attributes = {};
-  const pattern = /([A-Za-z_][\w:.-]*)\s*=\s*("([^"]*)"|'([^']*)')/g;
+  const pattern = /([A-Za-z_:][\w:.-]*)\s*=\s*("([^"]*)"|'([^']*)')/g;
   let match;
   while ((match = pattern.exec(String(text || '')))) {
-    const key = String(match[1]);
+    const key = match[1];
     const value = match[3] ?? match[4] ?? '';
     attributes[key] = decodeXmlEntities(value);
     attributes[key.toLowerCase()] = decodeXmlEntities(value);
@@ -230,12 +239,10 @@ function parseAttributes(text) {
   return attributes;
 }
 
-function decodeXmlEntities(text) {
-  return String(text || '')
-    .replace(/&#x([0-9a-f]+);/gi, (_, hex) => String.fromCharCode(parseInt(hex, 16)))
-    .replace(/&#(\d+);/g, (_, dec) => String.fromCharCode(parseInt(dec, 10)))
-    .replace(/&apos;/g, "'")
+function decodeXmlEntities(value) {
+  return String(value || '')
     .replace(/&quot;/g, '"')
+    .replace(/&apos;/g, "'")
     .replace(/&lt;/g, '<')
     .replace(/&gt;/g, '>')
     .replace(/&amp;/g, '&');

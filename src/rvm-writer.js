@@ -1,5 +1,6 @@
 import { normalizeRvmMaterialId, rvmMaterialIdForNode } from './rvm-material-layer-contract.js';
 import { rvmPrimitiveCodeForKind } from './rvm-primitive-kind-contract.js';
+import { buildRvmPrimitiveTransform } from './rvm-axis-basis-policy.js';
 
 /**
  * Writes a compact binary AVEVA Review Model tree for Navisworks import.
@@ -10,7 +11,6 @@ import { rvmPrimitiveCodeForKind } from './rvm-primitive-kind-contract.js';
 const REVIEW_CHUNK_HEADER_MARKER = 1;
 const REVIEW_CONTAINER_CLOSE_BODY_MARKER = 2;
 const REVIEW_END_BODY_MARKER = 1;
-const RVM_PRIMITIVE_TRANSFORM_SCALE = 0.001;
 
 export function writeRvm(exportModel) {
   const writer = createChunkWriter();
@@ -69,7 +69,7 @@ function reviewNodeName(node) {
 
 function primitiveBody(primitive) {
   assertPrimitiveMaterial(primitive);
-  const matrix = matrixForPrimitive(primitive);
+  const matrix = buildRvmPrimitiveTransform(primitive);
   const bbox = localBboxForPrimitive(primitive);
   const common = [
     uint32Body(1),
@@ -115,25 +115,6 @@ function assertPrimitiveMaterial(primitive) {
   if (primitive.material !== undefined && primitive.material !== null && primitive.material !== '') {
     normalizeRvmMaterialId(primitive.material, `RVM primitive material for ${primitive.name || 'UNNAMED_PRIMITIVE'}`);
   }
-}
-
-function matrixForPrimitive(primitive) {
-  const basis = basisFromDirection(primitive.direction || [0, 0, 1]);
-  const center = vector3(primitive.center, 'center');
-  return [
-    ...scaleRvmTransformVector(basis.x),
-    ...scaleRvmTransformVector(basis.y),
-    ...scaleRvmTransformVector(basis.z),
-    ...scaleRvmTransformVector(center)
-  ];
-}
-
-function scaleRvmTransformVector(vector) {
-  return vector.map((entry) => cleanRvmTransformValue(entry * RVM_PRIMITIVE_TRANSFORM_SCALE));
-}
-
-function cleanRvmTransformValue(value) {
-  return Math.abs(value) < 1e-12 ? 0 : value;
 }
 
 function localBboxForPrimitive(primitive) {
@@ -240,25 +221,6 @@ function concatBuffers(buffers) {
   return output.buffer;
 }
 
-function basisFromDirection(direction) {
-  const z = normalize(vector3(direction, 'direction'));
-  const reference = Math.abs(z[1]) < 0.9 ? [0, 1, 0] : [1, 0, 0];
-  const x = normalize(cross(reference, z));
-  const y = normalize(cross(z, x));
-  return { x, y, z };
-}
-
-function vector3(value, fieldName) {
-  if (!Array.isArray(value) || value.length !== 3) {
-    throw new Error(`Invalid RVM ${fieldName}: expected [x, y, z]`);
-  }
-  const vector = value.map((entry) => Number(entry));
-  if (vector.some((entry) => !Number.isFinite(entry))) {
-    throw new Error(`Invalid RVM ${fieldName}: contains non-finite value`);
-  }
-  return vector;
-}
-
 function lengths2(value) {
   if (!Array.isArray(value) || value.length !== 2) {
     throw new Error('Invalid RVM length pair');
@@ -298,18 +260,4 @@ function positiveNumber(value, fieldName) {
     throw new Error(`Invalid RVM ${fieldName}: expected positive number`);
   }
   return parsed;
-}
-
-function normalize(vector) {
-  const length = Math.hypot(vector[0], vector[1], vector[2]);
-  if (!Number.isFinite(length) || length <= 1e-9) return [0, 0, 1];
-  return vector.map((entry) => entry / length);
-}
-
-function cross(a, b) {
-  return [
-    a[1] * b[2] - a[2] * b[1],
-    a[2] * b[0] - a[0] * b[2],
-    a[0] * b[1] - a[1] * b[0]
-  ];
 }

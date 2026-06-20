@@ -2,6 +2,16 @@
 // Input is always open. Conversion and sideload settings are collapsed by explicit section markers,
 // not by DOM position, because the workflow summary card is also a <section>.
 // Layout and default collapsed state are owned by static HTML/CSS to avoid startup layout shifts.
+//
+// CSS contract — rules live in static-shell-performance.css, listed here to document the coupling:
+//
+//   #inputDrawer [data-section="input"] > .file-drop { display: grid !important; }
+//
+//   body:not(.conversion-expanded) #inputDrawer [data-collapsible="conversion"] > .conversion-collapsible-content
+//     { display: none !important; }
+//
+//   body:not(.sideload-expanded) #inputDrawer [data-collapsible="sideload"] > .sideload-collapsible-content
+//     { display: none !important; }
 
 const VERSION = 'perf-static-shell-20260620';
 
@@ -41,6 +51,7 @@ function initConversionSection() {
 }
 
 function initSideloadSection() {
+  document.body.classList.remove('sideload-expanded');
   const section = getSideloadSection();
   if (!section) return;
   bindCollapsibleSection(section, 'sideload', 'sideload-options-body');

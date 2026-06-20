@@ -47,7 +47,6 @@ const DEFERRED_MODULE_URLS = [
 ];
 
 const LATE_IDLE_MODULE_URLS = [
-  `./static-drawer-summary-controller.js?v=${SAFE_UI_VERSION}`,
   `./static-browser-diagnostics-controller.js?v=${SAFE_UI_VERSION}`
 ];
 

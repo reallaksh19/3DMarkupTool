@@ -6,6 +6,13 @@ import {
   validateNavisExportModel,
   NavisExportContractError
 } from '../src/navis-export-contract.js';
+import {
+  ALLOWED_RVM_PRIMITIVE_KINDS,
+  RHBG_OBSERVED_PRIMITIVE_CODES,
+  UNEMITTED_RHBG_PRIMITIVE_CODES,
+  rvmPrimitiveCodeForKind,
+  rvmPrimitiveKindCompatibilityReport
+} from '../src/rvm-primitive-kind-contract.js';
 
 const startedAt = performance.now();
 
@@ -18,6 +25,10 @@ phase('01 valid Navis contract passes', () => {
   assert.equal(report.counts.primitives, 1);
   assert.equal(report.counts.byPrimitiveKind.cylinder, 1);
   assert.equal(report.att.sameBaseNameRequired, true);
+  assert.equal(report.rvm.primitiveKindPolicy, 'fail-closed');
+  assert.deepEqual(report.rvm.allowedPrimitiveKinds, [...ALLOWED_RVM_PRIMITIVE_KINDS].sort());
+  assert.deepEqual(report.rvm.rhbgObservedPrimitiveCodes, [...RHBG_OBSERVED_PRIMITIVE_CODES]);
+  assert.deepEqual(report.rvm.rhbgObservedCodesNotEmitted, [...UNEMITTED_RHBG_PRIMITIVE_CODES]);
   assert.equal(report.rvm.allTransformsFinite, true);
   assert.equal(report.rvm.allDimensionsPositive, true);
 });
@@ -54,6 +65,21 @@ phase('05 audit mismatch fails', () => {
   const report = validateNavisExportModel(model);
   assert.equal(report.ok, false);
   assert.ok(report.errors.some((issue) => issue.path === '$.audit.primitiveCount'));
+});
+
+phase('06 RVM primitive kind contract stays fail-closed', () => {
+  assert.deepEqual(rvmPrimitiveCodeForKind('pyramid'), 1);
+  assert.deepEqual(rvmPrimitiveCodeForKind('box'), 2);
+  assert.deepEqual(rvmPrimitiveCodeForKind('cylinder'), 8);
+  assert.deepEqual(rvmPrimitiveCodeForKind('sphere'), 9);
+  assert.throws(() => rvmPrimitiveCodeForKind('mesh'), /unsupported RVM primitive kind/i);
+  assert.throws(() => rvmPrimitiveCodeForKind('torus'), /unsupported RVM primitive kind/i);
+  assert.throws(() => rvmPrimitiveCodeForKind('frustum'), /unsupported RVM primitive kind/i);
+
+  const compatibility = rvmPrimitiveKindCompatibilityReport();
+  assert.equal(compatibility.policy, 'fail-closed');
+  assert.deepEqual(compatibility.rhbgObservedPrimitiveCodes, [2, 3, 4, 5, 7, 8, 11]);
+  assert.deepEqual(compatibility.rhbgObservedCodesNotEmitted, [3, 4, 5, 7, 11]);
 });
 
 console.log(`[navis-contract] completed in ${((performance.now() - startedAt) / 1000).toFixed(2)} s`);

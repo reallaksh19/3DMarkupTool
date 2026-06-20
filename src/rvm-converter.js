@@ -9,6 +9,7 @@ import { assertRvmMaterialAssignmentPolicy } from './rvm-material-assignment-pol
 import { assertRvmMaterialLayerContract } from './rvm-material-layer-contract.js?v=rvm-material-layer-1';
 import { assertRvmMaterialTableContract } from './rvm-material-table-contract.js?v=rvm-material-table-1';
 import { assertRvmCntbBoundsPolicy } from './rvm-cntb-bounds-policy.js?v=rvm-cntb-bounds-1';
+import { assertRvmChunkHierarchy } from './rvm-chunk-hierarchy-validator.js?v=rvm-chunk-hierarchy-1';
 import { assertRvmExportModelPreflight } from './rvm-export-model-preflight.js?v=rvm-export-model-preflight-1';
 import { writeRvm } from './rvm-writer.js?v=professional-viewer-3';
 import { writeAtt } from './att-writer.js?v=professional-viewer-3';
@@ -38,6 +39,7 @@ export function convertInputXmlToRvmAtt(sourceText, options) {
   const rvmCntbBoundsPolicy = assertRvmCntbBoundsPolicy(rvm, exportModel);
   const rvmPrimitivePayloadContract = assertGeneratedRvmPayloadCompatibility(scanRvmPrimitivePayloads(rvm));
   const att = writeAtt(exportModel);
+  const rvmChunkHierarchy = assertRvmChunkHierarchy(rvm, att, exportModel);
   return {
     model,
     exportModel,
@@ -55,6 +57,7 @@ export function convertInputXmlToRvmAtt(sourceText, options) {
       rvmMaterialTableContract,
       rvmCntbBoundsPolicy,
       rvmPrimitivePayloadContract,
+      rvmChunkHierarchy,
       rvmBytes: rvm.byteLength,
       attBytes: new TextEncoder().encode(att).byteLength,
       navisworks: {

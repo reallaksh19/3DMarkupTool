@@ -1,5 +1,5 @@
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
+import { dirname, isAbsolute, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 installMinimalDomParserForSupportAudit();
@@ -204,7 +204,10 @@ function renderMarkdownSummary(audit) {
 
 function resolveOutDir(args) {
   const outArg = args.find((arg) => arg.startsWith('--outdir='));
-  if (outArg) return join(repoRoot, outArg.slice('--outdir='.length));
+  if (outArg) {
+    const requested = outArg.slice('--outdir='.length);
+    return isAbsolute(requested) ? requested : join(repoRoot, requested);
+  }
   return join(repoRoot, 'artifacts', 'support-restraint-parity');
 }
 

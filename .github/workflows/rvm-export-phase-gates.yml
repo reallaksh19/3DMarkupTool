@@ -37,6 +37,9 @@ jobs:
       - name: Generate BM_CII RVM catalogue sample artifact
         run: npm run artifact:rvm-catalogue-sample
 
+      - name: Generate BM_CII RVM/ATT viewer compatibility audit
+        run: npm run artifact:rvm-att-viewer-compat
+
       - name: Generate BM_CII GLB catalogue visual audit
         run: npm run artifact:glb-catalogue-visual-audit
 
@@ -51,6 +54,13 @@ jobs:
         with:
           name: rvm-catalogue-sample
           path: artifacts/rvm-catalogue-sample
+          if-no-files-found: error
+
+      - name: Upload RVM/ATT viewer compatibility audit artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: rvm-att-viewer-compat
+          path: artifacts/rvm-att-viewer-compat
           if-no-files-found: error
 
       - name: Upload GLB catalogue visual audit artifact

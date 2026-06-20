@@ -7,12 +7,12 @@ const controller = readFileSync(new URL('../src/static-browser-diagnostics-contr
 const checklist = readFileSync(new URL('../docs/post-pr133-recovery-checklist.md', import.meta.url), 'utf8');
 const pkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
 
-const phaseKeyPattern = /input-always-visible-20260619|phase4-global-esc-lifecycle-20260619|phase4a-static-input-panel-cleanup-20260619|perf-static-shell-20260620|perf-lcp-deferred-app-20260620|perf-idle-diagnostics-20260620/;
+const phaseKeyPattern = /input-always-visible-20260619|phase4-global-esc-lifecycle-20260619|phase4a-static-input-panel-cleanup-20260619|perf-static-shell-20260620|perf-lcp-deferred-app-20260620|perf-idle-diagnostics-20260620|perf-tdz-fix-20260620/;
 const onReadyBody = controller.match(/function onReady\(\) \{([\s\S]*?)\n\}/)?.[1] || '';
 
 assert.match(index, phaseKeyPattern, 'index must use the Phase 2 or newer shell cache key');
 assert.doesNotMatch(index, /fresh-clip-core-20260619/, 'index must not reference stale fresh-clip-core shell assets');
-assert.match(index, /safe-ui-bootstrap\.js\?v=perf-idle-diagnostics-20260620/, 'outer bootstrap script must use the current performance shell cache key');
+assert.match(index, /safe-ui-bootstrap\.js\?v=perf-tdz-fix-20260620/, 'outer bootstrap script must use the current performance shell cache key');
 
 assert.match(bootstrap, phaseKeyPattern, 'bootstrap must use the Phase 2 or newer cache key');
 assert.match(bootstrap, /LATE_IDLE_MODULE_URLS[\s\S]*static-browser-diagnostics-controller\.js\?v=\$\{SAFE_UI_VERSION\}/, 'bootstrap must load browser diagnostics only as a late idle controller');

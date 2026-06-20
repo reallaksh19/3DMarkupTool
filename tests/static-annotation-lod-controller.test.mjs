@@ -4,6 +4,7 @@ import path from 'node:path';
 
 const repoRoot = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..');
 const controller = fs.readFileSync(path.join(repoRoot, 'src/static-annotation-lod-controller.js'), 'utf8');
+const facingController = fs.readFileSync(path.join(repoRoot, 'src/static-annotation-facing-controller.js'), 'utf8');
 const bootstrap = fs.readFileSync(path.join(repoRoot, 'src/safe-ui-bootstrap.js'), 'utf8');
 
 assert.match(controller, /annotation-isonote-readable-v2-20260620/, 'annotation controller must expose the legible ISONOTE cache/version key');
@@ -25,6 +26,12 @@ assert.match(controller, /material\.depthTest\s*=\s*true/, 'leaders must depth-t
 assert.match(controller, /material\.opacity[^\n]+0\.08/, 'leaders must be faint enough not to dominate annotations');
 assert.match(controller, /clamp\(rawScale, ISONOTE_MIN_SCALE, ISONOTE_MAX_SCALE\)/, 'ISONOTE scale must use explicit readable clamps');
 assert.match(controller, /clamp\(rawScale, 0\.82, 1\.65\)/, 'node label scale must stay readable, not tiny');
+assert.match(facingController, /annotation-isonote-world-facing-20260620/, 'facing controller must expose the ISONOTE world-facing cache/version key');
+assert.match(facingController, /function faceCameraInWorldSpace\(/, 'ISONOTE boards must use a dedicated world-facing orientation path');
+assert.match(facingController, /getWorldQuaternion\(parentWorldQuaternion\)/, 'world-facing path must account for rotated model/parent groups');
+assert.match(facingController, /parentInverse\.multiply\(targetWorldQuaternion\)/, 'camera quaternion must be converted from world space into the board parent local space');
+assert.match(facingController, /material\.side\s*=\s*2/, 'ISONOTE boards must be double-sided so the imported plane normal cannot show the back/underside');
 assert.match(bootstrap, /static-annotation-lod-controller\.js\?v=annotation-isonote-readable-v2-20260620/, 'bootstrap must load the cache-busted legible ISONOTE annotation controller');
+assert.match(bootstrap, /static-annotation-facing-controller\.js\?v=annotation-isonote-world-facing-20260620/, 'bootstrap must load the ISONOTE facing correction after the LOD controller');
 
 console.log('static annotation legible ISONOTE policy OK');

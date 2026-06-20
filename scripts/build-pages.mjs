@@ -1,4 +1,4 @@
-import { cp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
+import { copyFile, mkdir, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { rollup } from 'rollup';
@@ -19,20 +19,27 @@ await injectBundleManifest();
 console.log('Built GitHub Pages artifact with bundled app/static shell assets.');
 
 async function copyStaticSite(from, to) {
-  await cp(from, to, {
-    recursive: true,
-    filter(source) {
-      const rel = path.relative(from, source).replace(/\\/g, '/');
-      if (!rel) return true;
-      return !(
-        rel === '.git' || rel.startsWith('.git/') ||
-        rel === '.github' || rel.startsWith('.github/') ||
-        rel === 'node_modules' || rel.startsWith('node_modules/') ||
-        rel === '_site' || rel.startsWith('_site/') ||
-        rel === 'coverage' || rel.startsWith('coverage/')
-      );
+  // fs.cp rejects copying into a subdirectory of itself at the path-check
+  // stage, before the filter runs — so we walk the tree manually instead.
+  await mkdir(to, { recursive: true });
+  const entries = await readdir(from, { withFileTypes: true });
+  for (const entry of entries) {
+    const src = path.join(from, entry.name);
+    const dest = path.join(to, entry.name);
+    const rel = path.relative(ROOT, src).replace(/\\/g, '/');
+    if (
+      rel === '.git' || rel.startsWith('.git/') ||
+      rel === '.github' || rel.startsWith('.github/') ||
+      rel === 'node_modules' || rel.startsWith('node_modules/') ||
+      rel === '_site' || rel.startsWith('_site/') ||
+      rel === 'coverage' || rel.startsWith('coverage/')
+    ) continue;
+    if (entry.isDirectory()) {
+      await copyStaticSite(src, dest);
+    } else {
+      await copyFile(src, dest);
     }
-  });
+  }
 }
 
 async function buildBundle(input, output) {

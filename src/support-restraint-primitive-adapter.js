@@ -1,6 +1,8 @@
 import { resolveSupportRestraintVisualSpec } from './support-restraint-visual-catalog.js';
+import { ALLOWED_RVM_PRIMITIVE_KINDS } from './rvm-primitive-kind-contract.js';
+import { assertSafeApproximationPrimitives } from './rvm-safe-primitive-approximation-policy.js';
 
-const WRITER_SAFE_KINDS = new Set(['cylinder', 'pyramid', 'box', 'sphere']);
+const WRITER_SAFE_KINDS = new Set(ALLOWED_RVM_PRIMITIVE_KINDS);
 
 export function buildSupportRestraintPrimitiveRecords(record, context = {}) {
   const spec = resolveSupportRestraintVisualSpec(record);
@@ -10,6 +12,7 @@ export function buildSupportRestraintPrimitiveRecords(record, context = {}) {
 }
 
 export function assertSupportRestraintWriterSafePrimitives(primitives) {
+  assertSafeApproximationPrimitives(primitives || [], 'support/restraint RVM catalogue primitive output');
   for (const primitive of primitives || []) {
     if (!WRITER_SAFE_KINDS.has(primitive.kind)) {
       throw new Error(`Unsupported support/restraint RVM primitive kind: ${primitive.kind}`);
@@ -110,7 +113,8 @@ function stampPrimitive(primitive, spec, index) {
     supportVisualFamily: spec.family,
     proportionalFallback: spec.proportionalFallback,
     vendorDimensionalDbBacked: spec.vendorDimensionalDbBacked,
-    adapterOrdinal: index
+    adapterOrdinal: index,
+    safeApproximationPolicyApplied: true
   });
 }
 

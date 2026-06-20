@@ -8,7 +8,7 @@
 // navigation-smoothness-20260619 browser-diagnostics-20260619 chrome-runtime-diagnostics-20260619 input-always-visible-20260619 phase3-ribbon-cleanup-20260619
 // phase4-global-esc-lifecycle-20260619 phase4a-static-input-panel-cleanup-20260619 perf-static-shell-20260620 perf-lcp-deferred-app-20260620
 // annotation-billboard-lod-20260620 annotation-density-lod-20260620 annotation-readable-callouts-20260620 annotation-isonote-readable-v2-20260620
-// annotation-isonote-world-facing-20260620
+// annotation-isonote-world-facing-20260620 spring-warning-vertical-geometry-20260620
 // Legacy input-panel gate marker only: SAFE_UI_VERSION = 'perf-static-shell-20260620'
 
 const SAFE_UI_VERSION = 'perf-tdz-fix-20260620';
@@ -61,6 +61,7 @@ const DEFERRED_MODULE_URLS = [
 const LATE_IDLE_MODULE_URLS = [
   './static-annotation-lod-controller.js?v=annotation-isonote-readable-v2-20260620',
   './static-annotation-facing-controller.js?v=annotation-isonote-world-facing-20260620',
+  './static-spring-warning-geometry-controller.js?v=spring-warning-vertical-geometry-20260620',
   `./static-browser-diagnostics-controller.js?v=${SAFE_UI_VERSION}`
 ];
 

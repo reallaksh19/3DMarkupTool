@@ -1,11 +1,14 @@
 import { normalizeRvmMaterialId, rvmMaterialIdForNode } from './rvm-material-layer-contract.js';
 import { rvmPrimitiveCodeForKind } from './rvm-primitive-kind-contract.js';
 import { buildRvmPrimitiveTransform } from './rvm-axis-basis-policy.js';
+import { resolveRvmCntbPosition } from './rvm-cntb-coordinate-policy.js';
 
 /**
  * Writes a compact binary AVEVA Review Model tree for Navisworks import.
  * Parameters: export tree from buildRvmExportModel with named nodes and primitive records.
  * Output: ArrayBuffer containing HEAD, MODL, CNTB, PRIM, CNTE, and END chunks.
+ * CNTB payloads use RMSS/RHBG-style node reference coordinates:
+ * version, Review name, x, y, z, material id.
  * Fallback: unsupported primitive kinds raise explicit errors so geometry is not silently dropped.
  */
 const REVIEW_CHUNK_HEADER_MARKER = 1;
@@ -53,12 +56,13 @@ function modelBody() {
 }
 
 function groupBody(node) {
+  const [x, y, z] = resolveRvmCntbPosition(node);
   return concatBuffers([
     uint32Body(2),
     rvmString(reviewNodeName(node)),
-    rvmEmptyString(),
-    rvmEmptyString(),
-    float32Body(node.reviewValue || 0),
+    float32Body(x),
+    float32Body(y),
+    float32Body(z),
     uint32Body(rvmMaterialIdForNode(node))
   ]);
 }

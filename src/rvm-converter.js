@@ -3,6 +3,7 @@ import { buildRvmExportModel } from './export-model.js?v=professional-viewer-3';
 import { applyRvmCatalogueExportParity } from './rvm-catalogue-export-wiring.js?v=rvm-catalogue-c3b-1';
 import { applySupportRestraintCatalogueExportParity } from './rvm-support-restraint-export-wiring.js?v=support-restraint-c15-1';
 import { normalizeNavisExportModelNames } from './navis-safe-export-model.js?v=navis-safe-names-1';
+import { applyReviewStyleNodeNames } from './rvm-review-node-names.js?v=rhbg-review-names-1';
 import { assertNavisExportModel } from './navis-export-contract.js?v=navis-contract-1';
 import { writeRvm } from './rvm-writer.js?v=professional-viewer-3';
 import { writeAtt } from './att-writer.js?v=professional-viewer-3';
@@ -18,7 +19,8 @@ export function convertInputXmlToRvmAtt(sourceText, options) {
   const baseExportModel = buildRvmExportModel(model, options || {});
   const catalogueExportModel = applyRvmCatalogueExportParity(baseExportModel, model, options || {});
   const supportCatalogueExportModel = applySupportRestraintCatalogueExportParity(catalogueExportModel, model, options || {});
-  const exportModel = normalizeNavisExportModelNames(supportCatalogueExportModel);
+  const safeExportModel = normalizeNavisExportModelNames(supportCatalogueExportModel);
+  const exportModel = applyReviewStyleNodeNames(safeExportModel, options || {});
   const navisContract = assertNavisExportModel(exportModel, {
     sourceKind: model.sourceKind || 'InputXML'
   });

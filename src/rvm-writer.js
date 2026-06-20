@@ -51,12 +51,16 @@ function modelBody() {
 function groupBody(node) {
   return concatBuffers([
     uint32Body(2),
-    rvmString(node.name),
+    rvmString(reviewNodeName(node)),
     rvmEmptyString(),
     rvmEmptyString(),
     float32Body(node.reviewValue || 0),
     uint32Body(node.material || 0)
   ]);
+}
+
+function reviewNodeName(node) {
+  return node?.reviewName || node?.name || 'UNNAMED';
 }
 
 function primitiveBody(primitive) {

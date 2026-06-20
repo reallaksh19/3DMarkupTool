@@ -106,6 +106,7 @@ function auditAttBlocks(text) {
   if (stack.length) issues.push(`ATT has ${stack.length} unclosed NEW block(s).`);
 
   const blockNames = blocks.map((block) => block.name);
+  const topLevelBlocksPresent = topLevelBlockCoverage(blocks);
   const catalogueBlocks = blocks.filter((block) => block.attributes.CATALOGUE_VISUAL === 'TRUE');
   const requiredCatalogueAttributes = [
     'CATALOGUE_VISUAL',
@@ -139,7 +140,7 @@ function auditAttBlocks(text) {
   }
 
   const duplicateNames = findDuplicates(blockNames);
-  if (duplicateNames.length) issues.push(`ATT block names must be unique after Navis-safe normalization: ${duplicateNames.join(', ')}`);
+  if (duplicateNames.length) issues.push(`ATT block names must be unique after Review-style naming: ${duplicateNames.join(', ')}`);
   issues.push(...catalogueBlockIssues);
 
   return {
@@ -150,18 +151,22 @@ function auditAttBlocks(text) {
     lineCount: lines.length,
     blockCount: blocks.length,
     blockNames,
-    topLevelBlocksPresent: {
-      INPUTXML_RVM_ROOT: blockNames.includes('INPUTXML_RVM_ROOT'),
-      PLANT_GEOMETRY: blockNames.includes('PLANT_GEOMETRY'),
-      SUPPORTS_RESTRAINTS: blockNames.includes('SUPPORTS_RESTRAINTS'),
-      ANNOTATIONS: blockNames.includes('ANNOTATIONS')
-    },
+    topLevelBlocksPresent,
     catalogueBlockCount: catalogueBlocks.length,
     catalogueBlockNames: catalogueBlocks.map((block) => block.name),
     catalogueAttributeCoverage,
     duplicateNames,
     issues,
     ok: issues.length === 0
+  };
+}
+
+function topLevelBlockCoverage(blocks) {
+  return {
+    INPUTXML_RVM_ROOT: blocks.some((block) => block.name === 'INPUTXML_RVM_ROOT' || block.attributes.TYPE === 'MODEL_ROOT' || block.attributes.REVIEW_NAME === '/INPUTXML'),
+    PLANT_GEOMETRY: blocks.some((block) => block.name === 'PLANT_GEOMETRY' || block.attributes.ROLE === 'PLANT_GEOMETRY' || block.attributes.REVIEW_NAME === '/INPUTXML-PI'),
+    SUPPORTS_RESTRAINTS: blocks.some((block) => block.name === 'SUPPORTS_RESTRAINTS' || block.attributes.ROLE === 'SUPPORTS_RESTRAINTS' || block.attributes.REVIEW_NAME === '/INPUTXML-SU'),
+    ANNOTATIONS: blocks.some((block) => block.name === 'ANNOTATIONS' || block.attributes.ROLE === 'ANNOTATIONS' || block.attributes.REVIEW_NAME === '/INPUTXML-AN')
   };
 }
 

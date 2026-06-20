@@ -36,6 +36,7 @@ const DEFERRED_MODULE_URLS = [
   `./static-svg-icons-controller.js?v=${SAFE_UI_VERSION}`,
   `./static-viewcube-svg-controller.js?v=${SAFE_UI_VERSION}`,
   `./static-selection-resolver.js?v=${SAFE_UI_VERSION}`,
+  `./static-canvas-interaction-coordinator.js?v=${SAFE_UI_VERSION}`,
   `./static-marquee-zoom-controller.js?v=${SAFE_UI_VERSION}`,
   `./static-area-select-controller.js?v=${SAFE_UI_VERSION}`,
   `./static-saved-views-controller.js?v=${SAFE_UI_VERSION}`,

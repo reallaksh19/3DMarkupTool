@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
 const catalogue = readFileSync(new URL('../src/valve-flange-visual-catalog.js', import.meta.url), 'utf8');
+const adapter = readFileSync(new URL('../src/valve-flange-primitive-adapter.js', import.meta.url), 'utf8');
 const converter = readFileSync(new URL('../src/converter.js', import.meta.url), 'utf8');
 const exportModel = readFileSync(new URL('../src/export-model.js', import.meta.url), 'utf8');
 const rvmConverter = readFileSync(new URL('../src/rvm-converter.js', import.meta.url), 'utf8');
@@ -39,6 +40,30 @@ assert.match(
 );
 
 assert.match(
+  adapter,
+  /VALVE_FLANGE_PRIMITIVE_ADAPTER_SCHEMA/,
+  'C2 adapter must define a shared primitive adapter schema.'
+);
+
+assert.match(
+  adapter,
+  /buildValveFlangePrimitiveAdapterPlan/,
+  'C2 adapter must expose a shared renderer-neutral primitive plan builder.'
+);
+
+assert.match(
+  adapter,
+  /productionRvmExportEnabled: false/,
+  'C2 adapter must not silently enable production RVM catalogue export.'
+);
+
+assert.doesNotMatch(
+  adapter,
+  /from 'three'|from "three"/,
+  'C2 shared adapter must not depend on Three.js.'
+);
+
+assert.match(
   converter,
   /getValveFlangeVisualSpec/,
   'GLB converter must use the valve/flange visual catalogue resolver.'
@@ -52,8 +77,8 @@ assert.match(
 
 assert.doesNotMatch(
   exportModel,
-  /valve-flange-visual-catalog/,
-  'Audit baseline: RVM export-model does not yet import the valve/flange catalogue. This must only change in the future RVM parity implementation PR.'
+  /valve-flange-visual-catalog|valve-flange-primitive-adapter/,
+  'Audit baseline through C2: RVM export-model does not yet import the valve/flange catalogue or adapter. This must only change in C3.'
 );
 
 assert.match(
@@ -89,7 +114,13 @@ assert.match(
 assert.match(
   auditDoc,
   /C2 — Shared valve\/flange primitive adapter/,
-  'Audit document must define the next implementation phase.'
+  'Audit document must define the shared primitive adapter phase.'
+);
+
+assert.match(
+  auditDoc,
+  /Status: complete when `src\/valve-flange-primitive-adapter\.js`/,
+  'Audit document must record C2 adapter completion criteria.'
 );
 
 assert.match(

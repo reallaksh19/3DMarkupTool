@@ -3,7 +3,7 @@
 // engineering geometry. The converter exports annotation boards as mesh planes;
 // this viewer-side controller treats them as overlay callouts.
 
-const CONTROLLER_VERSION = 'annotation-readable-callouts-20260620';
+const CONTROLLER_VERSION = 'annotation-isonote-readable-v2-20260620';
 const BOARD_TYPES = new Set(['ISONOTE_NAME_PLATE']);
 const LEADER_TYPES = new Set(['ISONOTE_LEADER']);
 const NODE_LABEL_PREFIX = 'NODE_LABEL_';
@@ -11,12 +11,14 @@ const ISONOTE_BOARD_PREFIX = 'ISONOTE_BOARD_';
 const ISONOTE_LEADER_PREFIX = 'ISONOTE_LEADER_';
 
 // Visual policy:
-// - ISONOTE boards are primary callouts and must remain readable in review views.
+// - ISONOTE boards are primary review callouts and must remain readable.
+//   Do not only scale the old GLB texture: replace its texture image with a
+//   high-resolution callout canvas so close/overview views both remain sharp.
 // - Node labels are secondary metadata: show fewer, larger labels with a minimum
 //   screen-space separation instead of many tiny labels pasted onto components.
 // - Labels are offset in camera screen space and slightly above the model so they
 //   do not sit directly on valve/flange/pipe silhouettes.
-// - Leaders should not draw through the model as solid foreground geometry.
+// - Leaders should indicate attachment without becoming foreground wires.
 const NODE_LABEL_MAX_VISIBLE = 10;
 const NODE_LABEL_MIN_SCREEN_PX = 132;
 const NODE_LABEL_GRID_PX = 190;
@@ -25,7 +27,16 @@ const NODE_LABEL_VERTICAL_OFFSET_FACTOR = 3.6;
 const NODE_LABEL_SCREEN_RIGHT_OFFSET_FACTOR = 0.92;
 const NODE_LABEL_SCREEN_UP_OFFSET_FACTOR = 1.15;
 const NODE_LABEL_TARGET_SCREEN_FRACTION = 0.056;
-const ISONOTE_TARGET_SCREEN_FRACTION = 0.082;
+const ISONOTE_TARGET_SCREEN_FRACTION = 0.18;
+const ISONOTE_MIN_SCALE = 0.48;
+const ISONOTE_MAX_SCALE = 1.35;
+const ISONOTE_SCREEN_RIGHT_OFFSET_FACTOR = 0.095;
+const ISONOTE_SCREEN_UP_OFFSET_FACTOR = 0.048;
+const ISONOTE_CANVAS_WIDTH = 1600;
+const ISONOTE_CANVAS_HEIGHT = 480;
+const ISONOTE_MAX_TEXT_LINES = 2;
+const ISONOTE_MAX_VISIBLE = 3;
+const ISONOTE_MIN_SCREEN_PX = 230;
 
 let modelRoot = null;
 let camera = null;
@@ -98,7 +109,9 @@ function collectAnnotations(root) {
       nodeLabels: trackedNodeLabels.length,
       leaders: trackedLeaders.length,
       nodeMaxVisible: NODE_LABEL_MAX_VISIBLE,
-      nodeMinScreenPx: NODE_LABEL_MIN_SCREEN_PX
+      nodeMinScreenPx: NODE_LABEL_MIN_SCREEN_PX,
+      isonoteMaxVisible: ISONOTE_MAX_VISIBLE,
+      isonoteReadableCanvas: `${ISONOTE_CANVAS_WIDTH}x${ISONOTE_CANVAS_HEIGHT}`
     }
   }));
 }
@@ -124,13 +137,17 @@ function prepareBoard(object, type, name) {
   object.userData.annotationBasePosition = object.userData.annotationBasePosition || [object.position.x, object.position.y, object.position.z];
   object.userData.annotationBaseHeight = object.userData.annotationBaseHeight || geometryHeight(object);
   object.userData.annotationStableJitter = object.userData.annotationStableJitter ?? stableJitter(name || type || 'annotation');
-  object.renderOrder = Math.max(object.renderOrder || 0, isIsonote ? 120 : 112);
+  object.renderOrder = Math.max(object.renderOrder || 0, isIsonote ? 140 : 112);
+
+  if (isIsonote) redrawIsonoteBoard(object);
 
   applyMaterial(object, (material) => {
     material.depthTest = false;
     material.depthWrite = false;
     material.transparent = true;
-    material.opacity = isIsonote ? 0.98 : 1.0;
+    material.opacity = 1.0;
+    material.toneMapped = false;
+    material.alphaTest = isIsonote ? 0.02 : material.alphaTest;
     material.needsUpdate = true;
     if (material.map) {
       material.map.generateMipmaps = false;
@@ -139,16 +156,81 @@ function prepareBoard(object, type, name) {
   });
 }
 
+function redrawIsonoteBoard(object) {
+  const material = firstMappedMaterial(object) || firstMaterial(object);
+  if (!material) return;
+  const canvas = document.createElement('canvas');
+  canvas.width = ISONOTE_CANVAS_WIDTH;
+  canvas.height = ISONOTE_CANVAS_HEIGHT;
+
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return;
+
+  const node = object.userData?.NODE || object.userData?.node || '';
+  const rawText = object.userData?.BOARD_TEXT || object.userData?.SOURCE_NOTE_NAME || object.userData?.sourceNoteName || object.name || '';
+  const bodyText = normalizeIsonoteText(rawText);
+  const title = node ? `ISONOTE N${node}` : 'ISONOTE';
+
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  drawRoundRect(ctx, 8, 8, canvas.width - 16, canvas.height - 16, 34, 'rgba(7,9,18,0.995)', '#ffd463', 8);
+  drawRoundRect(ctx, 36, 34, 360, 86, 22, '#ffd463', 'rgba(255,255,255,0.38)', 3);
+
+  ctx.textBaseline = 'top';
+  ctx.textAlign = 'left';
+  ctx.shadowColor = 'transparent';
+  ctx.shadowBlur = 0;
+  ctx.shadowOffsetX = 0;
+  ctx.shadowOffsetY = 0;
+  ctx.font = '900 46px Arial, Helvetica, sans-serif';
+  ctx.fillStyle = '#101318';
+  ctx.fillText(title, 62, 52);
+
+  ctx.font = '900 74px Arial, Helvetica, sans-serif';
+  ctx.fillStyle = '#ffffff';
+  ctx.shadowColor = 'rgba(0,0,0,0.92)';
+  ctx.shadowBlur = 8;
+  ctx.shadowOffsetX = 0;
+  ctx.shadowOffsetY = 3;
+
+  const maxWidth = canvas.width - 112;
+  const lines = wrapCanvasText(ctx, bodyText, maxWidth, ISONOTE_MAX_TEXT_LINES);
+  const lineHeight = 92;
+  const y0 = lines.length > 1 ? 164 : 194;
+  for (let i = 0; i < lines.length; i += 1) {
+    ctx.fillText(lines[i], 56, y0 + i * lineHeight);
+  }
+
+  installCanvasTexture(material, canvas);
+}
+
+function installCanvasTexture(material, canvas) {
+  const existing = material.map;
+  if (existing) {
+    const texture = typeof existing.clone === 'function' ? existing.clone() : existing;
+    texture.image = canvas;
+    texture.generateMipmaps = false;
+    texture.needsUpdate = true;
+    material.map = texture;
+    material.needsUpdate = true;
+    return;
+  }
+
+  // Fallback for non-textured imported materials. Three.Texture is not imported in
+  // this browser-side controller, so reuse a compatible constructor when possible.
+  material.userData = material.userData || {};
+  material.userData.annotationCanvasFallback = canvas;
+  material.needsUpdate = true;
+}
+
 function prepareLeader(object) {
-  object.renderOrder = Math.max(object.renderOrder || 0, 62);
+  object.renderOrder = Math.max(object.renderOrder || 0, 54);
   object.userData.annotationLodManaged = true;
   object.userData.annotationLodType = 'isonote-leader';
   applyMaterial(object, (material) => {
-    // Leaders should support the callout without becoming foreground wires.
     material.depthTest = true;
     material.depthWrite = false;
     material.transparent = true;
-    material.opacity = Math.min(Number.isFinite(material.opacity) ? material.opacity : 1, 0.12);
+    material.opacity = Math.min(Number.isFinite(material.opacity) ? material.opacity : 1, 0.08);
     material.needsUpdate = true;
   });
 }
@@ -160,12 +242,35 @@ function updateAnnotationLod() {
 }
 
 function updateIsonoteBoards() {
+  if (!trackedIsonoteBoards.length) return;
+  const viewport = getViewportSize();
+  const candidates = [];
   for (const object of trackedIsonoteBoards) {
     if (!object?.parent) continue;
-    const distance = distanceToCamera(object);
+    const screen = getScreenPosition(object, viewport);
+    if (!screen || !Number.isFinite(screen.x) || !Number.isFinite(screen.y)) {
+      setManagedVisible(object, false);
+      continue;
+    }
+    candidates.push({ object, screen, distance: distanceToCamera(object) });
+  }
+
+  candidates.sort((a, b) => a.distance - b.distance || String(a.object.name).localeCompare(String(b.object.name)));
+  const accepted = [];
+  for (const candidate of candidates) {
+    const spaced = accepted.every((other) => screenDistanceSq(candidate.screen, other.screen) >= ISONOTE_MIN_SCREEN_PX * ISONOTE_MIN_SCREEN_PX);
+    if (accepted.length < ISONOTE_MAX_VISIBLE && spaced) {
+      accepted.push(candidate);
+      continue;
+    }
+    setManagedVisible(candidate.object, false);
+  }
+
+  for (const item of accepted) {
+    const object = item.object;
     object.quaternion.copy(camera.quaternion);
-    applyIsonoteOffset(object, distance);
-    applyScreenStableScale(object, distance, 'isonote-board');
+    applyIsonoteOffset(object, item.distance);
+    applyScreenStableScale(object, item.distance, 'isonote-board');
     setManagedVisible(object, true);
   }
 }
@@ -185,8 +290,6 @@ function updateNodeLabels() {
     candidates.push({ object, screen, distance: distanceToCamera(object) });
   }
 
-  // Prefer labels close to the active view, but enforce wide spacing and a low
-  // count so a valve/flange station does not become a pile of unreadable tags.
   candidates.sort((a, b) => a.distance - b.distance || String(a.object.name).localeCompare(String(b.object.name)));
 
   const accepted = [];
@@ -219,8 +322,14 @@ function setManagedVisible(object, visible) {
 function applyIsonoteOffset(object, distance) {
   const basePosition = object.userData.annotationBasePosition || [object.position.x, object.position.y, object.position.z];
   const baseHeight = Math.max(Number(object.userData.annotationBaseHeight) || 1, 0.001);
-  const offset = clamp(baseHeight * 0.95 + worldUnitsForScreenFraction(distance, 0.018), 1.2, 14);
-  object.position.set(basePosition[0], basePosition[1] + offset, basePosition[2]);
+  const right = cameraRightVector();
+  const verticalOffset = clamp(baseHeight * 2.4 + worldUnitsForScreenFraction(distance, ISONOTE_SCREEN_UP_OFFSET_FACTOR), 3.6, 34);
+  const sideOffset = clamp(worldUnitsForScreenFraction(distance, ISONOTE_SCREEN_RIGHT_OFFSET_FACTOR), 3.0, 24) * stableSide(object);
+  object.position.set(
+    basePosition[0] + right.x * sideOffset,
+    basePosition[1] + verticalOffset,
+    basePosition[2] + right.z * sideOffset
+  );
 }
 
 function applyNodeLabelOffset(object, distance) {
@@ -264,9 +373,11 @@ function gridKey(screen, size) {
 }
 
 function screenDistanceSq(a, b) {
-  const dx = a.x - b.x;
-  const dy = a.y - b.y;
-  return dx * dx + dy * dy;
+  const dx = a.x;
+  const dy = a.y;
+  const ox = b.x;
+  const oy = b.y;
+  return (dx - ox) * (dx - ox) + (dy - oy) * (dy - oy);
 }
 
 function distanceToCamera(object) {
@@ -282,7 +393,7 @@ function applyScreenStableScale(object, distance, kind) {
   const baseHeight = Math.max(Number(object.userData.annotationBaseHeight) || 1, 0.001);
   const desiredScreenFraction = kind === 'isonote-board' ? ISONOTE_TARGET_SCREEN_FRACTION : NODE_LABEL_TARGET_SCREEN_FRACTION;
   const rawScale = (visibleWorldHeightAtDistance(distance) * desiredScreenFraction) / baseHeight;
-  const scale = kind === 'isonote-board' ? clamp(rawScale, 0.16, 0.48) : clamp(rawScale, 0.82, 1.65);
+  const scale = kind === 'isonote-board' ? clamp(rawScale, ISONOTE_MIN_SCALE, ISONOTE_MAX_SCALE) : clamp(rawScale, 0.82, 1.65);
   object.scale.set(baseScale[0] * scale, baseScale[1] * scale, baseScale[2] * scale);
 }
 
@@ -309,6 +420,71 @@ function cameraRightVector() {
   return right;
 }
 
+function firstMaterial(object) {
+  const materials = Array.isArray(object.material) ? object.material : [object.material];
+  return materials.find(Boolean) || null;
+}
+
+function firstMappedMaterial(object) {
+  const materials = Array.isArray(object.material) ? object.material : [object.material];
+  return materials.find((material) => material?.map) || null;
+}
+
+function normalizeIsonoteText(value) {
+  return String(value || '')
+    .replace(/^ISONOTE[_\s-]*/i, '')
+    .replace(/[_-]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim() || 'DETAIL NOTE';
+}
+
+function wrapCanvasText(ctx, text, maxWidth, maxLines) {
+  const words = normalizeIsonoteText(text).split(' ');
+  const lines = [];
+  let line = '';
+  for (const word of words) {
+    const trial = line ? `${line} ${word}` : word;
+    if (ctx.measureText(trial).width <= maxWidth || !line) {
+      line = trial;
+      continue;
+    }
+    lines.push(line);
+    line = word;
+    if (lines.length >= maxLines - 1) break;
+  }
+  if (line && lines.length < maxLines) lines.push(line);
+  const usedWords = lines.join(' ').split(' ').filter(Boolean).length;
+  if (words.length > usedWords && lines.length) {
+    lines[lines.length - 1] = ellipsizeLine(ctx, lines[lines.length - 1], maxWidth);
+  }
+  return lines.length ? lines : ['DETAIL NOTE'];
+}
+
+function ellipsizeLine(ctx, line, maxWidth) {
+  let text = String(line || '').trim();
+  while (text.length > 1 && ctx.measureText(`${text} …`).width > maxWidth) {
+    text = text.replace(/\s*\S+$/, '').trim() || text.slice(0, -1).trim();
+  }
+  return `${text || line} …`;
+}
+
+function drawRoundRect(ctx, x, y, w, h, r, fill, stroke, lineWidth) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+  ctx.fillStyle = fill;
+  ctx.fill();
+  if (stroke) {
+    ctx.lineWidth = lineWidth;
+    ctx.strokeStyle = stroke;
+    ctx.stroke();
+  }
+}
+
 function stableJitter(value) {
   let hash = 0;
   const text = String(value || '');
@@ -330,14 +506,6 @@ function geometryHeight(object) {
   return Math.max(Math.abs(box.max.y - box.min.y), 0.001);
 }
 
-function applyMaterial(object, callback) {
-  if (object.material) {
-    const materials = Array.isArray(object.material) ? object.material : [object.material];
-    materials.forEach((material) => material && callback(material));
-  }
-  object.children?.forEach?.((child) => applyMaterial(child, callback));
-}
-
-function clamp(value, min, max) {
-  return Math.min(max, Math.max(min, value));
+function clamp(v, min, max) {
+  return Math.min(Math.max(v, min), max);
 }

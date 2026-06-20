@@ -2,9 +2,12 @@
 // Input is always open. Conversion and sideload settings are collapsed by explicit section markers,
 // not by DOM position, because the workflow summary card is also a <section>.
 // Layout and default collapsed state are owned by static HTML/CSS to avoid startup layout shifts.
+// Static CSS contract selectors owned by static-shell-performance.css:
+// #inputDrawer > .panel-section[data-section="input"] > .file-drop { display: grid !important; }
+// body:not(.conversion-expanded) #inputDrawer > .panel-section[data-collapsible="conversion"] > .conversion-collapsible-content { display: none !important; }
+// body:not(.sideload-expanded) #inputDrawer > .panel-section[data-collapsible="sideload"] > .sideload-collapsible-content { display: none !important; }
 
 const VERSION = 'input-drawer-collapse-css-contract-20260620';
-const CONTRACT_STYLE_ID = 'input-drawer-collapse-contract-style';
 
 runWhenReady(initConversionCollapse);
 
@@ -17,7 +20,6 @@ function runWhenReady(callback) {
 }
 
 function initConversionCollapse() {
-  installCollapseContractStyle();
   ensureInputAlwaysExpanded();
   initConversionSection();
   initSideloadSection();
@@ -33,31 +35,6 @@ function initConversionCollapse() {
     ensureInputAlwaysExpanded,
     layoutOwner: 'static-css'
   };
-}
-
-function installCollapseContractStyle() {
-  if (document.getElementById(CONTRACT_STYLE_ID)) return;
-  const style = document.createElement('style');
-  style.id = CONTRACT_STYLE_ID;
-  style.textContent = `
-    #inputDrawer > .panel-section[data-section="input"] > .file-drop {
-      display: grid !important;
-      position: relative !important;
-      min-height: 0 !important;
-      opacity: 1 !important;
-      visibility: visible !important;
-      pointer-events: auto !important;
-    }
-
-    body:not(.conversion-expanded) #inputDrawer > .panel-section[data-collapsible="conversion"] > .conversion-collapsible-content {
-      display: none !important;
-    }
-
-    body:not(.sideload-expanded) #inputDrawer > .panel-section[data-collapsible="sideload"] > .sideload-collapsible-content {
-      display: none !important;
-    }
-  `;
-  document.head.appendChild(style);
 }
 
 function initConversionSection() {

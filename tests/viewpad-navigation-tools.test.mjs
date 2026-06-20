@@ -18,8 +18,26 @@ assert.match(controller, /renderOnce\?\.\('hide-selected'\)/, 'hide must request
 assert.match(controller, /renderOnce\?\.\('show-all'\)/, 'show all must request a render');
 assert.match(controller, /view-pad-with-navigation-tools/, 'viewpad CSS hook must be installed');
 
+assert.match(controller, /const visibilitySession = \{/, 'Phase 7 must track a reversible visibility session');
+assert.match(controller, /clearVisibility:\s*\(\) => showAll\('api-clear-visibility'\)/, 'diagnostic API must expose explicit visibility clear');
+assert.match(controller, /visibility:\s*getVisibilityState/, 'diagnostic API must expose visibility state');
+assert.match(controller, /attachVisibilityEsc\(\)/, 'visibility tools must install Esc lifecycle handler');
+assert.match(controller, /document\.addEventListener\('keydown', onVisibilityEscape, \{ capture: true \}\)/, 'Esc handler must be bounded and event-driven');
+assert.match(controller, /event\.key !== 'Escape' \|\| !visibilitySession\.active/, 'Esc must only act when visibility session is active');
+assert.match(controller, /showAll\('escape'\)/, 'Esc must restore visibility through Show All path');
+assert.match(controller, /beginVisibilitySession\('isolate', selected, 'isolate-selected'\)/, 'isolate must start a visibility session');
+assert.match(controller, /beginVisibilitySession\('hide', selected, 'hide-selected'/, 'hide must start or append to a visibility session');
+assert.match(controller, /visibility-tool-active/, 'visibility session must expose a body state hook');
+assert.match(controller, /visibility-isolate-active/, 'isolate state hook must be present');
+assert.match(controller, /visibility-hide-active/, 'hide state hook must be present');
+assert.match(controller, /resolveSafeHideTarget\(undefined, \{ runtime: rt \}\)/, 'hide/isolate must use the shared safe resolver');
+assert.match(controller, /if \(!root \|\| !selected\)/, 'isolate must reject missing root or unsafe selection');
+assert.doesNotMatch(controller, /root\.visible\s*=\s*false/, 'normal visibility tools must never hide the model root directly');
+assert.doesNotMatch(controller, /setInterval\s*\(/, 'viewpad visibility lifecycle must not poll');
+assert.doesNotMatch(controller, /MutationObserver/, 'viewpad visibility lifecycle must not use MutationObserver');
+
 assert.match(bootstrap, /static-viewpad-navigation-tools-controller\.js\?v=\$\{SAFE_UI_VERSION\}/, 'bootstrap must load viewpad navigation controller');
-assert.match(bootstrap, /esc-tools-export-icons-20260619/, 'bootstrap cache key must be bumped for current ESC/export/icon tool pack');
+assert.match(bootstrap, /perf-tdz-fix-20260620/, 'bootstrap cache key must remain date-stamped and auditable');
 assert.ok(pkg.scripts.test.includes('tests/viewpad-navigation-tools.test.mjs'), 'npm test must include viewpad navigation tools gate');
 
 console.log('viewpad-navigation-tools gate passed');

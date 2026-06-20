@@ -4,8 +4,9 @@ import { objectId, resolveSafeHideTarget } from './static-selection-resolver.js'
 // Adds a compact in-canvas Section Box tool without touching src/app.js.
 // Tool: SB = Section Box from selected component. It writes renderer clipping planes
 // through the shared viewer runtime and remains independent of the fresh clip toolbar.
+// Phase 6: component-only bounds, explicit Esc clear, no startup scene traversal.
 
-const VERSION = 'section-box-from-selection-20260619';
+const VERSION = 'section-box-phase6-20260620';
 const STYLE_ID = 'static-section-box-from-selection-style';
 const TOOL_VIEW = 'sectionBoxSelected';
 const TOOL_LABEL = 'SB';
@@ -13,12 +14,22 @@ const TOOL_TITLE = 'Section Box from selected component';
 const MIN_PADDING = 1;
 const PADDING_RATIO = 0.05;
 
+const STATE = {
+  active: false,
+  lastAction: 'idle',
+  lastSource: 'init',
+  lastReason: '',
+  lastSelectedId: '',
+  lastPlaneCount: 0
+};
+
 installSectionBoxTool();
 
 function installSectionBoxTool() {
   const start = () => {
     injectStyles();
     ensureButton();
+    bindEscClear();
     installApi();
   };
 
@@ -60,9 +71,21 @@ function ensureButton() {
   }
 }
 
+function bindEscClear() {
+  if (window.__3D_MARKUP_SECTION_BOX_ESC_BOUND__) return;
+  window.__3D_MARKUP_SECTION_BOX_ESC_BOUND__ = true;
+  window.addEventListener('keydown', (event) => {
+    if (!STATE.active) return;
+    if (hasInputFocus()) return;
+    if (event.key !== 'Escape') return;
+    clearSectionBox({ source: 'escape' });
+  }, true);
+}
+
 function installApi() {
   window.__3D_MARKUP_SECTION_BOX__ = {
     version: VERSION,
+    state: STATE,
     apply: () => applySectionBoxFromSelection({ source: 'api-section-box' }),
     clear: () => clearSectionBox({ source: 'api-clear-section-box' }),
     debug: () => debugSnapshot()
@@ -75,23 +98,27 @@ function applySectionBoxFromSelection({ source = 'section-box' } = {}) {
   const selected = resolveSafeHideTarget(undefined, { runtime: rt });
   if (!selected) {
     setStatus('Select a component/part before Section Box');
+    remember('fail', source, 'missing-safe-selection', '', 0);
     dispatchSectionBox('fail', { source, reason: 'missing-safe-selection', resolver: 'shared-selection-resolver' });
     return false;
   }
 
+  const selectedId = objectId(selected);
   const box = boundsForObject(selected);
   if (!isValidBox(box)) {
     setStatus('Section Box failed: selected component has no valid bounds');
-    dispatchSectionBox('fail', { source, reason: 'invalid-bounds', selectedId: objectId(selected) });
+    remember('fail', source, 'invalid-bounds', selectedId, 0);
+    dispatchSectionBox('fail', { source, reason: 'invalid-bounds', selectedId });
     return false;
   }
 
   if (!renderer && typeof rt?.applyClipping !== 'function') {
     setStatus('Section Box failed: renderer not ready');
+    remember('fail', source, 'renderer-missing', selectedId, 0);
     dispatchSectionBox('fail', {
       source,
       reason: 'renderer-missing',
-      selectedId: objectId(selected),
+      selectedId,
       runtimeKeys: Object.keys(rt || {})
     });
     return false;
@@ -104,7 +131,7 @@ function applySectionBoxFromSelection({ source = 'section-box' } = {}) {
     source: 'viewpad-section-box',
     trigger: source,
     resolver: 'shared-selection-resolver',
-    selectedId: objectId(selected),
+    selectedId,
     padding: sectionPadding(box),
     box: boxSummary(expandedBox)
   };
@@ -123,7 +150,8 @@ function applySectionBoxFromSelection({ source = 'section-box' } = {}) {
   window.__3D_MARKUP_CLIP_RUNTIME__ = rt;
 
   requestRender(rt, 'section-box-selected');
-  setStatus(`Section Box: ${meta.selectedId || 'selected component'}`);
+  remember('apply', source, '', selectedId, planes.length);
+  setStatus(`Section Box: ${selectedId || 'selected component'}`);
   dispatchSectionBox('apply', {
     ...meta,
     rendererReady: Boolean(renderer),
@@ -144,9 +172,19 @@ function clearSectionBox({ source = 'section-box-clear' } = {}) {
     rt.clippingMode = 'none';
   }
   requestRender(rt, 'section-box-clear');
+  remember('clear', source, '', '', 0);
   setStatus('Section Box cleared');
   dispatchSectionBox('clear', { source, rendererReady: Boolean(renderer) });
   return true;
+}
+
+function remember(action, source, reason = '', selectedId = '', planeCount = 0) {
+  STATE.active = action === 'apply';
+  STATE.lastAction = action;
+  STATE.lastSource = source;
+  STATE.lastReason = reason;
+  STATE.lastSelectedId = selectedId;
+  STATE.lastPlaneCount = planeCount;
 }
 
 function runtime() {
@@ -227,14 +265,21 @@ function debugSnapshot() {
   const selected = resolveSafeHideTarget(undefined, { runtime: rt });
   return {
     version: VERSION,
+    state: { ...STATE },
     hasRenderer: Boolean(renderer),
     rendererLocalClipping: Boolean(renderer?.localClippingEnabled),
     rendererPlaneCount: Array.isArray(renderer?.clippingPlanes) ? renderer.clippingPlanes.length : 0,
     selectedId: objectId(selected),
     hasSelected: Boolean(selected),
     runtimeKeys: Object.keys(rt || {}),
-    resolver: 'shared-selection-resolver'
+    resolver: 'shared-selection-resolver',
+    escapeClears: true
   };
+}
+
+function hasInputFocus() {
+  const tag = document.activeElement?.tagName;
+  return ['INPUT', 'TEXTAREA', 'SELECT'].includes(tag);
 }
 
 function round(value) {

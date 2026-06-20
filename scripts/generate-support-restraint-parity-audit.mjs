@@ -8,6 +8,15 @@ const repoRoot = dirname(dirname(fileURLToPath(import.meta.url)));
 const outDir = resolveOutDir(process.argv);
 const baseName = 'BM_CII_support_restraint_parity';
 const writerSafeKinds = ['cylinder', 'box', 'pyramid', 'sphere'];
+const requiredSupportCatalogueAttributes = [
+  'SUPPORT_CATALOGUE_VISUAL',
+  'SUPPORT_CATALOGUE_FAMILY',
+  'SUPPORT_CATALOGUE_RECIPE_ID',
+  'SUPPORT_CATALOGUE_SCHEMA',
+  'SUPPORT_CATALOGUE_PROPORTIONAL_FALLBACK',
+  'SUPPORT_CATALOGUE_VENDOR_DIMENSIONAL_DB_BACKED',
+  'SUPPORT_CATALOGUE_EXPORT_PRODUCTION_WIRING'
+];
 
 const { convertInputXmlToRvmAtt } = await import('../src/rvm-converter.js');
 
@@ -28,7 +37,9 @@ writeFileSync(join(outDir, `${baseName}.summary.md`), renderMarkdownSummary(audi
 console.log(`Generated support/restraint parity audit in ${outDir}`);
 console.log(`Support nodes: ${audit.summary.supportNodeCount}`);
 console.log(`Support primitives: ${audit.summary.supportPrimitiveCount}`);
+console.log(`Catalogue metadata nodes: ${audit.summary.supportCatalogueMetadataNodeCount}`);
 console.log(`Families: ${audit.summary.families.join(', ')}`);
+console.log(`Catalogue families: ${audit.summary.supportCatalogueFamilies.join(', ')}`);
 console.log(`Writer kinds: ${audit.summary.writerKinds.join(', ')}`);
 
 function buildAudit(exportResult) {
@@ -40,6 +51,10 @@ function buildAudit(exportResult) {
   const unsupportedWriterKinds = writerKinds.filter((kind) => !writerSafeKinds.includes(kind));
   const families = unique(supportNodes.map((node) => node.attributes?.FAMILY));
   const sourceClasses = unique(supportNodes.map((node) => node.attributes?.SOURCE_CLASS));
+  const supportCatalogueFamilies = unique(supportNodes.map((node) => node.attributes?.SUPPORT_CATALOGUE_FAMILY));
+  const supportCatalogueSchemas = unique(supportNodes.map((node) => node.attributes?.SUPPORT_CATALOGUE_SCHEMA));
+  const supportCatalogueRecipeIds = unique(supportNodes.map((node) => node.attributes?.SUPPORT_CATALOGUE_RECIPE_ID));
+  const supportCatalogueMetadataNodes = supportNodes.filter((node) => hasAllSupportCatalogueAttributes(node.attributes || {}));
   const primitiveNames = supportPrimitives.map((primitive) => primitive.name || '');
   const roleCoverage = {
     arrowStems: primitiveNames.filter((name) => name.endsWith('_STEM')).length,
@@ -53,19 +68,31 @@ function buildAudit(exportResult) {
     SOURCE_CLASS: /SOURCE_CLASS := '(ACTUAL|EXPECTED)'/.test(exportResult.att),
     SOURCE_MODE: /SOURCE_MODE := '[^']+'/.test(exportResult.att),
     GAP_MM: /GAP_MM := '[^']+'/.test(exportResult.att),
-    TARGET_VIEWER: /TARGET_VIEWER := 'Navisworks'/.test(exportResult.att)
+    TARGET_VIEWER: /TARGET_VIEWER := 'Navisworks'/.test(exportResult.att),
+    SUPPORT_CATALOGUE_VISUAL: /SUPPORT_CATALOGUE_VISUAL := 'TRUE'/.test(exportResult.att),
+    SUPPORT_CATALOGUE_FAMILY: /SUPPORT_CATALOGUE_FAMILY := '[^']+'/.test(exportResult.att),
+    SUPPORT_CATALOGUE_RECIPE_ID: /SUPPORT_CATALOGUE_RECIPE_ID := '[^']+'/.test(exportResult.att),
+    SUPPORT_CATALOGUE_SCHEMA: /SUPPORT_CATALOGUE_SCHEMA := '[^']+'/.test(exportResult.att),
+    SUPPORT_CATALOGUE_PROPORTIONAL_FALLBACK: /SUPPORT_CATALOGUE_PROPORTIONAL_FALLBACK := 'TRUE'/.test(exportResult.att),
+    SUPPORT_CATALOGUE_VENDOR_DIMENSIONAL_DB_BACKED: /SUPPORT_CATALOGUE_VENDOR_DIMENSIONAL_DB_BACKED := 'FALSE'/.test(exportResult.att),
+    SUPPORT_CATALOGUE_EXPORT_PRODUCTION_WIRING: /SUPPORT_CATALOGUE_EXPORT_PRODUCTION_WIRING := 'TRUE'/.test(exportResult.att)
   };
   const metadataIssues = collectMetadataIssues(supportNodes);
+  const catalogueMetadataIssues = collectCatalogueMetadataIssues(supportNodes);
   const finitePrimitiveIssues = collectPrimitiveIssues(supportNodes);
   const issues = [];
   if (!supportGroup) issues.push('missing SUPPORTS_RESTRAINTS group');
   if (!supportNodes.length) issues.push('no support/restraint nodes exported from BM_CII sample');
   if (unsupportedWriterKinds.length) issues.push(`unsupported writer kinds: ${unsupportedWriterKinds.join(', ')}`);
+  if (!exportResult.exportModel.audit?.supportCatalogueExportParity) issues.push('export model audit did not enable supportCatalogueExportParity');
+  if (!exportResult.exportModel.audit?.supportCatalogueProductionWiring) issues.push('export model audit did not enable supportCatalogueProductionWiring');
+  if (exportResult.exportModel.audit?.supportCatalogueRewrittenNodeCount !== supportNodes.length) issues.push(`support catalogue rewritten node count mismatch: ${exportResult.exportModel.audit?.supportCatalogueRewrittenNodeCount} !== ${supportNodes.length}`);
+  if (supportCatalogueMetadataNodes.length !== supportNodes.length) issues.push(`support catalogue metadata incomplete: ${supportCatalogueMetadataNodes.length}/${supportNodes.length} nodes have required SUPPORT_CATALOGUE_* attributes`);
   for (const [key, ok] of Object.entries(attMetadataPresent)) if (!ok) issues.push(`ATT support metadata missing ${key}`);
-  issues.push(...metadataIssues, ...finitePrimitiveIssues);
+  issues.push(...metadataIssues, ...catalogueMetadataIssues, ...finitePrimitiveIssues);
 
   return {
-    schema: 'SupportRestraintParityAudit.v1',
+    schema: 'SupportRestraintParityAudit.v2',
     generatedAt: new Date().toISOString(),
     sample: 'samples/BM_CII_Enriched_v8_lite.XML',
     outputs: {
@@ -73,20 +100,29 @@ function buildAudit(exportResult) {
       summary: `${baseName}.summary.md`
     },
     contract: {
-      scope: 'support/restraint proportional fallback audit',
-      supportCatalogueParity: 'FOUNDATION_ONLY',
+      scope: 'support/restraint production catalogue parity audit',
+      supportCatalogueParity: 'PRODUCTION_WIRED',
       proportionalFallback: true,
       vendorDimensionalDbBacked: false,
       asmeDimensionalDbBacked: false,
       writerSafePrimitiveKinds: writerSafeKinds,
       productionRvmPath: true,
       productionAttPath: true,
+      productionCatalogueWiring: true,
       externalViewerExecutedInCi: false
     },
     summary: {
       exportSupportCount: exportResult.exportModel.audit.supportCount,
       supportNodeCount: supportNodes.length,
       supportPrimitiveCount: supportPrimitives.length,
+      supportCatalogueExportParity: Boolean(exportResult.exportModel.audit?.supportCatalogueExportParity),
+      supportCatalogueProductionWiring: Boolean(exportResult.exportModel.audit?.supportCatalogueProductionWiring),
+      supportCatalogueRewrittenNodeCount: exportResult.exportModel.audit?.supportCatalogueRewrittenNodeCount || 0,
+      supportCataloguePrimitiveCount: exportResult.exportModel.audit?.supportCataloguePrimitiveCount || 0,
+      supportCatalogueMetadataNodeCount: supportCatalogueMetadataNodes.length,
+      supportCatalogueFamilies,
+      supportCatalogueSchemas,
+      supportCatalogueRecipeIds,
       families,
       sourceClasses,
       writerKinds,
@@ -94,6 +130,7 @@ function buildAudit(exportResult) {
       roleCoverage,
       attMetadataPresent,
       metadataIssueCount: metadataIssues.length,
+      catalogueMetadataIssueCount: catalogueMetadataIssues.length,
       finitePrimitiveIssueCount: finitePrimitiveIssues.length,
       ok: issues.length === 0
     },
@@ -106,6 +143,13 @@ function buildAudit(exportResult) {
       sourceMode: node.attributes?.SOURCE_MODE,
       gapMm: node.attributes?.GAP_MM,
       targetViewer: node.attributes?.TARGET_VIEWER,
+      supportCatalogueVisual: node.attributes?.SUPPORT_CATALOGUE_VISUAL,
+      supportCatalogueFamily: node.attributes?.SUPPORT_CATALOGUE_FAMILY,
+      supportCatalogueRecipeId: node.attributes?.SUPPORT_CATALOGUE_RECIPE_ID,
+      supportCatalogueSchema: node.attributes?.SUPPORT_CATALOGUE_SCHEMA,
+      supportCatalogueProportionalFallback: node.attributes?.SUPPORT_CATALOGUE_PROPORTIONAL_FALLBACK,
+      supportCatalogueVendorDimensionalDbBacked: node.attributes?.SUPPORT_CATALOGUE_VENDOR_DIMENSIONAL_DB_BACKED,
+      supportCatalogueExportProductionWiring: node.attributes?.SUPPORT_CATALOGUE_EXPORT_PRODUCTION_WIRING,
       primitiveCount: (node.primitives || []).length,
       primitiveKinds: unique((node.primitives || []).map((primitive) => primitive.kind)),
       primitiveNames: (node.primitives || []).map((primitive) => primitive.name)
@@ -119,6 +163,19 @@ function collectMetadataIssues(supportNodes) {
   const required = ['TYPE', 'ID', 'NODE', 'FAMILY', 'AXIS', 'SIGN', 'SOURCE_CLASS', 'SOURCE', 'SOURCE_MODE', 'GAP_MM', 'TARGET_VIEWER'];
   const issues = [];
   for (const node of supportNodes) for (const key of required) if (!(key in (node.attributes || {}))) issues.push(`${node.name}: missing ${key}`);
+  return issues;
+}
+
+function collectCatalogueMetadataIssues(supportNodes) {
+  const issues = [];
+  for (const node of supportNodes) {
+    const attrs = node.attributes || {};
+    for (const key of requiredSupportCatalogueAttributes) if (!(key in attrs)) issues.push(`${node.name}: missing ${key}`);
+    if (attrs.SUPPORT_CATALOGUE_VISUAL !== 'TRUE') issues.push(`${node.name}: SUPPORT_CATALOGUE_VISUAL must be TRUE`);
+    if (attrs.SUPPORT_CATALOGUE_PROPORTIONAL_FALLBACK !== 'TRUE') issues.push(`${node.name}: SUPPORT_CATALOGUE_PROPORTIONAL_FALLBACK must be TRUE`);
+    if (attrs.SUPPORT_CATALOGUE_VENDOR_DIMENSIONAL_DB_BACKED !== 'FALSE') issues.push(`${node.name}: SUPPORT_CATALOGUE_VENDOR_DIMENSIONAL_DB_BACKED must be FALSE`);
+    if (attrs.SUPPORT_CATALOGUE_EXPORT_PRODUCTION_WIRING !== 'TRUE') issues.push(`${node.name}: SUPPORT_CATALOGUE_EXPORT_PRODUCTION_WIRING must be TRUE`);
+  }
   return issues;
 }
 
@@ -143,9 +200,10 @@ function renderMarkdownSummary(audit) {
     `Schema: \`${audit.schema}\`\n\n` +
     `Sample: \`${audit.sample}\`\n\n` +
     `## Scope\n\n` +
-    `This is a support/restraint **foundation audit**. Current symbols are proportional fallback visual/export records, not vendor support catalogue geometry.\n\n` +
+    `This is a support/restraint **production catalogue wiring audit**. Current symbols are proportional fallback visual/export records, not vendor support catalogue geometry.\n\n` +
     `| Contract item | Value |\n|---|---:|\n` +
     `| Support catalogue parity | ${c.supportCatalogueParity} |\n` +
+    `| Production catalogue wiring | ${c.productionCatalogueWiring ? 'TRUE' : 'FALSE'} |\n` +
     `| Proportional fallback | ${c.proportionalFallback ? 'TRUE' : 'FALSE'} |\n` +
     `| Vendor dimensional DB backed | ${c.vendorDimensionalDbBacked ? 'TRUE' : 'FALSE'} |\n` +
     `| ASME dimensional DB backed | ${c.asmeDimensionalDbBacked ? 'TRUE' : 'FALSE'} |\n` +
@@ -157,10 +215,19 @@ function renderMarkdownSummary(audit) {
     `| Export audit support count | ${s.exportSupportCount} |\n` +
     `| Support nodes | ${s.supportNodeCount} |\n` +
     `| Support primitives | ${s.supportPrimitiveCount} |\n` +
+    `| Support catalogue export parity | ${s.supportCatalogueExportParity ? 'TRUE' : 'FALSE'} |\n` +
+    `| Support catalogue production wiring | ${s.supportCatalogueProductionWiring ? 'TRUE' : 'FALSE'} |\n` +
+    `| Support catalogue rewritten nodes | ${s.supportCatalogueRewrittenNodeCount} |\n` +
+    `| Support catalogue primitives | ${s.supportCataloguePrimitiveCount} |\n` +
+    `| Nodes with SUPPORT_CATALOGUE_* metadata | ${s.supportCatalogueMetadataNodeCount} |\n` +
     `| Metadata issues | ${s.metadataIssueCount} |\n` +
+    `| Catalogue metadata issues | ${s.catalogueMetadataIssueCount} |\n` +
     `| Primitive dimension issues | ${s.finitePrimitiveIssueCount} |\n` +
     `| Audit OK | ${s.ok ? 'YES' : 'NO'} |\n\n` +
     `## Families\n\n${s.families.map((family) => `- \`${family}\``).join('\n') || '- none'}\n\n` +
+    `## Support catalogue families\n\n${s.supportCatalogueFamilies.map((family) => `- \`${family}\``).join('\n') || '- none'}\n\n` +
+    `## Support catalogue schemas\n\n${s.supportCatalogueSchemas.map((schema) => `- \`${schema}\``).join('\n') || '- none'}\n\n` +
+    `## Support catalogue recipe ids\n\n${s.supportCatalogueRecipeIds.map((recipeId) => `- \`${recipeId}\``).join('\n') || '- none'}\n\n` +
     `## Source classes\n\n${s.sourceClasses.map((sourceClass) => `- \`${sourceClass}\``).join('\n') || '- none'}\n\n` +
     `## Writer primitive kinds\n\n${s.writerKinds.map((kind) => `- \`${kind}\``).join('\n') || '- none'}\n\n` +
     `Unsupported writer kinds: ${s.unsupportedWriterKinds.length ? s.unsupportedWriterKinds.map((kind) => `\`${kind}\``).join(', ') : '**none**'}\n\n` +
@@ -172,6 +239,10 @@ function renderMarkdownSummary(audit) {
     `## ATT metadata fields\n\n` +
     Object.entries(s.attMetadataPresent).map(([key, ok]) => `- ${ok ? '✅' : '❌'} \`${key}\``).join('\n') +
     `\n\n## Issues\n\n${audit.issues.length ? audit.issues.map((issue) => `- ${issue}`).join('\n') : '- none'}\n`;
+}
+
+function hasAllSupportCatalogueAttributes(attrs) {
+  return requiredSupportCatalogueAttributes.every((key) => key in attrs);
 }
 
 function resolveOutDir(args) {

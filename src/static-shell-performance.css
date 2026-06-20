@@ -65,6 +65,109 @@
   scroll-padding-top: 8px;
 }
 
+/* Static drawer summary.
+ *
+ * This card is intentionally present in raw HTML so it does not get inserted
+ * after first paint. The controller may update text/state only.
+ */
+#drawerSummaryCard.drawer-summary-card {
+  display: grid;
+  gap: 8px;
+  min-height: 112px;
+  margin: 0 0 10px;
+  padding: 10px;
+  border: 1px solid rgba(83, 125, 176, .24);
+  border-radius: 11px;
+  background:
+    linear-gradient(180deg, rgba(12, 30, 52, .82), rgba(6, 18, 34, .76));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .04);
+}
+
+.drawer-summary-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 18px;
+  color: #eef6ff;
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+
+.drawer-summary-head small {
+  max-width: 86px;
+  color: rgba(159, 179, 204, .82);
+  font-size: 10px;
+  font-weight: 800;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-transform: none;
+}
+
+.drawer-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.drawer-summary-step {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+  min-height: 46px;
+  padding: 7px 6px;
+  border: 1px solid rgba(83, 125, 176, .24);
+  border-radius: 9px;
+  background: rgba(4, 14, 28, .46);
+}
+
+.drawer-summary-step strong {
+  color: rgba(220, 236, 255, .82);
+  font-size: 10px;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
+
+.drawer-summary-step span {
+  min-width: 0;
+  color: #f7fbff;
+  font-size: 11px;
+  font-weight: 850;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.drawer-summary-step[data-state="ok"] {
+  border-color: rgba(39, 224, 161, .42);
+  background: rgba(10, 49, 42, .38);
+}
+
+.drawer-summary-step[data-state="ok"] span {
+  color: #8ff5d2;
+}
+
+.drawer-summary-step[data-state="warn"] {
+  border-color: rgba(255, 171, 53, .48);
+  background: rgba(60, 42, 13, .34);
+}
+
+.drawer-summary-step[data-state="warn"] span {
+  color: #ffd48a;
+}
+
+.drawer-summary-hint {
+  min-height: 30px;
+  margin: 0;
+  color: #aebfd4;
+  font-size: 11px;
+  line-height: 1.35;
+}
+
 #inputDrawer .phase2-input-sticky-section,
 #inputDrawer .phase4a-input-compact-section,
 #inputDrawer .panel-section[data-phase2-input="always-visible"] {
@@ -107,6 +210,14 @@
   margin-bottom: 8px;
   padding: 6px 10px;
   line-height: 1;
+}
+
+#inputDrawer > .panel-section[data-section="input"] > .file-drop {
+  display: grid !important;
+  min-height: 34px;
+  opacity: 1 !important;
+  visibility: visible !important;
+  pointer-events: auto !important;
 }
 
 #inputDrawer .phase2-input-sticky-section > .input-primary-actions,
@@ -176,7 +287,7 @@ body.sideload-expanded #inputDrawer .panel-section[data-collapsible="sideload"] 
 
 body:not(.conversion-expanded) #inputDrawer .panel-section[data-collapsible="conversion"] > .conversion-collapsible-content,
 body:not(.sideload-expanded) #inputDrawer .panel-section[data-collapsible="sideload"] > .sideload-collapsible-content {
-  display: none;
+  display: none !important;
 }
 
 #inputDrawer .panel-section[data-collapsible="sideload"] {

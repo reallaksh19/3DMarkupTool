@@ -16,10 +16,11 @@ assert.match(workflow, /if-no-files-found:\s*error/, 'CI must fail if the RVM ca
 
 assert.match(generator, /convertInputXmlToRvmAtt/, 'artifact generator must use the production RVM/ATT conversion boundary.');
 assert.match(generator, /BM_CII_Enriched_v8_lite\.XML/, 'artifact generator must use the BM_CII sample.');
-assert.match(generator, /BM_CII_catalogue_sample\.rvm/, 'artifact generator must write the sample RVM file.');
-assert.match(generator, /BM_CII_catalogue_sample\.att/, 'artifact generator must write the matching ATT file.');
-assert.match(generator, /BM_CII_catalogue_sample\.audit\.json/, 'artifact generator must write a machine-readable audit JSON.');
-assert.match(generator, /BM_CII_catalogue_sample\.summary\.md/, 'artifact generator must write a human-readable summary.');
+assert.match(generator, /baseName\s*=\s*'BM_CII_catalogue_sample'/, 'artifact generator must use the BM_CII catalogue sample base name.');
+assert.match(generator, /\$\{baseName\}\.rvm/, 'artifact generator must write the sample RVM file.');
+assert.match(generator, /\$\{baseName\}\.att/, 'artifact generator must write the matching ATT file.');
+assert.match(generator, /\$\{baseName\}\.audit\.json/, 'artifact generator must write a machine-readable audit JSON.');
+assert.match(generator, /\$\{baseName\}\.summary\.md/, 'artifact generator must write a human-readable summary.');
 assert.match(generator, /RvmCatalogueSampleArtifact\.v1/, 'artifact generator must declare the artifact schema.');
 assert.match(generator, /CATALOGUE_EXPORT_PRODUCTION_WIRING/, 'artifact audit must include production catalogue wiring metadata.');
 assert.match(generator, /ASME_DIMENSIONAL_DB_BACKED/, 'artifact audit must preserve the non-ASME dimensional DB flag.');

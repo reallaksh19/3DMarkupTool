@@ -35,8 +35,8 @@ for (const code of BLOCKED_DIRECT_RHBG_APPROXIMATION_CODES) {
 
 assert.equal(RVM_PRIMITIVE_PAYLOAD_LAYOUTS[5].candidateEmissionKind, 'cone');
 assert.equal(RVM_PRIMITIVE_PAYLOAD_LAYOUTS[7].candidateEmissionKind, 'frustum');
-assert.equal(RVM_PRIMITIVE_PAYLOAD_LAYOUTS[5].emissionStatus, 'rhbg-observed-blocked');
-assert.equal(RVM_PRIMITIVE_PAYLOAD_LAYOUTS[7].emissionStatus, 'rhbg-observed-blocked');
+assert.equal(RVM_PRIMITIVE_PAYLOAD_LAYOUTS[5].emissionStatus, 'reference-observed-blocked');
+assert.equal(RVM_PRIMITIVE_PAYLOAD_LAYOUTS[7].emissionStatus, 'reference-observed-blocked');
 
 const conePolicy = safeApproximationPolicyForIntent('cone');
 assert.ok(conePolicy, 'Cone intent must have an explicit safe approximation policy.');

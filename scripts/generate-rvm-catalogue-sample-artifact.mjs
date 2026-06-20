@@ -9,6 +9,7 @@ const outDir = resolveOutDir(process.argv);
 const baseName = 'BM_CII_catalogue_sample';
 
 const { convertInputXmlToRvmAtt } = await import('../src/rvm-converter.js');
+const { assertRvmBinaryCompatibility } = await import('../src/rvm-binary-audit.js');
 
 const sampleXml = readFileSync(join(repoRoot, 'samples', 'BM_CII_Enriched_v8_lite.XML'), 'utf8');
 const sampleIsonote = readOptional(join(repoRoot, 'samples', 'BM_CII_ISONOTE_sideload.csv'), '');
@@ -30,9 +31,12 @@ const attPath = join(outDir, `${baseName}.att`);
 const auditPath = join(outDir, `${baseName}.audit.json`);
 const summaryPath = join(outDir, `${baseName}.summary.md`);
 
-const summary = buildSummary(result);
+const rvmBinaryAudit = assertRvmBinaryCompatibility(result.rvm, {
+  primitiveCount: result.exportModel.audit.primitiveCount
+});
+const summary = buildSummary(result, rvmBinaryAudit);
 const audit = {
-  schema: 'RvmCatalogueSampleArtifact.v1',
+  schema: 'RvmCatalogueSampleArtifact.v2',
   generatedAt: new Date().toISOString(),
   sample: 'samples/BM_CII_Enriched_v8_lite.XML',
   outputs: {
@@ -42,6 +46,7 @@ const audit = {
     summary: `${baseName}.summary.md`
   },
   summary,
+  rvmBinaryAudit: compactBinaryAudit(rvmBinaryAudit),
   audit: result.audit,
   catalogueNodes: collectNodes(result.exportModel.root)
     .filter((node) => node.attributes?.CATALOGUE_VISUAL === 'TRUE')
@@ -66,6 +71,8 @@ console.log(`RVM bytes: ${result.audit.rvmBytes}`);
 console.log(`ATT bytes: ${result.audit.attBytes}`);
 console.log(`Catalogue components: ${result.audit.rvmCatalogueComponentCount}`);
 console.log(`Catalogue primitives: ${result.audit.rvmCataloguePrimitiveCount}`);
+console.log(`RVM chunks: ${rvmBinaryAudit.chunkCount}`);
+console.log(`RVM PRIM chunks: ${rvmBinaryAudit.primitiveChunkCount}`);
 
 function resolveOutDir(args) {
   const outArg = args.find((arg) => arg.startsWith('--outdir='));
@@ -81,7 +88,7 @@ function readOptional(path, fallback) {
   }
 }
 
-function buildSummary(result) {
+function buildSummary(result, rvmBinaryAudit) {
   const allNodes = collectNodes(result.exportModel.root);
   const allPrimitives = allNodes.flatMap((node) => node.primitives || []);
   const catalogueNodes = allNodes.filter((node) => node.attributes?.CATALOGUE_VISUAL === 'TRUE');
@@ -104,6 +111,21 @@ function buildSummary(result) {
     totalPrimitiveCount: allPrimitives.length,
     writerKinds,
     unsupportedKinds,
+    rvmBinary: {
+      schema: rvmBinaryAudit.schema,
+      chunkCount: rvmBinaryAudit.chunkCount,
+      firstChunk: rvmBinaryAudit.firstChunk,
+      secondChunk: rvmBinaryAudit.secondChunk,
+      terminalChunk: rvmBinaryAudit.terminalChunk,
+      primitiveChunkCount: rvmBinaryAudit.primitiveChunkCount,
+      containerChunkCount: rvmBinaryAudit.containerChunkCount,
+      closeContainerChunkCount: rvmBinaryAudit.closeContainerChunkCount,
+      endBodyLength: rvmBinaryAudit.endBodyLength,
+      allChunkMarkersOne: rvmBinaryAudit.allChunkMarkersOne,
+      balancedCntbCnte: rvmBinaryAudit.balancedCntbCnte,
+      contiguousUntilEnd: rvmBinaryAudit.contiguousUntilEnd,
+      ok: rvmBinaryAudit.ok
+    },
     attMetadataPresent: {
       CATALOGUE_VISUAL: /CATALOGUE_VISUAL := 'TRUE'/.test(result.att),
       CATALOGUE_CLASS: /CATALOGUE_CLASS := '(VALVE|FLANGE)'/.test(result.att),
@@ -118,6 +140,27 @@ function buildSummary(result) {
   };
 }
 
+function compactBinaryAudit(audit) {
+  return {
+    schema: audit.schema,
+    byteLength: audit.byteLength,
+    chunkCount: audit.chunkCount,
+    counts: audit.counts,
+    firstChunk: audit.firstChunk,
+    secondChunk: audit.secondChunk,
+    terminalChunk: audit.terminalChunk,
+    endBodyLength: audit.endBodyLength,
+    trailingBytes: audit.trailingBytes,
+    requiredChunksPresent: audit.requiredChunksPresent,
+    balancedCntbCnte: audit.balancedCntbCnte,
+    allChunkMarkersOne: audit.allChunkMarkersOne,
+    contiguousUntilEnd: audit.contiguousUntilEnd,
+    primitiveChunkCount: audit.primitiveChunkCount,
+    issues: audit.issues,
+    ok: audit.ok
+  };
+}
+
 function renderMarkdownSummary(audit) {
   const s = audit.summary;
   return `# BM_CII RVM Catalogue Sample Artifact\n\n` +
@@ -127,7 +170,7 @@ function renderMarkdownSummary(audit) {
     `| File | Purpose |\n|---|---|\n` +
     `| \`${audit.outputs.rvm}\` | Binary RVM generated through production export path |\n` +
     `| \`${audit.outputs.att}\` | ATT metadata generated from the same export model |\n` +
-    `| \`${audit.outputs.audit}\` | Machine-readable catalogue audit |\n` +
+    `| \`${audit.outputs.audit}\` | Machine-readable catalogue and RVM binary audit |\n` +
     `| \`${audit.outputs.summary}\` | Human-readable summary |\n\n` +
     `## Catalogue parity summary\n\n` +
     `| Metric | Value |\n|---|---:|\n` +
@@ -139,6 +182,18 @@ function renderMarkdownSummary(audit) {
     `| Flange catalogue nodes | ${s.flangeCatalogueNodeCount} |\n` +
     `| Total nodes | ${s.totalNodeCount} |\n` +
     `| Total primitives | ${s.totalPrimitiveCount} |\n\n` +
+    `## RVM binary compatibility\n\n` +
+    `| Check | Value |\n|---|---:|\n` +
+    `| Binary audit OK | ${s.rvmBinary.ok ? 'YES' : 'NO'} |\n` +
+    `| Chunk count | ${s.rvmBinary.chunkCount} |\n` +
+    `| PRIM chunks | ${s.rvmBinary.primitiveChunkCount} |\n` +
+    `| First chunk | ${s.rvmBinary.firstChunk} |\n` +
+    `| Second chunk | ${s.rvmBinary.secondChunk} |\n` +
+    `| Terminal chunk | ${s.rvmBinary.terminalChunk} |\n` +
+    `| END body length | ${s.rvmBinary.endBodyLength} |\n` +
+    `| All chunk markers = 1 | ${s.rvmBinary.allChunkMarkersOne ? 'YES' : 'NO'} |\n` +
+    `| CNTB/CNTE balanced | ${s.rvmBinary.balancedCntbCnte ? 'YES' : 'NO'} |\n` +
+    `| Contiguous to END | ${s.rvmBinary.contiguousUntilEnd ? 'YES' : 'NO'} |\n\n` +
     `## Writer primitive kinds\n\n` +
     `${s.writerKinds.map((kind) => `- \`${kind}\``).join('\n')}\n\n` +
     `Unsupported writer kinds: ${s.unsupportedKinds.length ? s.unsupportedKinds.map((kind) => `\`${kind}\``).join(', ') : '**none**'}\n\n` +

@@ -39,7 +39,7 @@ assert.doesNotMatch(controller, /setInterval\s*\(/, 'viewpad visibility lifecycl
 assert.doesNotMatch(controller, /MutationObserver/, 'viewpad visibility lifecycle must not use MutationObserver');
 
 assert.match(bootstrap, /static-viewpad-navigation-tools-controller\.js\?v=\$\{SAFE_UI_VERSION\}/, 'bootstrap must load viewpad navigation controller');
-assert.match(bootstrap, /perf-tdz-fix-20260620/, 'bootstrap cache key must remain date-stamped and auditable');
+assert.match(bootstrap, /canvas-tool-manager-20260620/, 'bootstrap cache key must remain date-stamped and auditable');
 assert.ok(pkg.scripts.test.includes('tests/viewpad-navigation-tools.test.mjs'), 'npm test must include viewpad navigation tools gate');
 
 console.log('viewpad-navigation-tools gate passed');

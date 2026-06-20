@@ -25,13 +25,13 @@ assert.match(index, /id="topReviewMenu"[\s\S]*review-top-menu-popover/, 'Static 
 });
 
 [
-  ['topMarkupMenu', 'Markup', 'Tag', 'ISONOTE XML', 'Import XML'],
-  ['topSessionMenu', 'Session', 'Save Session', 'Restore Session', 'Clear Session'],
-  ['topExportMenu', 'Export', 'GLB', 'RVM', 'ATT']
-].forEach(([menuId, label, ...expectedLabels]) => {
+  ['topMarkupMenu', 'Markup', 'staticTagBtn', 'staticIsonoteXmlBtn', 'staticImportXmlBtn'],
+  ['topSessionMenu', 'Session', 'staticSaveSessionBtn', 'staticRestoreSessionBtn', 'staticClearSessionBtn'],
+  ['topExportMenu', 'Export', 'downloadGlbBtn', 'downloadRvmBtn', 'downloadAttBtn', 'downloadAuditBtn']
+].forEach(([menuId, label, ...expectedIds]) => {
   assert.match(topbar, new RegExp(`ensureMenu\\('${menuId}', '${label}'`), `${label} top menu must be built deterministically.`);
-  expectedLabels.forEach((text) => {
-    assert.match(topbar, new RegExp(text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i'), `${label} menu must preserve "${text}" label text.`);
+  expectedIds.forEach((id) => {
+    assert.match(topbar, new RegExp(id.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')), `${label} menu must proxy source control ${id}.`);
   });
 });
 

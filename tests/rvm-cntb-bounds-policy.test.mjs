@@ -7,6 +7,7 @@ const exportModel = {
   root: {
     name: 'INPUTXML_RVM_ROOT',
     reviewName: '/INPUTXML',
+    cntbPosition: [0, 0, 100000],
     material: 12,
     attributes: { TYPE: 'MODEL_ROOT' },
     primitives: [],
@@ -56,12 +57,25 @@ assert.deepEqual(
   [12, 12, 12],
   'CNTB material ids must decode from the explicit group payload field'
 );
+assert.deepEqual(
+  records.map((record) => record.position),
+  [
+    [0, 0, 100000],
+    [0, 0, 0],
+    [500, 0, 0]
+  ],
+  'CNTB payload must decode as explicit x/y/z coordinates, not reserved strings or bbox fields'
+);
+assert.equal(records[0].bodyLength, 44, 'CNTB body length must stay RMSS-compatible for /INPUTXML name');
 
 const policy = assertRvmCntbBoundsPolicy(rvm, exportModel);
-assert.equal(policy.schema, 'RvmCntbBoundsPolicy.v1');
+assert.equal(policy.schema, 'RvmCntbBoundsPolicy.v2');
 assert.equal(policy.failClosed, true);
 assert.equal(policy.cntbPayloadVersion, 2, 'generated CNTB payload must keep Review-style version 2');
-assert.equal(policy.cntbPayloadLayout.includes('reviewName'), true, 'policy must document the generated CNTB body layout');
+assert.equal(policy.cntbPayloadLayout, 'uint32 version, reviewName, float32 x, float32 y, float32 z, uint32 materialId');
+assert.equal(policy.cntbCoordinateSchema, 'RvmCntbCoordinatePolicy.v1');
+assert.equal(policy.cntbCoordinateFieldsWritten, true, 'writer must emit explicit CNTB x/y/z reference coordinates');
+assert.equal(policy.cntbCoordinateUnit, 'millimetres');
 assert.equal(policy.cntbBboxFieldsWritten, false, 'writer must not invent unsupported CNTB bbox payload fields');
 assert.equal(policy.bboxSource, 'recursive-export-model-primitives');
 assert.equal(policy.bboxUnit, 'millimetres');
@@ -75,6 +89,7 @@ assert.equal(policy.emptyLeafNodeCount, 0);
 assert.deepEqual(policy.materialIds, [12]);
 assert.equal(policy.reviewNamesMatchCntb, true);
 assert.equal(policy.groupMaterialIdsMatchCntb, true);
+assert.equal(policy.cntbCoordinatesMatchExportModel, true);
 
 assert.throws(
   () => assertRvmCntbBoundsPolicy(rvm, {
@@ -86,6 +101,33 @@ assert.throws(
   }),
   /CNTB review-name mismatch/,
   'policy must fail closed when binary CNTB names no longer match export-model review names'
+);
+
+assert.throws(
+  () => assertRvmCntbBoundsPolicy(rvm, {
+    ...exportModel,
+    root: {
+      ...exportModel.root,
+      cntbPosition: [1, 2, 3]
+    }
+  }),
+  /CNTB coordinate mismatch/,
+  'policy must fail closed when binary CNTB coordinates no longer match export-model node coordinates'
+);
+
+assert.throws(
+  () => writeRvm({
+    root: {
+      name: 'BAD_COORDINATE_ROOT',
+      reviewName: '/BAD',
+      cntbPosition: [0, Number.NaN, 0],
+      material: 12,
+      primitives: [],
+      children: []
+    }
+  }),
+  /CNTB explicit node position contains non-finite coordinate/,
+  'writer must fail closed when explicit CNTB coordinates are malformed'
 );
 
 assert.throws(

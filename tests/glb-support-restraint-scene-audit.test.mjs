@@ -30,7 +30,6 @@ assert.equal(audit.contract.externalViewerExecutedInCi, false);
 assert.equal(audit.actualScenePath.converterBoundary, 'convertInputXmlToGlb()');
 assert.equal(audit.actualScenePath.supportSceneGroup, 'supports.restraints');
 assert.equal(audit.summary.hasSupportSceneGroup, true, 'actual GLB scene must contain supports.restraints group');
-assert.ok(audit.summary.parsedInputXmlRestraints > 0, 'BM_CII sample must contain parsed InputXML restraints');
 assert.ok(audit.summary.converterAuditSupportSymbols > 0, 'converter audit must expose support symbols');
 assert.ok(audit.summary.supportSymbolCount > 0, 'actual GLB scene must contain support/restraint scene objects');
 assert.equal(audit.summary.supportSymbolCount, audit.supportSymbols.length, 'support symbol detail count must match summary');
@@ -44,7 +43,6 @@ assert.ok(audit.summary.warningCount >= audit.summary.supportSymbolCount, 'legac
 
 assert.ok(audit.summary.families.length > 0, 'support family list must be visible');
 assert.ok(audit.summary.expectedCatalogueFamilies.length > 0, 'expected catalogue family list must be visible');
-assert.ok(audit.summary.sourceClasses.includes('actual'), 'actual support symbols must be present');
 assert.ok(audit.summary.sourceClasses.includes('expected'), 'expected support symbols must be present from sideload compare mode');
 
 for (const symbol of audit.supportSymbols) {

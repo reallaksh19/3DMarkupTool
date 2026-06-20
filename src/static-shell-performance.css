@@ -65,114 +65,21 @@
   scroll-padding-top: 8px;
 }
 
-/* Static drawer summary.
- *
- * This card is intentionally present in raw HTML so it does not get inserted
- * after first paint. The controller may update text/state only.
+/* The workflow summary is retained in HTML for optional future use but hidden
+ * in the default compact drawer. It must not appear above "1 INPUT".
  */
-#drawerSummaryCard.drawer-summary-card {
-  display: grid;
-  gap: 8px;
-  min-height: 112px;
-  margin: 0 0 10px;
-  padding: 10px;
-  border: 1px solid rgba(83, 125, 176, .24);
-  border-radius: 11px;
-  background:
-    linear-gradient(180deg, rgba(12, 30, 52, .82), rgba(6, 18, 34, .76));
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .04);
-}
-
-.drawer-summary-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  min-height: 18px;
-  color: #eef6ff;
-  font-size: 12px;
-  font-weight: 900;
-  letter-spacing: .04em;
-  text-transform: uppercase;
-}
-
-.drawer-summary-head small {
-  max-width: 86px;
-  color: rgba(159, 179, 204, .82);
-  font-size: 10px;
-  font-weight: 800;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  text-transform: none;
-}
-
-.drawer-summary-grid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 6px;
-}
-
-.drawer-summary-step {
-  display: grid;
-  gap: 3px;
-  min-width: 0;
-  min-height: 46px;
-  padding: 7px 6px;
-  border: 1px solid rgba(83, 125, 176, .24);
-  border-radius: 9px;
-  background: rgba(4, 14, 28, .46);
-}
-
-.drawer-summary-step strong {
-  color: rgba(220, 236, 255, .82);
-  font-size: 10px;
-  font-weight: 900;
-  text-transform: uppercase;
-  letter-spacing: .04em;
-}
-
-.drawer-summary-step span {
-  min-width: 0;
-  color: #f7fbff;
-  font-size: 11px;
-  font-weight: 850;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.drawer-summary-step[data-state="ok"] {
-  border-color: rgba(39, 224, 161, .42);
-  background: rgba(10, 49, 42, .38);
-}
-
-.drawer-summary-step[data-state="ok"] span {
-  color: #8ff5d2;
-}
-
-.drawer-summary-step[data-state="warn"] {
-  border-color: rgba(255, 171, 53, .48);
-  background: rgba(60, 42, 13, .34);
-}
-
-.drawer-summary-step[data-state="warn"] span {
-  color: #ffd48a;
-}
-
-.drawer-summary-hint {
-  min-height: 30px;
-  margin: 0;
-  color: #aebfd4;
-  font-size: 11px;
-  line-height: 1.35;
+#inputDrawer > #drawerSummaryCard.drawer-summary-card {
+  display: none !important;
 }
 
 #inputDrawer .phase2-input-sticky-section,
 #inputDrawer .phase4a-input-compact-section,
+#inputDrawer .panel-section[data-section="input"],
 #inputDrawer .panel-section[data-phase2-input="always-visible"] {
   position: static;
-  padding: 10px 0 12px;
+  display: grid;
+  gap: 6px;
+  padding: 8px 0 10px;
   margin: 0;
   border-top: 1px solid rgba(83, 125, 176, .18);
   border-radius: 0;
@@ -180,17 +87,27 @@
   box-shadow: none;
 }
 
+#inputDrawer .panel-section[data-section="input"] > h3,
 #inputDrawer .phase2-input-sticky-section h3,
 #inputDrawer .phase4a-input-compact-section h3 {
-  margin-bottom: 6px;
+  margin: 0;
+  min-height: 22px;
+  line-height: 1.1;
+  cursor: default;
 }
 
-#inputFileStatus.input-file-status {
-  display: flex;
+#inputDrawer .panel-section[data-section="input"] > h3::after {
+  content: none;
+  display: none;
+}
+
+#inputFileStatus.input-file-status,
+#inputDrawer .panel-section[data-section="input"] > .input-file-status {
+  display: flex !important;
   align-items: center;
-  min-height: 24px;
-  margin: 0 0 6px;
-  padding: 3px 8px;
+  min-height: 22px;
+  margin: 0;
+  padding: 2px 8px;
   border: 1px solid rgba(83, 125, 176, .34);
   border-radius: 8px;
   color: #f8fbff;
@@ -204,55 +121,49 @@
 
 #inputDrawer .phase2-input-sticky-section > .file-drop,
 #inputDrawer .phase4a-input-compact-section > .file-drop,
-#inputDrawer .panel-section[data-phase2-input="always-visible"] > .file-drop {
-  display: flex;
-  min-height: 34px;
-  margin-bottom: 8px;
-  padding: 6px 10px;
-  line-height: 1;
-}
-
-/* Explicit first-paint collapse contract overrides.
- *
- * These marker-based rules intentionally beat older cached positional collapse
- * CSS. They are static CSS, not controller-injected CSS, so the post-JS layout
- * remains the same as the initial HTML/CSS layout.
- */
+#inputDrawer .panel-section[data-phase2-input="always-visible"] > .file-drop,
 #inputDrawer .panel-section[data-section="input"] > .file-drop {
   display: grid !important;
   grid-auto-flow: column;
   place-items: center;
   justify-content: center;
   gap: 8px;
+  min-height: 32px;
+  margin: 0;
+  padding: 5px 10px;
+  line-height: 1;
+  border-radius: 9px;
 }
 
-#inputDrawer .panel-section[data-section="input"] > .input-file-status {
-  display: flex !important;
+#inputDrawer .panel-section[data-section="input"] > .file-drop .lucide,
+#inputDrawer .panel-section[data-section="input"] > .file-drop i,
+#inputDrawer .phase2-input-sticky-section > .file-drop .lucide,
+#inputDrawer .phase2-input-sticky-section > .file-drop i {
+  width: 15px;
+  height: 15px;
 }
 
+#inputDrawer .phase2-input-sticky-section > .input-primary-actions,
+#inputDrawer .phase4a-input-compact-section > .input-primary-actions,
+#inputDrawer .panel-section[data-phase2-input="always-visible"] > .input-primary-actions,
 #inputDrawer .panel-section[data-section="input"] > .input-primary-actions {
   display: flex !important;
   align-items: center;
   gap: 8px;
   flex-wrap: nowrap;
-}
-
-#inputDrawer .phase2-input-sticky-section > .input-primary-actions,
-#inputDrawer .phase4a-input-compact-section > .input-primary-actions,
-#inputDrawer .panel-section[data-phase2-input="always-visible"] > .input-primary-actions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: nowrap;
+  margin: 0;
 }
 
 #inputDrawer .phase2-input-sticky-section #loadSampleBtn,
 #inputDrawer .phase2-input-sticky-section #clearBtn,
 #inputDrawer .phase4a-input-compact-section #loadSampleBtn,
-#inputDrawer .phase4a-input-compact-section #clearBtn {
+#inputDrawer .phase4a-input-compact-section #clearBtn,
+#inputDrawer .panel-section[data-section="input"] #loadSampleBtn,
+#inputDrawer .panel-section[data-section="input"] #clearBtn {
   flex: 1 1 0;
   min-width: 0;
-  padding: 7px 6px;
+  min-height: 30px;
+  padding: 6px 6px;
   white-space: nowrap;
   font-size: 11px;
 }
@@ -260,7 +171,9 @@
 #inputDrawer .phase2-input-sticky-section #loadSampleBtn span,
 #inputDrawer .phase2-input-sticky-section #clearBtn span,
 #inputDrawer .phase4a-input-compact-section #loadSampleBtn span,
-#inputDrawer .phase4a-input-compact-section #clearBtn span {
+#inputDrawer .phase4a-input-compact-section #clearBtn span,
+#inputDrawer .panel-section[data-section="input"] #loadSampleBtn span,
+#inputDrawer .panel-section[data-section="input"] #clearBtn span {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -269,15 +182,6 @@
 
 #closeInputBtn[hidden] {
   display: none;
-}
-
-#inputDrawer .panel-section[data-section="input"] > h3::after {
-  content: none;
-  display: none;
-}
-
-#inputDrawer .panel-section[data-section="input"] > h3 {
-  cursor: default;
 }
 
 #inputDrawer .panel-section[data-collapsible] > h3 {
@@ -331,16 +235,11 @@ body:not(.sideload-expanded) #inputDrawer .panel-section[data-collapsible="sidel
   min-height: 65%;
 }
 
-/* ─── Layout containment ────────────────────────────────────────────────────
- * Scoping layout/style recalculations to the ribbon and its tool groups
- * prevents bundle-injected content changes from triggering full-page reflows.
- * `contain: paint` is intentionally omitted: tool-group descendants
- * (e.g. popover menus) may need to overflow the group border box.
+/* Layout containment: scope layout/style recalculation to decorated UI regions
+ * without clipping overflow or allocating permanent compositor layers.
  */
 .main-ribbon {
   contain: layout style;
-  /* 88px: 56px tool-btn + 10px group padding + 2px group border + 2px ribbon
-   * padding-bottom + 18px breathing room so injected labels don't clip. */
   min-height: 88px;
 }
 
@@ -353,10 +252,6 @@ body:not(.sideload-expanded) #inputDrawer .panel-section[data-collapsible="sidel
   contain: layout style;
 }
 
-/* The markup ribbon is a separate row from .main-ribbon and was not covered
- * by the rules above. Its tag/markup tool host is decorated post-boot, so
- * containing it keeps those updates from reflowing the whole header/body.
- * `contain: paint` is again omitted so tag-tool dropdowns can overflow. */
 .markup-ribbon {
   contain: layout style;
 }

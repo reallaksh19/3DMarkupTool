@@ -15,7 +15,8 @@ assert.match(controller, /viewer:visibility-tools/, 'visibility operations must 
 assert.match(controller, /viewer:view-history/, 'view history operations must dispatch diagnostics');
 assert.match(controller, /renderOnce\?\.\('isolate-selected'\)/, 'isolate must request a render');
 assert.match(controller, /renderOnce\?\.\('hide-selected'\)/, 'hide must request a render');
-assert.match(controller, /renderOnce\?\.\('show-all'\)/, 'show all must request a render');
+assert.match(controller, /'show-all'/, 'show all must retain the normal show-all render reason');
+assert.match(controller, /'show-all-escape'/, 'Esc restore must retain a distinct show-all-escape render reason');
 assert.match(controller, /view-pad-with-navigation-tools/, 'viewpad CSS hook must be installed');
 
 assert.match(controller, /const visibilitySession = \{/, 'Phase 7 must track a reversible visibility session');

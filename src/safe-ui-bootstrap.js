@@ -116,6 +116,7 @@ function startBundledStaticShell() {
     .catch((error) => {
       console.warn('[3DMarkupTool] Static shell bundle failed; falling back to source modules.', error);
       window.__3D_MARKUP_STATIC_SHELL_BUNDLED_IMPORT_FAILED__ = true;
+      emitBootstrapModuleFailure(STATIC_SHELL_BUNDLE_URL, error);
       importModuleBatch(EARLY_MODULE_URLS, 'early static shell fallback')
         .finally(() => importModuleQueue(DEFERRED_MODULE_URLS.concat(CLIP_MODULE_URLS), 'deferred static shell fallback'));
     })
@@ -218,6 +219,7 @@ function startSafeUi() {
     .catch((error) => {
       console.warn('[3DMarkupTool] Safe UI bootstrap failed', error);
       window.__3D_MARKUP_SAFE_UI_IMPORT_FAILED__ = true;
+      emitBootstrapModuleFailure(SAFE_LOADER_URL, error);
       if (attempts < MAX_ATTEMPTS) startSoon(250 * attempts);
       else setBootstrapStatus('Core Ready');
     });
@@ -228,6 +230,12 @@ function importModuleBatch(urls, label) {
   window.__3D_MARKUP_STATIC_SHELL_VERSION__ = SAFE_UI_VERSION;
   return Promise.allSettled(urls.map((url) => import(url))).then((results) => {
     const rejected = results.filter((r) => r.status === 'rejected');
+    results.forEach((result, index) => {
+      if (result.status === 'rejected') {
+        const url = urls[index];
+        emitBootstrapModuleFailure(url, result.reason);
+      }
+    });
     if (rejected.length) {
       console.warn(`[3DMarkupTool] ${label} partial import failure`, rejected.map((r) => r.reason));
       window.__3D_MARKUP_STATIC_SHELL_IMPORT_PARTIAL_FAILURE__ = true;
@@ -248,8 +256,21 @@ function importModuleQueue(urls, label) {
     return import(url).catch((error) => {
       console.warn(`[3DMarkupTool] ${label} import failed`, url, error);
       window.__3D_MARKUP_STATIC_SHELL_IMPORT_PARTIAL_FAILURE__ = true;
+      emitBootstrapModuleFailure(url, error);
     }).then(runNext);
   }
+}
+
+function emitBootstrapModuleFailure(url, error) {
+  const detail = {
+    url: String(url || ''),
+    message: String(error?.message || error || 'Module import failed'),
+    version: SAFE_UI_VERSION,
+    timestamp: Date.now()
+  };
+  window.__3D_MARKUP_BOOTSTRAP_MODULE_FAILURES__ = window.__3D_MARKUP_BOOTSTRAP_MODULE_FAILURES__ || [];
+  window.__3D_MARKUP_BOOTSTRAP_MODULE_FAILURES__.push(detail);
+  window.dispatchEvent(new CustomEvent('3dmarkup:bootstrap-module-failed', { detail }));
 }
 
 function setBootstrapStatus(text) {

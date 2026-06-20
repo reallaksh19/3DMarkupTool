@@ -75,6 +75,8 @@ async function injectBundleManifest() {
   const indexPath = path.join(SITE_DIR, 'index.html');
   let html = await readFile(indexPath, 'utf8');
   const manifest = [
+    `<link rel="modulepreload" href="./assets/app.bundle.js?v=${VERSION}" />`,
+    `<link rel="modulepreload" href="./assets/static-shell.bundle.js?v=${VERSION}" />`,
     '<script>',
     `  window.__3D_MARKUP_BUNDLED_ASSETS__ = {`,
     `    version: ${JSON.stringify(VERSION)},`,

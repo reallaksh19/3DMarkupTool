@@ -58,6 +58,10 @@ const LATE_IDLE_MODULE_URLS = [
   `./static-browser-diagnostics-controller.js?v=${SAFE_UI_VERSION}`
 ];
 
+// Parse once; both functions share the result so we only allocate one
+// URLSearchParams and do not re-parse the query string on every call.
+const _searchParams = new URLSearchParams(window.location.search);
+
 const CLIP_MODULE_URLS = shouldLoadClipTools() ? [
   `./fresh-clip-controller.js?v=${CLIP_UI_VERSION}`,
   `./fresh-clip-box-adjust-controller.js?v=${CLIP_UI_VERSION}`
@@ -155,10 +159,6 @@ function scheduleStart() {
   }
   startSoon(0);
 }
-
-// Parse once; both functions share the result so we only allocate one
-// URLSearchParams and do not re-parse the query string on every call.
-const _searchParams = new URLSearchParams(window.location.search);
 
 function shouldLoadOptionalUi() {
   return _searchParams.has('uiBehavior')

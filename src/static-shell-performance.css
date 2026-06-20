@@ -315,3 +315,7 @@ body:not(.sideload-expanded) #inputDrawer .panel-section[data-collapsible="sidel
 .main-ribbon .toolbar-group {
   contain: layout style;
 }
+
+.panel-section {
+  contain: layout style;
+}

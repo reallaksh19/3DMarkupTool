@@ -3,7 +3,14 @@ const APP_MODULE_URL = `./app.js?v=${APP_LOADER_VERSION}`;
 const CLIP_HOOK_MODULE_URL = `./clip-render-hook.js?v=${APP_LOADER_VERSION}`;
 const FRESH_CLIP_MODULE_URL = `./fresh-clip-controller.js?v=${APP_LOADER_VERSION}`;
 const BUNDLED_ASSETS = window.__3D_MARKUP_BUNDLED_ASSETS__ || {};
-const APP_BUNDLE_URL = BUNDLED_ASSETS.app || '';
+// Resolve against document.baseURI: import() is module-relative but the
+// manifest URL (./assets/) is meant to be document-relative.
+const APP_BUNDLE_URL = resolveFromBase(BUNDLED_ASSETS.app || '');
+
+function resolveFromBase(url) {
+  if (!url || !url.startsWith('./')) return url;
+  try { return new URL(url, document.baseURI).href; } catch (_) { return url; }
+}
 const APP_BOOT_IDLE_TIMEOUT_MS = 900;
 const POST_APP_IDLE_TIMEOUT_MS = 1400;
 

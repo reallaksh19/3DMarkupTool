@@ -306,8 +306,9 @@ body:not(.sideload-expanded) #inputDrawer .panel-section[data-collapsible="sidel
  */
 .main-ribbon {
   contain: layout style;
-  /* Stabilise height so incoming bundle content cannot shift the ribbon row. */
-  min-height: 68px;
+  /* 88px: 56px tool-btn + 10px group padding + 2px group border + 2px ribbon
+   * padding-bottom + 18px breathing room so injected labels don't clip. */
+  min-height: 88px;
 }
 
 .main-ribbon .tool-group,

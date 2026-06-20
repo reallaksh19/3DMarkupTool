@@ -156,12 +156,15 @@ function scheduleStart() {
   startSoon(0);
 }
 
+// Parse once; both functions share the result so we only allocate one
+// URLSearchParams and do not re-parse the query string on every call.
+const _searchParams = new URLSearchParams(window.location.search);
+
 function shouldLoadOptionalUi() {
-  const params = new URLSearchParams(window.location.search);
-  return params.has('uiBehavior')
-    || params.has('uiAdvanced')
-    || params.has('uiAcceptance')
-    || params.has('safe')
+  return _searchParams.has('uiBehavior')
+    || _searchParams.has('uiAdvanced')
+    || _searchParams.has('uiAcceptance')
+    || _searchParams.has('safe')
     || window.localStorage.getItem('3dmarkup.uiBehavior') === '1'
     || window.localStorage.getItem('3dmarkup.uiAdvanced') === '1'
     || window.localStorage.getItem('3dmarkup.uiAcceptance') === '1'
@@ -169,8 +172,7 @@ function shouldLoadOptionalUi() {
 }
 
 function shouldLoadClipTools() {
-  const params = new URLSearchParams(window.location.search);
-  return params.has('clipTools') || window.localStorage.getItem('3dmarkup.clipTools') === '1';
+  return _searchParams.has('clipTools') || window.localStorage.getItem('3dmarkup.clipTools') === '1';
 }
 
 function startSoon(delayMs) {

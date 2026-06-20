@@ -37,11 +37,21 @@ jobs:
       - name: Generate BM_CII RVM catalogue sample artifact
         run: npm run artifact:rvm-catalogue-sample
 
+      - name: Generate BM_CII GLB catalogue visual audit
+        run: npm run artifact:glb-catalogue-visual-audit
+
       - name: Upload RVM catalogue sample artifact
         uses: actions/upload-artifact@v4
         with:
           name: rvm-catalogue-sample
           path: artifacts/rvm-catalogue-sample
+          if-no-files-found: error
+
+      - name: Upload GLB catalogue visual audit artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: glb-catalogue-visual-audit
+          path: artifacts/glb-catalogue-visual-audit
           if-no-files-found: error
 
       - name: Upload phase-gate log

@@ -47,7 +47,7 @@ assert.match(bootstrap, /static-canvas-tool-manager\.js/);
 assert.match(bootstrap, /navis-manual-tag-safe-controller\.js/);
 assert.match(safeLoader, /canvasToolManager/);
 assert.doesNotMatch(safeLoader, /canvasActionDispatch/);
-assert.match(buildPages, /canvas-tool-manager-20260620/);
+assert.match(buildPages, /selection-first-tools-20260620/);
 assert.match(pkg.scripts.test, /canvas-action-dispatch-phase16\.test\.mjs/);
 
 class ClassList {

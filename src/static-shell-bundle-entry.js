@@ -17,6 +17,7 @@ import './static-section-box-from-selection-controller.js';
 import './static-tree-core-controller.js';
 import './static-color-legend-controller.js';
 import './static-workflow-status-controller.js';
+import './static-drawer-summary-controller.js';
 import './static-help-shortcuts-controller.js';
 import './static-markup-core-controller.js';
 import './static-quick-export-core-controller.js';
@@ -28,5 +29,5 @@ import './static-global-tool-lifecycle-controller.js';
 
 window.__3D_MARKUP_STATIC_SHELL_BUNDLE_READY__ = true;
 window.dispatchEvent(new CustomEvent('viewer:static-shell-bundle-ready', {
-  detail: { version: 'perf-static-drawer-bundle-20260620' }
+  detail: { version: 'perf-rules-20260620' }
 }));

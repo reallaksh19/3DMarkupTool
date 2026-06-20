@@ -127,7 +127,11 @@ function matrixForPrimitive(primitive) {
 }
 
 function scaleRvmTransformVector(vector) {
-  return vector.map((entry) => entry * RVM_PRIMITIVE_TRANSFORM_SCALE);
+  return vector.map((entry) => cleanRvmTransformValue(entry * RVM_PRIMITIVE_TRANSFORM_SCALE));
+}
+
+function cleanRvmTransformValue(value) {
+  return Math.abs(value) < 1e-12 ? 0 : value;
 }
 
 function localBboxForPrimitive(primitive) {

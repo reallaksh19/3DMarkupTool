@@ -10,6 +10,7 @@ const CORE_MODULES = [
   { id: 'selectionResolver', label: 'Selection resolver', src: `./static-selection-resolver.js?v=${SAFE_UI_VERSION}` },
   { id: 'canvasInteraction', label: 'Canvas interaction ownership', src: `./static-canvas-interaction-coordinator.js?v=${SAFE_UI_VERSION}` },
   { id: 'canvasActionRegression', label: 'Canvas action regression repair', src: `./static-canvas-action-regression-controller.js?v=${SAFE_UI_VERSION}` },
+  { id: 'canvasActionDispatch', label: 'Canvas action dispatcher', src: `./static-canvas-action-dispatch-controller.js?v=${SAFE_UI_VERSION}` },
   { id: 'consoleGuard', label: 'Input guard', src: `./ui-console-guard.js?v=${SAFE_UI_VERSION}` },
   { id: 'coreAppSafety', label: 'Core app safety', src: `./core-app-safety-controller.js?v=${SAFE_UI_VERSION}` },
   { id: 'fit', label: 'Fit', src: `./fit-controller.js?v=${SAFE_UI_VERSION}` },
@@ -71,7 +72,7 @@ const ACTIVE_MODULES = [
 ];
 
 const BATCH_MODULES = SAFE_MODE
-  ? ACTIVE_MODULES.filter((entry) => entry.id === 'staticShellGuard' || entry.id === 'uiDiagnostics' || entry.id === 'canvasInteraction' || entry.id === 'canvasActionRegression' || entry.id === 'uiAcceptanceHarness')
+  ? ACTIVE_MODULES.filter((entry) => entry.id === 'staticShellGuard' || entry.id === 'uiDiagnostics' || entry.id === 'canvasInteraction' || entry.id === 'canvasActionRegression' || entry.id === 'canvasActionDispatch' || entry.id === 'uiAcceptanceHarness')
   : ACTIVE_MODULES;
 
 const state = {
@@ -138,14 +139,11 @@ function updateStatusBadge() {
   const badge = document.getElementById('safeUiStatus');
   if (!badge) return;
   const loaded = state.results.filter((item) => item.status === 'loaded').length;
-  const failed = state.results.filter((item) => item.status === 'failed').length;
-  const total = state.modules.length;
-  const advancedSuffix = state.advancedMode ? '' : ' core';
-  badge.textContent = failed ? `UI ${loaded}/${total} (${failed} failed)` : `UI ${loaded}/${total}${advancedSuffix}`;
-  badge.classList.toggle('failed', failed > 0);
-  badge.title = failed
-    ? `${failed} optional UI module(s) failed. Open UI Tools for details.`
-    : `${loaded}/${total} UI behavior modules loaded. Advanced modules are ${state.advancedMode ? 'enabled' : 'deferred'}.`;
+  badge.textContent = `UI ${loaded}/${state.modules.length}`;
+  badge.title = state.results.map((item) => `${item.label}: ${item.status}`).join('\n');
 }
 
-window.__3D_MARKUP_SAFE_UI_LOADER__ = state;
+export function loadSafeUi() {
+  startSafeUiLoader();
+  return Promise.resolve(state);
+}

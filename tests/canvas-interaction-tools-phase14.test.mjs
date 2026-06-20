@@ -62,4 +62,5 @@ assert.match(manualTag, /pointerdown/, 'Manual Tag must still own pointerdown on
 
 assert.match(pkg.scripts.test, /canvas-interaction-tools-phase14\.test\.mjs/, 'npm test must include the Phase 14 canvas interaction gate.');
 
+// CI trigger: refresh Phase 14 PR head so GitHub Actions runs against the current workflow configuration.
 console.log('canvas interaction tools phase14 gate passed');

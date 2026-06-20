@@ -1,3 +1,9 @@
+import {
+  ALLOWED_RVM_PRIMITIVE_KINDS,
+  isRvmPrimitiveKindSupported,
+  rvmPrimitiveKindCompatibilityReport
+} from './rvm-primitive-kind-contract.js';
+
 /**
  * Validates the renderer-neutral export tree before Navisworks RVM/ATT serialization.
  * Parameters: export model produced by buildRvmExportModel and optional validation settings.
@@ -6,7 +12,6 @@
  */
 
 const SAFE_NAVIS_NAME = /^[A-Za-z0-9_]+$/;
-const ALLOWED_PRIMITIVE_KINDS = new Set(['cylinder', 'box', 'pyramid', 'sphere']);
 const REQUIRED_TOP_LEVEL_GROUPS = ['PLANT_GEOMETRY', 'SUPPORTS_RESTRAINTS', 'ANNOTATIONS'];
 
 export class NavisExportContractError extends Error {
@@ -29,6 +34,7 @@ export function assertNavisExportModel(exportModel, options = {}) {
 }
 
 export function validateNavisExportModel(exportModel, options = {}) {
+  const primitiveCompatibility = rvmPrimitiveKindCompatibilityReport();
   const report = {
     ok: true,
     targetViewer: 'Navisworks Simulate',
@@ -47,7 +53,10 @@ export function validateNavisExportModel(exportModel, options = {}) {
       safeNodeNames: true
     },
     rvm: {
-      allowedPrimitiveKinds: Array.from(ALLOWED_PRIMITIVE_KINDS).sort(),
+      allowedPrimitiveKinds: [...ALLOWED_RVM_PRIMITIVE_KINDS].sort(),
+      primitiveKindPolicy: primitiveCompatibility.policy,
+      rhbgObservedPrimitiveCodes: primitiveCompatibility.rhbgObservedPrimitiveCodes,
+      rhbgObservedCodesNotEmitted: primitiveCompatibility.rhbgObservedCodesNotEmitted,
       allTransformsFinite: true,
       allDimensionsPositive: true
     },
@@ -148,7 +157,7 @@ function validatePrimitive(primitive, path, report, primitiveNames) {
   }
   primitiveNames.add(primitive.name);
 
-  if (!ALLOWED_PRIMITIVE_KINDS.has(primitive.kind)) {
+  if (!isRvmPrimitiveKindSupported(primitive.kind)) {
     addError(report, `${path}.kind`, `unsupported primitive kind: ${String(primitive.kind)}`);
     return;
   }
@@ -234,7 +243,7 @@ function validatePositive(value, path, report) {
 }
 
 function validatePositiveArray(value, length, path, report) {
-  validateFiniteArray(value, length, path, report);
+  validateFiniteArray(value, length, report, report);
   if (!Array.isArray(value) || value.length !== length) return;
   for (const entry of value) validatePositive(entry, path, report);
 }

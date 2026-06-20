@@ -6,7 +6,7 @@ import { rollup } from 'rollup';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const SITE_DIR = path.join(ROOT, '_site');
 const ASSET_DIR = path.join(SITE_DIR, 'assets');
-const VERSION = 'perf-static-drawer-bundle-20260620';
+const VERSION = 'perf-rules-20260620';
 
 await rm(SITE_DIR, { recursive: true, force: true });
 await copyStaticSite(ROOT, SITE_DIR);
@@ -32,7 +32,8 @@ async function copyStaticSite(from, to) {
       rel === '.github' || rel.startsWith('.github/') ||
       rel === 'node_modules' || rel.startsWith('node_modules/') ||
       rel === '_site' || rel.startsWith('_site/') ||
-      rel === 'coverage' || rel.startsWith('coverage/')
+      rel === 'coverage' || rel.startsWith('coverage/') ||
+      rel === 'package-lock.json'
     ) continue;
     if (entry.isDirectory()) {
       await copyStaticSite(src, dest);

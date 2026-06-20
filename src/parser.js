@@ -141,7 +141,9 @@ export function parseInputXml(xmlText, sideloads = {}) {
     zCos: num(attr(r, 'ZCOSINE', '0'))
   }));
 
-  return { doc, elements, nodes, restraints, lineMap, isonoteMap };
+  const enrichedXmlDiagnostics = buildEnrichedXmlDiagnostics(doc, restraints, isonoteMap);
+
+  return { doc, elements, nodes, restraints, lineMap, isonoteMap, enrichedXmlDiagnostics };
 }
 
 function annotateSingleFlangeTopology(elements) {
@@ -261,16 +263,50 @@ export function parseIsonoteExpectedRecords(model, options = {}) {
 }
 
 function baseRec(node, note, family, axis, loadText, gapMm) {
+  return { id: `ISONOTE_EXPECTED_${node}_${family}`, node, family, axis, sign: axis?.[0] || '', loadText, gapMm, sourceNoteName: note, sourceMode: 'ISONOTE_EXPECTED', source: 'ISONOTE' };
+}
+
+function buildEnrichedXmlDiagnostics(doc, restraints, isonoteMap) {
+  const pipingModel = doc.getElementsByTagName('PIPINGMODEL')[0];
+  const declaredRestCount = parseDeclaredCount(attr(pipingModel, 'NUMREST', ''));
+  const actualRestraintElementCount = restraints.length;
+  const isonoteSupportHintCount = countIsonoteSupportHints(isonoteMap);
+  const missingDeclaredRestraints = declaredRestCount != null
+    ? Math.max(declaredRestCount - actualRestraintElementCount, 0)
+    : 0;
+  const restraintGenerationFault = Boolean(
+    declaredRestCount != null
+    && declaredRestCount > 0
+    && actualRestraintElementCount < declaredRestCount
+  );
+
   return {
-    id: `ISONOTE_${node}_${family}_${Math.random().toString(36).slice(2, 8)}`,
-    source: 'ISONOTE',
-    sourceMode: 'EXPECTED_RESTRAINT',
-    node: String(Number(node)),
-    family,
-    axis,
-    sign: axis.includes('±') ? '±' : axis.startsWith('+') ? '+' : axis.startsWith('-') ? '-' : 'UNKNOWN',
-    loadText: loadText || null,
-    gapMm: gapMm ?? null,
-    sourceNoteName: note
+    declaredRestCount,
+    actualRestraintElementCount,
+    missingDeclaredRestraints,
+    isonoteSupportHintCount,
+    restraintGenerationFault,
+    faultOwner: restraintGenerationFault ? 'ENRICHED_XML_GENERATION' : 'NONE',
+    xmlToCiiPythonFaultSuspected: false,
+    message: restraintGenerationFault
+      ? `PIPINGMODEL declares NUMREST=${declaredRestCount}, but enriched XML contains ${actualRestraintElementCount} RESTRAINT element(s). Actual restraints were lost before XML-to-CII conversion.`
+      : 'Enriched XML restraint declaration matches available RESTRAINT elements or has no NUMREST declaration.'
   };
+}
+
+function parseDeclaredCount(raw) {
+  if (raw == null || raw === '') return null;
+  const n = Number(String(raw).trim());
+  return Number.isFinite(n) && n >= 0 ? Math.trunc(n) : null;
+}
+
+function countIsonoteSupportHints(isonoteMap) {
+  let count = 0;
+  for (const note of isonoteMap.values()) {
+    const upper = String(note || '').toUpperCase();
+    if (/\b(REST|GUIDE|LINE\s*STOP|HOLDDOWN|HOLD\s*DOWN|LIMIT|SPRING|ANCHOR)\b/.test(upper)) {
+      count += 1;
+    }
+  }
+  return count;
 }

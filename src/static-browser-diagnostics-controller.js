@@ -316,7 +316,7 @@ function injectStyles() {
       position: fixed;
       right: 18px;
       bottom: 18px;
-      z-index: 100000;
+      z-index: 9999;
       max-width: 460px;
       display: flex;
       gap: 12px;

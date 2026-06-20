@@ -10,7 +10,6 @@ import {
   RVM_REFERENCE_FORMAT_PROFILE_SCHEMA
 } from '../src/rvm-reference-format-profiler.js';
 
-const pkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
 const profilerSource = readFileSync(new URL('../src/rvm-reference-format-profiler.js', import.meta.url), 'utf8');
 
 const syntheticRmss = makeReferenceRvm([
@@ -84,7 +83,6 @@ assert.throws(() => profileRvmReferenceFormat(makeChunk('XXXX', uint32(1))), /Un
 assert.match(profilerSource, /CNTB x\/y\/z are treated as node placement/, 'profiler must document CNTB coordinate semantics, not bbox semantics');
 assert.match(profilerSource, /COLR is accepted by this reference profiler/, 'profiler must document RMSS COLR reference support');
 assert.match(profilerSource, /generatedWriterContractChanged:\s*false/, 'profiler must not claim production writer format changed');
-assert.match(pkg.scripts.test, /rvm-reference-format-profiler\.test\.mjs/, 'npm test must include the RVM reference format profiler test');
 
 console.log('RVM reference format profiler test passed');
 

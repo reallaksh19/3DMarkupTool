@@ -44,7 +44,7 @@ export function normalizeRvmCntbPosition(value, context = 'RVM CNTB position') {
   if (position.some((entry) => !Number.isFinite(entry))) {
     throw new Error(`${context} contains non-finite coordinate`);
   }
-  return position;
+  return position.map(toFloat32);
 }
 
 function firstVector(values) {
@@ -90,9 +90,13 @@ function centroidOfDirectPrimitiveCenters(primitives) {
     acc[2] + center[2]
   ], [0, 0, 0]);
 
-  return sum.map((value) => value / centers.length);
+  return normalizeRvmCntbPosition(sum.map((value) => value / centers.length), 'RVM primitive center centroid');
 }
 
 function hasCoordinate(value) {
   return value !== undefined && value !== null && value !== '';
+}
+
+function toFloat32(value) {
+  return new Float32Array([value])[0];
 }

@@ -19,6 +19,8 @@
     "verify:managed-stage-rvm": "node scripts/verify-managed-stage-rvm-profile.mjs --fixture=bm-cii",
     "verify:managed-stage-rvm:file": "node scripts/verify-managed-stage-rvm-profile.mjs",
     "artifact:managed-stage-rvm": "node scripts/generate-managed-stage-rvm-artifact.mjs --fixture=bm-cii --outdir=artifacts/managed-stage-rvm",
+    "verify:managed-stage-rvm-artifact": "node scripts/verify-managed-stage-rvm-artifact.mjs --dir=artifacts/managed-stage-rvm --base=BM_CII_INPUT_managed_stage --expect-bm-cii",
+    "verify:managed-stage-rvm-reference": "node scripts/verify-managed-stage-rvm-reference-compat.mjs --dir=artifacts/managed-stage-rvm --base=BM_CII_INPUT_managed_stage --expect-bm-cii",
     "artifact:rvm-catalogue-sample": "node scripts/generate-rvm-catalogue-sample-artifact.mjs",
     "artifact:rvm-att-viewer-compat": "node scripts/generate-rvm-att-viewer-compat-report.mjs",
     "artifact:glb-catalogue-visual-audit": "node scripts/generate-glb-catalogue-visual-audit.mjs",

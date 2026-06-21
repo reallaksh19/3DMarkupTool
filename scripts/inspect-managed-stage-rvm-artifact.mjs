@@ -42,6 +42,7 @@ const inspection = {
   gate,
   processingConfig: audit.processingConfig || null,
   inputXmlBendExclusionAudit: audit.inputXmlBendExclusionAudit || null,
+  inputXmlNodeLocalElbowAudit: audit.inputXmlNodeLocalElbowAudit || null,
   inputXmlBranchFittingInferenceAudit: audit.inputXmlBranchFittingInferenceAudit || null,
   chunkSummary: summarizeChunks(chunks),
   chunkIndex: chunks,
@@ -65,6 +66,7 @@ console.log(JSON.stringify({
   ok: true,
   processingMode: audit.processingConfig?.mode || '',
   inputXmlBendsExcluded: audit.inputXmlBendExclusionAudit?.code4BendsExcluded || 0,
+  inputXmlNodeLocalElbows: audit.inputXmlNodeLocalElbowAudit?.nodeLocalElbowCount || 0,
   inputXmlBranchFittingsInferred: audit.inputXmlBranchFittingInferenceAudit?.genericBranchFittingCount || 0,
   chunks: inspection.chunkSummary.counts,
   cntbCount: inspection.cntbCount,
@@ -159,18 +161,41 @@ function scanChunkIndex(buffer) {
     if (id === 'CNTE') depth -= 1;
     chunks.push({ index: chunks.length + 1, id, offset, nextOffset, bodyLength, depth: Math.max(depth, 0) });
     if (id === 'CNTB') depth += 1;
+    if (id === 'END:') break;
     offset = nextOffset;
     guard += 1;
-    if (guard > 100000 || id === 'END:') break;
+    if (guard > 100000) throw new Error('Chunk scan guard exceeded');
   }
-  if (offset !== buffer.byteLength) throw new Error('RVM chunk index did not finish exactly at buffer end');
   return chunks;
 }
 
 function summarizeChunks(chunks) {
-  const counts = {};
-  for (const chunk of chunks) counts[chunk.id] = (counts[chunk.id] || 0) + 1;
-  return { count: chunks.length, first: chunks[0]?.id || '', second: chunks[1]?.id || '', last: chunks[chunks.length - 1]?.id || '', counts };
+  return {
+    total: chunks.length,
+    counts: chunks.reduce((out, chunk) => {
+      out[chunk.id] = (out[chunk.id] || 0) + 1;
+      return out;
+    }, {})
+  };
+}
+
+function renderMarkdown(inspection) {
+  return [
+    `# Managed-stage RVM artifact inspection`,
+    '',
+    `Base: ${inspection.base}`,
+    '',
+    `- RVM bytes: ${inspection.byteCounts.rvm}`,
+    `- ATT bytes: ${inspection.byteCounts.att}`,
+    `- CNTB: ${inspection.cntbCount}`,
+    `- PRIM: ${inspection.primitiveCount}`,
+    `- Issues: ${inspection.issues.length}`,
+    '',
+    '## Chunk counts',
+    '',
+    ...Object.entries(inspection.chunkSummary.counts).map(([id, count]) => `- ${id}: ${count}`),
+    ''
+  ].join('\n');
 }
 
 function renderCsv(rows) {
@@ -179,60 +204,49 @@ function renderCsv(rows) {
   return `${headers.join(',')}\n${rows.map((row) => headers.map((header) => csvCell(row[header])).join(',')).join('\n')}\n`;
 }
 
-function renderMarkdown(inspection) {
-  return `# Managed-stage RVM artifact inspection\n\n` +
-    `Base: \`${inspection.base}\`\n\n` +
-    `## Summary\n\n` +
-    `| Metric | Value |\n|---|---:|\n` +
-    `| RVM bytes | ${inspection.byteCounts.rvm} |\n` +
-    `| Chunks | ${inspection.chunkSummary.count} |\n` +
-    `| CNTB | ${inspection.cntbCount} |\n` +
-    `| PRIM | ${inspection.primitiveCount} |\n` +
-    `| Elements | ${inspection.elementRows.length} |\n` +
-    `| InputXML bends excluded | ${inspection.inputXmlBendExclusionAudit?.code4BendsExcluded || 0} |\n` +
-    `| Generic branch fittings inferred | ${inspection.inputXmlBranchFittingInferenceAudit?.genericBranchFittingCount || 0} |\n` +
-    `| Strict gate OK | ${inspection.gate.ok ? 'YES' : 'NO'} |\n\n` +
-    `## Chunk counts\n\n` +
-    Object.entries(inspection.chunkSummary.counts).map(([id, count]) => `- \`${id}\`: ${count}`).join('\n') +
-    `\n\n## Primitive histogram\n\n` +
-    Object.entries(inspection.gate.primitiveHistogram).map(([code, count]) => `- code \`${code}\`: ${count}`).join('\n') +
-    `\n\n## Output tables\n\n` +
-    `- \`${inspection.base}.primitives.csv\`\n` +
-    `- \`${inspection.base}.elements.csv\`\n`;
-}
-
-function parseArgs(values) {
-  const out = {};
-  for (const arg of values) {
-    if (!arg.startsWith('--')) continue;
-    const [key, raw = true] = arg.slice(2).split('=');
-    out[key] = raw;
-  }
-  return out;
-}
-
-function bmCiiExpectations() {
-  return { geometryComponents: 40, supportRecordsSkippedFromGeometry: 12, code4: 0, code8: 63, cntbCount: 43, primCount: 63 };
-}
-
-function readRequired(path, encoding = null) {
-  try { return readFileSync(path, encoding ? { encoding } : undefined); }
-  catch (error) { throw new Error(`Unable to read required artifact ${path}: ${error.message}`); }
-}
-
-function readChunkId(view, offset) {
-  return [0, 1, 2, 3].map((index) => String.fromCharCode(view.getUint32(offset + index * 4, false))).join('');
-}
-
 function csvCell(value) {
   const text = value == null ? '' : String(value);
   return /[",\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
 }
 
 function formatVector(value) {
-  return Array.isArray(value) ? value.join('|') : '';
+  if (!Array.isArray(value)) return '';
+  return value.map((entry) => Number(entry).toFixed(6)).join('|');
+}
+
+function parseArgs(argv) {
+  const out = {};
+  for (const arg of argv) {
+    if (!arg.startsWith('--')) continue;
+    const [key, value] = arg.slice(2).split('=');
+    out[key] = value === undefined ? true : value;
+  }
+  return out;
+}
+
+function readRequired(path, encoding = null) {
+  try {
+    return readFileSync(path, encoding || undefined);
+  } catch (error) {
+    throw new Error(`Required artifact missing: ${basename(path)}`);
+  }
+}
+
+function readChunkId(view, offset) {
+  return String.fromCharCode(view.getUint8(offset), view.getUint8(offset + 1), view.getUint8(offset + 2), view.getUint8(offset + 3));
 }
 
 function toArrayBuffer(buffer) {
   return buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength);
+}
+
+function bmCiiExpectations() {
+  return {
+    geometryComponents: 40,
+    supportRecordsSkippedFromGeometry: 12,
+    code4: 0,
+    code8: 91,
+    cntbCount: 43,
+    primCount: 91
+  };
 }

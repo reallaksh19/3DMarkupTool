@@ -49,6 +49,9 @@ jobs:
       - name: Inspect managed-stage RVM artifact
         run: npm run inspect:managed-stage-rvm
 
+      - name: Generate final managed-stage RVM deliverable package
+        run: npm run artifact:managed-stage-rvm:final -- --fixture=bm-cii --expect-bm-cii
+
       - name: Upload managed-stage RVM artifact
         uses: actions/upload-artifact@v4
         with:

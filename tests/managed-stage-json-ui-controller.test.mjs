@@ -33,8 +33,11 @@ assert.match(controller, /previewPipeline: 'raw-managed-stage-json-coordinate-pr
 assert.match(controller, /previewCoordinateAudit/);
 assert.doesNotMatch(controller, /createRvmPreviewScene\(result\.exportModel\)/);
 assert.match(controller, /BM_CII_INPUTXML_JSON_EXPECTATIONS/);
-assert.match(controller, /primitiveCodeCounts:\s*\{\s*4:\s*0,\s*8:\s*91\s*\}/);
-assert.match(controller, /primCount:\s*91/);
+assert.match(controller, /supportRecordsEmittedToRvm:\s*12/);
+assert.match(controller, /supportRvmPrimitiveCount:\s*25/);
+assert.match(controller, /primitiveCodeCounts:\s*\{\s*4:\s*0,\s*8:\s*116\s*\}/);
+assert.match(controller, /cntbCount:\s*56/);
+assert.match(controller, /primCount:\s*116/);
 assert.doesNotMatch(controller, /BM_CII_EXPECTATIONS/);
 assert.doesNotMatch(controller, /primitiveCodeCounts:\s*\{\s*4:\s*7,\s*8:\s*41\s*\}/);
 assert.doesNotMatch(controller, /primCount:\s*48/);
@@ -104,4 +107,4 @@ await import('./managed-stage-support-visual-resolver.test.mjs');
 await import('./managed-stage-support-cluster.test.mjs');
 await import('./managed-stage-viewer-api-bridge.test.mjs');
 
-console.log('unified InputXML / managed-stage JSON UI uses coordinate-preserving preview pipeline and support visual resolver');
+console.log('unified InputXML / managed-stage JSON UI uses coordinate-preserving preview pipeline, support visual resolver, and support-export RVM contract');

@@ -26,6 +26,7 @@ import {
   managedStageMaterialForClass,
   planManagedStagePrimitives
 } from './managed-stage-rvm-primitive-planner.js';
+import { buildManagedStageSupportRvmExportNodes } from './managed-stage-support-rvm-export.js';
 import { point3 } from './managed-stage-topology-audit.js';
 
 export function buildManagedStageRvmExportModel(profile, options = {}) {
@@ -39,32 +40,45 @@ export function buildManagedStageRvmExportModel(profile, options = {}) {
   const branchFittingInference = applyManagedStageInputXmlBranchFittingInference(bendEndpointLock.contracts, processingConfig);
   const contracts = branchFittingInference.contracts;
   const elements = contracts.map((contract, index) => elementNode(contract, index));
+  const supportExport = buildManagedStageSupportRvmExportNodes(profile, {
+    materialId: MANAGED_STAGE_RVM_MATERIALS.SUPPORT
+  });
+  const disciplineChildren = [
+    groupNode('/BM_CII-CU-PI-P', 'GROUP', 'PIPING_GROUP', elements)
+  ];
+  if (supportExport.nodes.length) {
+    disciplineChildren.push(groupNode('/BM_CII-CU-PI-SUPPORTS', 'GROUP', 'SUPPORT_GROUP', supportExport.nodes));
+  }
+  const root = groupNode('/BM_CII', 'ROOT', 'ROOT', [
+    groupNode('/BM_CII-CU-PI', 'DISCIPLINE', 'PIPING', disciplineChildren)
+  ]);
+  const geometryPrimitiveCount = elements.reduce((sum, node) => sum + node.primitives.length, 0);
   return {
-    root: groupNode('/BM_CII', 'ROOT', 'ROOT', [
-      groupNode('/BM_CII-CU-PI', 'DISCIPLINE', 'PIPING', [
-        groupNode('/BM_CII-CU-PI-P', 'GROUP', 'PIPING_GROUP', elements)
-      ])
-    ]),
+    root,
     rvmMaterialColors: {
       1: 0x82828200,
       4: 0x00a0ff00,
       5: 0x99999900,
       6: 0xcccccc00,
       7: 0x55555500,
-      8: 0xcc990000
+      8: 0xcc990000,
+      9: 0xf8c34a00
     },
     audit: {
       schema: 'ManagedStageRvmExportModel.v1',
       componentCount: elements.length,
-      supportGeometryEmitted: false,
-      primitiveCount: elements.reduce((sum, node) => sum + node.primitives.length, 0),
+      supportGeometryEmitted: supportExport.supportPrimitiveCount > 0,
+      primitiveCount: geometryPrimitiveCount + supportExport.supportPrimitiveCount,
+      geometryPrimitiveCount,
+      supportRvmPrimitiveCount: supportExport.supportPrimitiveCount,
       processingConfig,
       geometryContractAudit: contractSet.audit,
       elbowTangentHintAudit: tangentHintAudit,
       inputXmlBendExclusionAudit: bendExclusion.audit,
       inputXmlNodeLocalElbowAudit: nodeLocalElbows.audit,
       inputXmlBendEndpointLockAudit: bendEndpointLock.audit,
-      inputXmlBranchFittingInferenceAudit: branchFittingInference.audit
+      inputXmlBranchFittingInferenceAudit: branchFittingInference.audit,
+      supportRvmExportAudit: supportExport
     }
   };
 }

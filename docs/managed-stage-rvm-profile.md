@@ -139,7 +139,13 @@ The command prints a compact JSON summary and fails if the strict gate fails.
 ## Generate RVM/ATT artifacts from a real profile
 
 ```bash
-node scripts/generate-managed-stage-rvm-artifact.mjs BM_CII_INPUT_managed_stage.json --outdir=artifacts/managed-stage-rvm
+npm run artifact:managed-stage-rvm:file -- BM_CII_INPUT_managed_stage.json --expect-bm-cii --outdir=artifacts/managed-stage-rvm
+```
+
+Equivalent direct command:
+
+```bash
+node scripts/generate-managed-stage-rvm-artifact.mjs BM_CII_INPUT_managed_stage.json --expect-bm-cii --outdir=artifacts/managed-stage-rvm
 ```
 
 Outputs:
@@ -148,6 +154,42 @@ Outputs:
 - `BM_CII_INPUT_managed_stage.att`
 - `BM_CII_INPUT_managed_stage.audit.json`
 - `BM_CII_INPUT_managed_stage.zip`
+
+## Generate the final RMSS-style deliverable package
+
+Use this as the single operator command for the real BM_CII managed-stage JSON:
+
+```bash
+npm run artifact:managed-stage-rvm:final -- BM_CII_INPUT_managed_stage.json --expect-bm-cii --reference-rvm=RMSS.rvm --outdir=artifacts/managed-stage-rvm
+```
+
+If `RMSS.rvm` is not available locally, omit `--reference-rvm=RMSS.rvm`; the command still performs the decoder-layout self-check against the RMSS/RHBG code-4 and code-8 payload layout contract.
+
+The final command runs the complete chain:
+
+```text
+generate .rvm/.att/.audit.json/.zip
+verify source profile strict gate
+verify persisted artifact round-trip
+verify RMSS/RHBG primitive layout compatibility
+inspect element/primitive tables
+write final stored ZIP package
+```
+
+It writes:
+
+- `BM_CII_INPUT_managed_stage.rvm`
+- `BM_CII_INPUT_managed_stage.att`
+- `BM_CII_INPUT_managed_stage.audit.json`
+- `BM_CII_INPUT_managed_stage.verify.audit.json`
+- `BM_CII_INPUT_managed_stage.reference-compat.json`
+- `BM_CII_INPUT_managed_stage.inspection.json`
+- `BM_CII_INPUT_managed_stage.elements.csv`
+- `BM_CII_INPUT_managed_stage.primitives.csv`
+- `BM_CII_INPUT_managed_stage.inspection.md`
+- `BM_CII_INPUT_managed_stage.final-rmss-style.zip`
+
+The final ZIP contains the binary RVM, ATT, audits, and inspection reports in one package.
 
 ## Verify generated artifact files from disk
 
@@ -266,6 +308,7 @@ npm run artifact:managed-stage-rvm
 npm run verify:managed-stage-rvm-artifact
 npm run verify:managed-stage-rvm-reference
 npm run inspect:managed-stage-rvm
+npm run artifact:managed-stage-rvm:final -- --fixture=bm-cii --expect-bm-cii
 ```
 
 ## BM_CII expected strict counts

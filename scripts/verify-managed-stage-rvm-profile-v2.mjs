@@ -26,6 +26,8 @@ console.log(JSON.stringify({
   supportRecordsSkippedFromGeometry: result.audit.inputCounts.supportRecordsSkippedFromGeometry,
   supportRecordsEmittedToRvm: result.audit.inputCounts.supportRecordsEmittedToRvm,
   supportRvmPrimitives: result.audit.supportRvmExportAudit?.supportPrimitiveCount || 0,
+  supportConePrimitives: result.audit.supportRvmExportAudit?.supportConePrimitiveCount || 0,
+  supportBarPrimitives: result.audit.supportRvmExportAudit?.supportBarPrimitiveCount || 0,
   primitiveHistogram: result.audit.primitiveHistogram,
   cntbCount: result.audit.chunkHierarchy.cntbCount,
   primCount: result.audit.chunkHierarchy.primCount,
@@ -48,8 +50,9 @@ function bmCiiExpectations() {
     supportRecordsSkippedFromGeometry: 12,
     supportRecordsEmittedToRvm: 12,
     supportRvmPrimitiveCount: 25,
+    code1: 17,
     code4: 0,
-    code8: 116,
+    code8: 99,
     cntbCount: 56,
     primCount: 116
   };

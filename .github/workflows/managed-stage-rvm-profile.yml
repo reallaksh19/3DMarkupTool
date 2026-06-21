@@ -35,7 +35,7 @@ jobs:
           if-no-files-found: ignore
 
       - name: Verify managed-stage profile summary
-        run: npm run verify:managed-stage-rvm
+        run: node scripts/verify-managed-stage-rvm-profile-v2.mjs --fixture=bm-cii
 
       - name: Generate managed-stage fixture RVM artifact
         run: npm run artifact:managed-stage-rvm

@@ -53,18 +53,24 @@ export function managedStageMaterialForClass(componentClass) {
 function planGenericInputXmlBendCylinders(contract, pipeRadius) {
   const segments = contract.genericInputXmlBend?.segments?.length
     ? contract.genericInputXmlBend.segments
-    : [{ role: 'chord-fallback', startMm: contract.startMm, endMm: contract.endMm }];
+    : [{ role: 'source-route', startMm: contract.startMm, endMm: contract.endMm }];
+  const sourceRouteMode = contract.genericInputXmlBend?.mode === 'code8-source-route-cylinder';
   return segments.map((segment, index) => {
+    const sourceRouteSegment = sourceRouteMode || segment.role === 'source-route';
     const primitive = buildEndpointLockedCylinderPrimitive({
-      name: `${contract.name}_GENERIC_1P5D_BEND_${index + 1}`,
-      localName: `generic-1p5d-bend-${segment.role || index + 1}`,
+      name: sourceRouteSegment
+        ? `${contract.name}_SOURCE_ROUTE_BEND_${index + 1}`
+        : `${contract.name}_GENERIC_1P5D_BEND_${index + 1}`,
+      localName: sourceRouteSegment ? 'source-route-bend' : `generic-1p5d-bend-${segment.role || index + 1}`,
       startMm: segment.startMm,
       endMm: segment.endMm,
       radiusMm: pipeRadius,
       material: MANAGED_STAGE_RVM_MATERIALS.FITTING,
       sourceContractName: contract.name,
       sourceElementId: contract.sourceElementId || contract.elementId || '',
-      primitiveRole: `inputxml-generic-1p5d-bend-${segment.role || index + 1}`,
+      primitiveRole: sourceRouteSegment
+        ? 'inputxml-source-route-bend-cylinder'
+        : `inputxml-generic-1p5d-bend-${segment.role || index + 1}`,
       parentStartMm: contract.startMm,
       parentEndMm: contract.endMm,
       startOffsetMm: 0,
@@ -72,14 +78,17 @@ function planGenericInputXmlBendCylinders(contract, pipeRadius) {
     });
     return {
       ...primitive,
-      recipeName: 'inputxml-generic-1p5d-bend-reconstructed-arc',
+      recipeName: sourceRouteSegment ? 'inputxml-source-route-bend-cylinder' : 'inputxml-generic-1p5d-bend-reconstructed-arc',
       genericInputXmlBend: true,
+      inputXmlSourceRouteBend: sourceRouteSegment,
       code4BendExcluded: true,
       genericInputXmlBendSegmentRole: segment.role || '',
       genericBendRadiusMm: contract.genericInputXmlBend?.genericBendRadiusMm || null,
       genericBendTrimLengthMm: contract.genericInputXmlBend?.trimLengthMm || null,
       originalBendRadiusMm: contract.genericInputXmlBend?.originalBendRadiusMm || contract.arc?.bendRadiusMm || null,
-      orientationAssumption: 'InputXML-derived JSON bend excluded; emitted as reconstructed generic 1.5D code-8 arc cylinders'
+      orientationAssumption: sourceRouteSegment
+        ? 'InputXML-derived JSON BEND APOS/LPOS preserved as source-route code-8 cylinder to avoid detached reconstructed elbows'
+        : 'InputXML-derived JSON bend excluded; emitted as reconstructed generic 1.5D code-8 arc cylinders'
     };
   });
 }

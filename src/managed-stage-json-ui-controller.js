@@ -8,9 +8,9 @@ const MANAGED_STAGE_PROFILE = 'AVEVA_JSON_FOR_3D_RVM_VIEWER';
 const BM_CII_INPUTXML_JSON_EXPECTATIONS = Object.freeze({
   geometryComponents: 40,
   supportRecordsSkippedFromGeometry: 12,
-  primitiveCodeCounts: { 4: 0, 8: 91 },
+  primitiveCodeCounts: { 4: 0, 8: 63 },
   cntbCount: 43,
-  primCount: 91,
+  primCount: 63,
   forbiddenPrimitiveCodesPresent: []
 });
 
@@ -360,24 +360,25 @@ function downloadBlob(data, fileName, type) {
   setTimeout(() => URL.revokeObjectURL(url), 2000);
 }
 
-function formatBytes(bytes) {
-  if (bytes > 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-  if (bytes > 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${bytes} B`;
-}
-
-function setStatus(message) {
-  if (window.setStatus) window.setStatus(message);
-  const status = document.getElementById('status');
-  if (status) status.textContent = message;
-}
-
-function updateInputStatus(message) {
-  const target = document.getElementById('inputStatus');
-  if (target) target.textContent = message;
-}
-
 function log(message) {
-  if (window.addLog) window.addLog(message);
-  else console.info(message);
+  const output = document.getElementById('conversionLog');
+  if (!output) return;
+  output.textContent += `${message}\n`;
+  output.scrollTop = output.scrollHeight;
+}
+
+function setStatus(text) {
+  const status = document.getElementById('status');
+  if (status) status.textContent = text;
+}
+
+function updateInputStatus(text) {
+  const target = document.getElementById('inputStatusText');
+  if (target) target.textContent = text;
+}
+
+function formatBytes(value) {
+  const bytes = Number(value) || 0;
+  if (bytes < 1024) return `${bytes} B`;
+  return `${(bytes / 1024).toFixed(1)} KB`;
 }

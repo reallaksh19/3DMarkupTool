@@ -7,13 +7,15 @@ const args = process.argv.slice(2);
 const inputPath = args.find((arg) => !arg.startsWith('--')) || '';
 const fixtureName = valueAfterPrefix(args, '--fixture=');
 const outDir = resolveOutDir(args);
+const baseNameOverride = valueAfterPrefix(args, '--base=');
+const expectBmCii = args.includes('--expect-bm-cii');
 
 if (!inputPath && fixtureName !== 'bm-cii') {
-  throw new Error('Usage: node scripts/generate-managed-stage-rvm-artifact.mjs input.json --outdir=artifacts/managed-stage-rvm OR --fixture=bm-cii');
+  throw new Error('Usage: node scripts/generate-managed-stage-rvm-artifact.mjs input.json [--expect-bm-cii] [--base=name] --outdir=artifacts/managed-stage-rvm OR --fixture=bm-cii');
 }
 
 const { convertManagedStageJsonToRvmAtt } = await import('../src/managed-stage-rvm-converter.js');
-const { sourceText, baseName, strictAuditExpectations } = await resolveSource(inputPath, fixtureName);
+const { sourceText, baseName, strictAuditExpectations } = await resolveSource(inputPath, fixtureName, { baseNameOverride, expectBmCii });
 const result = convertManagedStageJsonToRvmAtt(sourceText, { strictAuditExpectations });
 mkdirSync(outDir, { recursive: true });
 
@@ -26,32 +28,37 @@ for (const [name, bytes] of files) writeFileSync(join(outDir, name), bytes);
 writeFileSync(join(outDir, `${baseName}.zip`), makeStoredZip(files));
 
 console.log(`Generated managed-stage RVM artifacts in ${outDir}`);
+console.log(`Base name: ${baseName}`);
 console.log(`RVM bytes: ${result.audit.rvmBytes}`);
 console.log(`ATT bytes: ${result.audit.attBytes}`);
 console.log(`Primitive histogram: ${JSON.stringify(result.audit.primitiveHistogram)}`);
 console.log(`Max centerline gap mm: ${result.audit.topology.maxCenterlineGapMm}`);
 console.log(`Strict audit gate: ${result.audit.managedStageStrictGate.ok ? 'PASS' : 'FAIL'}`);
 
-async function resolveSource(input, fixture) {
+async function resolveSource(input, fixture, options = {}) {
   if (fixture === 'bm-cii') {
     const { createBmCiiManagedStageFixture } = await import('../tests/managed-stage-bm-cii-profile-fixture.mjs');
     return {
       sourceText: JSON.stringify(createBmCiiManagedStageFixture()),
-      baseName: 'BM_CII_INPUT_managed_stage',
-      strictAuditExpectations: {
-        geometryComponents: 40,
-        supportRecordsSkippedFromGeometry: 12,
-        code4: 7,
-        code8: 41,
-        cntbCount: 43,
-        primCount: 48
-      }
+      baseName: options.baseNameOverride || 'BM_CII_INPUT_managed_stage',
+      strictAuditExpectations: bmCiiExpectations()
     };
   }
   return {
     sourceText: readFileSync(input, 'utf8'),
-    baseName: basename(input).replace(/\.json$/i, '') || 'BM_CII_INPUT_managed_stage',
-    strictAuditExpectations: {}
+    baseName: options.baseNameOverride || basename(input).replace(/\.json$/i, '') || 'BM_CII_INPUT_managed_stage',
+    strictAuditExpectations: options.expectBmCii ? bmCiiExpectations() : {}
+  };
+}
+
+function bmCiiExpectations() {
+  return {
+    geometryComponents: 40,
+    supportRecordsSkippedFromGeometry: 12,
+    code4: 7,
+    code8: 41,
+    cntbCount: 43,
+    primCount: 48
   };
 }
 

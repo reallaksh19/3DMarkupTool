@@ -125,7 +125,7 @@ function collectTorusAssumptions(root) {
 
 function visit(node, callback) {
   callback(node);
-  for (const child of node.children || []) visit(child);
+  for (const child of node.children || []) visit(child, callback);
 }
 
 function computeExportModelBoundingExtents(exportModel) {

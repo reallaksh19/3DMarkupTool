@@ -61,11 +61,22 @@ export function assertManagedStageRvmAuditGate(audit = {}, expectations = {}) {
   checkExpected(expectations.cntbCount, chunkHierarchy.cntbCount, 'expected CNTB count', issues);
   checkExpected(expectations.primCount, chunkHierarchy.primCount, 'expected PRIM count', issues);
 
-  if (issues.length) throw new Error(`Managed-stage RVM audit gate failed: ${issues.join('; ')}`);
+  const nonBlockingPatterns = (expectations.nonBlockingAuditIssuePatterns || []).map((pattern) => new RegExp(pattern));
+  const nonBlockingIssues = [];
+  const blockingIssues = [];
+  for (const issue of issues) {
+    if (nonBlockingPatterns.some((pattern) => pattern.test(issue))) nonBlockingIssues.push(issue);
+    else blockingIssues.push(issue);
+  }
+
+  if (blockingIssues.length) throw new Error(`Managed-stage RVM audit gate failed: ${blockingIssues.join('; ')}`);
   return {
     schema: 'ManagedStageRvmAuditGate.v1',
     ok: true,
-    failClosed: true,
+    failClosed: blockingIssues.length === 0,
+    nonBlockingAuditIssues: nonBlockingIssues,
+    nonBlockingAuditWarningCount: nonBlockingIssues.length,
+    warningOnly: nonBlockingIssues.length > 0,
     allowedPrimitiveCodes: [...ALLOWED_CODES],
     forbiddenPrimitiveCodes: [...FORBIDDEN_CODES],
     maxCenterlineGapMm: Number(topology.maxCenterlineGapMm || 0),

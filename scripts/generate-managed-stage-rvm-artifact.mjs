@@ -3,14 +3,18 @@ import { basename, dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const repoRoot = dirname(dirname(fileURLToPath(import.meta.url)));
-const inputPath = process.argv[2];
-const outDir = resolveOutDir(process.argv);
-if (!inputPath) throw new Error('Usage: node scripts/generate-managed-stage-rvm-artifact.mjs input.json --outdir=artifacts/managed-stage-rvm');
+const args = process.argv.slice(2);
+const inputPath = args.find((arg) => !arg.startsWith('--')) || '';
+const fixtureName = valueAfterPrefix(args, '--fixture=');
+const outDir = resolveOutDir(args);
+
+if (!inputPath && fixtureName !== 'bm-cii') {
+  throw new Error('Usage: node scripts/generate-managed-stage-rvm-artifact.mjs input.json --outdir=artifacts/managed-stage-rvm OR --fixture=bm-cii');
+}
 
 const { convertManagedStageJsonToRvmAtt } = await import('../src/managed-stage-rvm-converter.js');
-const sourceText = readFileSync(inputPath, 'utf8');
+const { sourceText, baseName } = await resolveSource(inputPath, fixtureName);
 const result = convertManagedStageJsonToRvmAtt(sourceText);
-const baseName = basename(inputPath).replace(/\.json$/i, '') || 'BM_CII_INPUT_managed_stage';
 mkdirSync(outDir, { recursive: true });
 
 const files = [
@@ -27,9 +31,28 @@ console.log(`ATT bytes: ${result.audit.attBytes}`);
 console.log(`Primitive histogram: ${JSON.stringify(result.audit.primitiveHistogram)}`);
 console.log(`Max centerline gap mm: ${result.audit.topology.maxCenterlineGapMm}`);
 
-function resolveOutDir(args) {
-  const arg = args.find((value) => value.startsWith('--outdir='));
-  return arg ? join(repoRoot, arg.slice('--outdir='.length)) : join(repoRoot, 'artifacts', 'managed-stage-rvm');
+async function resolveSource(input, fixture) {
+  if (fixture === 'bm-cii') {
+    const { createBmCiiManagedStageFixture } = await import('../tests/managed-stage-bm-cii-profile-fixture.mjs');
+    return {
+      sourceText: JSON.stringify(createBmCiiManagedStageFixture()),
+      baseName: 'BM_CII_INPUT_managed_stage'
+    };
+  }
+  return {
+    sourceText: readFileSync(input, 'utf8'),
+    baseName: basename(input).replace(/\.json$/i, '') || 'BM_CII_INPUT_managed_stage'
+  };
+}
+
+function resolveOutDir(values) {
+  const arg = valueAfterPrefix(values, '--outdir=');
+  return arg ? join(repoRoot, arg) : join(repoRoot, 'artifacts', 'managed-stage-rvm');
+}
+
+function valueAfterPrefix(values, prefix) {
+  const entry = values.find((value) => value.startsWith(prefix));
+  return entry ? entry.slice(prefix.length) : '';
 }
 
 function makeStoredZip(entries) {

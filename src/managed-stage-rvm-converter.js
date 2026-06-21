@@ -53,11 +53,13 @@ export function convertManagedStageJsonToRvmAtt(sourceText, options = {}) {
     geometryContractAudit: exportModel.audit?.geometryContractAudit || null,
     elbowTangentHintAudit: exportModel.audit?.elbowTangentHintAudit || null,
     inputXmlBendExclusionAudit: exportModel.audit?.inputXmlBendExclusionAudit || null,
+    inputXmlNodeLocalElbowAudit: exportModel.audit?.inputXmlNodeLocalElbowAudit || null,
     inputXmlBranchFittingInferenceAudit: exportModel.audit?.inputXmlBranchFittingInferenceAudit || null,
     primitiveHistogram: primitivePayloadContract.codeCounts,
     primitiveBodyLengths: primitivePayloads.map((primitive) => ({ code: primitive.code, bodyLength: primitive.bodyLength })),
     torusOrientationAssumptions: collectTorusAssumptions(exportModel.root),
     genericInputXmlBendAssumptions: collectGenericInputXmlBendAssumptions(exportModel.root),
+    genericInputXmlNodeLocalElbowAssumptions: collectGenericInputXmlNodeLocalElbowAssumptions(exportModel.root),
     genericInputXmlBranchFittingAssumptions: collectGenericInputXmlBranchFittingAssumptions(exportModel.root),
     skippedSupportRecords: profile.supportRecords.map((record) => ({
       name: record.name,
@@ -141,6 +143,30 @@ function collectGenericInputXmlBendAssumptions(root) {
           genericBendRadiusMm: primitive.genericBendRadiusMm,
           genericBendTrimLengthMm: primitive.genericBendTrimLengthMm,
           originalBendRadiusMm: primitive.originalBendRadiusMm,
+          startMm: primitive.startMm,
+          endMm: primitive.endMm,
+          sourceRouteTrimmedForNodeLocalElbow: primitive.sourceRouteTrimmedForNodeLocalElbow || false,
+          orientationAssumption: primitive.orientationAssumption
+        });
+      }
+    }
+  });
+  return assumptions;
+}
+
+function collectGenericInputXmlNodeLocalElbowAssumptions(root) {
+  const assumptions = [];
+  visit(root, (node) => {
+    for (const primitive of node.primitives || []) {
+      if (primitive.genericInputXmlNodeLocalElbow) {
+        assumptions.push({
+          element: node.reviewName || node.name,
+          primitive: primitive.name,
+          primitiveCode: 8,
+          node: primitive.nodeLocalElbowNode,
+          segmentIndex: primitive.nodeLocalElbowSegmentIndex,
+          segmentCount: primitive.nodeLocalElbowSegmentCount,
+          parentSourceContractNames: primitive.nodeLocalElbowParentSourceContractNames,
           startMm: primitive.startMm,
           endMm: primitive.endMm,
           orientationAssumption: primitive.orientationAssumption

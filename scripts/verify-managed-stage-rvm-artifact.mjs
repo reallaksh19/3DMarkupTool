@@ -64,6 +64,7 @@ export function verifyManagedStageRvmArtifact({ artifactDir, base, expectations 
     strictGateOk: strictGate.ok,
     processingMode: audit.processingConfig?.mode || '',
     inputXmlBendsExcluded: audit.inputXmlBendExclusionAudit?.code4BendsExcluded || 0,
+    inputXmlNodeLocalElbows: audit.inputXmlNodeLocalElbowAudit?.nodeLocalElbowCount || 0,
     inputXmlBranchFittingsInferred: audit.inputXmlBranchFittingInferenceAudit?.genericBranchFittingCount || 0,
     rvmBytes: rvm.byteLength,
     attBytes: Buffer.byteLength(att),
@@ -146,7 +147,7 @@ function requireEqual(actual, expected, label, issues) {
 }
 
 function bmCiiExpectations() {
-  return { geometryComponents: 40, supportRecordsSkippedFromGeometry: 12, code4: 0, code8: 63, cntbCount: 43, primCount: 63 };
+  return { geometryComponents: 40, supportRecordsSkippedFromGeometry: 12, code4: 0, code8: 91, cntbCount: 43, primCount: 91 };
 }
 
 function valueAfterPrefix(values, prefix) {

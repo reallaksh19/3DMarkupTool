@@ -7,6 +7,9 @@ import {
   assertManagedStageInputXmlBendExclusionAudit
 } from '../src/managed-stage-inputxml-bend-exclusion.js';
 import {
+  assertManagedStageInputXmlNodeLocalElbowAudit
+} from '../src/managed-stage-inputxml-node-local-elbows.js';
+import {
   assertManagedStageInputXmlBendEndpointLockAudit
 } from '../src/managed-stage-inputxml-bend-endpoint-lock.js';
 import {
@@ -69,30 +72,49 @@ assert.equal(model.audit.inputXmlBendExclusionAudit.chordFallbackBendCount, 0);
 assert.equal(model.audit.inputXmlBendExclusionAudit.sourceRouteBendCount, 7);
 assert.equal(model.audit.inputXmlBendExclusionAudit.trimmedContractCount, 0);
 assert.equal(model.audit.inputXmlBendExclusionAudit.trimApplicationCount, 0);
+assertManagedStageInputXmlNodeLocalElbowAudit(model.audit.inputXmlNodeLocalElbowAudit, {
+  enabled: true,
+  nodeLocalElbowCount: 7,
+  genericNodeLocalElbowPrimitiveCount: 28,
+  trimmedContractCount: 12,
+  trimApplicationCount: 14
+});
+assert.deepEqual(model.audit.inputXmlNodeLocalElbowAudit.elbows.map((entry) => entry.node), ['130', '160', '170', '200', '210', '220', '250']);
 assertManagedStageInputXmlBendEndpointLockAudit(model.audit.inputXmlBendEndpointLockAudit);
 assert.equal(model.audit.inputXmlBendEndpointLockAudit.checkedBendCount, 7);
 assert.equal(model.audit.inputXmlBendEndpointLockAudit.lockedBendCount, 0);
 assert.equal(model.audit.inputXmlBendEndpointLockAudit.cappedEndpointCorrectionCount, 0);
 assert.equal(primitives.filter((primitive) => primitive.kind === 'elbow').length, 0);
-assert.equal(primitives.filter((primitive) => primitive.kind === 'cylinder').length, 63);
+assert.equal(primitives.filter((primitive) => primitive.kind === 'cylinder').length, 91);
 assert.equal(primitives.filter((primitive) => primitive.genericInputXmlBend).length, 7);
 assert.equal(primitives.filter((primitive) => primitive.inputXmlSourceRouteBend).length, 7);
+assert.equal(primitives.filter((primitive) => primitive.genericInputXmlNodeLocalElbow).length, 28);
 assert.equal(primitives.filter((primitive) => primitive.genericInputXmlBranchFitting).length, 15);
-assert.equal(primitives.filter((primitive) => primitive.recipeTrimStartOffsetMm || primitive.recipeTrimEndOffsetMm).length, 0);
+assert.equal(primitives.filter((primitive) => primitive.recipeTrimStartOffsetMm || primitive.recipeTrimEndOffsetMm).length, 5);
 assert.equal(primitives.filter((primitive) => primitive.primitiveRole === 'inputxml-source-route-bend-cylinder').length, 7);
+assert.equal(primitives.filter((primitive) => primitive.primitiveRole === 'inputxml-node-local-1p5d-elbow').length, 28);
 
-for (const bend of excluded.contracts.filter((contract) => contract.dtxr === 'BEND')) {
-  const primitive = primitives.find((entry) => entry.sourceContractName === bend.name && entry.inputXmlSourceRouteBend);
-  assert.ok(primitive, `Expected source-route primitive for ${bend.name}`);
-  assert.deepEqual(primitive.startMm, bend.startMm);
-  assert.deepEqual(primitive.endMm, bend.endMm);
+const node170ElbowSegments = primitives.filter((primitive) => primitive.genericInputXmlNodeLocalElbow && primitive.nodeLocalElbowNode === '170');
+assert.equal(node170ElbowSegments.length, 4);
+const pe018Source = primitives.find((entry) => entry.sourceContractName === 'PE_018_BEND_160_TO_170' && entry.inputXmlSourceRouteBend);
+const pe019Source = primitives.find((entry) => entry.sourceContractName === 'PE_019_PIPE_170_TO_180' && entry.localName === 'body');
+assert.ok(pe018Source);
+assert.ok(pe019Source);
+assert.deepEqual(node170ElbowSegments[0].startMm, pe018Source.endMm);
+assert.deepEqual(node170ElbowSegments.at(-1).endMm, pe019Source.startMm);
+
+for (const bend of model.root.children[0].children[0].children.filter((node) => node.attributes.DTXR === 'BEND')) {
+  const primitive = bend.primitives.find((entry) => entry.inputXmlSourceRouteBend);
+  assert.ok(primitive, `Expected source-route primitive for ${bend.reviewName}`);
+  assert.equal(primitive.primitiveRole, 'inputxml-source-route-bend-cylinder');
 }
 
 const nativeModel = buildManagedStageRvmExportModel(profile, { excludeBendsWhileProcessingInputXmlBasedJson: false });
 const nativePrimitives = nativeModel.root.children[0].children[0].children.flatMap((node) => node.primitives);
 assert.equal(nativeModel.audit.inputXmlBendExclusionAudit.enabled, false);
+assert.equal(nativeModel.audit.inputXmlNodeLocalElbowAudit.enabled, false);
 assert.equal(nativePrimitives.filter((primitive) => primitive.kind === 'elbow').length, 7);
 assert.equal(nativePrimitives.filter((primitive) => primitive.kind === 'cylinder').length, 56);
 assert.equal(nativePrimitives.filter((primitive) => primitive.genericInputXmlBranchFitting).length, 15);
 
-console.log('Managed-stage InputXML BEND source-route RVM export, source-coordinate preservation, and branch fittings passed');
+console.log('Managed-stage InputXML BEND source-route RVM export, node-local elbows, and branch fittings passed');

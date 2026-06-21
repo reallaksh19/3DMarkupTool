@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { createManagedStageGeometryContract } from '../src/managed-stage-geometry-contract.js';
 import { planManagedStagePrimitives } from '../src/managed-stage-rvm-primitive-planner.js';
 import { solveCode4ElbowGeometry } from '../src/rvm-code4-elbow-geometry-solver.js';
-import { buildRvmPrimitiveTransform } from '../src/rvm-axis-basis-policy.js';
+import { assertRvmAxisBasis, buildRvmPrimitiveTransform } from '../src/rvm-axis-basis-policy.js';
 import { createBmCiiManagedStageFixture } from './managed-stage-bm-cii-profile-fixture.mjs';
 
 const syntheticBend = bendRecord({
@@ -19,13 +19,14 @@ const solved = solveCode4ElbowGeometry(syntheticContract, { planeNormal: [0, 0, 
 assert.equal(solved.schema, 'RvmCode4ElbowGeometrySolver.v1');
 assert.equal(solved.solverState, 'endpoint-fit-v1');
 assert.equal(solved.endpointLocked, true);
-assert.deepEqual(solved.centerMm.map(round6), [0, 0, 0]);
-assert.deepEqual(solved.basis.x.map(round6), [1, 0, 0]);
-assert.deepEqual(solved.basis.y.map(round6), [0, 1, 0]);
-assert.deepEqual(solved.basis.z.map(round6), [0, 0, 1]);
-assert.equal(round6(solved.radiusInflatedMm), 0);
-assert.equal(round6(solved.endpointFitErrorMm), 0);
-assert.deepEqual(solved.localBbox.map(round6), [0, 0, -1, 11, 11, 1]);
+assertVectorNear(solved.centerMm, [0, 0, 0], 'synthetic center');
+assertVectorNear(solved.basis.x, [1, 0, 0], 'synthetic basis.x');
+assertVectorNear(solved.basis.y, [0, 1, 0], 'synthetic basis.y');
+assertVectorNear(solved.basis.z, [0, 0, 1], 'synthetic basis.z');
+assertRvmAxisBasis(solved.basis);
+assertNear(solved.radiusInflatedMm, 0, 'synthetic radius inflation');
+assertNear(solved.endpointFitErrorMm, 0, 'synthetic endpoint fit error');
+assertVectorNear(solved.localBbox, [0, 0, -1, 11, 11, 1], 'synthetic local bbox');
 
 const fixture = createBmCiiManagedStageFixture();
 const bendRecords = fixture.hierarchy[0].children.filter((record) => record.attributes?.DTXR === 'BEND');
@@ -40,7 +41,7 @@ for (const primitive of bendPrimitives) {
   assert.equal(primitive.endpointLocked, true);
   assert.equal(primitive.solverState, 'endpoint-fit-v1');
   assert.equal(primitive.orientationAssumption, 'managed-stage code4 endpoint-fit solver v1');
-  assert.ok(primitive.basis?.x && primitive.basis?.y && primitive.basis?.z);
+  assertRvmAxisBasis(primitive.basis);
   assert.ok(primitive.bendRadius > 0);
   assert.ok(primitive.tubeRadius > 0);
   assert.ok(primitive.sweepAngleRad > 0);
@@ -74,7 +75,11 @@ function bendRecord({ name, start, end, radius, angleDeg, diameter }) {
 }
 
 function xyz([x, y, z]) { return { x, y, z }; }
-function round6(value) {
-  const rounded = Number(Number(value).toFixed(6));
-  return Object.is(rounded, -0) ? 0 : rounded;
+function assertVectorNear(actual, expected, label) {
+  assert.equal(actual.length, expected.length, `${label} length`);
+  for (let index = 0; index < expected.length; index += 1) assertNear(actual[index], expected[index], `${label}[${index}]`);
+}
+function assertNear(actual, expected, label) {
+  const delta = Math.abs(Number(actual) - Number(expected));
+  assert.ok(delta <= 0.000001, `${label}: expected ${expected}, got ${actual}`);
 }

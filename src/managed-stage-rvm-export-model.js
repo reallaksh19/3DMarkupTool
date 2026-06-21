@@ -9,6 +9,9 @@ import {
   applyManagedStageInputXmlBendExclusion
 } from './managed-stage-inputxml-bend-exclusion.js';
 import {
+  applyManagedStageInputXmlNodeLocalElbows
+} from './managed-stage-inputxml-node-local-elbows.js';
+import {
   applyManagedStageInputXmlBendEndpointLock
 } from './managed-stage-inputxml-bend-endpoint-lock.js';
 import {
@@ -31,7 +34,8 @@ export function buildManagedStageRvmExportModel(profile, options = {}) {
   const hintedContracts = applyManagedStageElbowTangentHints(contractSet.contracts);
   const tangentHintAudit = auditManagedStageElbowTangentHints(hintedContracts);
   const bendExclusion = applyManagedStageInputXmlBendExclusion(hintedContracts, processingConfig);
-  const bendEndpointLock = applyManagedStageInputXmlBendEndpointLock(bendExclusion.contracts, processingConfig);
+  const nodeLocalElbows = applyManagedStageInputXmlNodeLocalElbows(bendExclusion.contracts, processingConfig);
+  const bendEndpointLock = applyManagedStageInputXmlBendEndpointLock(nodeLocalElbows.contracts, processingConfig);
   const branchFittingInference = applyManagedStageInputXmlBranchFittingInference(bendEndpointLock.contracts, processingConfig);
   const contracts = branchFittingInference.contracts;
   const elements = contracts.map((contract, index) => elementNode(contract, index));
@@ -58,6 +62,7 @@ export function buildManagedStageRvmExportModel(profile, options = {}) {
       geometryContractAudit: contractSet.audit,
       elbowTangentHintAudit: tangentHintAudit,
       inputXmlBendExclusionAudit: bendExclusion.audit,
+      inputXmlNodeLocalElbowAudit: nodeLocalElbows.audit,
       inputXmlBendEndpointLockAudit: bendEndpointLock.audit,
       inputXmlBranchFittingInferenceAudit: branchFittingInference.audit
     }
@@ -106,6 +111,7 @@ function elementNodeFromContract(contract, index) {
       SOURCE_FORMAT: contract.sourceFormat || 'inputxml-managed-stage/v1',
       INPUTXML_BEND_EXCLUDED: contract.excludeCode4Bend ? 'YES' : 'NO',
       INPUTXML_BRANCH_FITTING_HOST: contract.genericInputXmlBranchFittings?.length ? 'YES' : 'NO',
+      INPUTXML_NODE_LOCAL_ELBOW_HOST: contract.genericInputXmlNodeLocalElbows?.length ? 'YES' : 'NO',
       INPUTXML_BEND_ENDPOINT_LOCKED: contract.genericInputXmlBend?.endpointLocks?.length ? 'YES' : 'NO',
       RVM_TRIM_START_MM: contract.rvmTrimStartOffsetMm ? String(contract.rvmTrimStartOffsetMm) : '',
       RVM_TRIM_END_MM: contract.rvmTrimEndOffsetMm ? String(contract.rvmTrimEndOffsetMm) : ''

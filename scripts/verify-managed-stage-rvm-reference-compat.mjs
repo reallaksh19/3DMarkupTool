@@ -43,7 +43,11 @@ export function verifyManagedStageRvmReferenceCompatibility({ artifactDir, base 
   requireEqual(audit.rvmBytes, binary.byteLength, 'persisted audit RVM byte length', issues);
 
   for (const primitive of primitives) {
-    if (![4, 8].includes(Number(primitive.code))) issues.push(`forbidden primitive code ${primitive.code}`);
+    if (![1, 4, 8].includes(Number(primitive.code))) issues.push(`forbidden primitive code ${primitive.code}`);
+    if (Number(primitive.code) === 1) {
+      requireEqual(primitive.bodyLength, 108, 'code 1 body length', issues);
+      requireEqual(primitive.payloadWordCount, 7, 'code 1 payload words', issues);
+    }
     if (Number(primitive.code) === 8) {
       requireEqual(primitive.bodyLength, 88, 'code 8 body length', issues);
       requireEqual(primitive.payloadWordCount, 2, 'code 8 payload words', issues);

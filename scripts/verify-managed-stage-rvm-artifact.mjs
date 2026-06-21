@@ -63,6 +63,8 @@ export function verifyManagedStageRvmArtifact({ artifactDir, base, expectations 
     strictGateOk: strictGate.ok,
     supportRecordsEmittedToRvm: audit.supportRvmExportAudit?.supportRecordCount || 0,
     supportRvmPrimitives: audit.supportRvmExportAudit?.supportPrimitiveCount || 0,
+    supportConePrimitives: audit.supportRvmExportAudit?.supportConePrimitiveCount || 0,
+    supportBarPrimitives: audit.supportRvmExportAudit?.supportBarPrimitiveCount || 0,
     rvmBytes: rvm.byteLength,
     attBytes: Buffer.byteLength(att),
     cntbCount: cntbRecords.length,
@@ -128,8 +130,9 @@ function bmCiiExpectations() {
     supportRecordsSkippedFromGeometry: 12,
     supportRecordsEmittedToRvm: 12,
     supportRvmPrimitiveCount: 25,
+    code1: 17,
     code4: 0,
-    code8: 116,
+    code8: 99,
     cntbCount: 56,
     primCount: 116
   };

@@ -1,28 +1,60 @@
-# Managed-stage JSON UI load flow
+# Unified InputXML / managed-stage JSON load flow
 
-This flow adds a browser-side entry point for `inputxml-managed-stage/v1` JSON files such as `BM_CII_managedstaged.json`.
+The viewer uses one model-load dialog for both source formats:
+
+```text
+Input / Export
+→ Choose InputXML / Managed JSON
+→ .xml / .txt / .json
+```
+
+This supports ordinary InputXML files and managed-stage JSON files such as:
+
+```text
+BM_CII_INPUT_managed_stage.json
+```
 
 ## User flow
 
 1. Open the viewer.
-2. In **Input / Export**, click **Load Managed Stage JSON**.
-3. Choose the managed-stage JSON file.
-4. The controller converts the JSON through the managed-stage RVM path and displays the generated RVM preview geometry.
-5. Use the existing **RVM**, **ATT**, and **Audit** download buttons.
+2. In **Input / Export**, click **Choose InputXML / Managed JSON** or the **Load XML / JSON** icon.
+3. Select either:
+   - InputXML: `.xml` / `.txt`
+   - Managed-stage JSON: `.json`
+4. The loader auto-detects the file type:
+   - XML/TXT continues through the existing InputXML GLB/RVM conversion path.
+   - Managed-stage JSON is intercepted before the XML parser and routed to the managed-stage RVM path.
+5. For managed-stage JSON, the viewer immediately creates an RVM preview scene and enables **RVM**, **ATT**, and **Audit** downloads.
 
-## Scope
-
-The UI controller uses the same infrastructure as the CLI artifact path:
+## Managed-stage path
 
 ```text
-managed-stage JSON
+BM_CII_INPUT_managed_stage.json
 → convertManagedStageJsonToRvmAtt()
 → RVM export model
 → createRvmPreviewScene()
 → binary .rvm + .att + audit downloads
 ```
 
-The UI does not route managed-stage JSON through the InputXML GLB converter. GLB download is disabled for this source mode.
+The JSON path does not enter the InputXML parser. GLB download is disabled for managed-stage JSON because this source mode is RVM-first.
+
+## InputXML path
+
+```text
+InputXML
+→ existing app.js file handler
+→ runAppConversionController()
+→ GLB / RVM / ATT / audit
+```
+
+The unified managed-stage controller only intercepts `.json` files that declare:
+
+```text
+schema  = inputxml-managed-stage/v1
+profile = AVEVA_JSON_FOR_3D_RVM_VIEWER
+```
+
+Non-JSON files pass through to the existing app handler.
 
 ## Primitive scope
 
@@ -33,8 +65,14 @@ code 8 cylinder
 code 4 elbow / torus
 ```
 
-The preview renderer now supports code-4 elbow primitives as torus arcs using the solver-provided basis from the export model.
+The preview renderer supports code-4 elbow primitives as torus arcs using the solver-provided basis from the export model.
 
-## Why this is separate from the XML loader
+## Why one dialog
 
-The existing `xmlFile` input remains InputXML-first. Managed-stage JSON is a post-XML staged profile and therefore has its own load icon and controller. This prevents JSON input from accidentally entering the XML parser/converter path.
+The file chooser is now source-aware, not XML-only. This prevents `BM_CII_INPUT_managed_stage.json` from being sent into the XML parser while keeping the user workflow compact:
+
+```text
+one icon
+one file chooser
+auto-route by source type
+```

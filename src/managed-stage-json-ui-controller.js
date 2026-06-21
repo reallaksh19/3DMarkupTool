@@ -2,7 +2,9 @@ import * as THREE from 'three';
 import { convertManagedStageJsonToRvmAtt } from './managed-stage-rvm-converter.js';
 import { createRvmPreviewScene } from './rvm-preview.js';
 
-const CONTROLLER_SCHEMA = 'ManagedStageJsonUiController.v1';
+const CONTROLLER_SCHEMA = 'ManagedStageJsonUiController.v2';
+const MANAGED_STAGE_SCHEMA = 'inputxml-managed-stage/v1';
+const MANAGED_STAGE_PROFILE = 'AVEVA_JSON_FOR_3D_RVM_VIEWER';
 const BM_CII_EXPECTATIONS = Object.freeze({
   geometryComponents: 40,
   supportRecordsSkippedFromGeometry: 12,
@@ -32,15 +34,17 @@ export function installManagedStageJsonUi() {
     throw new Error('Managed-stage JSON UI cannot find .input-primary-actions');
   }
 
-  const fileInput = ensureManagedStageFileInput(inputActions);
-  const button = ensureManagedStageButton(inputActions);
-  button.addEventListener('click', () => fileInput.click());
-  fileInput.addEventListener('change', onManagedStageFileChange);
+  const modelFileInput = ensureUnifiedModelFileInput();
+  ensureUnifiedDropZone(modelFileInput);
+  const button = ensureUnifiedModelButton(inputActions, modelFileInput);
+  button.addEventListener('click', () => modelFileInput.click());
+  modelFileInput.addEventListener('change', onUnifiedModelFileChange, true);
 
-  installManagedStageButtonInterceptors();
+  installManagedStageButtonInterceptors(modelFileInput);
   const api = {
     schema: CONTROLLER_SCHEMA,
     loadText: loadManagedStageText,
+    loadFile: loadManagedStageFile,
     getActiveArtifact: () => managedStageUiState.artifact,
     clear: clearManagedStagePreview
   };
@@ -49,42 +53,75 @@ export function installManagedStageJsonUi() {
   return api;
 }
 
-function ensureManagedStageFileInput(host) {
-  const existing = document.getElementById('managedStageJsonFile');
-  if (existing) return existing;
-  const input = document.createElement('input');
-  input.type = 'file';
-  input.id = 'managedStageJsonFile';
-  input.accept = '.json,application/json';
-  input.hidden = true;
-  host.appendChild(input);
+function ensureUnifiedModelFileInput() {
+  const input = document.getElementById('xmlFile');
+  if (!input) throw new Error('Managed-stage JSON UI cannot find #xmlFile');
+  input.accept = '.xml,.txt,.json,application/xml,text/xml,application/json';
+  input.setAttribute('aria-label', 'Load InputXML or managed-stage JSON');
+  input.dataset.acceptsManagedStageJson = 'true';
   return input;
 }
 
-function ensureManagedStageButton(host) {
-  const existing = document.getElementById('loadManagedStageJsonBtn');
+function ensureUnifiedDropZone(input) {
+  const drop = input.closest('.file-drop');
+  if (!drop) return;
+  drop.title = 'Choose InputXML or BM_CII_INPUT_managed_stage.json';
+  drop.setAttribute('aria-label', 'Choose InputXML or managed-stage JSON');
+  const span = drop.querySelector('span');
+  if (span) span.textContent = 'Choose InputXML / Managed JSON';
+}
+
+function ensureUnifiedModelButton(host, modelFileInput) {
+  const legacyManagedButton = document.getElementById('loadManagedStageJsonBtn');
+  if (legacyManagedButton) {
+    legacyManagedButton.id = 'loadUnifiedModelFileBtn';
+    legacyManagedButton.title = 'Load InputXML or BM_CII_INPUT_managed_stage.json';
+    legacyManagedButton.setAttribute('aria-label', 'Load InputXML or managed-stage JSON');
+    legacyManagedButton.innerHTML = '<span class="managed-stage-json-icon" aria-hidden="true">↥</span><span>Load XML / JSON</span>';
+    return legacyManagedButton;
+  }
+
+  const existing = document.getElementById('loadUnifiedModelFileBtn');
   if (existing) return existing;
   const button = document.createElement('button');
-  button.id = 'loadManagedStageJsonBtn';
+  button.id = 'loadUnifiedModelFileBtn';
   button.type = 'button';
-  button.className = 'ghost icon-text managed-stage-json-load-btn';
-  button.title = 'Load managed-stage JSON, preview geometry, and prepare RVM/ATT export';
-  button.setAttribute('aria-label', 'Load managed-stage JSON');
-  button.innerHTML = '<span class="managed-stage-json-icon" aria-hidden="true">{ }</span><span>Load Managed Stage JSON</span>';
-  const clearButton = document.getElementById('clearBtn');
-  if (clearButton && clearButton.parentElement === host) host.insertBefore(button, clearButton);
-  else host.appendChild(button);
+  button.className = 'ghost icon-text managed-stage-json-load-btn unified-model-load-btn';
+  button.title = 'Load InputXML or BM_CII_INPUT_managed_stage.json';
+  button.setAttribute('aria-label', 'Load InputXML or managed-stage JSON');
+  button.innerHTML = '<span class="managed-stage-json-icon" aria-hidden="true">↥</span><span>Load XML / JSON</span>';
+  button.addEventListener('click', () => modelFileInput.click());
+  const sampleButton = document.getElementById('loadSampleBtn');
+  if (sampleButton && sampleButton.parentElement === host) host.insertBefore(button, sampleButton);
+  else host.prepend(button);
   return button;
 }
 
-async function onManagedStageFileChange(event) {
+function onUnifiedModelFileChange(event) {
   const file = event.target.files?.[0];
   if (!file) return;
-  const sourceText = await file.text();
-  await loadManagedStageText(sourceText, file.name);
+  if (!isJsonFileName(file.name)) {
+    resetManagedStageStateOnly();
+    return;
+  }
+
+  event.preventDefault();
+  event.stopImmediatePropagation();
+  loadManagedStageFile(file).catch((error) => {
+    log(`ERROR managed-stage JSON load failed: ${error.message}`);
+    setStatus('Managed-stage JSON load failed');
+  });
 }
 
-async function loadManagedStageText(sourceText, sourceName = 'BM_CII_managedstaged.json') {
+async function loadManagedStageFile(file) {
+  const sourceText = await file.text();
+  if (!looksLikeManagedStageJson(sourceText, file.name)) {
+    throw new Error(`${file.name} is JSON, but not ${MANAGED_STAGE_SCHEMA} / ${MANAGED_STAGE_PROFILE}`);
+  }
+  return loadManagedStageText(sourceText, file.name);
+}
+
+async function loadManagedStageText(sourceText, sourceName = 'BM_CII_INPUT_managed_stage.json') {
   managedStageUiState.sourceText = sourceText;
   managedStageUiState.sourceName = sourceName;
   managedStageUiState.basename = basenameWithoutExtension(sourceName);
@@ -99,7 +136,7 @@ async function loadManagedStageText(sourceText, sourceName = 'BM_CII_managedstag
   previewScene.userData = {
     ...(previewScene.userData || {}),
     TYPE: 'MANAGED_STAGE_RVM_PREVIEW',
-    SOURCE_FORMAT: 'inputxml-managed-stage/v1',
+    SOURCE_FORMAT: MANAGED_STAGE_SCHEMA,
     sourceName,
     geometryComponents: result.audit?.inputCounts?.geometryComponents,
     primitiveCount: result.audit?.rvmPrimitivePayloadContract?.primitiveCount
@@ -131,7 +168,7 @@ async function loadManagedStageText(sourceText, sourceName = 'BM_CII_managedstag
   return managedStageUiState.artifact;
 }
 
-function installManagedStageButtonInterceptors() {
+function installManagedStageButtonInterceptors(modelFileInput) {
   captureClick('convertBtn', async (event) => {
     if (!managedStageUiState.sourceText) return false;
     event.preventDefault();
@@ -173,8 +210,11 @@ function installManagedStageButtonInterceptors() {
     return false;
   });
 
-  const xmlFile = document.getElementById('xmlFile');
-  xmlFile?.addEventListener('change', () => resetManagedStageStateOnly(), true);
+  const loadSampleBtn = document.getElementById('loadSampleBtn');
+  loadSampleBtn?.addEventListener('click', () => resetManagedStageStateOnly(), true);
+  modelFileInput?.addEventListener('click', () => {
+    modelFileInput.value = '';
+  });
 }
 
 function captureClick(id, handler) {
@@ -282,6 +322,20 @@ function resetManagedStageStateOnly() {
   managedStageUiState.basename = 'managed-stage';
   managedStageUiState.artifact = null;
   managedStageUiState.modelRoot = null;
+}
+
+function looksLikeManagedStageJson(sourceText, sourceName) {
+  let parsed = null;
+  try {
+    parsed = JSON.parse(sourceText);
+  } catch (error) {
+    throw new Error(`${sourceName} is not valid JSON: ${error.message}`);
+  }
+  return parsed?.schema === MANAGED_STAGE_SCHEMA || parsed?.profile === MANAGED_STAGE_PROFILE;
+}
+
+function isJsonFileName(name) {
+  return /\.json$/i.test(String(name || ''));
 }
 
 function logManagedStageSummary(audit) {

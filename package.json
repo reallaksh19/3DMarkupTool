@@ -15,7 +15,7 @@
     "serve": "python3 -m http.server 5173",
     "build": "node scripts/build-pages.mjs",
     "contract:dry-run": "node scripts/contract-dry-run-report.mjs --input fixtures/contract-dry-run/inputxml-delegated-fittings.json",
-    "test:managed-stage-rvm": "node tests/managed-stage-geometry-contract.test.mjs && node tests/rvm-cylinder-primitive-builder.test.mjs && node tests/rvm-code4-elbow-geometry-solver.test.mjs && node tests/managed-stage-elbow-tangent-hints.test.mjs && node tests/managed-stage-inputxml-bend-exclusion.test.mjs && node tests/managed-stage-piping-component-recipes.test.mjs && node tests/managed-stage-json-ui-controller.test.mjs && node tests/managed-stage-rvm-profile.test.mjs",
+    "test:managed-stage-rvm": "node tests/managed-stage-geometry-contract.test.mjs && node tests/rvm-cylinder-primitive-builder.test.mjs && node tests/rvm-code4-elbow-geometry-solver.test.mjs && node tests/managed-stage-elbow-tangent-hints.test.mjs && node tests/managed-stage-inputxml-bend-exclusion.test.mjs && node tests/managed-stage-piping-component-recipes.test.mjs && node tests/managed-stage-json-ui-controller.test.mjs && node tests/managed-stage-rvm-profile.test.mjs && node tests/managed-stage-rvm-stitch-manifest-support-code1.test.mjs",
     "verify:managed-stage-rvm": "node scripts/verify-managed-stage-rvm-profile.mjs --fixture=bm-cii",
     "verify:managed-stage-rvm:file": "node scripts/verify-managed-stage-rvm-profile.mjs",
     "artifact:managed-stage-rvm": "node scripts/generate-managed-stage-rvm-artifact.mjs --fixture=bm-cii --outdir=artifacts/managed-stage-rvm",

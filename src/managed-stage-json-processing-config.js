@@ -3,7 +3,7 @@ export const MANAGED_STAGE_JSON_PROCESSING_CONFIG_SCHEMA = 'ManagedStageJsonProc
 export const MANAGED_STAGE_DEFAULT_PROCESSING_CONFIG = Object.freeze({
   excludeBendsWhileProcessingInputXmlBasedJson: true,
   genericInputXmlBendRadiusMultiplier: 1.5,
-  inputXmlBendTrimMaxContractFraction: 0
+  inputXmlBendTrimMaxContractFraction: 0.35
 });
 
 export function resolveManagedStageJsonProcessingConfig(profile, options = {}) {

@@ -61,6 +61,29 @@ radius
 length
 ```
 
+## Component recipe phase
+
+Inline pipe/fitting components are decomposed through `src/managed-stage-piping-component-recipes.js` before they become code-8 cylinders.
+
+The recipe layer is responsible for visual continuity within a component span:
+
+```text
+ManagedStageGeometryContract
+→ component recipe segment(s)
+→ endpoint-locked code-8 cylinder primitive(s)
+```
+
+Current recipes are:
+
+- `PIPE`: one full-span body cylinder
+- `UNSPECIFIED`: one full-span unknown-pipelike cylinder
+- `FLANGE`: one full-span enlarged flange cylinder
+- `VALVE`: one full-span valve-body cylinder
+- `FLANGE_PAIR`: two contiguous inline flange cylinders split at the midpoint
+- `FLANGED_VALVE`: contiguous flange/body/flange cylinders
+
+Every recipe must cover the full APOS→LPOS contract span with no internal gaps or overlaps. The BM_CII fixture still emits 41 code-8 cylinders, but `FLANGE_PAIR` no longer creates two end plates with a center void.
+
 ## Tangent-aware code-4 bend phase
 
 Code-4 BEND primitives are authored through `src/rvm-code4-elbow-geometry-solver.js` and now receive adjacent tangent hints from `src/managed-stage-elbow-tangent-hints.js`.
@@ -258,10 +281,3 @@ For the current BM_CII managed-stage profile, strict mode expects:
 | Code-4 elbow/torus PRIM count | 7 |
 | Code-8 cylinder PRIM count | 41 |
 | Forbidden primitive codes `2,5,6,7,11` | 0 |
-| Max centerline gap | `<= 0.001 mm` |
-
-The uploaded real JSON reports `stats.restraints = 48`, but only 12 `ATTA` records are present in the staged hierarchy. The exporter treats that as an audit warning and emits only records actually present in `hierarchy[].children[]`.
-
-## Code-4 safety note
-
-Code 4 remains default-disabled outside this managed-stage converter. The normal RVM writer still requires the explicit experimental code-4 gate, and the production primitive-kind contract does not expose `elbow` as a globally supported primitive kind.

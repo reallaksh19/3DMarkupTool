@@ -66,6 +66,8 @@ export function verifyManagedStageRvmArtifact({ artifactDir, base, expectations 
     inputXmlBendsExcluded: audit.inputXmlBendExclusionAudit?.code4BendsExcluded || 0,
     inputXmlNodeLocalElbows: audit.inputXmlNodeLocalElbowAudit?.nodeLocalElbowCount || 0,
     inputXmlBranchFittingsInferred: audit.inputXmlBranchFittingInferenceAudit?.genericBranchFittingCount || 0,
+    supportRecordsEmittedToRvm: audit.supportRvmExportAudit?.supportRecordCount || 0,
+    supportRvmPrimitives: audit.supportRvmExportAudit?.supportPrimitiveCount || 0,
     rvmBytes: rvm.byteLength,
     attBytes: Buffer.byteLength(att),
     cntbCount: cntbRecords.length,
@@ -81,7 +83,7 @@ function compareStitchManifest(manifest, cntbRecords, primitivePayloads, issues)
     issues.push('missing stitch manifest in persisted audit');
     return;
   }
-  const elementCntbRecords = cntbRecords.slice(3);
+  const elementCntbRecords = cntbRecords.slice(3, 3 + manifest.elements.length);
   requireEqual(manifest.elements.length, elementCntbRecords.length, 'stitch elements vs element CNTBs', issues);
   requireEqual(manifest.decodedPrimitiveCount, primitivePayloads.length, 'stitch decoded primitive count', issues);
   manifest.elements.forEach((element, index) => {
@@ -147,7 +149,16 @@ function requireEqual(actual, expected, label, issues) {
 }
 
 function bmCiiExpectations() {
-  return { geometryComponents: 40, supportRecordsSkippedFromGeometry: 12, code4: 0, code8: 91, cntbCount: 43, primCount: 91 };
+  return {
+    geometryComponents: 40,
+    supportRecordsSkippedFromGeometry: 12,
+    supportRecordsEmittedToRvm: 12,
+    supportRvmPrimitiveCount: 25,
+    code4: 0,
+    code8: 116,
+    cntbCount: 56,
+    primCount: 116
+  };
 }
 
 function valueAfterPrefix(values, prefix) {

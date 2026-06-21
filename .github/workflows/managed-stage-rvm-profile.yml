@@ -38,13 +38,21 @@ jobs:
         run: node -e "console.log('Managed-stage profile smoke completed; artifact gates verify generated RVM')"
 
       - name: Generate managed-stage fixture RVM artifact
-        run: npm run artifact:managed-stage-rvm
+        run: npm run artifact:managed-stage-rvm 2>&1 | tee managed-stage-artifact.log
+
+      - name: Upload managed-stage artifact log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: managed-stage-artifact-log
+          path: managed-stage-artifact.log
+          if-no-files-found: ignore
 
       - name: Verify managed-stage artifact round-trip
         run: npm run verify:managed-stage-rvm-artifact
 
       - name: Verify managed-stage RVM reference layout compatibility
-        run: npm run verify:managed-stage-rvm-reference
+        run: npm run verify-managed-stage-rvm-reference
 
       - name: Inspect managed-stage RVM artifact
         run: npm run inspect:managed-stage-rvm

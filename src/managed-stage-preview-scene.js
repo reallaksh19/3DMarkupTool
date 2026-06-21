@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { cylinderBetween, mat } from './geometry.js?v=professional-viewer-3';
+import { createManagedStageSupportPreviewObject, MANAGED_STAGE_SUPPORT_VISUAL_POLICY } from './managed-stage-support-visual-resolver.js';
 
 const PREVIEW_SCHEMA = 'ManagedStageRawPreview.v1';
 const COORDINATE_AUDIT_SCHEMA = 'ManagedStageCoordinateAudit.v1';
@@ -57,7 +58,7 @@ export function createManagedStagePreviewScene(sourceTextOrJson, options = {}) {
 
   for (const record of records) {
     const trimInfo = elbowPlan.trimsByPath.get(record.path);
-    const meshInfo = createRecordPreviewObject(record, sourceRadius, pointRadius, trimInfo);
+    const meshInfo = createRecordPreviewObject(record, sourceRadius, pointRadius, trimInfo, records);
     if (meshInfo.object) root.add(meshInfo.object);
     renderRows.push(createAuditRow(record, meshInfo, trimInfo));
   }
@@ -72,7 +73,7 @@ export function createManagedStagePreviewScene(sourceTextOrJson, options = {}) {
   const audit = auditManagedStagePreviewCoordinatePreservation(renderRows, {
     schema: COORDINATE_AUDIT_SCHEMA,
     source: 'raw staged JSON APOS/LPOS/POS/BPOS/SUPPORTCOORD',
-    planningPipeline: 'raw-staged-preview-with-local-orthogonal-elbow-trim',
+    planningPipeline: 'raw-staged-preview-with-local-orthogonal-elbow-trim-and-record-scoped-support-symbols',
     recordCount: records.length,
     branchCueCount,
     bendCueCount: elbowPlan.elbows.length,
@@ -80,6 +81,9 @@ export function createManagedStagePreviewScene(sourceTextOrJson, options = {}) {
     trimmedSourceLineCount: trimmedRows.length,
     trimmedNonBendSourceLineCount: trimmedRows.filter((row) => !row.isBend).length,
     elbowRadiusPolicy: '90-degree continuous two-record joins use centerline bend radius = 1.5D; adjacent preview cylinders are trimmed locally by the tangent distance',
+    supportVisualPolicy: MANAGED_STAGE_SUPPORT_VISUAL_POLICY,
+    supportVisualCounts: countSupportVisualRows(renderRows),
+    supportPopupRequiredCount: renderRows.filter((row) => row.supportVisual?.popupRequired).length,
     rvmExportPrimitiveCount: countExportPrimitives(options.exportModel),
     rvmExportPreviewSeparated: true
   });
@@ -147,7 +151,7 @@ export function assertManagedStagePreviewCoordinatePreservation(audit) {
   return { ok: true, maxUnexplainedNonBendDeltaMm: audit.maxUnexplainedNonBendDeltaMm, rowCount: audit.rowCount };
 }
 
-function createRecordPreviewObject(record, radius, pointRadius, trimInfo = null) {
+function createRecordPreviewObject(record, radius, pointRadius, trimInfo = null, records = []) {
   if (record.source.start && record.source.end && pointDistance(record.source.start, record.source.end) > EPS_MM) {
     const originalStart = record.source.start;
     const originalEnd = record.source.end;
@@ -176,32 +180,51 @@ function createRecordPreviewObject(record, radius, pointRadius, trimInfo = null)
       renderedEnd: clonePoint(rendered.end),
       renderedPos: null,
       intentionalPreviewTrim: rendered.trimmed,
-      previewTrim: rendered.trimmed ? cloneTrimInfo(trimInfo) : null
+      previewTrim: rendered.trimmed ? cloneTrimInfo(trimInfo) : null,
+      supportVisual: null
     };
   }
 
   const pos = record.source.pos || record.source.bpos || record.source.supportCoord || record.source.apos || record.source.lpos;
-  if (!pos) return { object: null, renderedStart: null, renderedEnd: null, renderedPos: null, intentionalPreviewTrim: false, previewTrim: null };
-  const geometry = isSupportLike(record)
-    ? new THREE.BoxGeometry(pointRadius * 1.8, pointRadius * 1.8, pointRadius * 1.8)
-    : new THREE.SphereGeometry(pointRadius, 14, 10);
+  if (!pos) return { object: null, renderedStart: null, renderedEnd: null, renderedPos: null, intentionalPreviewTrim: false, previewTrim: null, supportVisual: null };
+
+  if (isSupportLike(record)) {
+    const supportPreview = createManagedStageSupportPreviewObject(record, { records, pointRadius, fallbackRadius: radius });
+    if (supportPreview?.object) {
+      stampSourceUserData(supportPreview.object, record, {
+        primitiveKind: 'managed-stage-support-symbol',
+        previewSourceGeometry: sourcePointKind(record),
+        previewPosMm: clonePoint(pos),
+        previewOnly: true,
+        exportedRvmGeometry: false,
+        managedStageSupportVisual: true,
+        supportVisualPolicy: MANAGED_STAGE_SUPPORT_VISUAL_POLICY.schema,
+        supportVisual: supportPreview.supportVisual,
+        popupRequired: Boolean(supportPreview.supportVisual?.popupRequired),
+        coordinatePolicy: 'record-scoped staged support visual resolver; source support coordinate preserved; support symbol excluded from RVM export'
+      });
+      return { object: supportPreview.object, renderedStart: null, renderedEnd: null, renderedPos: clonePoint(pos), intentionalPreviewTrim: false, previewTrim: null, supportVisual: supportPreview.supportVisual };
+    }
+  }
+
+  const geometry = new THREE.SphereGeometry(pointRadius, 14, 10);
   const mesh = new THREE.Mesh(geometry, mat(colorForRecord(record)));
   mesh.name = record.path;
   mesh.position.copy(toVec(pos));
   stampSourceUserData(mesh, record, {
-    primitiveKind: isSupportLike(record) ? 'raw-staged-support-point' : 'raw-staged-source-point',
+    primitiveKind: 'raw-staged-source-point',
     previewSourceGeometry: sourcePointKind(record),
     previewPosMm: clonePoint(pos),
     previewOnly: true,
     exportedRvmGeometry: false
   });
-  return { object: mesh, renderedStart: null, renderedEnd: null, renderedPos: clonePoint(pos), intentionalPreviewTrim: false, previewTrim: null };
+  return { object: mesh, renderedStart: null, renderedEnd: null, renderedPos: clonePoint(pos), intentionalPreviewTrim: false, previewTrim: null, supportVisual: null };
 }
 
 function stampSourceUserData(object, record, extra = {}) {
   object.userData = {
     ...(object.userData || {}),
-    TYPE: isSupportLike(record) ? 'SUPPORT_RESTRAINT' : 'MANAGED_STAGE_RAW_PREVIEW',
+    TYPE: isSupportLike(record) ? 'MANAGED_STAGE_SUPPORT_RESTRAINT_PREVIEW' : 'MANAGED_STAGE_RAW_PREVIEW',
     sourceName: record.name,
     sourcePath: record.path,
     rawType: record.rawType,
@@ -417,7 +440,8 @@ function createAuditRow(record, meshInfo, trimInfo = null) {
     policy: meshInfo.intentionalPreviewTrim
       ? 'source coordinates unchanged; local 1.5D elbow trim applied only to rendered preview mesh'
       : 'unchanged for raw preview pipeline',
-    previewTrim: meshInfo.intentionalPreviewTrim ? cloneTrimInfo(trimInfo) : null
+    previewTrim: meshInfo.intentionalPreviewTrim ? cloneTrimInfo(trimInfo) : null,
+    supportVisual: meshInfo.supportVisual || null
   };
   const rendered = {
     startMm: clonePoint(meshInfo.renderedStart),
@@ -448,6 +472,7 @@ function createAuditRow(record, meshInfo, trimInfo = null) {
     exportedToRvm: isExportableRecord(record),
     previewOnly: !isExportableRecord(record),
     supportLike: isSupportLike(record),
+    supportVisual: meshInfo.supportVisual || null,
     isBend: isBendLike(record),
     intentionalPreviewTrim: Boolean(meshInfo.intentionalPreviewTrim),
     previewTrim: meshInfo.intentionalPreviewTrim ? cloneTrimInfo(trimInfo) : null,
@@ -539,6 +564,17 @@ function sourcePointKind(record) {
   if (record.source.apos) return 'APOS';
   if (record.source.lpos) return 'LPOS';
   return 'NONE';
+}
+
+function countSupportVisualRows(rows) {
+  const counts = { total: 0, REST: 0, GUIDE: 0, LINE_STOP: 0, LIMIT_STOP: 0, HOLDDOWN: 0, SPRING_CAN: 0, SINGLE_AXIS_WARNING: 0, UNKNOWN_RESTRAINT: 0 };
+  for (const row of rows || []) {
+    const family = row.supportVisual?.family;
+    if (!family) continue;
+    counts.total += 1;
+    counts[family] = (counts[family] || 0) + 1;
+  }
+  return counts;
 }
 
 function colorForRecord(record) {

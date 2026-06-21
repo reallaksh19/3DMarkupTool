@@ -6,6 +6,7 @@ const controller = fs.readFileSync('src/managed-stage-json-ui-controller.js', 'u
 const sampleController = fs.readFileSync('src/managed-stage-bm-cii-json-sample-controller.js', 'utf8');
 const sampleData = fs.readFileSync('src/managed-stage-bm-cii-json-sample-data.js', 'utf8');
 const rawPreview = fs.readFileSync('src/managed-stage-preview-scene.js', 'utf8');
+const supportVisualResolver = fs.readFileSync('src/managed-stage-support-visual-resolver.js', 'utf8');
 
 assert.match(loader, /MANAGED_STAGE_JSON_UI_MODULE_URL/);
 assert.match(loader, /MANAGED_STAGE_JSON_SAMPLE_MODULE_URL/);
@@ -75,7 +76,20 @@ assert.match(rawPreview, /bend/);
 assert.match(rawPreview, /managedStageVisibleFallback/);
 assert.match(rawPreview, /native raw managed-stage preview scene already applied/);
 assert.match(rawPreview, /exportedRvmGeometry: false/);
+assert.match(rawPreview, /createManagedStageSupportPreviewObject/);
+assert.match(rawPreview, /supportVisualPolicy/);
+assert.match(rawPreview, /MANAGED_STAGE_SUPPORT_RESTRAINT_PREVIEW/);
+
+assert.match(supportVisualResolver, /ManagedStageSupportVisualResolver\.v1/);
+assert.match(supportVisualResolver, /REST = \+Y upward point cone/);
+assert.match(supportVisualResolver, /HOLDDOWN = \+\/-Y double vertical point cones/);
+assert.match(supportVisualResolver, /X pipe -> \+\/-Z/);
+assert.match(supportVisualResolver, /Z pipe -> \+\/-X/);
+assert.match(supportVisualResolver, /single-axis restraints without \+\/- are warning markers/);
+assert.match(supportVisualResolver, /gap is record-scoped/);
+assert.match(supportVisualResolver, /ODx2\/3 applies only to final axial/);
 
 await import('./managed-stage-preview-coordinate-preservation.test.mjs');
+await import('./managed-stage-support-visual-resolver.test.mjs');
 
-console.log('unified InputXML / managed-stage JSON UI uses coordinate-preserving preview pipeline');
+console.log('unified InputXML / managed-stage JSON UI uses coordinate-preserving preview pipeline and support visual resolver');

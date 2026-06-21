@@ -7,6 +7,9 @@ import {
   assertManagedStageInputXmlBendExclusionAudit
 } from '../src/managed-stage-inputxml-bend-exclusion.js';
 import {
+  assertManagedStageInputXmlBendEndpointLockAudit
+} from '../src/managed-stage-inputxml-bend-endpoint-lock.js';
+import {
   isInputXmlBasedManagedStageProfile,
   resolveManagedStageJsonProcessingConfig
 } from '../src/managed-stage-json-processing-config.js';
@@ -90,12 +93,21 @@ assert.equal(model.audit.inputXmlBendExclusionAudit.nodeBasedReconstructedBendCo
 assert.equal(model.audit.inputXmlBendExclusionAudit.chordFallbackBendCount, 0);
 assert.equal(model.audit.inputXmlBendExclusionAudit.trimmedContractCount, 5);
 assert.equal(model.audit.inputXmlBendExclusionAudit.trimApplicationCount, 5);
+assertManagedStageInputXmlBendEndpointLockAudit(model.audit.inputXmlBendEndpointLockAudit);
+assert.equal(model.audit.inputXmlBendEndpointLockAudit.checkedBendCount, 7);
+assert.equal(model.audit.inputXmlBendEndpointLockAudit.lockedBendCount, 5);
+assert.ok(model.audit.inputXmlBendEndpointLockAudit.cappedEndpointCorrectionCount >= 2);
 assert.equal(primitives.filter((primitive) => primitive.kind === 'elbow').length, 0);
 assert.equal(primitives.filter((primitive) => primitive.kind === 'cylinder').length, 91);
 assert.equal(primitives.filter((primitive) => primitive.genericInputXmlBend).length, 35);
 assert.equal(primitives.filter((primitive) => primitive.genericInputXmlBranchFitting).length, 15);
 assert.equal(primitives.filter((primitive) => primitive.recipeTrimStartOffsetMm || primitive.recipeTrimEndOffsetMm).length, 5);
 assert.equal(primitives.filter((primitive) => /^inputxml-generic-1p5d-bend-node-arc-/.test(primitive.primitiveRole)).length, 35);
+
+const pe018LastSegment = primitives.find((primitive) => primitive.sourceContractName === 'PE_018_BEND_160_TO_170' && primitive.genericInputXmlBendSegmentRole === 'node-arc-5');
+assert.ok(pe018LastSegment, 'Expected PE_018 final generic bend segment');
+assert.deepEqual(pe018LastSegment.endMm, [1050, 1829.951855, -4619.285001]);
+assert.equal(model.audit.inputXmlBendEndpointLockAudit.applications.some((entry) => entry.bendName === 'PE_018_BEND_160_TO_170' && entry.outgoingEndpointDeltaMm > 100), true);
 
 const nativeModel = buildManagedStageRvmExportModel(profile, { excludeBendsWhileProcessingInputXmlBasedJson: false });
 const nativePrimitives = nativeModel.root.children[0].children[0].children.flatMap((node) => node.primitives);
@@ -104,4 +116,4 @@ assert.equal(nativePrimitives.filter((primitive) => primitive.kind === 'elbow').
 assert.equal(nativePrimitives.filter((primitive) => primitive.kind === 'cylinder').length, 56);
 assert.equal(nativePrimitives.filter((primitive) => primitive.genericInputXmlBranchFitting).length, 15);
 
-console.log('Managed-stage InputXML node-based bend reconstruction, RVM trim, source-coordinate preservation, and branch fittings passed');
+console.log('Managed-stage InputXML node-based bend reconstruction, RVM trim, endpoint-locked generic bends, source-coordinate preservation, and branch fittings passed');

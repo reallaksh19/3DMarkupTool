@@ -32,8 +32,8 @@ assert.match(controller, /previewPipeline: 'raw-managed-stage-json-coordinate-pr
 assert.match(controller, /previewCoordinateAudit/);
 assert.doesNotMatch(controller, /createRvmPreviewScene\(result\.exportModel\)/);
 assert.match(controller, /BM_CII_INPUTXML_JSON_EXPECTATIONS/);
-assert.match(controller, /primitiveCodeCounts:\s*\{\s*4:\s*0,\s*8:\s*63\s*\}/);
-assert.match(controller, /primCount:\s*63/);
+assert.match(controller, /primitiveCodeCounts:\s*\{\s*4:\s*0,\s*8:\s*91\s*\}/);
+assert.match(controller, /primCount:\s*91/);
 assert.doesNotMatch(controller, /BM_CII_EXPECTATIONS/);
 assert.doesNotMatch(controller, /primitiveCodeCounts:\s*\{\s*4:\s*7,\s*8:\s*41\s*\}/);
 assert.doesNotMatch(controller, /primCount:\s*48/);

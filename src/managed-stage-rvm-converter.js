@@ -1,6 +1,6 @@
 import { writeAtt } from './att-writer.js';
 import { assertRvmChunkHierarchy } from './rvm-chunk-hierarchy-validator.js';
-import { buildRvmAxisBasis } from './rvm-axis-basis-policy.js';
+import { buildRvmAxisBasis, normalizeRvmAxisBasis } from './rvm-axis-basis-policy.js';
 import { assertRvmMaterialLayerContract } from './rvm-material-layer-contract.js';
 import { assertRvmMaterialTableContract } from './rvm-material-table-contract.js';
 import { scanRvmPrimitivePayloads } from './rvm-primitive-payload-decoder.js';
@@ -141,7 +141,7 @@ function computeExportModelBoundingExtents(exportModel) {
 
 function primitiveWorldBbox(primitive) {
   const center = vector3(primitive.center);
-  const basis = buildRvmAxisBasis(primitive.direction || [0, 0, 1]);
+  const basis = primitive.basis ? normalizeRvmAxisBasis(primitive.basis) : buildRvmAxisBasis(primitive.direction || [0, 0, 1]);
   const local = primitive.localBbox || cylinderBbox(primitive);
   return pointsBbox(bboxCorners(local).map(([x, y, z]) => [
     center[0] + basis.x[0] * x + basis.y[0] * y + basis.z[0] * z,

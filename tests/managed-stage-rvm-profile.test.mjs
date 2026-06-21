@@ -50,6 +50,8 @@ assert.equal(exportModel.audit.primitiveCount, 91);
 assert.equal(exportModel.audit.processingConfig.excludeBendsWhileProcessingInputXmlBasedJson, true);
 assert.equal(exportModel.audit.inputXmlBendExclusionAudit.code4BendsExcluded, 7);
 assert.equal(exportModel.audit.inputXmlBendExclusionAudit.genericCode8BendPrimitiveCount, 35);
+assert.equal(exportModel.audit.inputXmlBendExclusionAudit.nodeBasedReconstructedBendCount, 7);
+assert.equal(exportModel.audit.inputXmlBendExclusionAudit.chordFallbackBendCount, 0);
 assert.equal(exportModel.audit.inputXmlBranchFittingInferenceAudit.genericBranchFittingCount, 5);
 assert.equal(exportModel.audit.inputXmlBranchFittingInferenceAudit.genericBranchFittingPrimitiveCount, 15);
 assert.equal(exportPrimitives.filter((primitive) => primitive.kind === 'elbow').length, 0);
@@ -83,6 +85,8 @@ assert.equal(result.audit.processingConfig.inputXmlBasedJson, true);
 assert.equal(result.audit.processingConfig.excludeBendsWhileProcessingInputXmlBasedJson, true);
 assert.equal(result.audit.inputXmlBendExclusionAudit.code4BendsExcluded, 7);
 assert.equal(result.audit.inputXmlBendExclusionAudit.genericCode8BendPrimitiveCount, 35);
+assert.equal(result.audit.inputXmlBendExclusionAudit.nodeBasedReconstructedBendCount, 7);
+assert.equal(result.audit.inputXmlBendExclusionAudit.chordFallbackBendCount, 0);
 assert.equal(result.audit.inputXmlBranchFittingInferenceAudit.genericBranchFittingCount, 5);
 assert.equal(result.audit.inputXmlBranchFittingInferenceAudit.genericBranchFittingPrimitiveCount, 15);
 assert.equal(result.audit.primitiveHistogram[4] || 0, 0);
@@ -108,7 +112,7 @@ assert.equal(result.audit.stitchManifest.elements[6].inputName, 'PE_007_FLANGED_
 assert.equal(result.audit.stitchManifest.elements[6].primitiveCount, 3);
 assert.equal(result.audit.stitchManifest.elements[13].inputName, 'PE_014_BEND_120_TO_130');
 assert.deepEqual(result.audit.stitchManifest.elements[13].primitiveCodes, [8, 8, 8, 8, 8]);
-assert.equal(result.audit.stitchManifest.elements[13].primitives[0].localName, 'generic-1p5d-bend-arc-1');
+assert.equal(result.audit.stitchManifest.elements[13].primitives[0].localName, 'generic-1p5d-bend-node-arc-1');
 assert.equal(result.audit.stitchManifestGate.ok, true);
 assert.equal(result.audit.managedStageStrictGate.ok, true);
 assert.equal(result.audit.managedStageStrictGate.stitchManifestPresent, true);
@@ -125,4 +129,4 @@ assert.throws(
   /stitchManifest\.allElementsMapped/
 );
 
-console.log('Managed-stage BM_CII InputXML reconstructed generic bend and inferred branch fitting RVM strict audit passed');
+console.log('Managed-stage BM_CII InputXML node-based generic bend and inferred branch fitting RVM strict audit passed');

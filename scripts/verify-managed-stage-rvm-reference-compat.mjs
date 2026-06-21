@@ -129,11 +129,12 @@ function requireAuditAlignment(generated, audit, issues) {
 }
 
 function requireBmCiiCounts(generated, audit, issues) {
-  requireEqual(generated.primitiveHistogram['4'] || 0, 7, 'BM_CII code 4 primitive count', issues);
-  requireEqual(generated.primitiveHistogram['8'] || 0, 41, 'BM_CII code 8 primitive count', issues);
+  requireEqual(generated.primitiveHistogram['4'] || 0, 0, 'BM_CII code 4 primitive count', issues);
+  requireEqual(generated.primitiveHistogram['8'] || 0, 48, 'BM_CII code 8 primitive count', issues);
   requireEqual(generated.binary.counts.CNTB || 0, 43, 'BM_CII CNTB count', issues);
   requireEqual(generated.binary.counts.PRIM || 0, 48, 'BM_CII PRIM count', issues);
   requireEqual(audit.inputCounts?.supportRecordsSkippedFromGeometry, 12, 'BM_CII skipped support records', issues);
+  requireEqual(audit.inputXmlBendExclusionAudit?.code4BendsExcluded || 0, 7, 'BM_CII InputXML excluded bend count', issues);
 }
 
 function requirePrimitiveLayout(primitive, bodyLength, payloadWords, label, issues) {

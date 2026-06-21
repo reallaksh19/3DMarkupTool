@@ -40,6 +40,8 @@ const inspection = {
     audit: Buffer.byteLength(JSON.stringify(audit))
   },
   gate,
+  processingConfig: audit.processingConfig || null,
+  inputXmlBendExclusionAudit: audit.inputXmlBendExclusionAudit || null,
   chunkSummary: summarizeChunks(chunks),
   chunkIndex: chunks,
   cntbCount: cntbRecords.length,
@@ -60,6 +62,8 @@ console.log(JSON.stringify({
   schema: inspection.schema,
   base,
   ok: true,
+  processingMode: audit.processingConfig?.mode || '',
+  inputXmlBendsExcluded: audit.inputXmlBendExclusionAudit?.code4BendsExcluded || 0,
   chunks: inspection.chunkSummary.counts,
   cntbCount: inspection.cntbCount,
   primitiveCount: inspection.primitiveCount,
@@ -183,6 +187,7 @@ function renderMarkdown(inspection) {
     `| CNTB | ${inspection.cntbCount} |\n` +
     `| PRIM | ${inspection.primitiveCount} |\n` +
     `| Elements | ${inspection.elementRows.length} |\n` +
+    `| InputXML bends excluded | ${inspection.inputXmlBendExclusionAudit?.code4BendsExcluded || 0} |\n` +
     `| Strict gate OK | ${inspection.gate.ok ? 'YES' : 'NO'} |\n\n` +
     `## Chunk counts\n\n` +
     Object.entries(inspection.chunkSummary.counts).map(([id, count]) => `- \`${id}\`: ${count}`).join('\n') +
@@ -204,7 +209,7 @@ function parseArgs(values) {
 }
 
 function bmCiiExpectations() {
-  return { geometryComponents: 40, supportRecordsSkippedFromGeometry: 12, code4: 7, code8: 41, cntbCount: 43, primCount: 48 };
+  return { geometryComponents: 40, supportRecordsSkippedFromGeometry: 12, code4: 0, code8: 48, cntbCount: 43, primCount: 48 };
 }
 
 function readRequired(path, encoding = null) {

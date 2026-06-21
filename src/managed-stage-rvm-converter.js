@@ -49,11 +49,14 @@ export function convertManagedStageJsonToRvmAtt(sourceText, options = {}) {
       statsRestraintsMismatch: Number(profile.inputStats?.restraints || 0) !== profile.supportRecords.length
     },
     topology,
+    processingConfig: exportModel.audit?.processingConfig || null,
     geometryContractAudit: exportModel.audit?.geometryContractAudit || null,
     elbowTangentHintAudit: exportModel.audit?.elbowTangentHintAudit || null,
+    inputXmlBendExclusionAudit: exportModel.audit?.inputXmlBendExclusionAudit || null,
     primitiveHistogram: primitivePayloadContract.codeCounts,
     primitiveBodyLengths: primitivePayloads.map((primitive) => ({ code: primitive.code, bodyLength: primitive.bodyLength })),
     torusOrientationAssumptions: collectTorusAssumptions(exportModel.root),
+    genericInputXmlBendAssumptions: collectGenericInputXmlBendAssumptions(exportModel.root),
     skippedSupportRecords: profile.supportRecords.map((record) => ({
       name: record.name,
       type: record.type,
@@ -116,6 +119,28 @@ function collectTorusAssumptions(root) {
           orientationAssumption: primitive.orientationAssumption,
           tangentHintState: primitive.tangentHintState || '',
           tangentHintSources: primitive.tangentHintSources || null
+        });
+      }
+    }
+  });
+  return assumptions;
+}
+
+function collectGenericInputXmlBendAssumptions(root) {
+  const assumptions = [];
+  visit(root, (node) => {
+    for (const primitive of node.primitives || []) {
+      if (primitive.genericInputXmlBend) {
+        assumptions.push({
+          element: node.reviewName || node.name,
+          primitive: primitive.name,
+          primitiveCode: 8,
+          genericBendRadiusMm: primitive.genericBendRadiusMm,
+          genericBendTrimLengthMm: primitive.genericBendTrimLengthMm,
+          originalBendRadiusMm: primitive.originalBendRadiusMm,
+          startMm: primitive.startMm,
+          endMm: primitive.endMm,
+          orientationAssumption: primitive.orientationAssumption
         });
       }
     }

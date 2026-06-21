@@ -32,6 +32,8 @@ console.log(`Base name: ${baseName}`);
 console.log(`RVM bytes: ${result.audit.rvmBytes}`);
 console.log(`ATT bytes: ${result.audit.attBytes}`);
 console.log(`Primitive histogram: ${JSON.stringify(result.audit.primitiveHistogram)}`);
+console.log(`Processing mode: ${result.audit.processingConfig?.mode || 'unknown'}`);
+console.log(`InputXML bends excluded: ${result.audit.inputXmlBendExclusionAudit?.code4BendsExcluded || 0}`);
 console.log(`Max centerline gap mm: ${result.audit.topology.maxCenterlineGapMm}`);
 console.log(`Strict audit gate: ${result.audit.managedStageStrictGate.ok ? 'PASS' : 'FAIL'}`);
 
@@ -55,8 +57,8 @@ function bmCiiExpectations() {
   return {
     geometryComponents: 40,
     supportRecordsSkippedFromGeometry: 12,
-    code4: 7,
-    code8: 41,
+    code4: 0,
+    code8: 48,
     cntbCount: 43,
     primCount: 48
   };

@@ -53,10 +53,12 @@ export function convertManagedStageJsonToRvmAtt(sourceText, options = {}) {
     geometryContractAudit: exportModel.audit?.geometryContractAudit || null,
     elbowTangentHintAudit: exportModel.audit?.elbowTangentHintAudit || null,
     inputXmlBendExclusionAudit: exportModel.audit?.inputXmlBendExclusionAudit || null,
+    inputXmlBranchFittingInferenceAudit: exportModel.audit?.inputXmlBranchFittingInferenceAudit || null,
     primitiveHistogram: primitivePayloadContract.codeCounts,
     primitiveBodyLengths: primitivePayloads.map((primitive) => ({ code: primitive.code, bodyLength: primitive.bodyLength })),
     torusOrientationAssumptions: collectTorusAssumptions(exportModel.root),
     genericInputXmlBendAssumptions: collectGenericInputXmlBendAssumptions(exportModel.root),
+    genericInputXmlBranchFittingAssumptions: collectGenericInputXmlBranchFittingAssumptions(exportModel.root),
     skippedSupportRecords: profile.supportRecords.map((record) => ({
       name: record.name,
       type: record.type,
@@ -135,9 +137,32 @@ function collectGenericInputXmlBendAssumptions(root) {
           element: node.reviewName || node.name,
           primitive: primitive.name,
           primitiveCode: 8,
+          segmentRole: primitive.genericInputXmlBendSegmentRole || '',
           genericBendRadiusMm: primitive.genericBendRadiusMm,
           genericBendTrimLengthMm: primitive.genericBendTrimLengthMm,
           originalBendRadiusMm: primitive.originalBendRadiusMm,
+          startMm: primitive.startMm,
+          endMm: primitive.endMm,
+          orientationAssumption: primitive.orientationAssumption
+        });
+      }
+    }
+  });
+  return assumptions;
+}
+
+function collectGenericInputXmlBranchFittingAssumptions(root) {
+  const assumptions = [];
+  visit(root, (node) => {
+    for (const primitive of node.primitives || []) {
+      if (primitive.genericInputXmlBranchFitting) {
+        assumptions.push({
+          element: node.reviewName || node.name,
+          primitive: primitive.name,
+          primitiveCode: 8,
+          branchFittingClass: primitive.branchFittingClass,
+          branchFittingNode: primitive.branchFittingNode,
+          hostContractName: primitive.branchFittingHostContractName,
           startMm: primitive.startMm,
           endMm: primitive.endMm,
           orientationAssumption: primitive.orientationAssumption

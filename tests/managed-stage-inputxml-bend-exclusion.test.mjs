@@ -30,7 +30,8 @@ const excluded = applyManagedStageInputXmlBendExclusion(hintedContracts, default
 assertManagedStageInputXmlBendExclusionAudit(excluded.audit, {
   enabled: true,
   code4BendsExcluded: 7,
-  genericCode8BendsPlanned: 7
+  genericCode8BendsPlanned: 7,
+  genericCode8BendPrimitiveCount: 14
 });
 assert.equal(excluded.audit.trimApplicationCount > 0, true);
 assert.equal(excluded.audit.skippedTrimSources.length > 0, true);
@@ -38,21 +39,26 @@ assert.equal(excluded.contracts.filter((contract) => contract.excludeCode4Bend).
 assert.equal(excluded.contracts.filter((contract) => contract.inputXmlBendTrimmed).length > 0, true);
 
 const firstBend = excluded.contracts.find((contract) => contract.name === 'PE_014_BEND_120_TO_130');
-assert.equal(firstBend.genericInputXmlBend.mode, 'code8-generic-1p5d-chord-cylinder');
+assert.equal(firstBend.genericInputXmlBend.mode, 'code8-generic-1p5d-two-leg-cylinders');
 assert.equal(firstBend.genericInputXmlBend.genericBendRadiusMm, 171.45);
+assert.equal(firstBend.genericInputXmlBend.segments.length, 2);
+assert.ok(firstBend.genericInputXmlBend.segments.every((segment) => segment.lengthMm > 0));
 
 const model = buildManagedStageRvmExportModel(profile);
 const primitives = model.root.children[0].children[0].children.flatMap((node) => node.primitives);
 assert.equal(model.audit.inputXmlBendExclusionAudit.code4BendsExcluded, 7);
+assert.equal(model.audit.inputXmlBendExclusionAudit.genericCode8BendPrimitiveCount, 14);
 assert.equal(primitives.filter((primitive) => primitive.kind === 'elbow').length, 0);
-assert.equal(primitives.filter((primitive) => primitive.kind === 'cylinder').length, 48);
-assert.equal(primitives.filter((primitive) => primitive.genericInputXmlBend).length, 7);
+assert.equal(primitives.filter((primitive) => primitive.kind === 'cylinder').length, 70);
+assert.equal(primitives.filter((primitive) => primitive.genericInputXmlBend).length, 14);
+assert.equal(primitives.filter((primitive) => primitive.genericInputXmlBranchFitting).length, 15);
 assert.ok(primitives.filter((primitive) => primitive.recipeTrimStartOffsetMm || primitive.recipeTrimEndOffsetMm).length > 0);
 
 const nativeModel = buildManagedStageRvmExportModel(profile, { excludeBendsWhileProcessingInputXmlBasedJson: false });
 const nativePrimitives = nativeModel.root.children[0].children[0].children.flatMap((node) => node.primitives);
 assert.equal(nativeModel.audit.inputXmlBendExclusionAudit.enabled, false);
 assert.equal(nativePrimitives.filter((primitive) => primitive.kind === 'elbow').length, 7);
-assert.equal(nativePrimitives.filter((primitive) => primitive.kind === 'cylinder').length, 41);
+assert.equal(nativePrimitives.filter((primitive) => primitive.kind === 'cylinder').length, 56);
+assert.equal(nativePrimitives.filter((primitive) => primitive.genericInputXmlBranchFitting).length, 15);
 
-console.log('Managed-stage InputXML bend exclusion config and generic 1.5D bend planning passed');
+console.log('Managed-stage InputXML bend exclusion config, two-leg generic bends, and branch fittings passed');

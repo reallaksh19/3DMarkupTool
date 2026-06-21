@@ -18,7 +18,7 @@ export function planManagedStagePrimitives(recordOrContract, options = {}) {
   if (!(pipeRadius > 0)) throw new Error(`Missing/invalid diameter for ${contract.name}`);
 
   if (contract.dtxr === 'BEND') {
-    if (contract.excludeCode4Bend) return [planGenericInputXmlBendCylinder(contract, pipeRadius)];
+    if (contract.excludeCode4Bend) return planGenericInputXmlBendCylinders(contract, pipeRadius);
     return [planCode4Elbow(contract, pipeRadius, options)];
   }
 
@@ -26,7 +26,7 @@ export function planManagedStagePrimitives(recordOrContract, options = {}) {
     pipeRadiusMm: pipeRadius,
     materials: MANAGED_STAGE_RVM_MATERIALS
   });
-  return recipe.primitives;
+  return [...recipe.primitives, ...planGenericInputXmlBranchFittingCylinders(contract)];
 }
 
 export function managedStageComponentClass(recordOrContract) {
@@ -50,32 +50,73 @@ export function managedStageMaterialForClass(componentClass) {
   return MANAGED_STAGE_RVM_MATERIALS.FITTING;
 }
 
-function planGenericInputXmlBendCylinder(contract, pipeRadius) {
-  const primitive = buildEndpointLockedCylinderPrimitive({
-    name: `${contract.name}_GENERIC_1P5D_BEND`,
-    localName: 'generic-1p5d-bend',
-    startMm: contract.startMm,
-    endMm: contract.endMm,
-    radiusMm: pipeRadius,
-    material: MANAGED_STAGE_RVM_MATERIALS.FITTING,
-    sourceContractName: contract.name,
-    sourceElementId: contract.sourceElementId || contract.elementId || '',
-    primitiveRole: 'inputxml-generic-1p5d-bend',
-    parentStartMm: contract.startMm,
-    parentEndMm: contract.endMm,
-    startOffsetMm: 0,
-    endOffsetMm: 0
+function planGenericInputXmlBendCylinders(contract, pipeRadius) {
+  const segments = contract.genericInputXmlBend?.segments?.length
+    ? contract.genericInputXmlBend.segments
+    : [{ role: 'chord-fallback', startMm: contract.startMm, endMm: contract.endMm }];
+  return segments.map((segment, index) => {
+    const primitive = buildEndpointLockedCylinderPrimitive({
+      name: `${contract.name}_GENERIC_1P5D_BEND_${index + 1}`,
+      localName: `generic-1p5d-bend-${segment.role || index + 1}`,
+      startMm: segment.startMm,
+      endMm: segment.endMm,
+      radiusMm: pipeRadius,
+      material: MANAGED_STAGE_RVM_MATERIALS.FITTING,
+      sourceContractName: contract.name,
+      sourceElementId: contract.sourceElementId || contract.elementId || '',
+      primitiveRole: `inputxml-generic-1p5d-bend-${segment.role || index + 1}`,
+      parentStartMm: contract.startMm,
+      parentEndMm: contract.endMm,
+      startOffsetMm: 0,
+      endOffsetMm: 0
+    });
+    return {
+      ...primitive,
+      recipeName: 'inputxml-generic-1p5d-bend-two-leg',
+      genericInputXmlBend: true,
+      code4BendExcluded: true,
+      genericInputXmlBendSegmentRole: segment.role || '',
+      genericBendRadiusMm: contract.genericInputXmlBend?.genericBendRadiusMm || null,
+      genericBendTrimLengthMm: contract.genericInputXmlBend?.trimLengthMm || null,
+      originalBendRadiusMm: contract.genericInputXmlBend?.originalBendRadiusMm || contract.arc?.bendRadiusMm || null,
+      orientationAssumption: 'InputXML-derived JSON bend excluded; emitted as two tangent-aligned generic 1.5D code-8 cylinders'
+    };
   });
-  return {
-    ...primitive,
-    recipeName: 'inputxml-generic-1p5d-bend-chord',
-    genericInputXmlBend: true,
-    code4BendExcluded: true,
-    genericBendRadiusMm: contract.genericInputXmlBend?.genericBendRadiusMm || null,
-    genericBendTrimLengthMm: contract.genericInputXmlBend?.trimLengthMm || null,
-    originalBendRadiusMm: contract.genericInputXmlBend?.originalBendRadiusMm || contract.arc?.bendRadiusMm || null,
-    orientationAssumption: 'InputXML-derived JSON bend excluded; emitted as endpoint-locked generic 1.5D code-8 chord cylinder'
-  };
+}
+
+function planGenericInputXmlBranchFittingCylinders(contract) {
+  const fittings = contract.genericInputXmlBranchFittings || [];
+  const primitives = [];
+  for (const fitting of fittings) {
+    for (const [index, segment] of (fitting.segments || []).entries()) {
+      const primitive = buildEndpointLockedCylinderPrimitive({
+        name: `${fitting.name}_SEG_${index + 1}`,
+        localName: `${fitting.fittingClass.toLowerCase()}-generic-branch-leg-${index + 1}`,
+        startMm: segment.startMm,
+        endMm: segment.endMm,
+        radiusMm: segment.radiusMm,
+        material: MANAGED_STAGE_RVM_MATERIALS.FITTING,
+        sourceContractName: contract.name,
+        sourceElementId: contract.sourceElementId || contract.elementId || '',
+        primitiveRole: `inputxml-generic-${fitting.fittingClass.toLowerCase()}-branch-fitting`,
+        parentStartMm: contract.startMm,
+        parentEndMm: contract.endMm,
+        startOffsetMm: 0,
+        endOffsetMm: 0
+      });
+      primitives.push({
+        ...primitive,
+        recipeName: `inputxml-generic-${fitting.fittingClass.toLowerCase()}-branch-fitting`,
+        genericInputXmlBranchFitting: true,
+        branchFittingClass: fitting.fittingClass,
+        branchFittingNode: fitting.node,
+        branchFittingHostContractName: fitting.hostContractName,
+        branchFittingConnectionCount: fitting.connectionCount,
+        orientationAssumption: 'InputXML-derived JSON has no explicit TEE/OLET record; generic branch fitting inferred from topology node'
+      });
+    }
+  }
+  return primitives;
 }
 
 function planCode4Elbow(contract, pipeRadius, options = {}) {

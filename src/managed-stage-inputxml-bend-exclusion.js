@@ -15,11 +15,13 @@ export function applyManagedStageInputXmlBendExclusion(contracts = [], config = 
   const skippedTrimSources = [];
   const issues = [];
   const byName = new Map(contracts.map((contract) => [contract?.name, contract]).filter(([name]) => name));
+  const genericBendByName = new Map();
 
   for (const bend of bendContracts) {
     const trimLengthMm = bendTrimLengthMm(bend, config);
     const sources = bend.arc?.tangentHintSources || {};
     const applied = [];
+    const tangentHints = {};
     for (const [role, node] of [['start', bend.fromNode], ['end', bend.toNode]]) {
       const sourceName = sources[role] || '';
       const source = byName.get(sourceName);
@@ -31,42 +33,51 @@ export function applyManagedStageInputXmlBendExclusion(contracts = [], config = 
         skippedTrimSources.push({ bendName: bend.name, bendRole: role, node: String(node), sourceName, reason: 'adjacent source is another BEND' });
         continue;
       }
+      tangentHints[role] = tangentFromSourceAtNode(source, node, role);
       const appliedTrim = addTrim(trims, source, node, trimLengthMm, config, bend, role);
       if (appliedTrim) {
         trimApplications.push(appliedTrim);
         applied.push(appliedTrim);
       }
     }
-    genericBends.push({
+
+    const segments = buildGenericTwoLegBendSegments(bend, tangentHints, trimLengthMm);
+    const bendPlan = {
       name: bend.name,
       fromNode: bend.fromNode,
       toNode: bend.toNode,
       originalBendRadiusMm: bend.arc?.bendRadiusMm || null,
       genericBendRadiusMm: round(trimLengthMm),
       radiusMultiplier: config.genericInputXmlBendRadiusMultiplier,
-      emittedAs: 'code8-generic-1p5d-chord-cylinder',
+      emittedAs: 'code8-generic-1p5d-two-leg-cylinders',
+      segmentCount: segments.length,
+      segments: segments.map((segment) => ({ role: segment.role, startMm: segment.startMm, endMm: segment.endMm, lengthMm: segment.lengthMm })),
       trimApplications: applied.map((entry) => ({
         contractName: entry.contractName,
         node: entry.node,
         side: entry.side,
         trimMm: entry.trimMm
       }))
-    });
+    };
+    genericBends.push(bendPlan);
+    genericBendByName.set(bend.name, bendPlan);
   }
 
   const adjusted = contracts.map((contract) => {
     if (contract?.dtxr === 'BEND') {
       const trimLengthMm = bendTrimLengthMm(contract, config);
+      const bendPlan = genericBendByName.get(contract.name);
       return {
         ...contract,
         excludeCode4Bend: true,
         genericInputXmlBend: {
-          schema: 'ManagedStageInputXmlGenericBend.v1',
-          mode: 'code8-generic-1p5d-chord-cylinder',
+          schema: 'ManagedStageInputXmlGenericBend.v2',
+          mode: 'code8-generic-1p5d-two-leg-cylinders',
           radiusMultiplier: config.genericInputXmlBendRadiusMultiplier,
           genericBendRadiusMm: round(trimLengthMm),
           trimLengthMm: round(trimLengthMm),
           originalBendRadiusMm: contract.arc?.bendRadiusMm || null,
+          segments: bendPlan?.segments || [],
           reason: config.reason || 'InputXML-based JSON bend exclusion is ON'
         }
       };
@@ -88,12 +99,13 @@ export function applyManagedStageInputXmlBendExclusion(contracts = [], config = 
       schema: 'ManagedStageInputXmlBendExclusionAudit.v1',
       enabled: true,
       inputXmlBasedJson: true,
-      mode: 'inputxml-json-generic-1p5d-bends',
+      mode: 'inputxml-json-generic-1p5d-two-leg-bends',
       radiusMultiplier: config.genericInputXmlBendRadiusMultiplier,
       trimMaxContractFraction: config.inputXmlBendTrimMaxContractFraction,
       bendCount: bendContracts.length,
       code4BendsExcluded: bendContracts.length,
       genericCode8BendsPlanned: genericBends.length,
+      genericCode8BendPrimitiveCount: genericBends.reduce((sum, bend) => sum + bend.segmentCount, 0),
       trimmedContractCount: trims.size,
       trimApplicationCount: trimApplications.length,
       skippedTrimSources,
@@ -117,6 +129,9 @@ export function assertManagedStageInputXmlBendExclusionAudit(audit = {}, expecta
   if (expectations.genericCode8BendsPlanned !== undefined && audit.genericCode8BendsPlanned !== expectations.genericCode8BendsPlanned) {
     throw new Error(`Generic code8 bend count expected ${expectations.genericCode8BendsPlanned}, got ${audit.genericCode8BendsPlanned}`);
   }
+  if (expectations.genericCode8BendPrimitiveCount !== undefined && audit.genericCode8BendPrimitiveCount !== expectations.genericCode8BendPrimitiveCount) {
+    throw new Error(`Generic code8 bend primitive count expected ${expectations.genericCode8BendPrimitiveCount}, got ${audit.genericCode8BendPrimitiveCount}`);
+  }
   return true;
 }
 
@@ -132,6 +147,7 @@ function emptyAudit(contracts, config, state) {
     bendCount,
     code4BendsExcluded: 0,
     genericCode8BendsPlanned: 0,
+    genericCode8BendPrimitiveCount: 0,
     trimmedContractCount: 0,
     trimApplicationCount: 0,
     skippedTrimSources: [],
@@ -167,6 +183,64 @@ function addTrim(trims, source, node, requestedTrimMm, config, bend, role) {
   return application;
 }
 
+function buildGenericTwoLegBendSegments(bend, tangentHints, trimLengthMm) {
+  const start = bend.startMm;
+  const end = bend.endMm;
+  const startTangent = unitOrNull(tangentHints.start);
+  const endTangent = unitOrNull(tangentHints.end);
+  let corner = null;
+  if (startTangent && endTangent) {
+    corner = closestCornerPoint(start, startTangent, end, scale(endTangent, -1), trimLengthMm);
+  }
+  if (!corner) corner = midpoint(start, end);
+  let segments = [
+    segment('start-leg', start, corner),
+    segment('end-leg', corner, end)
+  ].filter(Boolean);
+  if (segments.length < 2) {
+    const mid = midpoint(start, end);
+    segments = [segment('start-leg', start, mid), segment('end-leg', mid, end)].filter(Boolean);
+  }
+  return segments;
+}
+
+function closestCornerPoint(p, d, q, e, trimLengthMm) {
+  const r = vsub(p, q);
+  const a = dot(d, d);
+  const b = dot(d, e);
+  const c = dot(e, e);
+  const dd = dot(d, r);
+  const ee = dot(e, r);
+  const denom = a * c - b * b;
+  if (Math.abs(denom) < EPS_MM) return null;
+  const t = (b * ee - c * dd) / denom;
+  const u = (a * ee - b * dd) / denom;
+  const p1 = vadd(p, scale(d, t));
+  const p2 = vadd(q, scale(e, u));
+  const skewGap = distance(p1, p2);
+  const corner = midpoint(p1, p2);
+  const chord = distance(p, q);
+  const maxLeg = Math.max(chord * 2.5, trimLengthMm * 4);
+  if (skewGap > Math.max(trimLengthMm, chord)) return null;
+  if (distance(p, corner) > maxLeg || distance(corner, q) > maxLeg) return null;
+  return corner;
+}
+
+function tangentFromSourceAtNode(source, node, role) {
+  const axis = unitOrNull(source.axis);
+  if (!axis) return null;
+  const fromMatch = String(source.fromNode) === String(node);
+  const toMatch = String(source.toNode) === String(node);
+  if (role === 'start') return toMatch ? axis : scale(axis, -1);
+  return fromMatch ? axis : scale(axis, -1);
+}
+
+function segment(role, startMm, endMm) {
+  const lengthMm = distance(startMm, endMm);
+  if (!(lengthMm > EPS_MM)) return null;
+  return { role, startMm: startMm.map(round), endMm: endMm.map(round), lengthMm: round(lengthMm) };
+}
+
 function trimSideForNode(contract, node) {
   if (String(contract.fromNode) === String(node)) return 'start';
   if (String(contract.toNode) === String(node)) return 'end';
@@ -183,6 +257,17 @@ function positiveNumber(value, fieldName) {
   return parsed;
 }
 
-function round(value) {
-  return Number(Number(value).toFixed(6));
+function unitOrNull(vector) {
+  if (!Array.isArray(vector) || vector.length !== 3) return null;
+  const len = Math.hypot(vector[0], vector[1], vector[2]);
+  if (!(len > EPS_MM)) return null;
+  return vector.map((value) => value / len);
 }
+
+function distance(a, b) { return Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]); }
+function dot(a, b) { return a[0] * b[0] + a[1] * b[1] + a[2] * b[2]; }
+function midpoint(a, b) { return [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2, (a[2] + b[2]) / 2]; }
+function scale(v, factor) { return [v[0] * factor, v[1] * factor, v[2] * factor]; }
+function vadd(a, b) { return [a[0] + b[0], a[1] + b[1], a[2] + b[2]]; }
+function vsub(a, b) { return [a[0] - b[0], a[1] - b[1], a[2] - b[2]]; }
+function round(value) { return Number(Number(value).toFixed(6)); }

@@ -35,7 +35,13 @@ export function solveCode4ElbowGeometry(contract = {}, options = {}) {
   }
 
   const sweepAngleRad = declaredSweepAngleRad;
-  const planeNormal = resolvePlaneNormal(chordDirection, options.planeNormal || contract.arc?.planeNormal);
+  const startTangent = optionalUnitVector(options.startTangent || contract.arc?.startTangent, 'code4 startTangent');
+  const endTangent = optionalUnitVector(options.endTangent || contract.arc?.endTangent, 'code4 endTangent');
+  let planeNormal = resolvePlaneNormal(chordDirection, options.planeNormal || contract.arc?.planeNormal);
+  if (startTangent || endTangent) {
+    planeNormal = orientPlaneNormalForTangents(planeNormal, chordDirection, sweepAngleRad, startTangent, endTangent);
+  }
+
   const radialMid = normalize(cross(chordDirection, planeNormal), `${contract.name}.bendRadialMid`);
   const halfSweep = sweepAngleRad / 2;
   const sinHalf = Math.sin(halfSweep);
@@ -54,6 +60,8 @@ export function solveCode4ElbowGeometry(contract = {}, options = {}) {
   const endpointFitErrorMm = Math.max(startFitErrorMm, endFitErrorMm);
 
   const outer = bendRadiusMm + tubeRadiusMm;
+  const tangentHintState = contract.arc?.tangentHintState || '';
+  const tangentHintsUsed = Boolean(startTangent || endTangent || tangentHintState);
   return {
     schema: 'RvmCode4ElbowGeometrySolver.v1',
     solverState: 'endpoint-fit-v1',
@@ -75,7 +83,13 @@ export function solveCode4ElbowGeometry(contract = {}, options = {}) {
     endpointFitErrorMm: round(endpointFitErrorMm),
     localBbox: [0, 0, -tubeRadiusMm, outer, outer, tubeRadiusMm].map(round),
     endpointLocked: endpointFitErrorMm <= FIT_EPSILON_MM,
-    orientationAssumption: 'managed-stage code4 endpoint-fit solver v1'
+    startTangent: startTangent ? roundVector(startTangent) : null,
+    endTangent: endTangent ? roundVector(endTangent) : null,
+    tangentHintState,
+    tangentHintSources: contract.arc?.tangentHintSources || null,
+    orientationAssumption: tangentHintsUsed
+      ? 'managed-stage code4 endpoint-fit solver v1 with adjacent tangent hints'
+      : 'managed-stage code4 endpoint-fit solver v1'
   };
 }
 
@@ -88,6 +102,30 @@ function resolvePlaneNormal(chordDirection, explicitPlaneNormal) {
   }
   const reference = leastParallelReference(chordDirection);
   return normalize(cross(chordDirection, reference), 'derived code4 planeNormal');
+}
+
+function orientPlaneNormalForTangents(planeNormal, chordDirection, sweepAngleRad, startTangent, endTangent) {
+  const plusScore = tangentAlignmentScore(planeNormal, chordDirection, sweepAngleRad, startTangent, endTangent);
+  const flipped = scale(planeNormal, -1);
+  const minusScore = tangentAlignmentScore(flipped, chordDirection, sweepAngleRad, startTangent, endTangent);
+  return minusScore > plusScore + 1e-9 ? flipped : planeNormal;
+}
+
+function tangentAlignmentScore(planeNormal, chordDirection, sweepAngleRad, startTangent, endTangent) {
+  const radialMid = normalize(cross(chordDirection, planeNormal), 'tangent score radialMid');
+  const halfSweep = sweepAngleRad / 2;
+  const xAxis = normalize(vsub(scale(radialMid, Math.cos(halfSweep)), scale(chordDirection, Math.sin(halfSweep))), 'tangent score xAxis');
+  const yAxis = normalize(cross(planeNormal, xAxis), 'tangent score yAxis');
+  const solvedEndTangent = normalize(vadd(scale(xAxis, -Math.sin(sweepAngleRad)), scale(yAxis, Math.cos(sweepAngleRad))), 'tangent score endTangent');
+  let score = 0;
+  if (startTangent) score += vdot(yAxis, startTangent);
+  if (endTangent) score += vdot(solvedEndTangent, endTangent);
+  return score;
+}
+
+function optionalUnitVector(value, fieldName) {
+  if (value === undefined || value === null) return null;
+  return normalize(vector3(value, fieldName), fieldName);
 }
 
 function leastParallelReference(direction) {

@@ -49,6 +49,8 @@ export function convertManagedStageJsonToRvmAtt(sourceText, options = {}) {
       statsRestraintsMismatch: Number(profile.inputStats?.restraints || 0) !== profile.supportRecords.length
     },
     topology,
+    geometryContractAudit: exportModel.audit?.geometryContractAudit || null,
+    elbowTangentHintAudit: exportModel.audit?.elbowTangentHintAudit || null,
     primitiveHistogram: primitivePayloadContract.codeCounts,
     primitiveBodyLengths: primitivePayloads.map((primitive) => ({ code: primitive.code, bodyLength: primitive.bodyLength })),
     torusOrientationAssumptions: collectTorusAssumptions(exportModel.root),
@@ -111,7 +113,9 @@ function collectTorusAssumptions(root) {
           bendRadiusMm: primitive.bendRadius,
           tubeRadiusMm: primitive.tubeRadius,
           sweepAngleRad: primitive.sweepAngleRad,
-          orientationAssumption: primitive.orientationAssumption
+          orientationAssumption: primitive.orientationAssumption,
+          tangentHintState: primitive.tangentHintState || '',
+          tangentHintSources: primitive.tangentHintSources || null
         });
       }
     }
@@ -140,49 +144,28 @@ function computeExportModelBoundingExtents(exportModel) {
 }
 
 function primitiveWorldBbox(primitive) {
-  const center = vector3(primitive.center);
-  const basis = primitive.basis ? normalizeRvmAxisBasis(primitive.basis) : buildRvmAxisBasis(primitive.direction || [0, 0, 1]);
-  const local = primitive.localBbox || cylinderBbox(primitive);
-  return pointsBbox(bboxCorners(local).map(([x, y, z]) => [
-    center[0] + basis.x[0] * x + basis.y[0] * y + basis.z[0] * z,
-    center[1] + basis.x[1] * x + basis.y[1] * y + basis.z[1] * z,
-    center[2] + basis.x[2] * x + basis.y[2] * y + basis.z[2] * z
-  ]));
-}
-
-function cylinderBbox(primitive) {
-  const radius = Number(primitive.radius);
-  const half = Number(primitive.length) / 2;
-  if (!(radius > 0) || !(half > 0)) throw new Error(`Invalid primitive bbox dimensions for ${primitive.name || 'UNNAMED'}`);
-  return [-radius, -radius, -half, radius, radius, half];
-}
-
-function bboxCorners(bbox) {
-  const [minX, minY, minZ, maxX, maxY, maxZ] = bbox;
-  return [
-    [minX, minY, minZ], [minX, minY, maxZ], [minX, maxY, minZ], [minX, maxY, maxZ],
-    [maxX, minY, minZ], [maxX, minY, maxZ], [maxX, maxY, minZ], [maxX, maxY, maxZ]
-  ];
-}
-
-function pointsBbox(points) {
-  const bbox = [Infinity, Infinity, Infinity, -Infinity, -Infinity, -Infinity];
-  for (const point of points) {
-    const p = vector3(point);
-    bbox[0] = Math.min(bbox[0], p[0]); bbox[1] = Math.min(bbox[1], p[1]); bbox[2] = Math.min(bbox[2], p[2]);
-    bbox[3] = Math.max(bbox[3], p[0]); bbox[4] = Math.max(bbox[4], p[1]); bbox[5] = Math.max(bbox[5], p[2]);
+  const bbox = primitive.localBbox || [0, 0, 0, 0, 0, 0];
+  const basis = normalizeRvmAxisBasis(primitive.basis || buildRvmAxisBasis(primitive.direction || [0, 0, 1]));
+  const center = primitive.center || [0, 0, 0];
+  const corners = [];
+  for (const x of [bbox[0], bbox[3]]) {
+    for (const y of [bbox[1], bbox[4]]) {
+      for (const z of [bbox[2], bbox[5]]) corners.push(transformLocalPoint(center, basis, [x, y, z]));
+    }
   }
-  return bbox;
+  return unionBboxes(corners.map((corner) => [corner[0], corner[1], corner[2], corner[0], corner[1], corner[2]]));
+}
+
+function transformLocalPoint(center, basis, local) {
+  return [0, 1, 2].map((axis) => center[axis] + basis.x[axis] * local[0] + basis.y[axis] * local[1] + basis.z[axis] * local[2]);
 }
 
 function unionBboxes(boxes) {
   if (!boxes.length) return null;
-  return pointsBbox(boxes.flatMap(bboxCorners));
-}
-
-function vector3(value) {
-  if (!Array.isArray(value) || value.length !== 3) throw new Error('Expected vector3');
-  const out = value.map(Number);
-  if (out.some((entry) => !Number.isFinite(entry))) throw new Error('Vector3 contains non-finite value');
+  const out = [...boxes[0]];
+  for (const box of boxes.slice(1)) {
+    out[0] = Math.min(out[0], box[0]); out[1] = Math.min(out[1], box[1]); out[2] = Math.min(out[2], box[2]);
+    out[3] = Math.max(out[3], box[3]); out[4] = Math.max(out[4], box[4]); out[5] = Math.max(out[5], box[5]);
+  }
   return out;
 }

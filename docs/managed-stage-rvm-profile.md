@@ -61,7 +61,41 @@ radius
 length
 ```
 
-This phase does not change code-4 elbow placement yet. Bends remain managed-stage opt-in code-4 primitives with the existing orientation assumption until the dedicated elbow solver phase.
+## Tangent-aware code-4 bend phase
+
+Code-4 BEND primitives are authored through `src/rvm-code4-elbow-geometry-solver.js` and now receive adjacent tangent hints from `src/managed-stage-elbow-tangent-hints.js`.
+
+The hint resolver uses the geometry contract graph:
+
+```text
+FROM_NODE / TO_NODE adjacency
+→ incoming tangent at bend start
+→ outgoing tangent at bend end
+→ bend plane normal hint
+→ endpoint-fit code-4 solver
+```
+
+For each BEND, the export path records:
+
+- adjacent start/end tangent source elements
+- unit start/end tangent vectors when available
+- tangent-derived plane normal
+- tangent hint state, such as `adjacent-start-end`
+- endpoint-fit code-4 basis and bbox
+
+The binary writer still emits the same RMSS-style code-4 payload:
+
+```text
+record version
+primitive code 4
+12-float transform
+6-float local bbox
+bendRadius
+tubeRadius
+sweepAngleRad
+```
+
+For the BM_CII fixture the tangent hint gate expects 7 BEND records and 7 `adjacent-start-end` tangent hints.
 
 ## Verify a real profile
 

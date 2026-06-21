@@ -44,13 +44,7 @@ export function createManagedStageSupportPreviewObject(record, options = {}) {
   const warningScale = Math.max(Math.min(genericLength / 80, 2.6), 0.8);
   const material = mat(colorForFamily(visual.family), { transparent: true, opacity: 0.9 });
 
-  if (visual.popupRequired) {
-    const warning = createWarningTriangle('!', warningScale);
-    warning.name = `${group.name}_POPUP_REQUIRED`;
-    warning.position.copy(center).add(new THREE.Vector3(0, genericLength * 0.75, 0));
-    stampPart(warning, visual, { role: 'popupRequired', popupRequired: true });
-    group.add(warning);
-  } else if (visual.family === 'SPRING_CAN') {
+  if (visual.family === 'SPRING_CAN') {
     const length = Math.max(odMm * 1.35, genericLength);
     const coil = createSpringCoil(
       center.clone().add(new THREE.Vector3(0, -length * 0.62, 0)),
@@ -62,6 +56,12 @@ export function createManagedStageSupportPreviewObject(record, options = {}) {
     );
     stampPart(coil, visual, { role: 'warningCoilBelowPipe', popupRequired: true });
     group.add(coil);
+  } else if (visual.popupRequired) {
+    const warning = createWarningTriangle('!', warningScale);
+    warning.name = `${group.name}_POPUP_REQUIRED`;
+    warning.position.copy(center).add(new THREE.Vector3(0, genericLength * 0.75, 0));
+    stampPart(warning, visual, { role: 'popupRequired', popupRequired: true });
+    group.add(warning);
   } else {
     const tipSeparation = visual.gapMm > 0 && AXIAL_FAMILIES.has(visual.family) ? visual.gapMm * 10 : 0;
     for (const side of visual.coneSides) {

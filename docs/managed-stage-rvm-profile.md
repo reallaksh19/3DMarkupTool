@@ -95,6 +95,35 @@ node scripts/verify-managed-stage-rvm-reference-compat.mjs \
 
 The repository does not commit `RMSS.rvm`; the comparator accepts it as a local operator-supplied reference artifact.
 
+## Inspect generated artifact tables
+
+After generation and verification, run:
+
+```bash
+npm run inspect:managed-stage-rvm
+```
+
+For a custom artifact directory/base:
+
+```bash
+node scripts/inspect-managed-stage-rvm-artifact.mjs \
+  --dir=artifacts/managed-stage-rvm \
+  --base=BM_CII_INPUT_managed_stage \
+  --expect-bm-cii
+```
+
+The inspection command re-opens `.rvm`, `.att`, and `.audit.json`, verifies the strict gate again, then writes:
+
+- `BM_CII_INPUT_managed_stage.inspection.json`
+- `BM_CII_INPUT_managed_stage.primitives.csv`
+- `BM_CII_INPUT_managed_stage.elements.csv`
+- `BM_CII_INPUT_managed_stage.inspection.md`
+
+The CSV outputs are intended for quick review of the element-by-element stitch result:
+
+- `elements.csv` lists every staged component CNTB in order with `FROM_NODE`, `TO_NODE`, `TYPE`, `DTXR`, material, primitive count, primitive codes, and PRIM offsets.
+- `primitives.csv` lists every decoded PRIM with element name, local primitive name, primitive code, body length, chunk offset, material, center, direction, and decoded payload.
+
 ## Stitch manifest
 
 The generated audit includes `stitchManifest`, which is the element-by-element proof that the staged JSON was assembled into one RVM stream by stitching ordered CNTB element nodes, not by concatenating independent RVM binaries.
@@ -129,6 +158,7 @@ npm run verify:managed-stage-rvm
 npm run artifact:managed-stage-rvm
 npm run verify:managed-stage-rvm-artifact
 npm run verify:managed-stage-rvm-reference
+npm run inspect:managed-stage-rvm
 ```
 
 ## BM_CII expected strict counts

@@ -38,6 +38,9 @@ jobs:
       - name: Verify managed-stage RVM reference layout compatibility
         run: npm run verify:managed-stage-rvm-reference
 
+      - name: Inspect managed-stage RVM artifact
+        run: npm run inspect:managed-stage-rvm
+
       - name: Upload managed-stage RVM artifact
         uses: actions/upload-artifact@v4
         with:

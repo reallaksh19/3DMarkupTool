@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 
-const VERSION = 'canvas-tool-mode-guard-20260621';
+const VERSION = 'canvas-tool-mode-guard-20260621b';
 
 installCanvasToolModeGuard();
 
@@ -21,10 +21,18 @@ export function installCanvasToolModeGuard() {
     window.addEventListener(eventName, () => applySoon(eventName), { passive: true });
   });
 
+  window.addEventListener('pointerdown', (event) => {
+    if (event?.button === 0 && currentMode() !== 'orbit') applyGuardedControlMode('capture:pointerdown');
+  }, true);
+  window.addEventListener('pointerup', () => applySoon('capture:pointerup'), true);
+  window.addEventListener('pointercancel', () => applySoon('capture:pointercancel'), true);
+  window.addEventListener('blur', () => applySoon('window:blur'), true);
+
   window.addEventListener('keydown', (event) => {
     if (event.key !== 'Escape') return;
     window.setTimeout(() => {
       setActiveButton('select');
+      hardReleaseCanvasPointerState();
       applyGuardedControlMode('escape');
     }, 0);
   }, true);
@@ -53,26 +61,39 @@ function applyGuardedControlMode(reason = 'guard') {
   const controls = rt.controls;
   if (!controls || canvasToolLocked()) return false;
   const mode = currentMode();
+  const orbitMode = mode === 'orbit';
+  const panMode = mode === 'pan';
   controls.enabled = true;
   controls.enableZoom = true;
   controls.enablePan = true;
-  controls.enableRotate = mode === 'orbit';
+  controls.enableRotate = orbitMode;
   controls.mouseButtons = {
-    LEFT: mode === 'orbit' ? THREE.MOUSE.ROTATE : mode === 'pan' ? THREE.MOUSE.PAN : undefined,
+    LEFT: orbitMode ? THREE.MOUSE.ROTATE : panMode ? THREE.MOUSE.PAN : undefined,
     MIDDLE: THREE.MOUSE.DOLLY,
     RIGHT: THREE.MOUSE.PAN
   };
   const canvas = rt.renderer?.domElement;
-  if (canvas) canvas.dataset.canvasToolMode = mode;
-  window.__3D_MARKUP_CANVAS_TOOL_MODE_GUARD_LAST__ = { reason, mode };
+  if (canvas) {
+    canvas.dataset.canvasToolMode = mode;
+    canvas.dataset.leftMouseAction = orbitMode ? 'ROTATE' : panMode ? 'PAN' : 'NONE';
+  }
+  window.__3D_MARKUP_CANVAS_TOOL_MODE_GUARD_LAST__ = { reason, mode, leftMouseAction: orbitMode ? 'ROTATE' : panMode ? 'PAN' : 'NONE' };
   return true;
 }
 
 function currentMode() {
-  if (document.getElementById('measureBtn')?.classList.contains('active')) return 'measure';
-  if (document.getElementById('panToolBtn')?.classList.contains('active')) return 'pan';
-  if (document.getElementById('orbitToolBtn')?.classList.contains('active')) return 'orbit';
+  if (buttonActive('measureBtn')) return 'measure';
+  if (buttonActive('panToolBtn')) return 'pan';
+  if (buttonActive('orbitToolBtn')) return 'orbit';
   return 'select';
+}
+
+function buttonActive(id) {
+  const button = document.getElementById(id);
+  if (!button) return false;
+  return button.classList?.contains?.('active')
+    || button.classList?.contains?.('tool-active')
+    || button.getAttribute?.('aria-pressed') === 'true';
 }
 
 function setActiveButton(mode) {
@@ -82,8 +103,30 @@ function setActiveButton(mode) {
     if (!button) return;
     const active = candidate === mode;
     button.classList.toggle('active', active);
+    button.classList.toggle('tool-active', active);
     button.setAttribute('aria-pressed', active ? 'true' : 'false');
   });
+}
+
+function hardReleaseCanvasPointerState() {
+  const rt = runtime();
+  const canvas = rt.renderer?.domElement;
+  if (!canvas) return;
+  try {
+    for (let pointerId = 1; pointerId <= 16; pointerId += 1) canvas.releasePointerCapture?.(pointerId);
+  } catch {
+    // Some browsers throw for pointer IDs that are not captured; ignore.
+  }
+  // Re-asserting non-orbit buttons after a missed pointerup prevents OrbitControls from
+  // starting a new rotate gesture on the next left-drag in Select/Measure mode.
+  if (currentMode() !== 'orbit') {
+    rt.controls.enableRotate = false;
+    rt.controls.mouseButtons = {
+      LEFT: undefined,
+      MIDDLE: THREE.MOUSE.DOLLY,
+      RIGHT: THREE.MOUSE.PAN
+    };
+  }
 }
 
 function canvasToolLocked() {
@@ -102,11 +145,13 @@ function runtime() {
 
 function debugState() {
   const controls = runtime().controls;
+  const left = controls?.mouseButtons?.LEFT;
   return {
     version: VERSION,
     mode: currentMode(),
-    leftMouseAction: controls?.mouseButtons?.LEFT === THREE.MOUSE.ROTATE ? 'ROTATE' : controls?.mouseButtons?.LEFT === THREE.MOUSE.PAN ? 'PAN' : 'NONE',
+    leftMouseAction: left === THREE.MOUSE.ROTATE ? 'ROTATE' : left === THREE.MOUSE.PAN ? 'PAN' : 'NONE',
     selectDisablesLeftOrbit: true,
+    recognizesToolActiveClass: true,
     last: window.__3D_MARKUP_CANVAS_TOOL_MODE_GUARD_LAST__ || null
   };
 }

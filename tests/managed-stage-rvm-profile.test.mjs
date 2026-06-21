@@ -48,16 +48,20 @@ assert.equal(subgroup.reviewName, '/BM_CII-CU-PI-P');
 assert.equal(subgroup.children.length, 40);
 assert.equal(exportModel.audit.primitiveCount, 91);
 assert.equal(exportModel.audit.processingConfig.excludeBendsWhileProcessingInputXmlBasedJson, true);
+assert.equal(exportModel.audit.processingConfig.inputXmlBendTrimMaxContractFraction, 0.35);
 assert.equal(exportModel.audit.inputXmlBendExclusionAudit.code4BendsExcluded, 7);
 assert.equal(exportModel.audit.inputXmlBendExclusionAudit.genericCode8BendPrimitiveCount, 35);
 assert.equal(exportModel.audit.inputXmlBendExclusionAudit.nodeBasedReconstructedBendCount, 7);
 assert.equal(exportModel.audit.inputXmlBendExclusionAudit.chordFallbackBendCount, 0);
+assert.equal(exportModel.audit.inputXmlBendExclusionAudit.trimmedContractCount, 5);
+assert.equal(exportModel.audit.inputXmlBendExclusionAudit.trimApplicationCount, 5);
 assert.equal(exportModel.audit.inputXmlBranchFittingInferenceAudit.genericBranchFittingCount, 5);
 assert.equal(exportModel.audit.inputXmlBranchFittingInferenceAudit.genericBranchFittingPrimitiveCount, 15);
 assert.equal(exportPrimitives.filter((primitive) => primitive.kind === 'elbow').length, 0);
 assert.equal(exportPrimitives.filter((primitive) => primitive.kind === 'cylinder').length, 91);
 assert.equal(exportPrimitives.filter((primitive) => primitive.genericInputXmlBend).length, 35);
 assert.equal(exportPrimitives.filter((primitive) => primitive.genericInputXmlBranchFitting).length, 15);
+assert.equal(exportPrimitives.filter((primitive) => primitive.recipeTrimStartOffsetMm || primitive.recipeTrimEndOffsetMm).length, 5);
 
 const nativeBendModel = buildManagedStageRvmExportModel(profile, { excludeBendsWhileProcessingInputXmlBasedJson: false });
 const nativePrimitives = nativeBendModel.root.children[0].children[0].children.flatMap((node) => node.primitives);
@@ -83,10 +87,13 @@ assert.equal(result.audit.inputCounts.supportRecordsSkippedFromGeometry, 12);
 assert.equal(result.audit.inputCounts.statsRestraintsMismatch, true);
 assert.equal(result.audit.processingConfig.inputXmlBasedJson, true);
 assert.equal(result.audit.processingConfig.excludeBendsWhileProcessingInputXmlBasedJson, true);
+assert.equal(result.audit.processingConfig.inputXmlBendTrimMaxContractFraction, 0.35);
 assert.equal(result.audit.inputXmlBendExclusionAudit.code4BendsExcluded, 7);
 assert.equal(result.audit.inputXmlBendExclusionAudit.genericCode8BendPrimitiveCount, 35);
 assert.equal(result.audit.inputXmlBendExclusionAudit.nodeBasedReconstructedBendCount, 7);
 assert.equal(result.audit.inputXmlBendExclusionAudit.chordFallbackBendCount, 0);
+assert.equal(result.audit.inputXmlBendExclusionAudit.trimmedContractCount, 5);
+assert.equal(result.audit.inputXmlBendExclusionAudit.trimApplicationCount, 5);
 assert.equal(result.audit.inputXmlBranchFittingInferenceAudit.genericBranchFittingCount, 5);
 assert.equal(result.audit.inputXmlBranchFittingInferenceAudit.genericBranchFittingPrimitiveCount, 15);
 assert.equal(result.audit.primitiveHistogram[4] || 0, 0);
@@ -129,4 +136,4 @@ assert.throws(
   /stitchManifest\.allElementsMapped/
 );
 
-console.log('Managed-stage BM_CII InputXML node-based generic bend and inferred branch fitting RVM strict audit passed');
+console.log('Managed-stage BM_CII InputXML node-based generic bend, trimmed source spans, and inferred branch fitting RVM strict audit passed');

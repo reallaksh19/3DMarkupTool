@@ -20,7 +20,7 @@ assert.equal(isInputXmlBasedManagedStageProfile(profile), true);
 const defaultConfig = resolveManagedStageJsonProcessingConfig(profile);
 assert.equal(defaultConfig.excludeBendsWhileProcessingInputXmlBasedJson, true);
 assert.equal(defaultConfig.genericInputXmlBendRadiusMultiplier, 1.5);
-assert.equal(defaultConfig.inputXmlBendTrimMaxContractFraction, 0);
+assert.equal(defaultConfig.inputXmlBendTrimMaxContractFraction, 0.35);
 
 const nativeConfig = resolveManagedStageJsonProcessingConfig(profile, { excludeBendsWhileProcessingInputXmlBasedJson: false });
 assert.equal(nativeConfig.excludeBendsWhileProcessingInputXmlBasedJson, false);
@@ -37,16 +37,29 @@ assertManagedStageInputXmlBendExclusionAudit(excluded.audit, {
   chordFallbackBendCount: 0
 });
 assert.equal(excluded.audit.mode, 'inputxml-json-node-based-1p5d-reconstructed-elbows');
-assert.equal(excluded.audit.trimMaxContractFraction, 0);
-assert.equal(excluded.audit.trimmedContractCount, 0);
-assert.equal(excluded.audit.trimApplicationCount, 0);
+assert.equal(excluded.audit.trimMaxContractFraction, 0.35);
+assert.equal(excluded.audit.trimmedContractCount, 5);
+assert.equal(excluded.audit.trimApplicationCount, 5);
 assert.equal(excluded.audit.genericBends.every((bend) => bend.emittedAs === 'code8-node-based-1p5d-reconstructed-elbow-cylinders'), true);
 assert.equal(excluded.audit.genericBends.every((bend) => bend.reconstructionMode === 'node-based-direction-change'), true);
 assert.equal(excluded.audit.genericBends.every((bend) => bend.segmentCount === 5), true);
 assert.equal(excluded.audit.genericBends.some((bend) => /fallback/i.test(`${bend.emittedAs} ${bend.reconstructionMode}`)), false);
 assert.equal(excluded.audit.genericBends.every((bend) => bend.reconstructionNode), true);
-assert.equal(excluded.contracts.filter((contract) => contract.inputXmlBendTrimmed).length, 0);
-assert.equal(excluded.contracts.filter((contract) => contract.rvmTrimStartOffsetMm || contract.rvmTrimEndOffsetMm).length, 0);
+assert.equal(excluded.contracts.filter((contract) => contract.inputXmlBendTrimmed).length, 5);
+assert.equal(excluded.contracts.filter((contract) => contract.rvmTrimStartOffsetMm || contract.rvmTrimEndOffsetMm).length, 5);
+assert.deepEqual(
+  excluded.contracts
+    .filter((contract) => contract.inputXmlBendTrimmed)
+    .map((contract) => contract.name)
+    .sort(),
+  [
+    'PE_015_PIPE_130_TO_140',
+    'PE_019_PIPE_170_TO_180',
+    'PE_022_PIPE_200_TO_205',
+    'PE_025_PIPE_220_TO_230',
+    'PE_030_PIPE_250_TO_255'
+  ]
+);
 assert.equal(excluded.contracts.filter((contract) => contract.excludeCode4Bend).length, 7);
 
 const firstBend = excluded.contracts.find((contract) => contract.name === 'PE_014_BEND_120_TO_130');
@@ -57,11 +70,17 @@ assert.equal(firstBend.genericInputXmlBend.genericBendRadiusMm, 171.45);
 assert.equal(firstBend.genericInputXmlBend.segments.length, 5);
 assert.ok(firstBend.genericInputXmlBend.segments.every((segment) => segment.lengthMm > 0));
 assert.match(firstBend.genericInputXmlBend.segments[0].role, /^node-arc-/);
+assert.deepEqual(firstBend.genericInputXmlBend.nodePlanTrimApplications.map((entry) => entry.contractName), ['PE_015_PIPE_130_TO_140']);
+
+const cappedTrimContract = excluded.contracts.find((contract) => contract.name === 'PE_019_PIPE_170_TO_180');
+assert.equal(cappedTrimContract.rvmTrimStartOffsetMm, 53.2);
+assert.equal(cappedTrimContract.inputXmlBendTrimSources[0].cappedByContractLength, true);
 
 const chainedBend = excluded.contracts.find((contract) => contract.name === 'PE_017_BEND_150_TO_160');
 assert.equal(chainedBend.genericInputXmlBend.reconstructionNode, '160');
 assert.equal(chainedBend.genericInputXmlBend.outgoingSource, 'PE_018_BEND_160_TO_170');
 assert.match(chainedBend.genericInputXmlBend.segments[0].role, /^node-arc-/);
+assert.deepEqual(chainedBend.genericInputXmlBend.nodePlanTrimApplications, []);
 
 const model = buildManagedStageRvmExportModel(profile);
 const primitives = model.root.children[0].children[0].children.flatMap((node) => node.primitives);
@@ -69,13 +88,13 @@ assert.equal(model.audit.inputXmlBendExclusionAudit.code4BendsExcluded, 7);
 assert.equal(model.audit.inputXmlBendExclusionAudit.genericCode8BendPrimitiveCount, 35);
 assert.equal(model.audit.inputXmlBendExclusionAudit.nodeBasedReconstructedBendCount, 7);
 assert.equal(model.audit.inputXmlBendExclusionAudit.chordFallbackBendCount, 0);
-assert.equal(model.audit.inputXmlBendExclusionAudit.trimmedContractCount, 0);
-assert.equal(model.audit.inputXmlBendExclusionAudit.trimApplicationCount, 0);
+assert.equal(model.audit.inputXmlBendExclusionAudit.trimmedContractCount, 5);
+assert.equal(model.audit.inputXmlBendExclusionAudit.trimApplicationCount, 5);
 assert.equal(primitives.filter((primitive) => primitive.kind === 'elbow').length, 0);
 assert.equal(primitives.filter((primitive) => primitive.kind === 'cylinder').length, 91);
 assert.equal(primitives.filter((primitive) => primitive.genericInputXmlBend).length, 35);
 assert.equal(primitives.filter((primitive) => primitive.genericInputXmlBranchFitting).length, 15);
-assert.equal(primitives.filter((primitive) => primitive.recipeTrimStartOffsetMm || primitive.recipeTrimEndOffsetMm).length, 0);
+assert.equal(primitives.filter((primitive) => primitive.recipeTrimStartOffsetMm || primitive.recipeTrimEndOffsetMm).length, 5);
 assert.equal(primitives.filter((primitive) => /^inputxml-generic-1p5d-bend-node-arc-/.test(primitive.primitiveRole)).length, 35);
 
 const nativeModel = buildManagedStageRvmExportModel(profile, { excludeBendsWhileProcessingInputXmlBasedJson: false });
@@ -85,4 +104,4 @@ assert.equal(nativePrimitives.filter((primitive) => primitive.kind === 'elbow').
 assert.equal(nativePrimitives.filter((primitive) => primitive.kind === 'cylinder').length, 56);
 assert.equal(nativePrimitives.filter((primitive) => primitive.genericInputXmlBranchFitting).length, 15);
 
-console.log('Managed-stage InputXML node-based bend reconstruction, source-coordinate preservation, and branch fittings passed');
+console.log('Managed-stage InputXML node-based bend reconstruction, RVM trim, source-coordinate preservation, and branch fittings passed');

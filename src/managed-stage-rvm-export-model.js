@@ -1,4 +1,11 @@
 import {
+  buildManagedStageGeometryContractSet
+} from './managed-stage-geometry-contract.js';
+import {
+  applyManagedStageElbowTangentHints,
+  auditManagedStageElbowTangentHints
+} from './managed-stage-elbow-tangent-hints.js';
+import {
   MANAGED_STAGE_RVM_MATERIALS,
   managedStageComponentClass,
   managedStageMaterialForClass,
@@ -7,7 +14,10 @@ import {
 import { point3 } from './managed-stage-topology-audit.js';
 
 export function buildManagedStageRvmExportModel(profile) {
-  const elements = profile.geometryRecords.map((record, index) => elementNode(record, index));
+  const contractSet = buildManagedStageGeometryContractSet(profile);
+  const contracts = applyManagedStageElbowTangentHints(contractSet.contracts);
+  const tangentHintAudit = auditManagedStageElbowTangentHints(contracts);
+  const elements = contracts.map((contract, index) => elementNode(contract, index));
   return {
     root: groupNode('/BM_CII', 'ROOT', 'ROOT', [
       groupNode('/BM_CII-CU-PI', 'DISCIPLINE', 'PIPING', [
@@ -26,7 +36,9 @@ export function buildManagedStageRvmExportModel(profile) {
       schema: 'ManagedStageRvmExportModel.v1',
       componentCount: elements.length,
       supportGeometryEmitted: false,
-      primitiveCount: elements.reduce((sum, node) => sum + node.primitives.length, 0)
+      primitiveCount: elements.reduce((sum, node) => sum + node.primitives.length, 0),
+      geometryContractAudit: contractSet.audit,
+      elbowTangentHintAudit: tangentHintAudit
     }
   };
 }
@@ -43,7 +55,41 @@ function groupNode(reviewName, type, componentClass, children) {
   };
 }
 
-function elementNode(record, index) {
+function elementNode(recordOrContract, index) {
+  if (recordOrContract?.schema === 'ManagedStageGeometryContract.v1') return elementNodeFromContract(recordOrContract, index);
+  return elementNodeFromRecord(recordOrContract, index);
+}
+
+function elementNodeFromContract(contract, index) {
+  const componentClass = managedStageComponentClass(contract);
+  const material = managedStageMaterialForClass(componentClass);
+  return {
+    name: contract.name,
+    reviewName: contract.name,
+    material,
+    position: contract.centerMm,
+    attributes: {
+      NAME: contract.name,
+      TYPE: contract.type,
+      RAW_TYPE: contract.rawType,
+      DTXR: contract.dtxr,
+      FROM_NODE: contract.fromNode,
+      TO_NODE: contract.toNode,
+      MATERIAL_ID: String(material),
+      NOMINAL_SIZE: `${contract.diameterMm}mm`,
+      DIAMETER: `${contract.diameterMm}mm`,
+      WALL_THICK: contract.wallThickMm ? `${contract.wallThickMm}mm` : '',
+      COMPONENT_CLASS: componentClass,
+      ELEMENT_INDEX: String(index + 1),
+      SOURCE_ELEMENT_ID: contract.sourceElementId || contract.elementId || contract.name,
+      SOURCE_FORMAT: contract.sourceFormat || 'inputxml-managed-stage/v1'
+    },
+    primitives: planManagedStagePrimitives(contract),
+    children: []
+  };
+}
+
+function elementNodeFromRecord(record, index) {
   const componentClass = managedStageComponentClass(record);
   const material = managedStageMaterialForClass(componentClass);
   const position = midpoint(point3(record.attributes.APOS, `${record.name}.APOS`), point3(record.attributes.LPOS, `${record.name}.LPOS`));

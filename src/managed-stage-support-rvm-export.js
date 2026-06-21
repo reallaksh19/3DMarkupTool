@@ -149,6 +149,7 @@ function supportCylinder({ name, localName, startMm, endMm, radiusMm, record, vi
   });
   return {
     ...primitive,
+    ...extra,
     recipeName: 'managed-stage-rvm-support-overlay-cylinder',
     managedStageSupportRvmPrimitive: true,
     supportFamily: visual.family,
@@ -165,12 +166,11 @@ function springCanRods(name, center, odMm, record, visual) {
   const length = Math.max(odMm * 1.35, 80);
   const radius = clamp(odMm * 0.045, 2.5, 9);
   const bottom = add(center, [0, -length, 0]);
-  const rods = [
+  return [
     supportCylinder({ name: `${name}_SPRING_CAN_VERTICAL`, localName: 'spring-can-warning-vertical', startMm: center, endMm: bottom, radiusMm: radius, record, visual, role: 'spring-can-warning-vertical', extra: { supportWarningMarker: true } }),
     supportCylinder({ name: `${name}_SPRING_CAN_BAND_1`, localName: 'spring-can-warning-band-1', startMm: add(bottom, [-odMm * 0.35, 0, 0]), endMm: add(bottom, [odMm * 0.35, 0, 0]), radiusMm: radius, record, visual, role: 'spring-can-warning-band', extra: { supportWarningMarker: true } }),
     supportCylinder({ name: `${name}_SPRING_CAN_BAND_2`, localName: 'spring-can-warning-band-2', startMm: add(bottom, [0, length * 0.32, -odMm * 0.35]), endMm: add(bottom, [0, length * 0.32, odMm * 0.35]), radiusMm: radius, record, visual, role: 'spring-can-warning-band', extra: { supportWarningMarker: true } })
   ];
-  return rods;
 }
 
 function fallbackCrossRods(name, center, length, radius, record, visual, warning = false) {
@@ -211,8 +211,10 @@ function adaptRecordForSupportResolver(record) {
 
 function pointOrNull(value) {
   if (!value || typeof value !== 'object') return null;
-  const point = [Number(value.x), Number(value.y), Number(value.z)];
-  return point.every(Number.isFinite) ? point : null;
+  const x = Number(value.x);
+  const y = Number(value.y);
+  const z = Number(value.z);
+  return [x, y, z].every(Number.isFinite) ? { x, y, z } : null;
 }
 
 function toPoint(value) {

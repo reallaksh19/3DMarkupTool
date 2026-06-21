@@ -74,4 +74,7 @@ function bendRecord({ name, start, end, radius, angleDeg, diameter }) {
 }
 
 function xyz([x, y, z]) { return { x, y, z }; }
-function round6(value) { return Number(Number(value).toFixed(6)); }
+function round6(value) {
+  const rounded = Number(Number(value).toFixed(6));
+  return Object.is(rounded, -0) ? 0 : rounded;
+}

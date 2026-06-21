@@ -45,8 +45,8 @@ function bmCiiExpectations() {
   return {
     geometryComponents: 40,
     supportRecordsSkippedFromGeometry: 12,
-    code4: 7,
-    code8: 41,
+    code4: 0,
+    code8: 48,
     cntbCount: 43,
     primCount: 48
   };
@@ -59,6 +59,8 @@ function buildSummary(sourceLabel, audit) {
     strictGateOk: audit.managedStageStrictGate?.ok === true,
     generationMode: audit.generationMode,
     units: audit.units,
+    processingConfig: audit.processingConfig,
+    inputXmlBendExclusion: audit.inputXmlBendExclusionAudit,
     geometryComponents: audit.inputCounts.geometryComponents,
     supportRecordsSkippedFromGeometry: audit.inputCounts.supportRecordsSkippedFromGeometry,
     statsRestraintsMismatch: audit.inputCounts.statsRestraintsMismatch,
@@ -71,6 +73,7 @@ function buildSummary(sourceLabel, audit) {
     branchNodes: audit.topology.branchNodes,
     terminalNodes: audit.topology.terminalNodes,
     torusOrientationAssumptions: audit.torusOrientationAssumptions.length,
+    genericInputXmlBendAssumptions: audit.genericInputXmlBendAssumptions?.length || 0,
     rvmBytes: audit.rvmBytes,
     attBytes: audit.attBytes,
     auditOutWritten: Boolean(auditOut)

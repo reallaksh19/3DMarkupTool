@@ -4,6 +4,7 @@ import fs from 'node:fs';
 const loader = fs.readFileSync('src/app-loader.js', 'utf8');
 const controller = fs.readFileSync('src/managed-stage-json-ui-controller.js', 'utf8');
 const sampleController = fs.readFileSync('src/managed-stage-bm-cii-json-sample-controller.js', 'utf8');
+const viewerApiBridge = fs.readFileSync('src/managed-stage-viewer-api-bridge.js', 'utf8');
 const sampleData = fs.readFileSync('src/managed-stage-bm-cii-json-sample-data.js', 'utf8');
 const rawPreview = fs.readFileSync('src/managed-stage-preview-scene.js', 'utf8');
 const supportVisualResolver = fs.readFileSync('src/managed-stage-support-visual-resolver.js', 'utf8');
@@ -47,12 +48,19 @@ assert.match(controller, /Managed-stage preview coordinate audit/);
 assert.doesNotMatch(controller, /managedStageJsonFile/);
 
 assert.match(sampleController, /ManagedStageBmCiiJsonSampleController\.v1/);
+assert.match(sampleController, /import '\.\/managed-stage-viewer-api-bridge\.js';/);
 assert.match(sampleController, /loadManagedStageJsonSampleBtn/);
 assert.match(sampleController, /Load BM_CII JSON sample/);
 assert.match(sampleController, /createBmCiiManagedStageSampleJson/);
 assert.match(sampleController, /managedStageApi\.loadText\(sourceText, SAMPLE_SOURCE_NAME\)/);
 assert.doesNotMatch(sampleController, /modelFileInput\.click/);
 assert.doesNotMatch(sampleController, /fetch\(SAMPLE_URL/);
+
+assert.match(viewerApiBridge, /ManagedStageViewerApiBridge\.v1/);
+assert.match(viewerApiBridge, /__THREED_MARKUP_VIEWER__/);
+assert.match(viewerApiBridge, /setModelRoot\(modelRoot, meta = \{\}\)/);
+assert.match(viewerApiBridge, /clearModelRoot\(meta = \{\}\)/);
+assert.match(viewerApiBridge, /fitRuntimeModel\(runtime, modelRoot\)/);
 
 assert.match(sampleData, /BM_CII_INPUT_managed_stage\.json/);
 assert.match(sampleData, /inputxml-managed-stage\/v1/);
@@ -91,5 +99,6 @@ assert.match(supportVisualResolver, /ODx2\/3 applies only to final axial/);
 
 await import('./managed-stage-preview-coordinate-preservation.test.mjs');
 await import('./managed-stage-support-visual-resolver.test.mjs');
+await import('./managed-stage-viewer-api-bridge.test.mjs');
 
 console.log('unified InputXML / managed-stage JSON UI uses coordinate-preserving preview pipeline and support visual resolver');

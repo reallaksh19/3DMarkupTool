@@ -9,6 +9,7 @@ const NON_BLOCKING_MANAGED_STAGE_AUDIT_PATTERNS = Object.freeze([
   '^expected skipped support records:',
   '^expected support records emitted to RVM:',
   '^expected support RVM primitive count:',
+  '^expected code 1 pyramid primitives:',
   '^expected code 4 torus primitives:',
   '^expected code 8 cylinder primitives:',
   '^expected CNTB count:',
@@ -19,7 +20,8 @@ const BM_CII_INPUTXML_JSON_EXPECTATIONS = Object.freeze({
   supportRecordsSkippedFromGeometry: 12,
   supportRecordsEmittedToRvm: 12,
   supportRvmPrimitiveCount: 25,
-  primitiveCodeCounts: { 4: 0, 8: 116 },
+  primitiveCodeCounts: { 1: 17, 4: 0, 8: 99 },
+  code1: 17,
   cntbCount: 56,
   primCount: 116,
   forbiddenPrimitiveCodesPresent: [],
@@ -222,17 +224,6 @@ function installManagedStageButtonInterceptors(modelFileInput) {
     downloadBlob(JSON.stringify(managedStageUiState.artifact.audit, null, 2), `${managedStageUiState.basename}.audit.json`, 'application/json');
     return true;
   });
-  captureClick('clearBtn', () => {
-    if (!managedStageUiState.artifact && !managedStageUiState.modelRoot) return false;
-    clearManagedStagePreview();
-    return false;
-  });
-
-  const loadSampleBtn = document.getElementById('loadSampleBtn');
-  loadSampleBtn?.addEventListener('click', () => resetManagedStageStateOnly(), true);
-  modelFileInput?.addEventListener('click', () => {
-    resetManagedStageStateOnly();
-  }, true);
 }
 
 function captureClick(id, handler) {
@@ -244,32 +235,19 @@ function captureClick(id, handler) {
   }, true);
 }
 
-function showManagedStagePreview(modelRoot) {
-  const viewer = getViewerApi();
-  if (!viewer?.setModelRoot) throw new Error('Viewer API unavailable for managed-stage preview');
-  const previous = managedStageUiState.modelRoot;
-  managedStageUiState.modelRoot = modelRoot;
-  viewer.setModelRoot(modelRoot, { source: 'managed-stage-json' });
-  if (previous && previous !== modelRoot) disposeObject(previous);
+function showManagedStagePreview(root) {
+  const api = window.__THREED_MARKUP_VIEWER__ || window.__viewerApi;
+  if (!api?.setModelRoot) throw new Error('Viewer API unavailable for managed-stage preview');
+  clearManagedStagePreview();
+  managedStageUiState.modelRoot = root;
+  api.setModelRoot(root);
 }
 
 function clearManagedStagePreview() {
-  const viewer = getViewerApi();
-  if (viewer?.clearModelRoot) viewer.clearModelRoot({ source: 'managed-stage-json' });
-  disposeObject(managedStageUiState.modelRoot);
-  managedStageUiState.sourceText = '';
-  managedStageUiState.sourceName = '';
-  managedStageUiState.basename = 'managed-stage';
-  managedStageUiState.artifact = null;
+  if (!managedStageUiState.modelRoot) return;
+  const api = window.__THREED_MARKUP_VIEWER__ || window.__viewerApi;
+  if (api?.clearModelRoot) api.clearModelRoot(managedStageUiState.modelRoot);
   managedStageUiState.modelRoot = null;
-  setStatus('Ready');
-}
-
-function resetManagedStageStateOnly() {
-  managedStageUiState.sourceText = '';
-  managedStageUiState.sourceName = '';
-  managedStageUiState.basename = 'managed-stage';
-  managedStageUiState.artifact = null;
 }
 
 function enableManagedStageDownloads() {
@@ -280,81 +258,40 @@ function enableManagedStageDownloads() {
 }
 
 function updateDrawerSummary(audit) {
-  const drawer = document.getElementById('conversionDrawer');
-  if (!drawer) return;
-  drawer.dataset.managedStageJsonLoaded = 'true';
-  drawer.dataset.managedStagePrimitiveCount = String(audit?.rvmPrimitivePayloadContract?.primitiveCount || 0);
-  drawer.dataset.managedStageGeometryComponents = String(audit?.inputCounts?.geometryComponents || 0);
+  const target = document.getElementById('conversionSummary') || document.getElementById('conversionStatus');
+  if (!target || !audit) return;
+  const counts = audit.inputCounts || {};
+  const histogram = audit.primitiveHistogram || {};
+  target.textContent = `Managed JSON: ${counts.geometryComponents || 0} geometry, ${counts.supportRecordsSkippedFromGeometry || 0} supports, RVM primitives ${audit.rvmPrimitivePayloadContract?.primitiveCount || audit.chunkHierarchy?.primCount || 0} (code8=${histogram[8] || 0}, code1=${histogram[1] || 0})`;
+}
+
+function showManagedStageAuditWarnings(gate = {}) {
+  const warnings = gate?.nonBlockingAuditIssues || [];
+  if (!warnings.length) return;
+  const text = `Managed-stage audit warning: ${warnings.length} non-geometry mismatch${warnings.length === 1 ? '' : 'es'}; export continued.`;
+  log(`${text} ${warnings.join('; ')}`);
+  showToast(text);
+}
+
+function showToast(text) {
+  const toast = document.createElement('div');
+  toast.className = 'managed-stage-audit-toast';
+  toast.textContent = text;
+  toast.style.cssText = 'position:fixed;right:16px;bottom:16px;max-width:360px;padding:10px 12px;border-radius:10px;background:rgba(20,29,43,.92);color:#f5d78a;font:12px/1.4 system-ui,sans-serif;box-shadow:0 8px 30px rgba(0,0,0,.28);z-index:99999;pointer-events:none;';
+  document.body.appendChild(toast);
+  window.setTimeout(() => toast.remove(), 6500);
 }
 
 function logManagedStageSummary(audit) {
-  const histogram = audit?.primitiveHistogram || {};
-  log(`Managed-stage RVM ready: geometry=${audit?.inputCounts?.geometryComponents || 0}, support skipped=${audit?.inputCounts?.supportRecordsSkippedFromGeometry || 0}, support exported=${audit?.inputCounts?.supportRecordsEmittedToRvm || 0}, PRIM=${audit?.rvmPrimitivePayloadContract?.primitiveCount || 0}, code4=${histogram[4] || 0}, code8=${histogram[8] || 0}`);
+  if (!audit) return;
+  const counts = audit.inputCounts || {};
+  const histogram = audit.primitiveHistogram || {};
+  log(`Managed-stage RVM: geometry=${counts.geometryComponents || 0}, supports=${counts.supportRecordsSkippedFromGeometry || 0}, emittedSupports=${counts.supportRecordsEmittedToRvm || 0}, PRIM=${audit.chunkHierarchy?.primCount || 0}, code1=${histogram[1] || 0}, code8=${histogram[8] || 0}`);
 }
 
 function logManagedStagePreviewCoordinateAudit(audit) {
   if (!audit) return;
-  const failures = Array.isArray(audit.failures) ? audit.failures : [];
-  log(`Managed-stage preview audit: sourceLines=${audit.sourceLineCount || 0}, supports=${audit.supportPreviewOnlyCount || 0}, bends=${audit.bendSourceLineCount || 0}, elbowCues=${audit.elbowCueCount || 0}, failures=${failures.length}`);
-  for (const failure of failures.slice(0, 10)) log(`Managed-stage preview audit issue: ${failure.recordName || failure.name || 'unknown'} — ${failure.reason || failure.status || 'failed'}`);
-}
-
-function showManagedStageAuditWarnings(gate) {
-  const warnings = Array.isArray(gate?.nonBlockingAuditIssues) ? gate.nonBlockingAuditIssues : [];
-  if (!warnings.length) return;
-  const summary = warnings.slice(0, 3).join('; ');
-  log(`Managed-stage non-blocking audit warning: ${summary}`);
-  showToast(`Managed-stage RVM exported with ${warnings.length} non-geometry audit warning${warnings.length === 1 ? '' : 's'}. Geometry was not blocked.`, summary);
-  window.dispatchEvent(new CustomEvent('viewer:managed-stage-audit-warning', {
-    detail: { warningCount: warnings.length, warnings }
-  }));
-}
-
-function showToast(title, detail = '') {
-  if (typeof document === 'undefined') return;
-  const toast = document.createElement('div');
-  toast.className = 'managed-stage-audit-toast';
-  toast.setAttribute('role', 'status');
-  toast.setAttribute('aria-live', 'polite');
-  toast.textContent = detail ? `${title} ${detail}` : title;
-  Object.assign(toast.style, {
-    position: 'fixed',
-    right: '16px',
-    bottom: '16px',
-    maxWidth: '420px',
-    padding: '10px 12px',
-    borderRadius: '10px',
-    background: 'rgba(20, 24, 32, 0.92)',
-    color: '#f4f7fb',
-    font: '12px/1.4 system-ui, sans-serif',
-    boxShadow: '0 10px 30px rgba(0,0,0,0.25)',
-    zIndex: '99999',
-    pointerEvents: 'none'
-  });
-  document.body.appendChild(toast);
-  window.setTimeout(() => toast.remove(), 8000);
-}
-
-function getViewerApi() {
-  return window.__THREED_MARKUP_VIEWER__ || window.__viewerApi || null;
-}
-
-function looksLikeManagedStageJson(text, name = '') {
-  if (!isJsonFileName(name) && !/^\s*[{[]/.test(text || '')) return false;
-  return text.includes(MANAGED_STAGE_SCHEMA) || text.includes(MANAGED_STAGE_PROFILE);
-}
-
-function isJsonFileName(name = '') {
-  return /\.json$/i.test(name || '');
-}
-
-function bmCiiLikeSourceName(name = '') {
-  return /BM_CII_INPUT_managed_stage/i.test(name || '');
-}
-
-function basenameWithoutExtension(name = '') {
-  const clean = String(name || 'managed-stage').split(/[\\/]/).pop() || 'managed-stage';
-  return clean.replace(/\.[^.]+$/, '') || 'managed-stage';
+  log(`Managed-stage preview audit: sourceLines=${audit.sourceLineCount}, supports=${audit.supportPreviewOnlyCount}, unexplainedNonBendDelta=${audit.unexplainedNonBendDeltaCount || 0}`);
 }
 
 function downloadBlob(data, filename, type) {
@@ -366,28 +303,51 @@ function downloadBlob(data, filename, type) {
   document.body.appendChild(a);
   a.click();
   a.remove();
-  URL.revokeObjectURL(url);
+  setTimeout(() => URL.revokeObjectURL(url), 500);
 }
 
-function setStatus(text) {
-  const status = document.getElementById('runtimeStatus');
-  if (status) status.textContent = text;
+function looksLikeManagedStageJson(text, name = '') {
+  if (!isJsonFileName(name)) return false;
+  try {
+    const json = JSON.parse(text);
+    return json?.schema === MANAGED_STAGE_SCHEMA && json?.profile === MANAGED_STAGE_PROFILE;
+  } catch {
+    return false;
+  }
+}
+
+function isJsonFileName(name = '') {
+  return /\.json$/i.test(String(name));
+}
+
+function bmCiiLikeSourceName(name = '') {
+  return /BM_CII_INPUT_managed_stage/i.test(String(name));
+}
+
+function basenameWithoutExtension(name = '') {
+  return String(name || 'managed-stage').replace(/\.[^.]+$/, '') || 'managed-stage';
+}
+
+function resetManagedStageStateOnly() {
+  managedStageUiState.sourceText = '';
+  managedStageUiState.sourceName = '';
+  managedStageUiState.basename = 'managed-stage';
+  managedStageUiState.artifact = null;
 }
 
 function updateInputStatus(text) {
-  const status = document.getElementById('inputStatusText');
+  const status = document.getElementById('inputStatus');
+  if (status) status.textContent = text;
+}
+
+function setStatus(text) {
+  const status = document.getElementById('runtimeStatus') || document.getElementById('conversionStatus');
   if (status) status.textContent = text;
 }
 
 function log(message) {
-  if (window.appendLog) window.appendLog(message);
-  else console.info(`[3DMarkupTool] ${message}`);
-}
-
-function disposeObject(object) {
-  object?.traverse?.((child) => {
-    if (child.geometry) child.geometry.dispose?.();
-    if (Array.isArray(child.material)) child.material.forEach((material) => material.dispose?.());
-    else child.material?.dispose?.();
-  });
+  const logEl = document.getElementById('log');
+  const line = `[${new Date().toLocaleTimeString()}] ${message}`;
+  if (logEl) logEl.textContent += `${line}\n`;
+  else console.log(line);
 }

@@ -1,5 +1,5 @@
 const FORBIDDEN_CODES = Object.freeze([2, 5, 6, 7, 11]);
-const ALLOWED_CODES = Object.freeze([4, 8]);
+const ALLOWED_CODES = Object.freeze([1, 4, 8]);
 const DEFAULT_GAP_TOLERANCE_MM = 0.001;
 
 export function assertManagedStageRvmAuditGate(audit = {}, expectations = {}) {
@@ -56,6 +56,7 @@ export function assertManagedStageRvmAuditGate(audit = {}, expectations = {}) {
   checkExpected(expectations.supportRecordsSkippedFromGeometry, inputCounts.supportRecordsSkippedFromGeometry, 'expected skipped support records', issues);
   checkExpected(expectations.supportRecordsEmittedToRvm, inputCounts.supportRecordsEmittedToRvm, 'expected support records emitted to RVM', issues);
   checkExpected(expectations.supportRvmPrimitiveCount, supportExport.supportPrimitiveCount, 'expected support RVM primitive count', issues);
+  checkExpected(expectations.code1, primitiveHistogram[1] || 0, 'expected code 1 pyramid primitives', issues);
   checkExpected(expectations.code4, primitiveHistogram[4] || 0, 'expected code 4 torus primitives', issues);
   checkExpected(expectations.code8, primitiveHistogram[8] || 0, 'expected code 8 cylinder primitives', issues);
   checkExpected(expectations.cntbCount, chunkHierarchy.cntbCount, 'expected CNTB count', issues);

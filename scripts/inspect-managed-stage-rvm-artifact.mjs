@@ -134,10 +134,12 @@ function validateInspection({ audit, chunks, cntbRecords, primitives, attHierarc
   if (attHierarchy.names.length !== cntbRecords.length) issues.push('ATT NEW count mismatch vs CNTB count');
   if ((audit.stitchManifest?.elements || []).length !== elementRows.length) issues.push('stitch element row count mismatch');
   if ((audit.stitchManifest?.primitiveCount || 0) !== primitiveRows.length) issues.push('stitch primitive row count mismatch');
-  const first = chunks[0]?.id;
-  const second = chunks[1]?.id;
-  const last = chunks[chunks.length - 1]?.id;
-  if (first !== 'HEAD' || second !== 'MODL' || last !== 'END:') issues.push(`unexpected chunk envelope ${first}/${second}/${last}`);
+  const first = normalizeEnvelopeChunkId(chunks[0]?.id);
+  const second = normalizeEnvelopeChunkId(chunks[1]?.id);
+  const last = normalizeEnvelopeChunkId(chunks[chunks.length - 1]?.id);
+  if (first !== 'HEAD' || second !== 'MODL' || last !== 'END:') {
+    issues.push(`unexpected chunk envelope ${chunks[0]?.id}/${chunks[1]?.id}/${chunks[chunks.length - 1]?.id}`);
+  }
   for (let index = 0; index < cntbRecords.length; index += 1) {
     if (cntbRecords[index].name !== attHierarchy.names[index]) issues.push(`ATT/CNTB name mismatch at ${index + 1}`);
   }
@@ -145,6 +147,13 @@ function validateInspection({ audit, chunks, cntbRecords, primitives, attHierarc
     if (row.expectedCode && Number(row.expectedCode) !== Number(row.code)) issues.push(`primitive code mismatch at PRIM ${row.primIndex}`);
   }
   return issues;
+}
+
+function normalizeEnvelopeChunkId(id) {
+  if (id === 'H') return 'HEAD';
+  if (id === 'M') return 'MODL';
+  if (id === 'E') return 'END:';
+  return id;
 }
 
 function scanChunkIndex(buffer) {

@@ -76,4 +76,6 @@ assert.match(rawPreview, /managedStageVisibleFallback/);
 assert.match(rawPreview, /native raw managed-stage preview scene already applied/);
 assert.match(rawPreview, /exportedRvmGeometry: false/);
 
+await import('./managed-stage-preview-coordinate-preservation.test.mjs');
+
 console.log('unified InputXML / managed-stage JSON UI uses coordinate-preserving preview pipeline');

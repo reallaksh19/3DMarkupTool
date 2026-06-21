@@ -67,7 +67,7 @@ export function verifyManagedStageRvmReferenceCompatibility({ artifactDir, base,
     requireEqual(audit.inputXmlBendExclusionAudit?.genericCode8BendPrimitiveCount || 0, 7, 'BM_CII source-route bend primitive count', issues);
     requireEqual(audit.inputXmlBendExclusionAudit?.sourceRouteBendCount || 0, 7, 'BM_CII source-route bend count', issues);
     requireEqual(audit.inputXmlNodeLocalElbowAudit?.genericNodeLocalElbowPrimitiveCount || 0, 28, 'BM_CII node-local elbow primitive count', issues);
-    requireEqual(audit.inputXmlBranchFittingInferenceAudit?.genericBranchFittingCount || 0, 5, 'BM_CII inferred branch fitting count', issues);
+    requireEqual(audit.inputXmlBranchFittingInferenceAudit?.genericBranchFittingCount || 0, 15, 'BM_CII inferred branch fitting primitive count', issues);
   }
 
   if (issues.length) throw new Error(`Managed-stage RVM reference compatibility failed: ${issues.join('; ')}`);
@@ -100,6 +100,6 @@ function requireEqual(actual, expected, label, issues) {
   if (actual !== expected) issues.push(`${label}: expected ${expected}, got ${actual}`);
 }
 function valueAfterPrefix(values, prefix) {
-  const entry = values.find((value) => value.startsWith(prefix));
+  const entry = args.find((value) => value.startsWith(prefix));
   return entry ? entry.slice(prefix.length) : '';
 }

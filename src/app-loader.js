@@ -1,10 +1,12 @@
-const APP_LOADER_VERSION = 'tool-fixes-v2-20260620';
+const APP_LOADER_VERSION = 'tool-fixes-v2-20260621';
 const APP_MODULE_URL = `./app.js?v=${APP_LOADER_VERSION}`;
 const CLIP_HOOK_MODULE_URL = `./clip-render-hook.js?v=${APP_LOADER_VERSION}`;
 const FRESH_CLIP_MODULE_URL = `./fresh-clip-controller.js?v=${APP_LOADER_VERSION}`;
+const CANVAS_TOOL_MODE_GUARD_MODULE_URL = `./canvas-tool-mode-guard.js?v=${APP_LOADER_VERSION}`;
 const MANAGED_STAGE_JSON_UI_MODULE_URL = `./managed-stage-json-ui-controller.js?v=${APP_LOADER_VERSION}`;
 const MANAGED_STAGE_JSON_SAMPLE_MODULE_URL = `./managed-stage-bm-cii-json-sample-controller.js?v=${APP_LOADER_VERSION}`;
 const MANAGED_STAGE_VISIBLE_FALLBACK_MODULE_URL = `./managed-stage-visible-fallback-patch.js?v=${APP_LOADER_VERSION}`;
+const MANAGED_STAGE_INPUTXML_CLASSIFICATION_GUARD_MODULE_URL = `./managed-stage-inputxml-preview-classification-guard.js?v=${APP_LOADER_VERSION}`;
 const BUNDLED_ASSETS = window.__3D_MARKUP_BUNDLED_ASSETS__ || {};
 // Resolve against document.baseURI: import() is module-relative but the
 // manifest URL (./assets/) is meant to be document-relative.
@@ -39,6 +41,7 @@ async function startViewerApp() {
   import(APP_MODULE_URL)
     .then(() => {
       markAppLoaded({ bundled: false });
+      scheduleIdle(loadCanvasToolModeGuard, 50);
       scheduleIdle(loadManagedStageJsonUiController, 100);
       scheduleIdle(loadFreshClipController, POST_APP_IDLE_TIMEOUT_MS);
     })
@@ -51,6 +54,7 @@ function loadBundledApp() {
   import(APP_BUNDLE_URL)
     .then(() => {
       markAppLoaded({ bundled: true });
+      scheduleIdle(loadCanvasToolModeGuard, 50);
       scheduleIdle(loadManagedStageJsonUiController, 100);
     })
     .catch(handleAppBootError);
@@ -99,12 +103,27 @@ function loadClipRenderHook() {
   return window.__3D_MARKUP_CLIP_RENDER_HOOK_IMPORT__;
 }
 
+function loadCanvasToolModeGuard() {
+  if (window.__3D_MARKUP_CANVAS_TOOL_MODE_GUARD_IMPORT_STARTED__) return;
+  window.__3D_MARKUP_CANVAS_TOOL_MODE_GUARD_IMPORT_STARTED__ = true;
+  import(CANVAS_TOOL_MODE_GUARD_MODULE_URL).catch((error) => {
+    console.warn('[3DMarkupTool] Canvas tool mode guard skipped.', error);
+    window.dispatchEvent(new CustomEvent('viewer:canvas-tool-mode-guard-skipped', {
+      detail: {
+        version: APP_LOADER_VERSION,
+        reason: error && (error.message || String(error))
+      }
+    }));
+  });
+}
+
 function loadManagedStageJsonUiController() {
   if (window.__3D_MARKUP_MANAGED_STAGE_JSON_UI_IMPORT_STARTED__) return;
   window.__3D_MARKUP_MANAGED_STAGE_JSON_UI_IMPORT_STARTED__ = true;
   import(MANAGED_STAGE_JSON_UI_MODULE_URL)
     .then(() => import(MANAGED_STAGE_JSON_SAMPLE_MODULE_URL))
     .then(() => import(MANAGED_STAGE_VISIBLE_FALLBACK_MODULE_URL))
+    .then(() => import(MANAGED_STAGE_INPUTXML_CLASSIFICATION_GUARD_MODULE_URL))
     .catch((error) => {
       console.warn('[3DMarkupTool] Managed-stage JSON UI controller skipped.', error);
       window.dispatchEvent(new CustomEvent('viewer:managed-stage-json-ui-skipped', {

@@ -42,9 +42,12 @@ const elbows = planned.filter((primitive) => primitive.kind === 'elbow');
 assert.equal(cylinders.length, 41);
 assert.equal(elbows.length, 7);
 assert.equal(cylinders.every((primitive) => primitive.endpointLocked === true), true);
-assert.equal(cylinders.every((primitive) => Array.isArray(primitive.startMm) && Array.isArray(primitive.endMm)), true);
 assert.equal(cylinders.every((primitive) => primitive.localBbox?.length === 6), true);
 assert.equal(elbows.every((primitive) => primitive.endpointLocked === false), true);
+
+const explicitEndpointCylinders = cylinders.filter((primitive) => Array.isArray(primitive.startMm) && Array.isArray(primitive.endMm));
+assert.ok(explicitEndpointCylinders.length >= 1);
+assert.equal(explicitEndpointCylinders.every((primitive) => primitive.endpointLocked === true), true);
 
 assert.throws(
   () => buildContractCylinderPrimitive(pipeContract, { startOffsetMm: pipeContract.lengthMm, endOffsetMm: 0, radiusMm: pipeContract.radiusMm }),

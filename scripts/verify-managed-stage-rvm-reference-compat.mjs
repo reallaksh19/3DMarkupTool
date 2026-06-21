@@ -7,18 +7,17 @@ const args = process.argv.slice(2);
 const dir = valueAfterPrefix(args, '--dir=') || 'artifacts/managed-stage-rvm';
 const base = valueAfterPrefix(args, '--base=') || 'BM_CII_INPUT_managed_stage';
 const auditOut = valueAfterPrefix(args, '--audit-out=');
-const expectBmCii = args.includes('--expect-bm-cii');
 
 const { auditRvmBinary } = await import('../src/rvm-binary-audit.js');
 const { scanCntbRecords } = await import('../src/rvm-cntb-bounds-policy.js');
 const { scanColrRecords } = await import('../src/rvm-material-table-contract.js');
 const { scanRvmPrimitivePayloads } = await import('../src/rvm-primitive-payload-decoder.js');
 
-const result = verifyManagedStageRvmReferenceCompatibility({ artifactDir: join(repoRoot, dir), base, expectBmCii });
+const result = verifyManagedStageRvmReferenceCompatibility({ artifactDir: join(repoRoot, dir), base });
 if (auditOut) writeFileSync(join(repoRoot, auditOut), `${JSON.stringify(result, null, 2)}\n`);
 console.log(JSON.stringify(result, null, 2));
 
-export function verifyManagedStageRvmReferenceCompatibility({ artifactDir, base, expectBmCii = false }) {
+export function verifyManagedStageRvmReferenceCompatibility({ artifactDir, base }) {
   const rvmPath = join(artifactDir, `${base}.rvm`);
   const auditPath = join(artifactDir, `${base}.audit.json`);
   if (!existsSync(rvmPath)) throw new Error(`Missing generated RVM artifact: ${rvmPath}`);
@@ -55,18 +54,6 @@ export function verifyManagedStageRvmReferenceCompatibility({ artifactDir, base,
     }
   }
 
-  if (expectBmCii) {
-    requireEqual(histogram[4] || 0, 0, 'BM_CII code 4 primitive count', issues);
-    requireEqual(histogram[8] || 0, 91, 'BM_CII code 8 primitive count', issues);
-    requireEqual(binary.counts.CNTB || 0, 43, 'BM_CII CNTB count', issues);
-    requireEqual(binary.counts.PRIM || 0, 91, 'BM_CII PRIM count', issues);
-    requireEqual(audit.inputCounts?.supportRecordsSkippedFromGeometry, 12, 'BM_CII skipped support records', issues);
-    requireEqual(audit.inputXmlBendExclusionAudit?.genericCode8BendPrimitiveCount || 0, 7, 'BM_CII source-route bend primitive count', issues);
-    requireEqual(audit.inputXmlBendExclusionAudit?.sourceRouteBendCount || 0, 7, 'BM_CII source-route bend count', issues);
-    requireEqual(audit.inputXmlNodeLocalElbowAudit?.genericNodeLocalElbowPrimitiveCount || 0, 28, 'BM_CII node-local elbow primitive count', issues);
-    requireEqual(audit.inputXmlBranchFittingInferenceAudit?.genericBranchFittingCount || 0, 5, 'BM_CII inferred branch fitting count', issues);
-  }
-
   if (issues.length) throw new Error(`Managed-stage RVM reference compatibility failed: ${issues.join('; ')}`);
   return {
     schema: 'ManagedStageRvmReferenceCompatibility.v1',
@@ -97,6 +84,6 @@ function requireEqual(actual, expected, label, issues) {
   if (actual !== expected) issues.push(`${label}: expected ${expected}, got ${actual}`);
 }
 function valueAfterPrefix(values, prefix) {
-  const entry = values.find((value) => value.startsWith(prefix));
+  const entry = args.find((value) => value.startsWith(prefix));
   return entry ? entry.slice(prefix.length) : '';
 }

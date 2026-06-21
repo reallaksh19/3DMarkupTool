@@ -8,9 +8,11 @@ const MANAGED_STAGE_PROFILE = 'AVEVA_JSON_FOR_3D_RVM_VIEWER';
 const BM_CII_INPUTXML_JSON_EXPECTATIONS = Object.freeze({
   geometryComponents: 40,
   supportRecordsSkippedFromGeometry: 12,
-  primitiveCodeCounts: { 4: 0, 8: 91 },
-  cntbCount: 43,
-  primCount: 91,
+  supportRecordsEmittedToRvm: 12,
+  supportRvmPrimitiveCount: 25,
+  primitiveCodeCounts: { 4: 0, 8: 116 },
+  cntbCount: 56,
+  primCount: 116,
   forbiddenPrimitiveCodesPresent: []
 });
 
@@ -276,7 +278,7 @@ function updateDrawerSummary(audit) {
 
 function logManagedStageSummary(audit) {
   const histogram = audit?.primitiveHistogram || {};
-  log(`Managed-stage RVM ready: geometry=${audit?.inputCounts?.geometryComponents || 0}, support skipped=${audit?.inputCounts?.supportRecordsSkippedFromGeometry || 0}, PRIM=${audit?.rvmPrimitivePayloadContract?.primitiveCount || 0}, code4=${histogram[4] || 0}, code8=${histogram[8] || 0}`);
+  log(`Managed-stage RVM ready: geometry=${audit?.inputCounts?.geometryComponents || 0}, support skipped=${audit?.inputCounts?.supportRecordsSkippedFromGeometry || 0}, support exported=${audit?.inputCounts?.supportRecordsEmittedToRvm || 0}, PRIM=${audit?.rvmPrimitivePayloadContract?.primitiveCount || 0}, code4=${histogram[4] || 0}, code8=${histogram[8] || 0}`);
 }
 
 function logManagedStagePreviewCoordinateAudit(audit) {

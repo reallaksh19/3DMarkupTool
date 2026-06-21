@@ -44,6 +44,7 @@ const inspection = {
   inputXmlBendExclusionAudit: audit.inputXmlBendExclusionAudit || null,
   inputXmlNodeLocalElbowAudit: audit.inputXmlNodeLocalElbowAudit || null,
   inputXmlBranchFittingInferenceAudit: audit.inputXmlBranchFittingInferenceAudit || null,
+  supportRvmExportAudit: audit.supportRvmExportAudit || null,
   chunkSummary: summarizeChunks(chunks),
   chunkIndex: chunks,
   cntbCount: cntbRecords.length,
@@ -68,6 +69,8 @@ console.log(JSON.stringify({
   inputXmlBendsExcluded: audit.inputXmlBendExclusionAudit?.code4BendsExcluded || 0,
   inputXmlNodeLocalElbows: audit.inputXmlNodeLocalElbowAudit?.nodeLocalElbowCount || 0,
   inputXmlBranchFittingsInferred: audit.inputXmlBranchFittingInferenceAudit?.genericBranchFittingCount || 0,
+  supportRecordsEmittedToRvm: audit.supportRvmExportAudit?.supportRecordCount || 0,
+  supportRvmPrimitives: audit.supportRvmExportAudit?.supportPrimitiveCount || 0,
   chunks: inspection.chunkSummary.counts,
   cntbCount: inspection.cntbCount,
   primitiveCount: inspection.primitiveCount,
@@ -84,24 +87,26 @@ function buildPrimitiveRows(audit, decodedPrimitives) {
   const stitchPrimitives = (audit.stitchManifest?.elements || []).flatMap((element) =>
     (element.primitives || []).map((primitive) => ({ element, primitive }))
   );
+  const supportStart = stitchPrimitives.length;
   return decodedPrimitives.map((decoded, index) => {
     const stitch = stitchPrimitives[index] || {};
+    const supportOverlay = index >= supportStart;
     const element = stitch.element || {};
     const primitive = stitch.primitive || {};
     return {
       primIndex: index + 1,
-      elementIndex: element.index || '',
-      elementName: element.reviewName || element.inputName || '',
-      fromNode: element.fromNode || '',
-      toNode: element.toNode || '',
-      dtxr: element.dtxr || '',
-      localName: primitive.localName || '',
-      kind: primitive.kind || decoded.candidateEmissionKind || '',
+      elementIndex: supportOverlay ? 'SUPPORT' : (element.index || ''),
+      elementName: supportOverlay ? 'SUPPORT_OVERLAY' : (element.reviewName || element.inputName || ''),
+      fromNode: supportOverlay ? '' : (element.fromNode || ''),
+      toNode: supportOverlay ? '' : (element.toNode || ''),
+      dtxr: supportOverlay ? 'ATTA' : (element.dtxr || ''),
+      localName: supportOverlay ? 'support-overlay-cylinder' : (primitive.localName || ''),
+      kind: supportOverlay ? 'cylinder' : (primitive.kind || decoded.candidateEmissionKind || ''),
       code: decoded.code,
       bodyLength: decoded.bodyLength,
       chunkOffset: decoded.offset,
-      expectedCode: primitive.expectedCode || '',
-      material: primitive.material || '',
+      expectedCode: supportOverlay ? 8 : (primitive.expectedCode || ''),
+      material: supportOverlay ? 9 : (primitive.material || ''),
       centerMm: formatVector(primitive.centerMm),
       direction: formatVector(primitive.direction),
       payload: JSON.stringify(decoded.payloadSemantics || decoded.parameters || {})
@@ -185,59 +190,40 @@ function summarizeChunks(chunks) {
 }
 
 function renderMarkdown(inspection) {
-  return `# Managed-stage RVM artifact inspection\n\n` +
-    `Base: \`${inspection.base}\`\n\n` +
-    `## Summary\n\n` +
-    `| Metric | Value |\n|---|---:|\n` +
-    `| RVM bytes | ${inspection.byteCounts.rvm} |\n` +
-    `| Chunks | ${inspection.chunkSummary.count} |\n` +
-    `| CNTB | ${inspection.cntbCount} |\n` +
-    `| PRIM | ${inspection.primitiveCount} |\n` +
-    `| Elements | ${inspection.elementRows.length} |\n` +
-    `| InputXML bends excluded | ${inspection.inputXmlBendExclusionAudit?.code4BendsExcluded || 0} |\n` +
-    `| Node-local elbows inserted | ${inspection.inputXmlNodeLocalElbowAudit?.nodeLocalElbowPrimitiveCount || 0} |\n` +
-    `| Generic branch fittings inferred | ${inspection.inputXmlBranchFittingInferenceAudit?.genericBranchFittingCount || 0} |\n` +
-    `| Strict gate OK | ${inspection.gate.ok ? 'YES' : 'NO'} |\n\n` +
-    `## Chunk counts\n\n` +
-    Object.entries(inspection.chunkSummary.counts).map(([id, count]) => `- \`${id}\`: ${count}`).join('\n') +
-    `\n\n## Primitive histogram\n\n` +
-    Object.entries(inspection.gate.primitiveHistogram).map(([code, count]) => `- code \`${code}\`: ${count}`).join('\n') +
-    `\n\n## Output tables\n\n` +
-    `- \`${inspection.base}.primitives.csv\`\n` +
-    `- \`${inspection.base}.elements.csv\`\n`;
+  const lines = [
+    '# Managed-stage RVM inspection',
+    '',
+    `Base: ${inspection.base}`,
+    `RVM bytes: ${inspection.byteCounts.rvm}`,
+    `CNTB: ${inspection.cntbCount}`,
+    `PRIM: ${inspection.primitiveCount}`,
+    `Support RVM primitives: ${inspection.supportRvmExportAudit?.supportPrimitiveCount || 0}`,
+    '',
+    '## Chunk summary',
+    '',
+    '```json',
+    JSON.stringify(inspection.chunkSummary, null, 2),
+    '```'
+  ];
+  return `${lines.join('\n')}\n`;
 }
 
 function renderCsv(rows) {
   if (!rows.length) return '';
-  const headers = Object.keys(rows[0]);
-  return `${headers.join(',')}\n${rows.map((row) => headers.map((header) => csvCell(row[header])).join(',')).join('\n')}\n`;
+  const keys = Object.keys(rows[0]);
+  const lines = [keys.join(',')];
+  for (const row of rows) lines.push(keys.map((key) => csvCell(row[key])).join(','));
+  return `${lines.join('\n')}\n`;
 }
 
 function csvCell(value) {
-  const text = value == null ? '' : String(value);
-  return /[",\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
+  const text = String(value ?? '');
+  if (/[",\n]/.test(text)) return `"${text.replace(/"/g, '""')}"`;
+  return text;
 }
 
 function formatVector(value) {
-  return Array.isArray(value) ? value.map((entry) => Number(entry).toFixed(6)).join('|') : '';
-}
-
-function parseArgs(argv) {
-  const out = {};
-  for (const arg of argv) {
-    if (!arg.startsWith('--')) continue;
-    const [key, value] = arg.slice(2).split('=');
-    out[key] = value === undefined ? true : value;
-  }
-  return out;
-}
-
-function readRequired(path, encoding = null) {
-  try {
-    return readFileSync(path, encoding ? { encoding } : undefined);
-  } catch (error) {
-    throw new Error(`Unable to read required artifact ${path}: ${error.message}`);
-  }
+  return Array.isArray(value) ? value.join('|') : '';
 }
 
 function readChunkId(view, offset) {
@@ -250,13 +236,33 @@ function toArrayBuffer(buffer) {
   return buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength);
 }
 
+function parseArgs(values) {
+  const out = {};
+  for (const value of values) {
+    if (!value.startsWith('--')) continue;
+    const [key, raw = true] = value.slice(2).split('=');
+    out[key] = raw;
+  }
+  return out;
+}
+
+function readRequired(path, encoding) {
+  try {
+    return readFileSync(path, encoding);
+  } catch (error) {
+    throw new Error(`Missing required artifact ${basename(path)}: ${error.message}`);
+  }
+}
+
 function bmCiiExpectations() {
   return {
     geometryComponents: 40,
     supportRecordsSkippedFromGeometry: 12,
+    supportRecordsEmittedToRvm: 12,
+    supportRvmPrimitiveCount: 25,
     code4: 0,
-    code8: 91,
-    cntbCount: 43,
-    primCount: 91
+    code8: 116,
+    cntbCount: 56,
+    primCount: 116
   };
 }

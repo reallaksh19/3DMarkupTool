@@ -45,10 +45,12 @@ function bmCiiExpectations() {
   return {
     geometryComponents: 40,
     supportRecordsSkippedFromGeometry: 12,
+    supportRecordsEmittedToRvm: 12,
+    supportRvmPrimitiveCount: 25,
     code4: 0,
-    code8: 91,
-    cntbCount: 43,
-    primCount: 91
+    code8: 116,
+    cntbCount: 56,
+    primCount: 116
   };
 }
 
@@ -63,8 +65,10 @@ function buildSummary(sourceLabel, audit) {
     inputXmlBendExclusion: audit.inputXmlBendExclusionAudit,
     inputXmlNodeLocalElbows: audit.inputXmlNodeLocalElbowAudit,
     inputXmlBranchFittingInference: audit.inputXmlBranchFittingInferenceAudit,
+    supportRvmExport: audit.supportRvmExportAudit,
     geometryComponents: audit.inputCounts.geometryComponents,
     supportRecordsSkippedFromGeometry: audit.inputCounts.supportRecordsSkippedFromGeometry,
+    supportRecordsEmittedToRvm: audit.inputCounts.supportRecordsEmittedToRvm,
     statsRestraintsMismatch: audit.inputCounts.statsRestraintsMismatch,
     primitiveHistogram: audit.primitiveHistogram,
     cntbCount: audit.chunkHierarchy.cntbCount,

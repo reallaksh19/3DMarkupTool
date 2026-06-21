@@ -35,6 +35,8 @@ console.log(`Primitive histogram: ${JSON.stringify(result.audit.primitiveHistogr
 console.log(`Processing mode: ${result.audit.processingConfig?.mode || 'unknown'}`);
 console.log(`InputXML bends excluded: ${result.audit.inputXmlBendExclusionAudit?.code4BendsExcluded || 0}`);
 console.log(`InputXML branch fittings inferred: ${result.audit.inputXmlBranchFittingInferenceAudit?.genericBranchFittingCount || 0}`);
+console.log(`Support records emitted to RVM: ${result.audit.supportRvmExportAudit?.supportRecordCount || 0}`);
+console.log(`Support RVM primitives: ${result.audit.supportRvmExportAudit?.supportPrimitiveCount || 0}`);
 console.log(`Max centerline gap mm: ${result.audit.topology.maxCenterlineGapMm}`);
 console.log(`Strict audit gate: ${result.audit.managedStageStrictGate.ok ? 'PASS' : 'FAIL'}`);
 
@@ -58,10 +60,12 @@ function bmCiiExpectations() {
   return {
     geometryComponents: 40,
     supportRecordsSkippedFromGeometry: 12,
+    supportRecordsEmittedToRvm: 12,
+    supportRvmPrimitiveCount: 25,
     code4: 0,
-    code8: 91,
-    cntbCount: 43,
-    primCount: 91
+    code8: 116,
+    cntbCount: 56,
+    primCount: 116
   };
 }
 

@@ -36,6 +36,7 @@ export function convertManagedStageJsonToRvmAtt(sourceText, options = {}) {
   const chunkHierarchy = assertRvmChunkHierarchy(rvm, att, exportModel);
   const stitchManifest = buildManagedStageRvmStitchManifest(profile, exportModel, primitivePayloads);
   const stitchManifestGate = assertManagedStageRvmStitchManifest(stitchManifest);
+  const supportRvmExportAudit = exportModel.audit?.supportRvmExportAudit || null;
   const audit = {
     schema: 'ManagedStageRvmConverterAudit.v1',
     source: profile.source,
@@ -45,6 +46,7 @@ export function convertManagedStageJsonToRvmAtt(sourceText, options = {}) {
     inputCounts: {
       geometryComponents: profile.geometryRecords.length,
       supportRecordsSkippedFromGeometry: profile.supportRecords.length,
+      supportRecordsEmittedToRvm: supportRvmExportAudit?.supportRecordCount || 0,
       stats: profile.inputStats,
       statsRestraintsMismatch: Number(profile.inputStats?.restraints || 0) !== profile.supportRecords.length
     },
@@ -55,17 +57,26 @@ export function convertManagedStageJsonToRvmAtt(sourceText, options = {}) {
     inputXmlBendExclusionAudit: exportModel.audit?.inputXmlBendExclusionAudit || null,
     inputXmlNodeLocalElbowAudit: exportModel.audit?.inputXmlNodeLocalElbowAudit || null,
     inputXmlBranchFittingInferenceAudit: exportModel.audit?.inputXmlBranchFittingInferenceAudit || null,
+    supportRvmExportAudit,
     primitiveHistogram: primitivePayloadContract.codeCounts,
     primitiveBodyLengths: primitivePayloads.map((primitive) => ({ code: primitive.code, bodyLength: primitive.bodyLength })),
     torusOrientationAssumptions: collectTorusAssumptions(exportModel.root),
     genericInputXmlBendAssumptions: collectGenericInputXmlBendAssumptions(exportModel.root),
     genericInputXmlNodeLocalElbowAssumptions: collectGenericInputXmlNodeLocalElbowAssumptions(exportModel.root),
     genericInputXmlBranchFittingAssumptions: collectGenericInputXmlBranchFittingAssumptions(exportModel.root),
+    exportedSupportRecords: profile.supportRecords.map((record) => ({
+      name: record.name,
+      type: record.type,
+      supportKind: record.attributes?.SUPPORT_KIND || record.attributes?.SUPPORT_TYPE || '',
+      geometryEmitted: true,
+      rvmExported: true
+    })),
     skippedSupportRecords: profile.supportRecords.map((record) => ({
       name: record.name,
       type: record.type,
       supportKind: record.attributes?.SUPPORT_KIND || record.attributes?.SUPPORT_TYPE || '',
-      geometryEmitted: false
+      geometryEmitted: true,
+      rvmExported: true
     })),
     materialLayerContract,
     materialTableContract,

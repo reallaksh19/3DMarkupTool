@@ -25,3 +25,13 @@ jobs:
 
       - name: Run managed-stage RVM profile test
         run: node tests/managed-stage-rvm-profile.test.mjs
+
+      - name: Generate managed-stage fixture RVM artifact
+        run: node scripts/generate-managed-stage-rvm-artifact.mjs --fixture=bm-cii --outdir=artifacts/managed-stage-rvm
+
+      - name: Upload managed-stage RVM artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: managed-stage-rvm
+          path: artifacts/managed-stage-rvm
+          if-no-files-found: error

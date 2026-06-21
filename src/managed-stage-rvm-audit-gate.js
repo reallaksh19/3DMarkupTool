@@ -9,6 +9,7 @@ export function assertManagedStageRvmAuditGate(audit = {}, expectations = {}) {
   const topology = audit.topology || {};
   const inputCounts = audit.inputCounts || {};
   const bbox = audit.boundingExtentsMm || {};
+  const stitchManifest = audit.stitchManifest || {};
   const toleranceMm = Number(expectations.maxCenterlineGapMm ?? DEFAULT_GAP_TOLERANCE_MM);
 
   requireEqual(audit.generationMode, 'managed-stage-cylinder-torus', 'generationMode', issues);
@@ -39,6 +40,17 @@ export function assertManagedStageRvmAuditGate(audit = {}, expectations = {}) {
   requireEqual(bbox.cntbBboxFieldsWritten, false, 'boundingExtentsMm.cntbBboxFieldsWritten', issues);
   requireEqual((audit.torusOrientationAssumptions || []).length, primitiveHistogram[4] || 0, 'torus assumption count', issues);
 
+  if (stitchManifest.schema !== undefined) {
+    requireEqual(stitchManifest.schema, 'ManagedStageRvmStitchManifest.v1', 'stitchManifest.schema', issues);
+    requireTruthy(stitchManifest.allElementsMapped, 'stitchManifest.allElementsMapped', issues);
+    requireTruthy(stitchManifest.elementOrderStable, 'stitchManifest.elementOrderStable', issues);
+    requireArrayEmpty(stitchManifest.issues, 'stitchManifest.issues', issues);
+    requireEqual(stitchManifest.elementCount, inputCounts.geometryComponents, 'stitchManifest.elementCount', issues);
+    requireEqual(stitchManifest.primitiveCount, chunkHierarchy.primCount, 'stitchManifest.primitiveCount', issues);
+    requireEqual(stitchManifest.decodedPrimitiveCount, chunkHierarchy.primCount, 'stitchManifest.decodedPrimitiveCount', issues);
+    requireEqual(sumHistogram(normalizeHistogram(stitchManifest.primitiveCodeHistogram || {})), chunkHierarchy.primCount, 'stitchManifest primitive histogram sum', issues);
+  }
+
   checkExpected(expectations.geometryComponents, inputCounts.geometryComponents, 'expected geometry components', issues);
   checkExpected(expectations.supportRecordsSkippedFromGeometry, inputCounts.supportRecordsSkippedFromGeometry, 'expected skipped support records', issues);
   checkExpected(expectations.code4, primitiveHistogram[4] || 0, 'expected code 4 torus primitives', issues);
@@ -55,6 +67,7 @@ export function assertManagedStageRvmAuditGate(audit = {}, expectations = {}) {
     forbiddenPrimitiveCodes: [...FORBIDDEN_CODES],
     maxCenterlineGapMm: Number(topology.maxCenterlineGapMm || 0),
     primitiveHistogram,
+    stitchManifestPresent: stitchManifest.schema === 'ManagedStageRvmStitchManifest.v1',
     chunkCounts: {
       HEAD: chunkHierarchy.headCount || 0,
       MODL: chunkHierarchy.modlCount || 0,

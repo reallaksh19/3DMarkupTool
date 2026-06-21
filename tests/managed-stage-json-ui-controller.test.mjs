@@ -38,6 +38,11 @@ assert.match(controller, /supportRvmPrimitiveCount:\s*25/);
 assert.match(controller, /primitiveCodeCounts:\s*\{\s*4:\s*0,\s*8:\s*116\s*\}/);
 assert.match(controller, /cntbCount:\s*56/);
 assert.match(controller, /primCount:\s*116/);
+assert.match(controller, /NON_BLOCKING_MANAGED_STAGE_AUDIT_PATTERNS/);
+assert.match(controller, /nonBlockingAuditIssuePatterns:\s*NON_BLOCKING_MANAGED_STAGE_AUDIT_PATTERNS/);
+assert.match(controller, /showManagedStageAuditWarnings/);
+assert.match(controller, /viewer:managed-stage-audit-warning/);
+assert.match(controller, /managed-stage-audit-toast/);
 assert.doesNotMatch(controller, /BM_CII_EXPECTATIONS/);
 assert.doesNotMatch(controller, /primitiveCodeCounts:\s*\{\s*4:\s*7,\s*8:\s*41\s*\}/);
 assert.doesNotMatch(controller, /primCount:\s*48/);
@@ -47,7 +52,7 @@ assert.match(controller, /downloadAttBtn/);
 assert.match(controller, /downloadAuditBtn/);
 assert.match(controller, /convertBtn/);
 assert.match(controller, /viewer:managed-stage-json-loaded/);
-assert.match(controller, /Managed-stage preview coordinate audit/);
+assert.match(controller, /Managed-stage preview audit/);
 assert.doesNotMatch(controller, /managedStageJsonFile/);
 
 assert.match(sampleController, /ManagedStageBmCiiJsonSampleController\.v1/);
@@ -102,8 +107,9 @@ assert.match(supportVisualResolver, /ODx2\/3 applies only to final axial/);
 assert.match(supportVisualResolver, /support-cluster resolver/);
 assert.match(supportVisualResolver, /translucent crossed X rods/);
 
+await import('./managed-stage-rvm-audit-gate-nonblocking.test.mjs');
 await import('./managed-stage-support-visual-resolver.test.mjs');
 await import('./managed-stage-support-cluster.test.mjs');
 await import('./managed-stage-viewer-api-bridge.test.mjs');
 
-console.log('unified InputXML / managed-stage JSON UI uses coordinate-preserving preview pipeline, support visual resolver, and support-export RVM contract');
+console.log('unified InputXML / managed-stage JSON UI uses coordinate-preserving preview pipeline, support visual resolver, support-export RVM contract, and non-blocking UI warnings');

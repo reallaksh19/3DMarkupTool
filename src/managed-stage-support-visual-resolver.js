@@ -67,7 +67,8 @@ export function createManagedStageSupportPreviewObject(record, options = {}) {
     for (const side of visual.coneSides) {
       const sideVec = axisVector(side.axis);
       const length = side.axialPipeParallel ? axialLength : genericLength;
-      const tipOffset = AXIAL_FAMILIES.has(visual.family) ? sideVec.clone().multiplyScalar(tipSeparation * 0.5 * side.gapSign) : new THREE.Vector3();
+      const gapFactor = side.explicitSingle ? 1 : 0.5;
+      const tipOffset = AXIAL_FAMILIES.has(visual.family) ? sideVec.clone().multiplyScalar(tipSeparation * gapFactor) : new THREE.Vector3();
       const tip = center.clone().add(tipOffset);
       const towardTip = side.pointsTowardCenter ? sideVec.clone().multiplyScalar(-1) : sideVec;
       const cone = createPointCone(tip, towardTip, length, coneRadius, material, `${group.name}_${side.role}_${side.axis}`);
@@ -75,6 +76,7 @@ export function createManagedStageSupportPreviewObject(record, options = {}) {
         role: side.role,
         axis: side.axis,
         axialPipeParallel: Boolean(side.axialPipeParallel),
+        explicitSingle: Boolean(side.explicitSingle),
         tipMm: vecToPoint(tip),
         pointsTowardCenter: side.pointsTowardCenter !== false,
         odTwoThirdsResolverApplied: Boolean(side.axialPipeParallel)
@@ -125,24 +127,25 @@ export function resolveManagedStageSupportVisual(record, records = [], options =
   let popupReason = '';
 
   if (family === 'REST') {
-    coneSides = [{ role: 'rest-upward-point-cone', axis: '+Y', pointsTowardCenter: false, gapSign: 0 }];
+    coneSides = [{ role: 'rest-upward-point-cone', axis: '+Y', pointsTowardCenter: false }];
   } else if (family === 'HOLDDOWN') {
     coneSides = [
-      { role: 'holddown-bottom-point-cone', axis: '+Y', pointsTowardCenter: false, gapSign: 0 },
-      { role: 'holddown-top-point-cone', axis: '-Y', pointsTowardCenter: false, gapSign: 0 }
+      { role: 'holddown-bottom-point-cone', axis: '+Y', pointsTowardCenter: false },
+      { role: 'holddown-top-point-cone', axis: '-Y', pointsTowardCenter: false }
     ];
   } else if (family === 'GUIDE') {
-    coneSides = guideAxesForPipeAxis(pipeAxis).map((axis) => ({ role: 'guide-lateral-point-cone', axis, pointsTowardCenter: true, gapSign: 0 }));
+    coneSides = guideAxesForPipeAxis(pipeAxis).map((axis) => ({ role: 'guide-lateral-point-cone', axis, pointsTowardCenter: true }));
   } else if (family === 'LINE_STOP' || family === 'LIMIT_STOP') {
-    const axialSides = explicitAxis?.hasSign
+    const explicitSingle = Boolean(explicitAxis?.hasSign);
+    const axialSides = explicitSingle
       ? [axisWithSign(explicitAxis)]
       : [pipeAxisSigned, invertAxis(pipeAxisSigned)];
-    coneSides = axialSides.map((axis, index) => ({
+    coneSides = axialSides.map((axis) => ({
       role: family === 'LIMIT_STOP' ? 'limit-axial-point-cone' : 'line-stop-axial-point-cone',
       axis,
       pointsTowardCenter: true,
-      gapSign: index === 0 ? 1 : -1,
-      axialPipeParallel: true
+      axialPipeParallel: true,
+      explicitSingle
     }));
   } else if (family === 'SINGLE_AXIS_WARNING') {
     popupRequired = true;

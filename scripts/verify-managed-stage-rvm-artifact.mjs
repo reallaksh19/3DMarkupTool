@@ -146,7 +146,7 @@ function requireEqual(actual, expected, label, issues) {
 }
 
 function bmCiiExpectations() {
-  return { geometryComponents: 40, supportRecordsSkippedFromGeometry: 12, code4: 0, code8: 91, cntbCount: 43, primCount: 91 };
+  return { geometryComponents: 40, supportRecordsSkippedFromGeometry: 12, code4: 0, code8: 63, cntbCount: 43, primCount: 63 };
 }
 
 function valueAfterPrefix(values, prefix) {

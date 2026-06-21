@@ -212,7 +212,7 @@ function parseArgs(values) {
 }
 
 function bmCiiExpectations() {
-  return { geometryComponents: 40, supportRecordsSkippedFromGeometry: 12, code4: 0, code8: 70, cntbCount: 43, primCount: 70 };
+  return { geometryComponents: 40, supportRecordsSkippedFromGeometry: 12, code4: 0, code8: 91, cntbCount: 43, primCount: 91 };
 }
 
 function readRequired(path, encoding = null) {

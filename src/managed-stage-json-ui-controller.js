@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { convertManagedStageJsonToRvmAtt } from './managed-stage-rvm-converter.js';
-import { createRvmPreviewScene } from './rvm-preview.js';
+import { createManagedStagePreviewScene } from './managed-stage-preview-scene.js';
 
 const CONTROLLER_SCHEMA = 'ManagedStageJsonUiController.v2';
 const MANAGED_STAGE_SCHEMA = 'inputxml-managed-stage/v1';
@@ -131,15 +131,16 @@ async function loadManagedStageText(sourceText, sourceName = 'BM_CII_INPUT_manag
 
   const options = bmCiiLikeSourceName(sourceName) ? { strictAuditExpectations: BM_CII_INPUTXML_JSON_EXPECTATIONS } : {};
   const result = convertManagedStageJsonToRvmAtt(sourceText, options);
-  const previewScene = createRvmPreviewScene(result.exportModel);
-  previewScene.name = `${managedStageUiState.basename}_RVM_PREVIEW`;
+  const previewScene = createManagedStagePreviewScene(sourceText, { sourceName, exportModel: result.exportModel });
+  previewScene.name = `${managedStageUiState.basename}_RAW_STAGED_PREVIEW`;
   previewScene.userData = {
     ...(previewScene.userData || {}),
-    TYPE: 'MANAGED_STAGE_RVM_PREVIEW',
+    TYPE: 'MANAGED_STAGE_RAW_PREVIEW',
     SOURCE_FORMAT: MANAGED_STAGE_SCHEMA,
     sourceName,
     geometryComponents: result.audit?.inputCounts?.geometryComponents,
-    primitiveCount: result.audit?.rvmPrimitivePayloadContract?.primitiveCount
+    primitiveCount: result.audit?.rvmPrimitivePayloadContract?.primitiveCount,
+    previewPipeline: 'raw-managed-stage-json-coordinate-preserving'
   };
 
   managedStageUiState.artifact = {
@@ -150,7 +151,9 @@ async function loadManagedStageText(sourceText, sourceName = 'BM_CII_INPUT_manag
     audit: result.audit,
     exportModel: result.exportModel,
     profile: result.profile,
-    previewScene
+    previewScene,
+    previewPipeline: 'raw-managed-stage-json-coordinate-preserving',
+    previewCoordinateAudit: previewScene.userData?.managedStageCoordinateAudit || null
   };
 
   showManagedStagePreview(previewScene);
@@ -158,10 +161,12 @@ async function loadManagedStageText(sourceText, sourceName = 'BM_CII_INPUT_manag
   setStatus('Managed-stage RVM ready');
   updateDrawerSummary(result.audit);
   logManagedStageSummary(result.audit);
+  logManagedStagePreviewCoordinateAudit(previewScene.userData?.managedStageCoordinateAudit);
   window.dispatchEvent(new CustomEvent('viewer:managed-stage-json-loaded', {
     detail: {
       sourceName,
       audit: result.audit,
+      previewCoordinateAudit: previewScene.userData?.managedStageCoordinateAudit,
       modelRoot: previewScene
     }
   }));
@@ -302,6 +307,11 @@ function logManagedStageSummary(audit = {}) {
   const histogram = audit.primitiveHistogram || {};
   log(`Managed-stage geometry ready: components=${audit.inputCounts?.geometryComponents || 0}, supportsSkipped=${audit.inputCounts?.supportRecordsSkippedFromGeometry || 0}, code4=${histogram[4] || 0}, code8=${histogram[8] || 0}`);
   log(`Managed-stage RVM bytes=${formatBytes(audit.rvmBytes || 0)}, ATT bytes=${formatBytes(audit.attBytes || 0)}`);
+}
+
+function logManagedStagePreviewCoordinateAudit(audit = {}) {
+  if (!audit?.schema) return;
+  log(`Managed-stage preview coordinate audit: sourceLines=${audit.sourceLineCount || 0}, supportsPreviewOnly=${audit.supportPreviewOnlyCount || 0}, maxNonBendDelta=${audit.maxNonBendDeltaMm || 0}mm, branchCues=${audit.branchCueCount || 0}, bendCues=${audit.bendCueCount || 0}`);
 }
 
 function clearManagedStagePreview() {

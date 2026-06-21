@@ -42,6 +42,7 @@ const inspection = {
   gate,
   processingConfig: audit.processingConfig || null,
   inputXmlBendExclusionAudit: audit.inputXmlBendExclusionAudit || null,
+  inputXmlBranchFittingInferenceAudit: audit.inputXmlBranchFittingInferenceAudit || null,
   chunkSummary: summarizeChunks(chunks),
   chunkIndex: chunks,
   cntbCount: cntbRecords.length,
@@ -64,6 +65,7 @@ console.log(JSON.stringify({
   ok: true,
   processingMode: audit.processingConfig?.mode || '',
   inputXmlBendsExcluded: audit.inputXmlBendExclusionAudit?.code4BendsExcluded || 0,
+  inputXmlBranchFittingsInferred: audit.inputXmlBranchFittingInferenceAudit?.genericBranchFittingCount || 0,
   chunks: inspection.chunkSummary.counts,
   cntbCount: inspection.cntbCount,
   primitiveCount: inspection.primitiveCount,
@@ -188,6 +190,7 @@ function renderMarkdown(inspection) {
     `| PRIM | ${inspection.primitiveCount} |\n` +
     `| Elements | ${inspection.elementRows.length} |\n` +
     `| InputXML bends excluded | ${inspection.inputXmlBendExclusionAudit?.code4BendsExcluded || 0} |\n` +
+    `| Generic branch fittings inferred | ${inspection.inputXmlBranchFittingInferenceAudit?.genericBranchFittingCount || 0} |\n` +
     `| Strict gate OK | ${inspection.gate.ok ? 'YES' : 'NO'} |\n\n` +
     `## Chunk counts\n\n` +
     Object.entries(inspection.chunkSummary.counts).map(([id, count]) => `- \`${id}\`: ${count}`).join('\n') +
@@ -209,7 +212,7 @@ function parseArgs(values) {
 }
 
 function bmCiiExpectations() {
-  return { geometryComponents: 40, supportRecordsSkippedFromGeometry: 12, code4: 0, code8: 48, cntbCount: 43, primCount: 48 };
+  return { geometryComponents: 40, supportRecordsSkippedFromGeometry: 12, code4: 0, code8: 70, cntbCount: 43, primCount: 70 };
 }
 
 function readRequired(path, encoding = null) {

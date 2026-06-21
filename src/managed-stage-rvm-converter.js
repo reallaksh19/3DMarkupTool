@@ -102,6 +102,7 @@ export function assertManagedStagePrimitivePayloadCompatibility(primitives = [],
     codeCounts[code] = (codeCounts[code] || 0) + 1;
     statusCounts[primitive.compatibilityStatus || 'unknown'] = (statusCounts[primitive.compatibilityStatus || 'unknown'] || 0) + 1;
     if (code === 8) continue;
+    if (code === 1 && primitive.emittedKind === 'pyramid' && primitive.lengthMatchesKnownLayout) continue;
     if (code === 4 && evaluateRvmCode4ElbowEmissionCandidate(primitive, options).experimentalEmissionCandidateAllowed) continue;
     unsafe.push(primitive);
   }
@@ -109,9 +110,9 @@ export function assertManagedStagePrimitivePayloadCompatibility(primitives = [],
     throw new Error(`Managed-stage RVM contains unsupported primitive code(s): ${unsafe.map((p) => p.code).join(', ')}`);
   }
   return {
-    schema: 'ManagedStageRvmPrimitivePayloadContract.v1',
+    schema: 'ManagedStageRvmPrimitivePayloadContract.v2',
     primitiveCount: primitives.length,
-    allowedPrimitiveCodes: [4, 8],
+    allowedPrimitiveCodes: [1, 4, 8],
     forbiddenPrimitiveCodesPresent: [2, 5, 6, 7, 11].filter((code) => codeCounts[code]),
     unsupportedPrimitivePayloadsPresent: false,
     codeCounts,

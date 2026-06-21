@@ -20,6 +20,9 @@ const result = convertManagedStageJsonToRvmAtt(JSON.stringify(createBmCiiManaged
 });
 
 assert.equal(result.audit.managedStageStrictGate.ok, true);
+assert.equal(result.audit.rvmPrimitivePayloadContract.schema, 'ManagedStageRvmPrimitivePayloadContract.v2');
+assert.deepEqual(result.audit.rvmPrimitivePayloadContract.allowedPrimitiveCodes, [1, 4, 8]);
+assert.equal(result.audit.rvmPrimitivePayloadContract.unsupportedPrimitivePayloadsPresent, false);
 assert.equal(result.audit.inputCounts.geometryComponents, 40);
 assert.equal(result.audit.inputCounts.supportRecordsSkippedFromGeometry, 12);
 assert.equal(result.audit.inputCounts.supportRecordsEmittedToRvm, 12);

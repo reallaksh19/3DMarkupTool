@@ -3,8 +3,9 @@ import { createNodeLabel, createTextPlane, cylinderBetween, mat } from './geomet
 
 const PREVIEW_COLORS = {
   pipe: 0xf0f4f8,
-  rigid: 0x8fb2d8,
+  valve: 0x21d4c4,
   bend: 0x67d4ef,
+  rigid: 0x8fb2d8,
   rest: 0xf8c34a,
   guide: 0x18d5c0,
   lineStop: 0xf2a93b,
@@ -15,7 +16,11 @@ const PREVIEW_COLORS = {
 };
 
 const MATERIAL_BY_RVM_ID = new Map([
-  [6, PREVIEW_COLORS.rest],
+  [4, PREVIEW_COLORS.pipe],
+  [5, PREVIEW_COLORS.rigid],
+  [6, PREVIEW_COLORS.rigid],
+  [7, PREVIEW_COLORS.valve],
+  [8, PREVIEW_COLORS.rigid],
   [11, PREVIEW_COLORS.warning],
   [12, PREVIEW_COLORS.pipe],
   [17, PREVIEW_COLORS.guide],
@@ -27,7 +32,7 @@ const MATERIAL_BY_RVM_ID = new Map([
 
 /**
  * Creates a Three.js scene from the generated RVM export tree.
- * Parameters: export tree returned by convertInputXmlToRvmAtt.
+ * Parameters: export tree returned by convertInputXmlToRvmAtt or convertManagedStageJsonToRvmAtt.
  * Output: preview scene using the same RVM primitives written to disk.
  * Fallback: unsupported primitives throw errors so preview cannot drift from exported RVM content.
  */
@@ -100,6 +105,7 @@ function createAnnotationOverlay(node) {
 
 function createPrimitiveMesh(primitive, fallbackMaterialId) {
   if (primitive.kind === 'cylinder') return createCylinder(primitive, fallbackMaterialId);
+  if (primitive.kind === 'elbow') return createElbow(primitive, fallbackMaterialId);
   if (primitive.kind === 'sphere') return createSphere(primitive, fallbackMaterialId);
   if (primitive.kind === 'box') return createBox(primitive, fallbackMaterialId);
   if (primitive.kind === 'pyramid') return createPyramid(primitive, fallbackMaterialId);
@@ -113,7 +119,30 @@ function createCylinder(primitive, fallbackMaterialId) {
   const start = center.clone().sub(dir.clone().multiplyScalar(half));
   const end = center.clone().add(dir.clone().multiplyScalar(half));
   const mesh = cylinderBetween(start, end, Number(primitive.radius), materialFor(primitive, fallbackMaterialId), 20, primitive.name);
-  mesh.userData = { TYPE: 'RVM_PRIMITIVE', primitiveKind: primitive.kind, sourceName: primitive.name };
+  mesh.userData = { TYPE: 'RVM_PRIMITIVE', primitiveKind: primitive.kind, sourceName: primitive.name, primitiveCode: 8 };
+  return mesh;
+}
+
+function createElbow(primitive, fallbackMaterialId) {
+  const bendRadius = positiveNumber(primitive.bendRadius, 'bendRadius');
+  const tubeRadius = positiveNumber(primitive.tubeRadius, 'tubeRadius');
+  const sweep = positiveNumber(primitive.sweepAngleRad, 'sweepAngleRad');
+  const geometry = new THREE.TorusGeometry(bendRadius, tubeRadius, 36, 12, sweep);
+  geometry.computeBoundingBox();
+  geometry.computeBoundingSphere();
+  const mesh = new THREE.Mesh(geometry, materialFor(primitive, fallbackMaterialId));
+  mesh.name = primitive.name;
+  mesh.position.copy(v3(primitive.center));
+  const basis = basisForElbow(primitive);
+  const matrix = new THREE.Matrix4().makeBasis(basis.x, basis.y, basis.z);
+  mesh.setRotationFromMatrix(matrix);
+  mesh.userData = {
+    TYPE: 'RVM_PRIMITIVE',
+    primitiveKind: primitive.kind,
+    sourceName: primitive.name,
+    primitiveCode: 4,
+    previewGeometry: 'torus-arc'
+  };
   return mesh;
 }
 
@@ -153,6 +182,22 @@ function createPyramid(primitive, fallbackMaterialId) {
   mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), v3(primitive.direction).normalize());
   mesh.userData = { TYPE: 'RVM_PRIMITIVE', primitiveKind: primitive.kind, sourceName: primitive.name };
   return mesh;
+}
+
+function basisForElbow(primitive) {
+  if (primitive.basis?.x && primitive.basis?.y && primitive.basis?.z) {
+    return {
+      x: v3(primitive.basis.x).normalize(),
+      y: v3(primitive.basis.y).normalize(),
+      z: v3(primitive.basis.z).normalize()
+    };
+  }
+
+  const z = v3(primitive.direction || [0, 0, 1]).normalize();
+  const reference = Math.abs(z.y) < 0.85 ? new THREE.Vector3(0, 1, 0) : new THREE.Vector3(1, 0, 0);
+  const x = new THREE.Vector3().crossVectors(reference, z).normalize();
+  const y = new THREE.Vector3().crossVectors(z, x).normalize();
+  return { x, y, z };
 }
 
 function materialFor(primitive, fallbackMaterialId) {
@@ -216,4 +261,10 @@ function frameScene(scene) {
 
 function v3(value) {
   return new THREE.Vector3(Number(value[0]), Number(value[1]), Number(value[2]));
+}
+
+function positiveNumber(value, fieldName) {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed <= 0) throw new Error(`Invalid RVM preview ${fieldName}: expected positive number`);
+  return parsed;
 }

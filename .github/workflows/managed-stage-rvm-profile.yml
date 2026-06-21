@@ -32,6 +32,9 @@ jobs:
       - name: Generate managed-stage fixture RVM artifact
         run: npm run artifact:managed-stage-rvm
 
+      - name: Verify managed-stage artifact round-trip
+        run: node scripts/verify-managed-stage-rvm-artifact.mjs --dir=artifacts/managed-stage-rvm --base=BM_CII_INPUT_managed_stage --expect-bm-cii
+
       - name: Upload managed-stage RVM artifact
         uses: actions/upload-artifact@v4
         with:

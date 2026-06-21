@@ -10,6 +10,7 @@ export function assertManagedStageRvmAuditGate(audit = {}, expectations = {}) {
   const inputCounts = audit.inputCounts || {};
   const bbox = audit.boundingExtentsMm || {};
   const stitchManifest = audit.stitchManifest || {};
+  const supportExport = audit.supportRvmExportAudit || {};
   const toleranceMm = Number(expectations.maxCenterlineGapMm ?? DEFAULT_GAP_TOLERANCE_MM);
 
   requireEqual(audit.generationMode, 'managed-stage-cylinder-torus', 'generationMode', issues);
@@ -53,6 +54,8 @@ export function assertManagedStageRvmAuditGate(audit = {}, expectations = {}) {
 
   checkExpected(expectations.geometryComponents, inputCounts.geometryComponents, 'expected geometry components', issues);
   checkExpected(expectations.supportRecordsSkippedFromGeometry, inputCounts.supportRecordsSkippedFromGeometry, 'expected skipped support records', issues);
+  checkExpected(expectations.supportRecordsEmittedToRvm, inputCounts.supportRecordsEmittedToRvm, 'expected support records emitted to RVM', issues);
+  checkExpected(expectations.supportRvmPrimitiveCount, supportExport.supportPrimitiveCount, 'expected support RVM primitive count', issues);
   checkExpected(expectations.code4, primitiveHistogram[4] || 0, 'expected code 4 torus primitives', issues);
   checkExpected(expectations.code8, primitiveHistogram[8] || 0, 'expected code 8 cylinder primitives', issues);
   checkExpected(expectations.cntbCount, chunkHierarchy.cntbCount, 'expected CNTB count', issues);
@@ -67,6 +70,8 @@ export function assertManagedStageRvmAuditGate(audit = {}, expectations = {}) {
     forbiddenPrimitiveCodes: [...FORBIDDEN_CODES],
     maxCenterlineGapMm: Number(topology.maxCenterlineGapMm || 0),
     primitiveHistogram,
+    supportRecordsEmittedToRvm: Number(inputCounts.supportRecordsEmittedToRvm || 0),
+    supportRvmPrimitiveCount: Number(supportExport.supportPrimitiveCount || 0),
     stitchManifestPresent: stitchManifest.schema === 'ManagedStageRvmStitchManifest.v1',
     chunkCounts: {
       HEAD: chunkHierarchy.headCount || 0,

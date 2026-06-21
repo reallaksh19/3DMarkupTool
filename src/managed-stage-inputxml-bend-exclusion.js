@@ -12,6 +12,7 @@ export function applyManagedStageInputXmlBendExclusion(contracts = [], config = 
   const trims = new Map();
   const genericBends = [];
   const trimApplications = [];
+  const skippedTrimSources = [];
   const issues = [];
   const byName = new Map(contracts.map((contract) => [contract?.name, contract]).filter(([name]) => name));
 
@@ -23,11 +24,11 @@ export function applyManagedStageInputXmlBendExclusion(contracts = [], config = 
       const sourceName = sources[role] || '';
       const source = byName.get(sourceName);
       if (!source) {
-        issues.push(`${bend.name}: no ${role} tangent source contract to trim`);
+        skippedTrimSources.push({ bendName: bend.name, bendRole: role, node: String(node), reason: 'no tangent source contract' });
         continue;
       }
       if (source.dtxr === 'BEND') {
-        issues.push(`${bend.name}: ${role} tangent source is another BEND (${sourceName})`);
+        skippedTrimSources.push({ bendName: bend.name, bendRole: role, node: String(node), sourceName, reason: 'adjacent source is another BEND' });
         continue;
       }
       const appliedTrim = addTrim(trims, source, node, trimLengthMm, config, bend, role);
@@ -95,6 +96,7 @@ export function applyManagedStageInputXmlBendExclusion(contracts = [], config = 
       genericCode8BendsPlanned: genericBends.length,
       trimmedContractCount: trims.size,
       trimApplicationCount: trimApplications.length,
+      skippedTrimSources,
       genericBends,
       trimApplications,
       issues,
@@ -132,6 +134,7 @@ function emptyAudit(contracts, config, state) {
     genericCode8BendsPlanned: 0,
     trimmedContractCount: 0,
     trimApplicationCount: 0,
+    skippedTrimSources: [],
     genericBends: [],
     trimApplications: [],
     issues: [],

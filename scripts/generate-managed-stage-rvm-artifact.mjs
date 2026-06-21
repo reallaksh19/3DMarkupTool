@@ -13,8 +13,8 @@ if (!inputPath && fixtureName !== 'bm-cii') {
 }
 
 const { convertManagedStageJsonToRvmAtt } = await import('../src/managed-stage-rvm-converter.js');
-const { sourceText, baseName } = await resolveSource(inputPath, fixtureName);
-const result = convertManagedStageJsonToRvmAtt(sourceText);
+const { sourceText, baseName, strictAuditExpectations } = await resolveSource(inputPath, fixtureName);
+const result = convertManagedStageJsonToRvmAtt(sourceText, { strictAuditExpectations });
 mkdirSync(outDir, { recursive: true });
 
 const files = [
@@ -30,18 +30,28 @@ console.log(`RVM bytes: ${result.audit.rvmBytes}`);
 console.log(`ATT bytes: ${result.audit.attBytes}`);
 console.log(`Primitive histogram: ${JSON.stringify(result.audit.primitiveHistogram)}`);
 console.log(`Max centerline gap mm: ${result.audit.topology.maxCenterlineGapMm}`);
+console.log(`Strict audit gate: ${result.audit.managedStageStrictGate.ok ? 'PASS' : 'FAIL'}`);
 
 async function resolveSource(input, fixture) {
   if (fixture === 'bm-cii') {
     const { createBmCiiManagedStageFixture } = await import('../tests/managed-stage-bm-cii-profile-fixture.mjs');
     return {
       sourceText: JSON.stringify(createBmCiiManagedStageFixture()),
-      baseName: 'BM_CII_INPUT_managed_stage'
+      baseName: 'BM_CII_INPUT_managed_stage',
+      strictAuditExpectations: {
+        geometryComponents: 40,
+        supportRecordsSkippedFromGeometry: 12,
+        code4: 7,
+        code8: 41,
+        cntbCount: 43,
+        primCount: 48
+      }
     };
   }
   return {
     sourceText: readFileSync(input, 'utf8'),
-    baseName: basename(input).replace(/\.json$/i, '') || 'BM_CII_INPUT_managed_stage'
+    baseName: basename(input).replace(/\.json$/i, '') || 'BM_CII_INPUT_managed_stage',
+    strictAuditExpectations: {}
   };
 }
 

@@ -8,9 +8,9 @@ const MANAGED_STAGE_PROFILE = 'AVEVA_JSON_FOR_3D_RVM_VIEWER';
 const BM_CII_INPUTXML_JSON_EXPECTATIONS = Object.freeze({
   geometryComponents: 40,
   supportRecordsSkippedFromGeometry: 12,
-  primitiveCodeCounts: { 4: 0, 8: 70 },
+  primitiveCodeCounts: { 4: 0, 8: 91 },
   cntbCount: 43,
-  primCount: 70,
+  primCount: 91,
   forbiddenPrimitiveCodesPresent: []
 });
 
@@ -258,141 +258,116 @@ function showManagedStagePreview(modelRoot) {
 function fitRuntimeToObject(runtime, object) {
   const box = new THREE.Box3().setFromObject(object);
   if (!Number.isFinite(box.min.x)) return;
-  const size = box.getSize(new THREE.Vector3());
   const center = box.getCenter(new THREE.Vector3());
+  const size = box.getSize(new THREE.Vector3());
   const radius = Math.max(size.x, size.y, size.z, 1);
-  const direction = new THREE.Vector3(1.1, 0.78, 1.12).normalize();
-  runtime.camera.position.copy(center).add(direction.multiplyScalar(radius * 1.18));
-  runtime.camera.near = Math.max(0.01, radius / 1200);
+  runtime.controls.target.copy(center);
+  runtime.camera.position.set(center.x + radius * 1.4, center.y + radius * 0.9, center.z + radius * 1.4);
+  runtime.camera.near = Math.max(0.1, radius / 10000);
   runtime.camera.far = Math.max(1000, radius * 20);
   runtime.camera.updateProjectionMatrix();
-  runtime.controls.target.copy(center);
   runtime.controls.update();
 }
 
-function enableManagedStageDownloads() {
-  setDisabled('downloadGlbBtn', true);
-  setDisabled('previewGlbBtn', true);
-  setDisabled('downloadRvmBtn', false);
-  setDisabled('downloadAttBtn', false);
-  setDisabled('downloadAuditBtn', false);
-  setDisabled('previewRvmBtn', false);
-}
-
 function setPreviewModeButtons() {
-  document.getElementById('previewGlbBtn')?.classList.remove('active');
-  document.getElementById('previewRvmBtn')?.classList.add('active');
+  for (const id of ['downloadRvmBtn', 'downloadAttBtn', 'downloadAuditBtn', 'previewRvmBtn']) {
+    document.getElementById(id)?.removeAttribute('disabled');
+  }
+  document.getElementById('downloadGlbBtn')?.setAttribute('disabled', 'disabled');
 }
 
-function updateDrawerSummary(audit) {
-  const input = document.getElementById('drawerSummary_input');
-  const model = document.getElementById('drawerSummary_model');
-  const exportStep = document.getElementById('drawerSummary_export');
-  setSummaryStep(input, 'ready', 'Managed JSON');
-  setSummaryStep(model, 'ready', `${audit?.inputCounts?.geometryComponents || 0} elements`);
-  setSummaryStep(exportStep, 'ready', 'RVM ready');
-  const hint = document.getElementById('drawerSummaryHint');
-  if (hint) hint.textContent = 'Managed-stage JSON loaded. Geometry preview and RVM/ATT/Audit downloads are ready.';
+function enableManagedStageDownloads() {
+  for (const id of ['downloadRvmBtn', 'downloadAttBtn', 'downloadAuditBtn', 'previewRvmBtn']) {
+    document.getElementById(id)?.removeAttribute('disabled');
+  }
 }
 
-function setSummaryStep(element, state, text) {
-  if (!element) return;
-  element.dataset.state = state;
-  const span = element.querySelector('span');
-  if (span) span.textContent = text;
+function updateDrawerSummary(audit = {}) {
+  const status = document.getElementById('conversionStatus');
+  if (status) {
+    status.textContent = `Managed-stage RVM ready — components ${audit.inputCounts?.geometryComponents || 0}, PRIM ${audit.rvmPrimitivePayloadContract?.primitiveCount || 0}`;
+  }
+  const stats = document.getElementById('modelStats');
+  if (stats) {
+    stats.textContent = `Managed JSON · CNTB ${audit.chunkHierarchy?.cntbCount || 0} · PRIM ${audit.chunkHierarchy?.primCount || 0}`;
+  }
 }
 
-function updateStatusBarFromAudit(audit) {
-  const componentStatus = document.getElementById('componentStatus');
-  if (componentStatus) componentStatus.textContent = `Objects: ${audit?.inputCounts?.geometryComponents || 0}`;
-  const selectedStatus = document.getElementById('selectedStatus');
-  if (selectedStatus) selectedStatus.textContent = 'Selected: none';
+function updateStatusBarFromAudit(audit = {}) {
+  const status = document.getElementById('status');
+  if (status) status.textContent = `Managed-stage JSON · PRIM ${audit.chunkHierarchy?.primCount || 0}`;
+}
+
+function logManagedStageSummary(audit = {}) {
+  const histogram = audit.primitiveHistogram || {};
+  log(`Managed-stage geometry ready: components=${audit.inputCounts?.geometryComponents || 0}, supportsSkipped=${audit.inputCounts?.supportRecordsSkippedFromGeometry || 0}, code4=${histogram[4] || 0}, code8=${histogram[8] || 0}`);
+  log(`Managed-stage RVM bytes=${formatBytes(audit.rvmBytes || 0)}, ATT bytes=${formatBytes(audit.attBytes || 0)}`);
 }
 
 function clearManagedStagePreview() {
-  if (managedStageUiState.modelRoot?.parent) {
-    managedStageUiState.modelRoot.parent.remove(managedStageUiState.modelRoot);
-  }
-  resetManagedStageStateOnly();
+  if (managedStageUiState.modelRoot?.parent) managedStageUiState.modelRoot.parent.remove(managedStageUiState.modelRoot);
+  managedStageUiState.modelRoot = null;
+  managedStageUiState.artifact = null;
+  managedStageUiState.sourceText = '';
+  managedStageUiState.sourceName = '';
 }
 
 function resetManagedStageStateOnly() {
+  managedStageUiState.artifact = null;
   managedStageUiState.sourceText = '';
   managedStageUiState.sourceName = '';
-  managedStageUiState.basename = 'managed-stage';
-  managedStageUiState.artifact = null;
-  managedStageUiState.modelRoot = null;
 }
 
 function looksLikeManagedStageJson(sourceText, sourceName) {
-  let parsed = null;
+  if (!isJsonFileName(sourceName)) return false;
   try {
-    parsed = JSON.parse(sourceText);
-  } catch (error) {
-    throw new Error(`${sourceName} is not valid JSON: ${error.message}`);
+    const parsed = JSON.parse(sourceText);
+    return parsed?.schema === MANAGED_STAGE_SCHEMA && parsed?.profile === MANAGED_STAGE_PROFILE;
+  } catch {
+    return false;
   }
-  return parsed?.schema === MANAGED_STAGE_SCHEMA || parsed?.profile === MANAGED_STAGE_PROFILE;
 }
 
-function isJsonFileName(name) {
-  return /\.json$/i.test(String(name || ''));
+function isJsonFileName(fileName = '') {
+  return fileName.toLowerCase().endsWith('.json');
 }
 
-function logManagedStageSummary(audit) {
-  const counts = audit?.primitiveHistogram || {};
-  const components = audit?.inputCounts?.geometryComponents || 0;
-  const skipped = audit?.inputCounts?.supportRecordsSkippedFromGeometry || 0;
-  log(`Managed-stage geometry ready: components=${components}, supportsSkipped=${skipped}, code4=${counts[4] || 0}, code8=${counts[8] || 0}`);
-  log(`Managed-stage RVM bytes=${formatBytes(audit?.rvmBytes || 0)}, ATT bytes=${formatBytes(audit?.attBytes || 0)}`);
+function bmCiiLikeSourceName(sourceName = '') {
+  return /bm[_-]?cii.*managed[_-]?stage/i.test(sourceName) || /BM_CII_INPUT_managed_stage\.json/i.test(sourceName);
 }
 
-function updateInputStatus(text) {
-  const target = document.getElementById('inputFileStatus');
-  if (target) target.textContent = text;
+function basenameWithoutExtension(fileName = '') {
+  return String(fileName).replace(/\.[^.]+$/, '') || 'managed-stage';
 }
 
-function setDisabled(id, disabled) {
-  const button = document.getElementById(id);
-  if (button) button.disabled = disabled;
+function downloadBlob(data, fileName, type) {
+  const blob = data instanceof Blob ? data : new Blob([data], { type });
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  anchor.download = fileName;
+  anchor.click();
+  setTimeout(() => URL.revokeObjectURL(url), 2000);
+}
+
+function formatBytes(bytes) {
+  if (bytes > 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  if (bytes > 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${bytes} B`;
 }
 
 function setStatus(message) {
-  const status = document.getElementById('runtimeStatus');
+  if (window.setStatus) window.setStatus(message);
+  const status = document.getElementById('status');
   if (status) status.textContent = message;
 }
 
+function updateInputStatus(message) {
+  const target = document.getElementById('inputStatus');
+  if (target) target.textContent = message;
+}
+
 function log(message) {
-  const target = document.getElementById('log');
-  if (!target) return;
-  const ts = new Date().toLocaleTimeString();
-  target.textContent += `[${ts}] ${message}\n`;
-  target.scrollTop = target.scrollHeight;
-}
-
-function downloadBlob(content, name, type) {
-  if (!content) return;
-  const blob = content instanceof Blob ? content : new Blob([content], { type });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = name;
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
-  window.setTimeout(() => URL.revokeObjectURL(url), 1000);
-}
-
-function basenameWithoutExtension(name) {
-  return String(name || 'managed-stage').replace(/\.[^.]+$/, '').replace(/[^A-Za-z0-9_.-]+/g, '_') || 'managed-stage';
-}
-
-function bmCiiLikeSourceName(name) {
-  return /BM[_-]?CII/i.test(String(name || ''));
-}
-
-function formatBytes(value) {
-  const bytes = Number(value) || 0;
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${(bytes / 1024 / 1024).toFixed(2)} MB`;
+  if (window.addLog) window.addLog(message);
+  else console.info(message);
 }

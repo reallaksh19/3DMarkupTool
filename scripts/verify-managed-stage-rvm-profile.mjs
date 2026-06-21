@@ -46,9 +46,9 @@ function bmCiiExpectations() {
     geometryComponents: 40,
     supportRecordsSkippedFromGeometry: 12,
     code4: 0,
-    code8: 70,
+    code8: 91,
     cntbCount: 43,
-    primCount: 70
+    primCount: 91
   };
 }
 

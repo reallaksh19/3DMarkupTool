@@ -1,4 +1,6 @@
 const EPS_MM = 1e-6;
+const DEFAULT_RECONSTRUCTED_BEND_SEGMENTS = 5;
+const PERPENDICULAR_DOT_TOLERANCE = 0.3;
 
 export function applyManagedStageInputXmlBendExclusion(contracts = [], config = {}) {
   if (!config.excludeBendsWhileProcessingInputXmlBasedJson) {
@@ -15,6 +17,7 @@ export function applyManagedStageInputXmlBendExclusion(contracts = [], config = 
   const skippedTrimSources = [];
   const issues = [];
   const byName = new Map(contracts.map((contract) => [contract?.name, contract]).filter(([name]) => name));
+  const byNode = buildNodeIndex(contracts);
   const genericBendByName = new Map();
 
   for (const bend of bendContracts) {
@@ -22,6 +25,8 @@ export function applyManagedStageInputXmlBendExclusion(contracts = [], config = 
     const sources = bend.arc?.tangentHintSources || {};
     const applied = [];
     const tangentHints = {};
+    const trimEligibility = resolveSimplePerpendicularTrimEligibility(bend, sources, byName, byNode);
+
     for (const [role, node] of [['start', bend.fromNode], ['end', bend.toNode]]) {
       const sourceName = sources[role] || '';
       const source = byName.get(sourceName);
@@ -34,6 +39,16 @@ export function applyManagedStageInputXmlBendExclusion(contracts = [], config = 
         continue;
       }
       tangentHints[role] = tangentFromSourceAtNode(source, node, role);
+      if (!trimEligibility.ok) {
+        skippedTrimSources.push({
+          bendName: bend.name,
+          bendRole: role,
+          node: String(node),
+          sourceName,
+          reason: trimEligibility.reason
+        });
+        continue;
+      }
       const appliedTrim = addTrim(trims, source, node, trimLengthMm, config, bend, role);
       if (appliedTrim) {
         trimApplications.push(appliedTrim);
@@ -41,7 +56,7 @@ export function applyManagedStageInputXmlBendExclusion(contracts = [], config = 
       }
     }
 
-    const segments = buildGenericTwoLegBendSegments(bend, tangentHints, trimLengthMm);
+    const segments = buildGenericReconstructedBendSegments(bend, tangentHints, trimLengthMm, config);
     const bendPlan = {
       name: bend.name,
       fromNode: bend.fromNode,
@@ -49,9 +64,10 @@ export function applyManagedStageInputXmlBendExclusion(contracts = [], config = 
       originalBendRadiusMm: bend.arc?.bendRadiusMm || null,
       genericBendRadiusMm: round(trimLengthMm),
       radiusMultiplier: config.genericInputXmlBendRadiusMultiplier,
-      emittedAs: 'code8-generic-1p5d-two-leg-cylinders',
+      emittedAs: 'code8-generic-1p5d-reconstructed-arc-cylinders',
       segmentCount: segments.length,
       segments: segments.map((segment) => ({ role: segment.role, startMm: segment.startMm, endMm: segment.endMm, lengthMm: segment.lengthMm })),
+      trimEligibility,
       trimApplications: applied.map((entry) => ({
         contractName: entry.contractName,
         node: entry.node,
@@ -71,13 +87,14 @@ export function applyManagedStageInputXmlBendExclusion(contracts = [], config = 
         ...contract,
         excludeCode4Bend: true,
         genericInputXmlBend: {
-          schema: 'ManagedStageInputXmlGenericBend.v2',
-          mode: 'code8-generic-1p5d-two-leg-cylinders',
+          schema: 'ManagedStageInputXmlGenericBend.v3',
+          mode: 'code8-generic-1p5d-reconstructed-arc-cylinders',
           radiusMultiplier: config.genericInputXmlBendRadiusMultiplier,
           genericBendRadiusMm: round(trimLengthMm),
           trimLengthMm: round(trimLengthMm),
           originalBendRadiusMm: contract.arc?.bendRadiusMm || null,
           segments: bendPlan?.segments || [],
+          trimEligibility: bendPlan?.trimEligibility || null,
           reason: config.reason || 'InputXML-based JSON bend exclusion is ON'
         }
       };
@@ -99,7 +116,7 @@ export function applyManagedStageInputXmlBendExclusion(contracts = [], config = 
       schema: 'ManagedStageInputXmlBendExclusionAudit.v1',
       enabled: true,
       inputXmlBasedJson: true,
-      mode: 'inputxml-json-generic-1p5d-two-leg-bends',
+      mode: 'inputxml-json-generic-1p5d-reconstructed-arc-bends',
       radiusMultiplier: config.genericInputXmlBendRadiusMultiplier,
       trimMaxContractFraction: config.inputXmlBendTrimMaxContractFraction,
       bendCount: bendContracts.length,
@@ -183,25 +200,104 @@ function addTrim(trims, source, node, requestedTrimMm, config, bend, role) {
   return application;
 }
 
-function buildGenericTwoLegBendSegments(bend, tangentHints, trimLengthMm) {
-  const start = bend.startMm;
-  const end = bend.endMm;
+function buildGenericReconstructedBendSegments(bend, tangentHints, trimLengthMm, config = {}) {
   const startTangent = unitOrNull(tangentHints.start);
   const endTangent = unitOrNull(tangentHints.end);
-  let corner = null;
+  const segmentCount = Math.max(3, Math.floor(Number(config.genericInputXmlBendSegmentCount) || DEFAULT_RECONSTRUCTED_BEND_SEGMENTS));
   if (startTangent && endTangent) {
-    corner = closestCornerPoint(start, startTangent, end, scale(endTangent, -1), trimLengthMm);
+    const corner = closestCornerPoint(bend.startMm, startTangent, bend.endMm, scale(endTangent, -1), trimLengthMm);
+    if (corner) {
+      const start = vadd(corner, scale(startTangent, -trimLengthMm));
+      const end = vadd(corner, scale(endTangent, trimLengthMm));
+      const curvePoints = quadraticCornerCurve(start, corner, end, segmentCount);
+      const arcSegments = segmentsFromPoints(curvePoints, 'arc');
+      if (arcSegments.length >= 3) return arcSegments;
+    }
   }
-  if (!corner) corner = midpoint(start, end);
-  let segments = [
-    segment('start-leg', start, corner),
-    segment('end-leg', corner, end)
-  ].filter(Boolean);
-  if (segments.length < 2) {
-    const mid = midpoint(start, end);
-    segments = [segment('start-leg', start, mid), segment('end-leg', mid, end)].filter(Boolean);
+  return segmentedChordFallback(bend.startMm, bend.endMm, segmentCount);
+}
+
+function quadraticCornerCurve(start, corner, end, segmentCount) {
+  const points = [];
+  for (let index = 0; index <= segmentCount; index += 1) {
+    const t = index / segmentCount;
+    const a = (1 - t) * (1 - t);
+    const b = 2 * (1 - t) * t;
+    const c = t * t;
+    points.push([
+      a * start[0] + b * corner[0] + c * end[0],
+      a * start[1] + b * corner[1] + c * end[1],
+      a * start[2] + b * corner[2] + c * end[2]
+    ]);
   }
-  return segments;
+  return points;
+}
+
+function segmentedChordFallback(start, end, segmentCount) {
+  const points = [];
+  for (let index = 0; index <= segmentCount; index += 1) {
+    const t = index / segmentCount;
+    points.push([
+      start[0] + (end[0] - start[0]) * t,
+      start[1] + (end[1] - start[1]) * t,
+      start[2] + (end[2] - start[2]) * t
+    ]);
+  }
+  return segmentsFromPoints(points, 'fallback-chord');
+}
+
+function segmentsFromPoints(points, prefix) {
+  const out = [];
+  for (let index = 0; index < points.length - 1; index += 1) {
+    const built = segment(`${prefix}-${index + 1}`, points[index], points[index + 1]);
+    if (built) out.push(built);
+  }
+  return out;
+}
+
+function resolveSimplePerpendicularTrimEligibility(bend, sources, byName, byNode) {
+  const startSource = byName.get(sources.start || '');
+  const endSource = byName.get(sources.end || '');
+  if (!startSource || !endSource) return { ok: false, reason: 'missing start/end tangent source' };
+  if (!isPipeLikeLine(startSource) || !isPipeLikeLine(endSource)) return { ok: false, reason: 'trim source is not two pipe-only line contracts' };
+  if (!isSimpleTwoConnectionNode(byNode, bend.fromNode, bend.name, startSource.name)) return { ok: false, reason: 'start node is not a 2-pipe-only intersection' };
+  if (!isSimpleTwoConnectionNode(byNode, bend.toNode, bend.name, endSource.name)) return { ok: false, reason: 'end node is not a 2-pipe-only intersection' };
+  const startTangent = tangentFromSourceAtNode(startSource, bend.fromNode, 'start');
+  const endTangent = tangentFromSourceAtNode(endSource, bend.toNode, 'end');
+  if (!startTangent || !endTangent) return { ok: false, reason: 'missing trim tangent vector' };
+  const tangentDot = Math.abs(dot(unitOrNull(startTangent), unitOrNull(endTangent)));
+  if (tangentDot > PERPENDICULAR_DOT_TOLERANCE) return { ok: false, reason: 'adjacent pipe tangents are not perpendicular' };
+  return { ok: true, reason: 'simple perpendicular 2-pipe bend intersection', tangentDot: round(tangentDot) };
+}
+
+function buildNodeIndex(contracts) {
+  const byNode = new Map();
+  for (const contract of contracts) {
+    if (contract?.schema !== 'ManagedStageGeometryContract.v1') continue;
+    addConnection(byNode, contract, contract.fromNode);
+    addConnection(byNode, contract, contract.toNode);
+  }
+  return byNode;
+}
+
+function addConnection(byNode, contract, node) {
+  if (!node) return;
+  const key = String(node);
+  if (!byNode.has(key)) byNode.set(key, []);
+  byNode.get(key).push(contract);
+}
+
+function isSimpleTwoConnectionNode(byNode, node, bendName, sourceName) {
+  const usable = (byNode.get(String(node)) || []).filter((contract) => contract?.dtxr !== 'ATTA' && contract?.emitGeometry !== false);
+  if (usable.length !== 2) return false;
+  if (!usable.some((contract) => contract.name === bendName)) return false;
+  const source = usable.find((contract) => contract.name === sourceName);
+  return isPipeLikeLine(source);
+}
+
+function isPipeLikeLine(contract) {
+  if (!contract || contract.centerlineKind !== 'line') return false;
+  return contract.dtxr === 'PIPE' || contract.dtxr === 'UNSPECIFIED';
 }
 
 function closestCornerPoint(p, d, q, e, trimLengthMm) {

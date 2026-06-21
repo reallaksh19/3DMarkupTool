@@ -13,6 +13,30 @@ It emits only:
 
 It does not emit support geometry, boxes, pyramids, spheres, meshes, cones, reducers, UI objects, or GLB fallback symbols.
 
+## Geometry contract phase
+
+Before RVM primitives are planned, every non-support staged record is normalized into a managed-stage geometry contract:
+
+```text
+ManagedStageRecord
+→ ManagedStageGeometryContract
+→ primitive planner
+→ RVM export model
+→ binary RVM
+```
+
+The contract layer records:
+
+- staged `TYPE`, `RAW_TYPE`, and `DTXR`
+- `FROM_NODE` and `TO_NODE`
+- exact `APOS` and `LPOS` endpoint coordinates in millimetres
+- center point, unit axis, length, diameter, and radius
+- component class such as `PIPE`, `BEND`, `FLANGE`, `VALVE`, or `UNKNOWN_PIPELIKE`
+- centerline kind: `line` for inline components, `arc` for bends
+- endpoint-lock status proving the component is tied to its staged endpoints
+
+For the BM_CII fixture the geometry contract gate expects 40 geometry contracts, 12 skipped support records, 33 line contracts, and 7 arc contracts.
+
 ## Verify a real profile
 
 Use this before generating files:

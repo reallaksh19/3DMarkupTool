@@ -47,8 +47,9 @@ function bmCiiExpectations() {
     supportRecordsSkippedFromGeometry: 12,
     supportRecordsEmittedToRvm: 12,
     supportRvmPrimitiveCount: 25,
+    code1: 17,
     code4: 0,
-    code8: 116,
+    code8: 99,
     cntbCount: 56,
     primCount: 116
   };

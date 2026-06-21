@@ -134,11 +134,11 @@ function validateInspection({ audit, chunks, cntbRecords, primitives, attHierarc
   if (attHierarchy.names.length !== cntbRecords.length) issues.push('ATT NEW count mismatch vs CNTB count');
   if ((audit.stitchManifest?.elements || []).length !== elementRows.length) issues.push('stitch element row count mismatch');
   if ((audit.stitchManifest?.primitiveCount || 0) !== primitiveRows.length) issues.push('stitch primitive row count mismatch');
-  const first = normalizeEnvelopeChunkId(chunks[0]?.id);
-  const second = normalizeEnvelopeChunkId(chunks[1]?.id);
-  const last = normalizeEnvelopeChunkId(chunks[chunks.length - 1]?.id);
+  const first = chunks[0]?.id;
+  const second = chunks[1]?.id;
+  const last = chunks[chunks.length - 1]?.id;
   if (first !== 'HEAD' || second !== 'MODL' || last !== 'END:') {
-    issues.push(`unexpected chunk envelope ${chunks[0]?.id}/${chunks[1]?.id}/${chunks[chunks.length - 1]?.id}`);
+    issues.push(`unexpected chunk envelope ${first}/${second}/${last}`);
   }
   for (let index = 0; index < cntbRecords.length; index += 1) {
     if (cntbRecords[index].name !== attHierarchy.names[index]) issues.push(`ATT/CNTB name mismatch at ${index + 1}`);
@@ -147,13 +147,6 @@ function validateInspection({ audit, chunks, cntbRecords, primitives, attHierarc
     if (row.expectedCode && Number(row.expectedCode) !== Number(row.code)) issues.push(`primitive code mismatch at PRIM ${row.primIndex}`);
   }
   return issues;
-}
-
-function normalizeEnvelopeChunkId(id) {
-  if (id === 'H') return 'HEAD';
-  if (id === 'M') return 'MODL';
-  if (id === 'E') return 'END:';
-  return id;
 }
 
 function scanChunkIndex(buffer) {
@@ -170,17 +163,20 @@ function scanChunkIndex(buffer) {
     if (id === 'CNTE') depth -= 1;
     chunks.push({ index: chunks.length + 1, id, offset, nextOffset, bodyLength, depth: Math.max(depth, 0) });
     if (id === 'CNTB') depth += 1;
-    if (id === 'END:') break;
     offset = nextOffset;
     guard += 1;
-    if (guard > 100000) throw new Error('Chunk scan guard exceeded');
+    if (guard > 100000 || id === 'END:') break;
   }
+  if (offset !== buffer.byteLength) throw new Error('RVM chunk index did not finish exactly at buffer end');
   return chunks;
 }
 
 function summarizeChunks(chunks) {
   return {
-    total: chunks.length,
+    count: chunks.length,
+    first: chunks[0]?.id || '',
+    second: chunks[1]?.id || '',
+    last: chunks[chunks.length - 1]?.id || '',
     counts: chunks.reduce((out, chunk) => {
       out[chunk.id] = (out[chunk.id] || 0) + 1;
       return out;
@@ -189,22 +185,26 @@ function summarizeChunks(chunks) {
 }
 
 function renderMarkdown(inspection) {
-  return [
-    `# Managed-stage RVM artifact inspection`,
-    '',
-    `Base: ${inspection.base}`,
-    '',
-    `- RVM bytes: ${inspection.byteCounts.rvm}`,
-    `- ATT bytes: ${inspection.byteCounts.att}`,
-    `- CNTB: ${inspection.cntbCount}`,
-    `- PRIM: ${inspection.primitiveCount}`,
-    `- Issues: ${inspection.issues.length}`,
-    '',
-    '## Chunk counts',
-    '',
-    ...Object.entries(inspection.chunkSummary.counts).map(([id, count]) => `- ${id}: ${count}`),
-    ''
-  ].join('\n');
+  return `# Managed-stage RVM artifact inspection\n\n` +
+    `Base: \`${inspection.base}\`\n\n` +
+    `## Summary\n\n` +
+    `| Metric | Value |\n|---|---:|\n` +
+    `| RVM bytes | ${inspection.byteCounts.rvm} |\n` +
+    `| Chunks | ${inspection.chunkSummary.count} |\n` +
+    `| CNTB | ${inspection.cntbCount} |\n` +
+    `| PRIM | ${inspection.primitiveCount} |\n` +
+    `| Elements | ${inspection.elementRows.length} |\n` +
+    `| InputXML bends excluded | ${inspection.inputXmlBendExclusionAudit?.code4BendsExcluded || 0} |\n` +
+    `| Node-local elbows inserted | ${inspection.inputXmlNodeLocalElbowAudit?.nodeLocalElbowPrimitiveCount || 0} |\n` +
+    `| Generic branch fittings inferred | ${inspection.inputXmlBranchFittingInferenceAudit?.genericBranchFittingCount || 0} |\n` +
+    `| Strict gate OK | ${inspection.gate.ok ? 'YES' : 'NO'} |\n\n` +
+    `## Chunk counts\n\n` +
+    Object.entries(inspection.chunkSummary.counts).map(([id, count]) => `- \`${id}\`: ${count}`).join('\n') +
+    `\n\n## Primitive histogram\n\n` +
+    Object.entries(inspection.gate.primitiveHistogram).map(([code, count]) => `- code \`${code}\`: ${count}`).join('\n') +
+    `\n\n## Output tables\n\n` +
+    `- \`${inspection.base}.primitives.csv\`\n` +
+    `- \`${inspection.base}.elements.csv\`\n`;
 }
 
 function renderCsv(rows) {
@@ -219,8 +219,7 @@ function csvCell(value) {
 }
 
 function formatVector(value) {
-  if (!Array.isArray(value)) return '';
-  return value.map((entry) => Number(entry).toFixed(6)).join('|');
+  return Array.isArray(value) ? value.map((entry) => Number(entry).toFixed(6)).join('|') : '';
 }
 
 function parseArgs(argv) {
@@ -235,14 +234,16 @@ function parseArgs(argv) {
 
 function readRequired(path, encoding = null) {
   try {
-    return readFileSync(path, encoding || undefined);
+    return readFileSync(path, encoding ? { encoding } : undefined);
   } catch (error) {
-    throw new Error(`Required artifact missing: ${basename(path)}`);
+    throw new Error(`Unable to read required artifact ${path}: ${error.message}`);
   }
 }
 
 function readChunkId(view, offset) {
-  return String.fromCharCode(view.getUint8(offset), view.getUint8(offset + 1), view.getUint8(offset + 2), view.getUint8(offset + 3));
+  return [0, 1, 2, 3]
+    .map((index) => String.fromCharCode(view.getUint32(offset + index * 4, false)))
+    .join('');
 }
 
 function toArrayBuffer(buffer) {

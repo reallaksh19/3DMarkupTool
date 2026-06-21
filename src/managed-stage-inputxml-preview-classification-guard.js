@@ -13,6 +13,7 @@ export function installManagedStageInputXmlPreviewClassificationGuard() {
   const api = {
     version: VERSION,
     apply: applyInputXmlPreviewClassificationGuard,
+    patchActiveArtifact,
     debug: () => window.__3D_MARKUP_MANAGED_STAGE_INPUTXML_CLASSIFICATION_GUARD_LAST__ || { version: VERSION, patchedObjects: 0 }
   };
   window.__3D_MARKUP_MANAGED_STAGE_INPUTXML_CLASSIFICATION_GUARD__ = api;
@@ -23,8 +24,19 @@ export function installManagedStageInputXmlPreviewClassificationGuard() {
   window.addEventListener('viewer:model-loaded', (event) => {
     applyInputXmlPreviewClassificationGuard(event?.detail?.modelRoot, event?.detail || {});
   });
+  window.addEventListener('viewer:managed-stage-json-ui-ready', () => patchActiveArtifact(), { passive: true });
 
+  patchActiveArtifact();
   return api;
+}
+
+function patchActiveArtifact() {
+  const artifact = window.__3D_MARKUP_MANAGED_STAGE_JSON_UI__?.getActiveArtifact?.();
+  if (artifact?.previewScene) {
+    return applyInputXmlPreviewClassificationGuard(artifact.previewScene, { sourceName: artifact.sourceName, previewCoordinateAudit: artifact.previewCoordinateAudit });
+  }
+  const runtime = window.__3D_MARKUP_VIEWER_RUNTIME__ || window.__3D_MARKUP_CLIP_RUNTIME__;
+  return applyInputXmlPreviewClassificationGuard(runtime?.modelRoot, { source: runtime?.source });
 }
 
 function applyInputXmlPreviewClassificationGuard(modelRoot, detail = {}) {

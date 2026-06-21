@@ -37,6 +37,32 @@ The contract layer records:
 
 For the BM_CII fixture the geometry contract gate expects 40 geometry contracts, 12 skipped support records, 33 line contracts, and 7 arc contracts.
 
+## Endpoint-locked cylinder phase
+
+Inline RVM cylinder primitives are authored through `src/rvm-cylinder-primitive-builder.js` instead of hand-assembled midpoint/axis objects.
+
+For each non-bend cylinder primitive, the builder records:
+
+- exact `startMm` and `endMm`
+- derived center point and unit direction
+- derived length in millimetres
+- local cylinder bbox for audit/reporting
+- `endpointLocked: true`
+- source geometry contract name and source element id
+
+The binary writer still emits the same RMSS-style code-8 cylinder payload:
+
+```text
+record version
+primitive code 8
+12-float transform
+6-float local bbox
+radius
+length
+```
+
+This phase does not change code-4 elbow placement yet. Bends remain managed-stage opt-in code-4 primitives with the existing orientation assumption until the dedicated elbow solver phase.
+
 ## Verify a real profile
 
 Use this before generating files:

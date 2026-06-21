@@ -72,14 +72,14 @@ function planGenericInputXmlBendCylinders(contract, pipeRadius) {
     });
     return {
       ...primitive,
-      recipeName: 'inputxml-generic-1p5d-bend-two-leg',
+      recipeName: 'inputxml-generic-1p5d-bend-reconstructed-arc',
       genericInputXmlBend: true,
       code4BendExcluded: true,
       genericInputXmlBendSegmentRole: segment.role || '',
       genericBendRadiusMm: contract.genericInputXmlBend?.genericBendRadiusMm || null,
       genericBendTrimLengthMm: contract.genericInputXmlBend?.trimLengthMm || null,
       originalBendRadiusMm: contract.genericInputXmlBend?.originalBendRadiusMm || contract.arc?.bendRadiusMm || null,
-      orientationAssumption: 'InputXML-derived JSON bend excluded; emitted as two tangent-aligned generic 1.5D code-8 cylinders'
+      orientationAssumption: 'InputXML-derived JSON bend excluded; emitted as reconstructed generic 1.5D code-8 arc cylinders'
     };
   });
 }

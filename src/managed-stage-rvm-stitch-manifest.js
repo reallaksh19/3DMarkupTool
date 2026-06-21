@@ -1,8 +1,11 @@
-const PRIMITIVE_CODE_BY_KIND = Object.freeze({ cylinder: 8, elbow: 4 });
+const PRIMITIVE_CODE_BY_KIND = Object.freeze({ pyramid: 1, cylinder: 8, elbow: 4 });
+const SUPPORT_OVERLAY_PRIMITIVE_CODES = Object.freeze([1, 8]);
 
 export function buildManagedStageRvmStitchManifest(profile = {}, exportModel = {}, primitivePayloads = []) {
   const geometryRecords = profile.geometryRecords || [];
   const elementNodes = managedStageElementNodes(exportModel);
+  const supportNodes = managedStageSupportNodes(exportModel);
+  const plannedSupportPrimitives = supportNodes.flatMap((node) => node.primitives || []);
   const issues = [];
   let primitiveCursor = 0;
   const elements = geometryRecords.map((record, index) => {
@@ -51,12 +54,26 @@ export function buildManagedStageRvmStitchManifest(profile = {}, exportModel = {
     };
   });
 
-  const supportOverlayPrimitives = primitivePayloads.slice(primitiveCursor).map((decoded, index) => ({
-    index: index + 1,
-    emittedCode: Number(decoded.code),
-    bodyLength: decoded.bodyLength || 0,
-    chunkOffset: decoded.offset ?? null
-  }));
+  const supportOverlayPrimitives = primitivePayloads.slice(primitiveCursor).map((decoded, index) => {
+    const planned = plannedSupportPrimitives[index] || {};
+    const expectedCode = PRIMITIVE_CODE_BY_KIND[planned.kind] || null;
+    if (planned.kind && expectedCode !== Number(decoded.code)) {
+      issues.push(`support overlay primitive ${index + 1} code mismatch: expected ${expectedCode}, got ${decoded.code}`);
+    }
+    return {
+      index: index + 1,
+      localName: planned.localName || planned.name || `SUPPORT_PRIM_${index + 1}`,
+      kind: planned.kind || '',
+      expectedCode,
+      emittedCode: Number(decoded.code),
+      bodyLength: decoded.bodyLength || 0,
+      chunkOffset: decoded.offset ?? null,
+      material: planned.material ?? null,
+      centerMm: roundVector(planned.center),
+      direction: roundVector(planned.direction || [0, 0, 1]),
+      dimensions: primitiveDimensions(planned)
+    };
+  });
   const supportOverlayPrimitiveCodes = supportOverlayPrimitives.map((primitive) => primitive.emittedCode);
   const geometryPrimitiveCodes = elements.flatMap((element) => element.primitiveCodes);
   const primitiveCodeHistogram = histogram([...geometryPrimitiveCodes, ...supportOverlayPrimitiveCodes]);
@@ -70,6 +87,7 @@ export function buildManagedStageRvmStitchManifest(profile = {}, exportModel = {
     supportOverlayPrimitiveCount: supportOverlayPrimitives.length,
     decodedPrimitiveCount: primitivePayloads.length,
     primitiveCodeHistogram,
+    supportOverlayAllowedPrimitiveCodes: [...SUPPORT_OVERLAY_PRIMITIVE_CODES],
     allElementsMapped: issues.length === 0 && elements.length === elementNodes.length,
     elementOrderStable: issues.filter((issue) => issue.includes('element order mismatch')).length === 0,
     issues,
@@ -94,7 +112,12 @@ export function assertManagedStageRvmStitchManifest(manifest = {}) {
     }
   }
   for (const primitive of manifest.supportOverlayPrimitives || []) {
-    if (primitive.emittedCode !== 8) issues.push(`support overlay primitive ${primitive.index} code mismatch: expected 8, got ${primitive.emittedCode}`);
+    if (!SUPPORT_OVERLAY_PRIMITIVE_CODES.includes(Number(primitive.emittedCode))) {
+      issues.push(`support overlay primitive ${primitive.index} code mismatch: expected one of ${SUPPORT_OVERLAY_PRIMITIVE_CODES.join('/')}, got ${primitive.emittedCode}`);
+    }
+    if (primitive.expectedCode !== null && primitive.expectedCode !== undefined && primitive.expectedCode !== primitive.emittedCode) {
+      issues.push(`support overlay primitive ${primitive.index} planned code mismatch: expected ${primitive.expectedCode}, got ${primitive.emittedCode}`);
+    }
   }
   if (issues.length) throw new Error(`Managed-stage RVM stitch manifest failed: ${issues.join('; ')}`);
   return {
@@ -103,6 +126,7 @@ export function assertManagedStageRvmStitchManifest(manifest = {}) {
     elementCount: manifest.elementCount,
     primitiveCount: manifest.primitiveCount,
     supportOverlayPrimitiveCount: manifest.supportOverlayPrimitiveCount || 0,
+    supportOverlayAllowedPrimitiveCodes: [...SUPPORT_OVERLAY_PRIMITIVE_CODES],
     primitiveCodeHistogram: manifest.primitiveCodeHistogram
   };
 }
@@ -111,11 +135,18 @@ function managedStageElementNodes(exportModel) {
   return exportModel?.root?.children?.[0]?.children?.[0]?.children || [];
 }
 
+function managedStageSupportNodes(exportModel) {
+  return exportModel?.root?.children?.[0]?.children?.[1]?.children || [];
+}
+
 function primitiveDimensions(primitive) {
-  if (primitive.kind === 'cylinder') {
+  if (primitive?.kind === 'cylinder') {
     return { radiusMm: round(primitive.radius), lengthMm: round(primitive.length) };
   }
-  if (primitive.kind === 'elbow') {
+  if (primitive?.kind === 'pyramid') {
+    return { bottomMm: (primitive.bottom || []).map(round), topMm: (primitive.top || []).map(round), heightMm: round(primitive.height) };
+  }
+  if (primitive?.kind === 'elbow') {
     return { bendRadiusMm: round(primitive.bendRadius), tubeRadiusMm: round(primitive.tubeRadius), sweepAngleRad: round(primitive.sweepAngleRad) };
   }
   return {};
@@ -134,5 +165,5 @@ function roundVector(value) {
 }
 
 function round(value) {
-  return Number(Number(value).toFixed(6));
+  return Number(Number(value || 0).toFixed(6));
 }

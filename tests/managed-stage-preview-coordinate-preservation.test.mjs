@@ -106,3 +106,5 @@ console.log(JSON.stringify({
   maxUnexplainedNonBendDeltaMm: audit.maxUnexplainedNonBendDeltaMm,
   rvmExportPrimitiveCount: audit.rvmExportPrimitiveCount
 }, null, 2));
+
+await import('./managed-stage-geometry-ledger.test.mjs');

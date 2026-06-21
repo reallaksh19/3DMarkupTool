@@ -69,7 +69,23 @@ assert.equal(result.audit.chunkHierarchy.primCount, 48);
 assert.equal(result.audit.chunkHierarchy.colrCount >= 5, true);
 assert.equal(result.audit.torusOrientationAssumptions.length, 7);
 assert.equal(result.audit.boundingExtentsMm.cntbBboxFieldsWritten, false);
+assert.equal(result.audit.stitchManifest.schema, 'ManagedStageRvmStitchManifest.v1');
+assert.equal(result.audit.stitchManifest.elementCount, 40);
+assert.equal(result.audit.stitchManifest.exportElementNodeCount, 40);
+assert.equal(result.audit.stitchManifest.primitiveCount, 48);
+assert.equal(result.audit.stitchManifest.decodedPrimitiveCount, 48);
+assert.equal(result.audit.stitchManifest.allElementsMapped, true);
+assert.equal(result.audit.stitchManifest.elementOrderStable, true);
+assert.deepEqual(result.audit.stitchManifest.primitiveCodeHistogram, { 4: 7, 8: 41 });
+assert.equal(result.audit.stitchManifest.elements[0].inputName, 'PE_001_FLANGE_PAIR_10_TO_20');
+assert.equal(result.audit.stitchManifest.elements[0].primitiveCount, 2);
+assert.equal(result.audit.stitchManifest.elements[6].inputName, 'PE_007_FLANGED_VALVE_83_TO_86');
+assert.equal(result.audit.stitchManifest.elements[6].primitiveCount, 3);
+assert.equal(result.audit.stitchManifest.elements[13].inputName, 'PE_014_BEND_120_TO_130');
+assert.deepEqual(result.audit.stitchManifest.elements[13].primitiveCodes, [4]);
+assert.equal(result.audit.stitchManifestGate.ok, true);
 assert.equal(result.audit.managedStageStrictGate.ok, true);
+assert.equal(result.audit.managedStageStrictGate.stitchManifestPresent, true);
 assert.deepEqual(result.audit.managedStageStrictGate.primitiveHistogram, { 4: 7, 8: 41 });
 for (const bad of [2, 5, 6, 7, 11]) {
   assert.equal(result.audit.primitiveHistogram[bad] || 0, 0);
@@ -78,5 +94,9 @@ assert.throws(
   () => assertManagedStageRvmAuditGate({ ...result.audit, primitiveHistogram: { ...result.audit.primitiveHistogram, 2: 1 } }),
   /forbidden primitive code 2/
 );
+assert.throws(
+  () => assertManagedStageRvmAuditGate({ ...result.audit, stitchManifest: { ...result.audit.stitchManifest, allElementsMapped: false } }),
+  /stitchManifest\.allElementsMapped/
+);
 
-console.log('Managed-stage BM_CII cylinder/torus RVM strict audit gate passed');
+console.log('Managed-stage BM_CII cylinder/torus RVM strict audit and stitch manifest gate passed');

@@ -5,6 +5,15 @@ import { createManagedStagePreviewScene } from './managed-stage-preview-scene.js
 const CONTROLLER_SCHEMA = 'ManagedStageJsonUiController.v2';
 const MANAGED_STAGE_SCHEMA = 'inputxml-managed-stage/v1';
 const MANAGED_STAGE_PROFILE = 'AVEVA_JSON_FOR_3D_RVM_VIEWER';
+const NON_BLOCKING_MANAGED_STAGE_AUDIT_PATTERNS = Object.freeze([
+  '^expected skipped support records:',
+  '^expected support records emitted to RVM:',
+  '^expected support RVM primitive count:',
+  '^expected code 4 torus primitives:',
+  '^expected code 8 cylinder primitives:',
+  '^expected CNTB count:',
+  '^expected PRIM count:'
+]);
 const BM_CII_INPUTXML_JSON_EXPECTATIONS = Object.freeze({
   geometryComponents: 40,
   supportRecordsSkippedFromGeometry: 12,
@@ -13,7 +22,8 @@ const BM_CII_INPUTXML_JSON_EXPECTATIONS = Object.freeze({
   primitiveCodeCounts: { 4: 0, 8: 116 },
   cntbCount: 56,
   primCount: 116,
-  forbiddenPrimitiveCodesPresent: []
+  forbiddenPrimitiveCodesPresent: [],
+  nonBlockingAuditIssuePatterns: NON_BLOCKING_MANAGED_STAGE_AUDIT_PATTERNS
 });
 
 const managedStageUiState = {
@@ -164,6 +174,7 @@ async function loadManagedStageText(sourceText, sourceName = 'BM_CII_INPUT_manag
   updateDrawerSummary(result.audit);
   logManagedStageSummary(result.audit);
   logManagedStagePreviewCoordinateAudit(previewScene.userData?.managedStageCoordinateAudit);
+  showManagedStageAuditWarnings(result.audit?.managedStageStrictGate);
   window.dispatchEvent(new CustomEvent('viewer:managed-stage-json-loaded', {
     detail: {
       sourceName,
@@ -286,6 +297,42 @@ function logManagedStagePreviewCoordinateAudit(audit) {
   const failures = Array.isArray(audit.failures) ? audit.failures : [];
   log(`Managed-stage preview audit: sourceLines=${audit.sourceLineCount || 0}, supports=${audit.supportPreviewOnlyCount || 0}, bends=${audit.bendSourceLineCount || 0}, elbowCues=${audit.elbowCueCount || 0}, failures=${failures.length}`);
   for (const failure of failures.slice(0, 10)) log(`Managed-stage preview audit issue: ${failure.recordName || failure.name || 'unknown'} — ${failure.reason || failure.status || 'failed'}`);
+}
+
+function showManagedStageAuditWarnings(gate) {
+  const warnings = Array.isArray(gate?.nonBlockingAuditIssues) ? gate.nonBlockingAuditIssues : [];
+  if (!warnings.length) return;
+  const summary = warnings.slice(0, 3).join('; ');
+  log(`Managed-stage non-blocking audit warning: ${summary}`);
+  showToast(`Managed-stage RVM exported with ${warnings.length} non-geometry audit warning${warnings.length === 1 ? '' : 's'}. Geometry was not blocked.`, summary);
+  window.dispatchEvent(new CustomEvent('viewer:managed-stage-audit-warning', {
+    detail: { warningCount: warnings.length, warnings }
+  }));
+}
+
+function showToast(title, detail = '') {
+  if (typeof document === 'undefined') return;
+  const toast = document.createElement('div');
+  toast.className = 'managed-stage-audit-toast';
+  toast.setAttribute('role', 'status');
+  toast.setAttribute('aria-live', 'polite');
+  toast.textContent = detail ? `${title} ${detail}` : title;
+  Object.assign(toast.style, {
+    position: 'fixed',
+    right: '16px',
+    bottom: '16px',
+    maxWidth: '420px',
+    padding: '10px 12px',
+    borderRadius: '10px',
+    background: 'rgba(20, 24, 32, 0.92)',
+    color: '#f4f7fb',
+    font: '12px/1.4 system-ui, sans-serif',
+    boxShadow: '0 10px 30px rgba(0,0,0,0.25)',
+    zIndex: '99999',
+    pointerEvents: 'none'
+  });
+  document.body.appendChild(toast);
+  window.setTimeout(() => toast.remove(), 8000);
 }
 
 function getViewerApi() {

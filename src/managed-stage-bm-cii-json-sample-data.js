@@ -83,9 +83,36 @@ function component([type, dtxr, name, from, to, diameter, bendRadius = '', bendA
 }
 
 function supports(nodes) {
-  const ids = ['10','35','35','35','130','190','205','205','205','240','255','255'];
-  return ids.map((node, index) => ({ name: `SUPPORT INPUTXML-${node}-${index}`, type: 'ATTA', attributes: {
-    TYPE: 'ATTA', NAME: `INPUTXML-${node}-${index}`, NODE: node, POS: xyz(nodes[node]), SUPPORT_KIND: index % 3 === 0 ? 'REST' : index % 3 === 1 ? 'GUIDE' : 'LINESTOP'
+  const specs = [
+    ['10', 'REST'],
+    ['35', 'REST'],
+    ['35', 'GUIDE'],
+    ['35', 'LINESTOP'],
+    ['130', 'LINESTOP'],
+    ['190', 'REST'],
+    ['205', 'LINESTOP'],
+    ['205', 'REST'],
+    ['205', 'REST'],
+    ['240', 'REST'],
+    ['255', 'REST'],
+    ['255', 'GUIDE']
+  ];
+  return specs.map(([node, kind], index) => ({ name: `SUPPORT INPUTXML-${node}-${kind}`, type: 'ATTA', attributes: {
+    TYPE: 'ATTA',
+    RAW_TYPE: 'ATTA',
+    NAME: `INPUTXML-${node}-${kind}-${index}`,
+    REF: `INPUTXML_RESTRAINT_${index + 1}`,
+    NODE: node,
+    POS: xyz(nodes[node]),
+    SUPPORTCOORD: xyz(nodes[node]),
+    SUPPORT_COORD: xyz(nodes[node]),
+    SUPPORT_KIND: kind,
+    SUPPORT_TYPE: kind,
+    SUPPORT_MAPPER_KIND: kind,
+    CMPSUPTYPE: kind,
+    MDSSUPPTYPE: kind,
+    SOURCE_FORMAT: 'INPUTXML_BASIC_GLB_STAGED',
+    SOURCE_RESTRAINT_ID: `INPUTXML_RESTRAINT_${index + 1}`
   }}));
 }
 

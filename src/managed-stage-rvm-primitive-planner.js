@@ -1,4 +1,5 @@
 import { createManagedStageGeometryContract } from './managed-stage-geometry-contract.js';
+import { buildEndpointLockedCylinderPrimitive } from './rvm-cylinder-primitive-builder.js';
 import { solveCode4ElbowGeometry } from './rvm-code4-elbow-geometry-solver.js';
 import { planManagedStagePipingComponentRecipe } from './managed-stage-piping-component-recipes.js';
 
@@ -16,7 +17,10 @@ export function planManagedStagePrimitives(recordOrContract, options = {}) {
   const pipeRadius = contract.radiusMm;
   if (!(pipeRadius > 0)) throw new Error(`Missing/invalid diameter for ${contract.name}`);
 
-  if (contract.dtxr === 'BEND') return [planCode4Elbow(contract, pipeRadius, options)];
+  if (contract.dtxr === 'BEND') {
+    if (contract.excludeCode4Bend) return [planGenericInputXmlBendCylinder(contract, pipeRadius)];
+    return [planCode4Elbow(contract, pipeRadius, options)];
+  }
 
   const recipe = planManagedStagePipingComponentRecipe(contract, {
     pipeRadiusMm: pipeRadius,
@@ -44,6 +48,34 @@ export function managedStageMaterialForClass(componentClass) {
   if (componentClass.includes('VALVE')) return MANAGED_STAGE_RVM_MATERIALS.VALVE;
   if (componentClass === 'UNKNOWN_PIPELIKE') return MANAGED_STAGE_RVM_MATERIALS.UNKNOWN_PIPELIKE;
   return MANAGED_STAGE_RVM_MATERIALS.FITTING;
+}
+
+function planGenericInputXmlBendCylinder(contract, pipeRadius) {
+  const primitive = buildEndpointLockedCylinderPrimitive({
+    name: `${contract.name}_GENERIC_1P5D_BEND`,
+    localName: 'generic-1p5d-bend',
+    startMm: contract.startMm,
+    endMm: contract.endMm,
+    radiusMm: pipeRadius,
+    material: MANAGED_STAGE_RVM_MATERIALS.FITTING,
+    sourceContractName: contract.name,
+    sourceElementId: contract.sourceElementId || contract.elementId || '',
+    primitiveRole: 'inputxml-generic-1p5d-bend',
+    parentStartMm: contract.startMm,
+    parentEndMm: contract.endMm,
+    startOffsetMm: 0,
+    endOffsetMm: 0
+  });
+  return {
+    ...primitive,
+    recipeName: 'inputxml-generic-1p5d-bend-chord',
+    genericInputXmlBend: true,
+    code4BendExcluded: true,
+    genericBendRadiusMm: contract.genericInputXmlBend?.genericBendRadiusMm || null,
+    genericBendTrimLengthMm: contract.genericInputXmlBend?.trimLengthMm || null,
+    originalBendRadiusMm: contract.genericInputXmlBend?.originalBendRadiusMm || contract.arc?.bendRadiusMm || null,
+    orientationAssumption: 'InputXML-derived JSON bend excluded; emitted as endpoint-locked generic 1.5D code-8 chord cylinder'
+  };
 }
 
 function planCode4Elbow(contract, pipeRadius, options = {}) {

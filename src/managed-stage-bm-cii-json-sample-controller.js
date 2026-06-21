@@ -1,3 +1,4 @@
+import './managed-stage-viewer-api-bridge.js';
 import { BM_CII_MANAGED_STAGE_SAMPLE_NAME, createBmCiiManagedStageSampleJson } from './managed-stage-bm-cii-json-sample-data.js';
 
 const SAMPLE_CONTROLLER_SCHEMA = 'ManagedStageBmCiiJsonSampleController.v1';

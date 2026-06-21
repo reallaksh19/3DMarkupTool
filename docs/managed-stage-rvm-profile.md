@@ -42,6 +42,30 @@ Outputs:
 - `BM_CII_INPUT_managed_stage.audit.json`
 - `BM_CII_INPUT_managed_stage.zip`
 
+## Stitch manifest
+
+The generated audit includes `stitchManifest`, which is the element-by-element proof that the staged JSON was assembled into one RVM stream by stitching ordered CNTB element nodes, not by concatenating independent RVM binaries.
+
+For each geometry component, the manifest records:
+
+- input component name
+- emitted CNTB review name
+- `FROM_NODE` / `TO_NODE`
+- staged `TYPE` and `DTXR`
+- material id
+- planned primitive count
+- expected/emitted primitive codes
+- primitive chunk offset and body length
+- primitive center, direction, and dimensions
+
+The strict gate verifies:
+
+- all input geometry elements are mapped
+- element order is stable
+- planned primitive count equals decoded PRIM count
+- stitch-manifest primitive histogram equals the binary primitive histogram
+- each planned primitive code equals the decoded emitted PRIM code
+
 ## Fixture commands
 
 CI uses a synthetic fixture with the same BM_CII profile shape:

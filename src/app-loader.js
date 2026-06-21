@@ -4,6 +4,7 @@ const CLIP_HOOK_MODULE_URL = `./clip-render-hook.js?v=${APP_LOADER_VERSION}`;
 const FRESH_CLIP_MODULE_URL = `./fresh-clip-controller.js?v=${APP_LOADER_VERSION}`;
 const MANAGED_STAGE_JSON_UI_MODULE_URL = `./managed-stage-json-ui-controller.js?v=${APP_LOADER_VERSION}`;
 const MANAGED_STAGE_JSON_SAMPLE_MODULE_URL = `./managed-stage-bm-cii-json-sample-controller.js?v=${APP_LOADER_VERSION}`;
+const MANAGED_STAGE_VISIBLE_FALLBACK_MODULE_URL = `./managed-stage-visible-fallback-patch.js?v=${APP_LOADER_VERSION}`;
 const BUNDLED_ASSETS = window.__3D_MARKUP_BUNDLED_ASSETS__ || {};
 // Resolve against document.baseURI: import() is module-relative but the
 // manifest URL (./assets/) is meant to be document-relative.
@@ -103,6 +104,7 @@ function loadManagedStageJsonUiController() {
   window.__3D_MARKUP_MANAGED_STAGE_JSON_UI_IMPORT_STARTED__ = true;
   import(MANAGED_STAGE_JSON_UI_MODULE_URL)
     .then(() => import(MANAGED_STAGE_JSON_SAMPLE_MODULE_URL))
+    .then(() => import(MANAGED_STAGE_VISIBLE_FALLBACK_MODULE_URL))
     .catch((error) => {
       console.warn('[3DMarkupTool] Managed-stage JSON UI controller skipped.', error);
       window.dispatchEvent(new CustomEvent('viewer:managed-stage-json-ui-skipped', {

@@ -130,12 +130,18 @@ customScene.traverse((object) => {
 });
 assert.ok(customParts.some((object) => object.userData.role === 'popupRequired'));
 assert.ok(customParts.some((object) => object.userData.role === 'warningCoilBelowPipe'));
+const customAxialTips = customParts
+  .filter((object) => object.userData.axialPipeParallel === true)
+  .map((object) => object.userData.tipMm.x)
+  .sort((a, b) => a - b);
+assert.deepEqual(customAxialTips, [-25, 25]);
 assert.ok(customParts.filter((object) => object.userData.axialPipeParallel === true).every((object) => object.userData.odTwoThirdsResolverApplied === true));
 
 console.log(JSON.stringify({
   schema: bmAudit.supportVisualPolicy.schema,
   bmCiiSupportVisualCounts: bmAudit.supportVisualCounts,
   gappedLineStopSeparationMm: gapped.supportVisual.gapVisualSeparationMm,
+  gappedLineStopTipXs: customAxialTips,
   singleAxisPopupRequired: missingSign.supportVisual.popupRequired,
   springCanPopupRequired: springCan.supportVisual.popupRequired
 }, null, 2));

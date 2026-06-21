@@ -60,7 +60,7 @@ jobs:
           if-no-files-found: ignore
 
       - name: Verify managed-stage RVM reference layout compatibility
-        run: npm run verify:managed-stage-rvm-reference
+        run: npm run verify:managed-stage-rvm-reference 2>&1 | tee managed-stage-reference.log
 
       - name: Inspect managed-stage RVM artifact
         run: npm run inspect:managed-stage-rvm

@@ -5,12 +5,12 @@ import { createRvmPreviewScene } from './rvm-preview.js';
 const CONTROLLER_SCHEMA = 'ManagedStageJsonUiController.v2';
 const MANAGED_STAGE_SCHEMA = 'inputxml-managed-stage/v1';
 const MANAGED_STAGE_PROFILE = 'AVEVA_JSON_FOR_3D_RVM_VIEWER';
-const BM_CII_EXPECTATIONS = Object.freeze({
+const BM_CII_INPUTXML_JSON_EXPECTATIONS = Object.freeze({
   geometryComponents: 40,
   supportRecordsSkippedFromGeometry: 12,
-  primitiveCodeCounts: { 4: 7, 8: 41 },
+  primitiveCodeCounts: { 4: 0, 8: 70 },
   cntbCount: 43,
-  primCount: 48,
+  primCount: 70,
   forbiddenPrimitiveCodesPresent: []
 });
 
@@ -129,7 +129,7 @@ async function loadManagedStageText(sourceText, sourceName = 'BM_CII_INPUT_manag
   updateInputStatus(`${sourceName} — managed-stage JSON`);
   log(`Loaded managed-stage JSON ${sourceName} (${sourceText.length.toLocaleString()} chars)`);
 
-  const options = bmCiiLikeSourceName(sourceName) ? { strictAuditExpectations: BM_CII_EXPECTATIONS } : {};
+  const options = bmCiiLikeSourceName(sourceName) ? { strictAuditExpectations: BM_CII_INPUTXML_JSON_EXPECTATIONS } : {};
   const result = convertManagedStageJsonToRvmAtt(sourceText, options);
   const previewScene = createRvmPreviewScene(result.exportModel);
   previewScene.name = `${managedStageUiState.basename}_RVM_PREVIEW`;

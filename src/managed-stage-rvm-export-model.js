@@ -6,6 +6,12 @@ import {
   auditManagedStageElbowTangentHints
 } from './managed-stage-elbow-tangent-hints.js';
 import {
+  applyManagedStageInputXmlBendExclusion
+} from './managed-stage-inputxml-bend-exclusion.js';
+import {
+  resolveManagedStageJsonProcessingConfig
+} from './managed-stage-json-processing-config.js';
+import {
   MANAGED_STAGE_RVM_MATERIALS,
   managedStageComponentClass,
   managedStageMaterialForClass,
@@ -13,10 +19,13 @@ import {
 } from './managed-stage-rvm-primitive-planner.js';
 import { point3 } from './managed-stage-topology-audit.js';
 
-export function buildManagedStageRvmExportModel(profile) {
+export function buildManagedStageRvmExportModel(profile, options = {}) {
+  const processingConfig = resolveManagedStageJsonProcessingConfig(profile, options);
   const contractSet = buildManagedStageGeometryContractSet(profile);
-  const contracts = applyManagedStageElbowTangentHints(contractSet.contracts);
-  const tangentHintAudit = auditManagedStageElbowTangentHints(contracts);
+  const hintedContracts = applyManagedStageElbowTangentHints(contractSet.contracts);
+  const tangentHintAudit = auditManagedStageElbowTangentHints(hintedContracts);
+  const bendExclusion = applyManagedStageInputXmlBendExclusion(hintedContracts, processingConfig);
+  const contracts = bendExclusion.contracts;
   const elements = contracts.map((contract, index) => elementNode(contract, index));
   return {
     root: groupNode('/BM_CII', 'ROOT', 'ROOT', [
@@ -37,8 +46,10 @@ export function buildManagedStageRvmExportModel(profile) {
       componentCount: elements.length,
       supportGeometryEmitted: false,
       primitiveCount: elements.reduce((sum, node) => sum + node.primitives.length, 0),
+      processingConfig,
       geometryContractAudit: contractSet.audit,
-      elbowTangentHintAudit: tangentHintAudit
+      elbowTangentHintAudit: tangentHintAudit,
+      inputXmlBendExclusionAudit: bendExclusion.audit
     }
   };
 }
@@ -82,7 +93,10 @@ function elementNodeFromContract(contract, index) {
       COMPONENT_CLASS: componentClass,
       ELEMENT_INDEX: String(index + 1),
       SOURCE_ELEMENT_ID: contract.sourceElementId || contract.elementId || contract.name,
-      SOURCE_FORMAT: contract.sourceFormat || 'inputxml-managed-stage/v1'
+      SOURCE_FORMAT: contract.sourceFormat || 'inputxml-managed-stage/v1',
+      INPUTXML_BEND_EXCLUDED: contract.excludeCode4Bend ? 'YES' : 'NO',
+      RVM_TRIM_START_MM: contract.rvmTrimStartOffsetMm ? String(contract.rvmTrimStartOffsetMm) : '',
+      RVM_TRIM_END_MM: contract.rvmTrimEndOffsetMm ? String(contract.rvmTrimEndOffsetMm) : ''
     },
     primitives: planManagedStagePrimitives(contract),
     children: []

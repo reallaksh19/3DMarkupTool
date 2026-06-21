@@ -3,6 +3,7 @@ import { resolveManagedStageSupportVisual } from './managed-stage-support-visual
 
 const SUPPORT_MATERIAL_ID = 9;
 const EPS_MM = 0.001;
+const DEFAULT_RVM_CLUSTER_OFFSET_MAX_MM = 28;
 
 export function buildManagedStageSupportRvmExportNodes(profile, options = {}) {
   const records = profile?.records || [];
@@ -13,6 +14,7 @@ export function buildManagedStageSupportRvmExportNodes(profile, options = {}) {
   let primitiveCount = 0;
   let conePrimitiveCount = 0;
   let barPrimitiveCount = 0;
+  let glyphPrimitiveCount = 0;
   let clusteredSupportRecordCount = 0;
   let connectorPrimitiveCount = 0;
   let fallbackPrimitiveCount = 0;
@@ -26,6 +28,7 @@ export function buildManagedStageSupportRvmExportNodes(profile, options = {}) {
     primitiveCount += node.primitives.length;
     conePrimitiveCount += node.primitives.filter((primitive) => primitive.supportPointCone === true).length;
     barPrimitiveCount += node.primitives.filter((primitive) => primitive.supportBar === true).length;
+    glyphPrimitiveCount += node.primitives.filter((primitive) => primitive.supportDirectionalGlyphBar === true).length;
     families[visual.family] = (families[visual.family] || 0) + 1;
     if (visual.cluster?.clustered) clusteredSupportRecordCount += 1;
     connectorPrimitiveCount += node.primitives.filter((primitive) => primitive.supportClusterConnector).length;
@@ -34,12 +37,13 @@ export function buildManagedStageSupportRvmExportNodes(profile, options = {}) {
   });
 
   return {
-    schema: 'ManagedStageSupportRvmExport.v2',
+    schema: 'ManagedStageSupportRvmExport.v3',
     materialId: options.materialId || SUPPORT_MATERIAL_ID,
     supportRecordCount: supportRecords.length,
     supportNodeCount: supportNodes.length,
     supportPrimitiveCount: primitiveCount,
     supportConePrimitiveCount: conePrimitiveCount,
+    supportDirectionalGlyphPrimitiveCount: glyphPrimitiveCount,
     supportBarPrimitiveCount: barPrimitiveCount,
     connectorPrimitiveCount,
     fallbackPrimitiveCount,
@@ -47,18 +51,19 @@ export function buildManagedStageSupportRvmExportNodes(profile, options = {}) {
     clusteredSupportRecordCount,
     familyHistogram: families,
     nodes: supportNodes,
-    policy: 'managed-stage ATTA/support records are emitted to RVM as compact point-cone pyramids plus Review-safe code-8 connector/fallback bars; source POS/SUPPORTCOORD remains the anchor coordinate'
+    policy: 'managed-stage ATTA/support records are emitted to RVM as Review-safe code-8 cylinder bar glyphs only; filled code-1 pyramid/cone substitutes are blocked; source POS/SUPPORTCOORD remains the anchor coordinate'
   };
 }
 
 function supportElementNode(record, adapted, visual, index, options = {}) {
   const sourceCenter = toPoint(adapted.source.supportCoord || adapted.source.pos || adapted.source.bpos || adapted.source.apos || adapted.source.lpos);
-  const offset = toPoint(visual.cluster?.offsetMm || [0, 0, 0]);
+  const rawOffset = toPoint(visual.cluster?.offsetMm || [0, 0, 0]);
+  const offset = compactClusterOffset(rawOffset, options);
   const visualCenter = add(sourceCenter, offset);
   const odMm = Math.max(Number(visual.pipeDiameterMm || 0), Number(options.pointRadius || 0) * 2, 40);
   const genericLength = clamp(odMm * 0.72, 42, 105);
   const axialLength = clamp(odMm * 0.52, 34, 82);
-  const coneBase = clamp(odMm * 0.22, 8, 22);
+  const glyphBaseRadius = clamp(odMm * 0.18, 6, 18);
   const barRadius = clamp(odMm * 0.028, 1.5, 4.5);
   const supportName = record.attributes?.NAME || record.name || `SUPPORT_${index + 1}`;
   const primitives = [];
@@ -73,7 +78,12 @@ function supportElementNode(record, adapted, visual, index, options = {}) {
       record,
       visual,
       role: 'cluster-offset-connector',
-      extra: { supportClusterConnector: true }
+      extra: {
+        supportClusterConnector: true,
+        supportRvmClusterOffsetCompacted: distance(rawOffset, offset) > EPS_MM,
+        supportRvmClusterRawOffsetMm: rawOffset,
+        supportRvmClusterExportOffsetMm: offset
+      }
     }));
   }
 
@@ -89,25 +99,31 @@ function supportElementNode(record, adapted, visual, index, options = {}) {
       const length = side.axialPipeParallel ? axialLength : genericLength;
       const gapFactor = side.explicitSingle ? 1 : 0.5;
       const tip = add(visualCenter, isAxialFamily(visual.family) ? scale(sideVec, tipSeparation * gapFactor) : [0, 0, 0]);
-      const baseToTip = side.pointsTowardCenter === false ? scale(sideVec, -1) : sideVec;
-      primitives.push(supportPointCone({
+      const directionToTip = side.pointsTowardCenter ? scale(sideVec, -1) : sideVec;
+      primitives.push(...supportDirectionalGlyphBars({
         name: `${supportName}_${safeName(side.role || 'SUPPORT')}_${axisToken(side.axis)}`,
-        localName: side.role || 'support-point-cone',
+        localName: side.role || 'support-directional-glyph',
         tipMm: tip,
-        baseToTip,
+        directionToTip,
         lengthMm: length,
-        baseWidthMm: coneBase,
+        baseRadiusMm: glyphBaseRadius,
+        barRadiusMm: barRadius,
         record,
         visual,
-        role: side.role || 'support-point-cone',
+        role: side.role || 'support-directional-glyph',
         extra: {
           supportAxis: side.axis,
-          supportDirectionalRod: false,
-          supportDirectionalCone: true,
+          supportDirectionalRod: true,
+          supportDirectionalCone: false,
+          supportDirectionalGlyphBar: true,
+          supportPointCone: false,
+          supportPyramidSubstituteBlocked: true,
           axialPipeParallel: Boolean(side.axialPipeParallel),
           explicitSingle: Boolean(side.explicitSingle),
           supportTipMm: tip,
-          supportVisualCenterMm: visualCenter
+          supportVisualCenterMm: visualCenter,
+          supportGlyphBaseRadiusMm: glyphBaseRadius,
+          supportGlyphLengthMm: length
         }
       }));
     }
@@ -131,49 +147,46 @@ function supportElementNode(record, adapted, visual, index, options = {}) {
       SOURCE_RESTRAINT_ID: record.attributes?.SOURCE_RESTRAINT_ID || record.attributes?.REF || '',
       SOURCE_FORMAT: record.attributes?.SOURCE_FORMAT || 'inputxml-managed-stage/v1',
       RVM_SUPPORT_OVERLAY: 'YES',
-      SUPPORT_SYMBOL_POLICY: 'COMPACT_CONES_AND_BARS',
+      SUPPORT_SYMBOL_POLICY: 'CODE8_BAR_GLYPHS_NO_PYRAMIDS',
+      SUPPORT_RVM_PYRAMID_SUBSTITUTE_BLOCKED: 'TRUE',
       SUPPORT_CLUSTER_INDEX: String(visual.cluster?.index ?? ''),
-      SUPPORT_CLUSTER_COUNT: String(visual.cluster?.count ?? '')
+      SUPPORT_CLUSTER_COUNT: String(visual.cluster?.count ?? ''),
+      SUPPORT_CLUSTER_RVM_OFFSET_MAX_MM: String(Number(options.rvmSupportClusterOffsetMaxMm ?? DEFAULT_RVM_CLUSTER_OFFSET_MAX_MM))
     },
     primitives,
     children: []
   };
 }
 
-function supportPointCone({ name, localName, tipMm, baseToTip, lengthMm, baseWidthMm, record, visual, role, extra = {} }) {
-  const direction = normalize(baseToTip, [0, 1, 0]);
+function supportDirectionalGlyphBars({ name, localName, tipMm, directionToTip, lengthMm, baseRadiusMm, barRadiusMm, record, visual, role, extra = {} }) {
+  const direction = normalize(directionToTip, [0, 1, 0]);
   const tip = vector3(tipMm);
-  const center = add(tip, scale(direction, -lengthMm / 2));
-  return {
-    kind: 'pyramid',
-    name,
-    localName,
-    center,
-    direction,
-    bottom: [baseWidthMm, baseWidthMm],
-    top: [0.001, 0.001],
-    offset: [0, 0],
-    height: lengthMm,
-    material: SUPPORT_MATERIAL_ID,
-    sourceContractName: record.attributes?.NAME || record.name || '',
-    sourceElementId: record.attributes?.SOURCE_RESTRAINT_ID || record.attributes?.REF || record.name || '',
-    primitiveRole: `managed-stage-rvm-support-${role}`,
-    recipeName: 'managed-stage-rvm-support-overlay-point-cone',
-    managedStageSupportRvmPrimitive: true,
-    supportPointCone: true,
-    supportBar: false,
-    supportFamily: visual.family,
-    supportRawKind: visual.rawKind,
-    supportNode: visual.node,
-    supportGapMm: visual.gapMm,
-    supportGapRecordScoped: true,
-    supportCluster: visual.cluster,
-    supportTipMm: tip,
-    supportLengthMm: lengthMm,
-    supportBaseWidthMm: baseWidthMm,
-    ...extra,
-    orientationAssumption: 'Support/ATTA record exported as compact square-pyramid point cone using the same staged support direction rules as the canvas preview'
-  };
+  const baseCenter = add(tip, scale(direction, -lengthMm));
+  const { u, v } = perpendicularBasis(direction);
+  const basePoints = [
+    add(baseCenter, scale(u, baseRadiusMm)),
+    add(baseCenter, scale(u, -baseRadiusMm)),
+    add(baseCenter, scale(v, baseRadiusMm)),
+    add(baseCenter, scale(v, -baseRadiusMm))
+  ];
+
+  return basePoints.map((start, index) => supportBar({
+    name: `${name}_RVM_BAR_${index + 1}`,
+    localName: `${localName}-rvm-bar-${index + 1}`,
+    startMm: start,
+    endMm: tip,
+    radiusMm: barRadiusMm,
+    record,
+    visual,
+    role: `${role}-rvm-bar`,
+    extra: {
+      ...extra,
+      supportGlyphSpokeIndex: index + 1,
+      supportGlyphBaseMm: start,
+      supportGlyphTipMm: tip,
+      orientationAssumption: 'Support/ATTA record exported as Review-safe code-8 cylinder wire-glyph; canvas may use true THREE.ConeGeometry but RVM export never emits filled code-1 pyramid substitutes'
+    }
+  }));
 }
 
 function supportBar({ name, localName, startMm, endMm, radiusMm, record, visual, role, extra = {} }) {
@@ -205,7 +218,7 @@ function supportBar({ name, localName, startMm, endMm, radiusMm, record, visual,
     supportGapMm: visual.gapMm,
     supportGapRecordScoped: true,
     supportCluster: visual.cluster,
-    orientationAssumption: 'Support/ATTA record exported as compact Review-safe code-8 cylinder bar for connectors/fallback/support warnings'
+    orientationAssumption: extra.orientationAssumption || 'Support/ATTA record exported as compact Review-safe code-8 cylinder bar for connectors/fallback/support warnings'
   };
 }
 
@@ -317,4 +330,31 @@ function clamp(value, min, max) {
 
 function safeName(value) {
   return String(value || 'SUPPORT').replace(/[^A-Za-z0-9_.-]+/g, '_');
+}
+
+function compactClusterOffset(offset, options = {}) {
+  const vector = vector3(offset);
+  const maxMm = Number(options.rvmSupportClusterOffsetMaxMm ?? DEFAULT_RVM_CLUSTER_OFFSET_MAX_MM);
+  if (!Number.isFinite(maxMm) || maxMm < 0) return vector;
+  const magnitude = Math.hypot(vector[0], vector[1], vector[2]);
+  if (magnitude <= maxMm || magnitude <= EPS_MM) return vector;
+  return scale(vector, maxMm / magnitude);
+}
+
+function perpendicularBasis(direction) {
+  const d = normalize(direction, [0, 1, 0]);
+  const seed = Math.abs(d[1]) < 0.85 ? [0, 1, 0] : [1, 0, 0];
+  let u = cross(d, seed);
+  if (Math.hypot(u[0], u[1], u[2]) <= EPS_MM) u = [0, 0, 1];
+  u = normalize(u, [0, 0, 1]);
+  const v = normalize(cross(d, u), [1, 0, 0]);
+  return { u, v };
+}
+
+function cross(a, b) {
+  return [
+    a[1] * b[2] - a[2] * b[1],
+    a[2] * b[0] - a[0] * b[2],
+    a[0] * b[1] - a[1] * b[0]
+  ];
 }

@@ -26,6 +26,7 @@ export function applyManagedStageInputXmlBendExclusion(contracts = [], config = 
     const sources = bend.arc?.tangentHintSources || {};
     const applied = [];
     const trimEligibility = resolveSimplePerpendicularTrimEligibility(bend, sources, byName, byNode);
+    const nodePlan = buildNodeBasedReconstructedBendPlan(bend, byNode, trimLengthMm, config);
 
     for (const [role, node] of [['start', bend.fromNode], ['end', bend.toNode]]) {
       const sourceName = sources[role] || '';
@@ -55,7 +56,12 @@ export function applyManagedStageInputXmlBendExclusion(contracts = [], config = 
       }
     }
 
-    const nodePlan = buildNodeBasedReconstructedBendPlan(bend, byNode, trimLengthMm, config);
+    const nodePlanTrimApplications = addNodePlanTrims(trims, nodePlan, byName, trimLengthMm, config, bend);
+    for (const entry of nodePlanTrimApplications) {
+      trimApplications.push(entry);
+      applied.push(entry);
+    }
+
     const segments = nodePlan?.segments || [];
     if (!nodePlan) {
       issues.push(`No node-based elbow reconstruction candidate found for ${bend.name}`);
@@ -78,11 +84,19 @@ export function applyManagedStageInputXmlBendExclusion(contracts = [], config = 
       segmentCount: segments.length,
       segments: segments.map((segment) => ({ role: segment.role, startMm: segment.startMm, endMm: segment.endMm, lengthMm: segment.lengthMm })),
       trimEligibility,
+      nodePlanTrimApplications: nodePlanTrimApplications.map((entry) => ({
+        contractName: entry.contractName,
+        node: entry.node,
+        side: entry.side,
+        trimMm: entry.trimMm,
+        trimSource: entry.trimSource
+      })),
       trimApplications: applied.map((entry) => ({
         contractName: entry.contractName,
         node: entry.node,
         side: entry.side,
-        trimMm: entry.trimMm
+        trimMm: entry.trimMm,
+        bendRole: entry.bendRole
       }))
     };
     genericBends.push(bendPlan);
@@ -112,6 +126,7 @@ export function applyManagedStageInputXmlBendExclusion(contracts = [], config = 
           tangentDot: bendPlan?.tangentDot ?? null,
           segments: bendPlan?.segments || [],
           trimEligibility: bendPlan?.trimEligibility || null,
+          nodePlanTrimApplications: bendPlan?.nodePlanTrimApplications || [],
           reason: config.reason || 'InputXML-based JSON bend exclusion is ON'
         }
       };
@@ -225,6 +240,20 @@ function addTrim(trims, source, node, requestedTrimMm, config, bend, role) {
   entry.sources.push(application);
   trims.set(source.name, entry);
   return application;
+}
+
+function addNodePlanTrims(trims, nodePlan, byName, requestedTrimMm, config, bend) {
+  if (!nodePlan?.node) return [];
+  const applications = [];
+  const sourceNames = [nodePlan.incomingSource, nodePlan.outgoingSource]
+    .filter((sourceName) => sourceName && sourceName !== bend.name);
+  for (const sourceName of new Set(sourceNames)) {
+    const source = byName.get(sourceName);
+    if (!source || source.dtxr === 'BEND' || source.emitGeometry === false) continue;
+    const application = addTrim(trims, source, nodePlan.node, requestedTrimMm, config, bend, 'node-plan');
+    if (application) applications.push({ ...application, trimSource: 'node-based-reconstructed-elbow' });
+  }
+  return applications;
 }
 
 function buildNodeBasedReconstructedBendPlan(bend, byNode, trimLengthMm, config = {}) {

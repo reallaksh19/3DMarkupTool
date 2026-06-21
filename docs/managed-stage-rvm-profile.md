@@ -47,6 +47,12 @@ Outputs:
 After generation, run the round-trip artifact verifier:
 
 ```bash
+npm run verify:managed-stage-rvm-artifact
+```
+
+For a custom artifact directory/base:
+
+```bash
 node scripts/verify-managed-stage-rvm-artifact.mjs --dir=artifacts/managed-stage-rvm --base=BM_CII_INPUT_managed_stage --expect-bm-cii
 ```
 
@@ -59,6 +65,35 @@ This re-opens the persisted files and verifies:
 - `stitchManifest.elements[]` matches element CNTB order
 - stored ZIP contains `.rvm`, `.att`, and `.audit.json`
 - the strict managed-stage gate still passes on the persisted audit
+
+## Verify RVM reference-layout compatibility
+
+After artifact generation, run:
+
+```bash
+npm run verify:managed-stage-rvm-reference
+```
+
+This self-checks the generated RVM against the recorded RMSS/RHBG primitive layout contract:
+
+- Review chunk core is `HEAD`, `MODL`, balanced `CNTB`/`CNTE`, optional `COLR`, terminal `END:`
+- generated primitive codes are restricted to `4` and `8`
+- code `4` body length is `92` bytes with three payload words
+- code `8` body length is `88` bytes with two payload words
+- persisted audit primitive histogram and chunk counts match the decoded binary
+
+To compare against an external reference binary, pass the reference file explicitly:
+
+```bash
+node scripts/verify-managed-stage-rvm-reference-compat.mjs \
+  --dir=artifacts/managed-stage-rvm \
+  --base=BM_CII_INPUT_managed_stage \
+  --expect-bm-cii \
+  --reference-rvm=RMSS.rvm \
+  --audit-out=artifacts/managed-stage-rvm/BM_CII_INPUT_managed_stage.reference-compat.json
+```
+
+The repository does not commit `RMSS.rvm`; the comparator accepts it as a local operator-supplied reference artifact.
 
 ## Stitch manifest
 
@@ -92,7 +127,8 @@ CI uses a synthetic fixture with the same BM_CII profile shape:
 npm run test:managed-stage-rvm
 npm run verify:managed-stage-rvm
 npm run artifact:managed-stage-rvm
-node scripts/verify-managed-stage-rvm-artifact.mjs --dir=artifacts/managed-stage-rvm --base=BM_CII_INPUT_managed_stage --expect-bm-cii
+npm run verify:managed-stage-rvm-artifact
+npm run verify:managed-stage-rvm-reference
 ```
 
 ## BM_CII expected strict counts

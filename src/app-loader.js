@@ -3,6 +3,7 @@ const APP_MODULE_URL = `./app.js?v=${APP_LOADER_VERSION}`;
 const CLIP_HOOK_MODULE_URL = `./clip-render-hook.js?v=${APP_LOADER_VERSION}`;
 const FRESH_CLIP_MODULE_URL = `./fresh-clip-controller.js?v=${APP_LOADER_VERSION}`;
 const MANAGED_STAGE_JSON_UI_MODULE_URL = `./managed-stage-json-ui-controller.js?v=${APP_LOADER_VERSION}`;
+const MANAGED_STAGE_JSON_SAMPLE_MODULE_URL = `./managed-stage-bm-cii-json-sample-controller.js?v=${APP_LOADER_VERSION}`;
 const BUNDLED_ASSETS = window.__3D_MARKUP_BUNDLED_ASSETS__ || {};
 // Resolve against document.baseURI: import() is module-relative but the
 // manifest URL (./assets/) is meant to be document-relative.
@@ -100,15 +101,17 @@ function loadClipRenderHook() {
 function loadManagedStageJsonUiController() {
   if (window.__3D_MARKUP_MANAGED_STAGE_JSON_UI_IMPORT_STARTED__) return;
   window.__3D_MARKUP_MANAGED_STAGE_JSON_UI_IMPORT_STARTED__ = true;
-  import(MANAGED_STAGE_JSON_UI_MODULE_URL).catch((error) => {
-    console.warn('[3DMarkupTool] Managed-stage JSON UI controller skipped.', error);
-    window.dispatchEvent(new CustomEvent('viewer:managed-stage-json-ui-skipped', {
-      detail: {
-        version: APP_LOADER_VERSION,
-        reason: error && (error.message || String(error))
-      }
-    }));
-  });
+  import(MANAGED_STAGE_JSON_UI_MODULE_URL)
+    .then(() => import(MANAGED_STAGE_JSON_SAMPLE_MODULE_URL))
+    .catch((error) => {
+      console.warn('[3DMarkupTool] Managed-stage JSON UI controller skipped.', error);
+      window.dispatchEvent(new CustomEvent('viewer:managed-stage-json-ui-skipped', {
+        detail: {
+          version: APP_LOADER_VERSION,
+          reason: error && (error.message || String(error))
+        }
+      }));
+    });
 }
 
 function loadFreshClipController() {

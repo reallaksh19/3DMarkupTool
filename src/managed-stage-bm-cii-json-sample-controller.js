@@ -1,6 +1,7 @@
+import { BM_CII_MANAGED_STAGE_SAMPLE_NAME, createBmCiiManagedStageSampleJson } from './managed-stage-bm-cii-json-sample-data.js';
+
 const SAMPLE_CONTROLLER_SCHEMA = 'ManagedStageBmCiiJsonSampleController.v1';
-const SAMPLE_SOURCE_NAME = 'BM_CII_INPUT_managed_stage.json';
-const SAMPLE_URL = './samples/BM_CII_INPUT_managed_stage.json';
+const SAMPLE_SOURCE_NAME = BM_CII_MANAGED_STAGE_SAMPLE_NAME;
 
 installManagedStageBmCiiJsonSampleButton();
 
@@ -20,7 +21,6 @@ export function installManagedStageBmCiiJsonSampleButton() {
   const api = {
     schema: SAMPLE_CONTROLLER_SCHEMA,
     sampleSourceName: SAMPLE_SOURCE_NAME,
-    sampleUrl: SAMPLE_URL,
     loadSample: loadBundledManagedStageJsonSample
   };
   window.__3D_MARKUP_MANAGED_STAGE_BM_CII_JSON_SAMPLE__ = api;
@@ -58,11 +58,7 @@ async function loadBundledManagedStageJsonSample() {
   }
 
   setStatus('Loading BM_CII JSON sample');
-  const response = await fetch(SAMPLE_URL, { cache: 'no-store' });
-  if (!response.ok) {
-    throw new Error(`${SAMPLE_URL} returned HTTP ${response.status}`);
-  }
-  const sourceText = await response.text();
+  const sourceText = createBmCiiManagedStageSampleJson();
   log(`Loaded bundled ${SAMPLE_SOURCE_NAME} (${sourceText.length.toLocaleString()} chars)`);
   return managedStageApi.loadText(sourceText, SAMPLE_SOURCE_NAME);
 }

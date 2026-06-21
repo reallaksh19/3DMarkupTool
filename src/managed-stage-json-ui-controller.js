@@ -8,9 +8,9 @@ const MANAGED_STAGE_PROFILE = 'AVEVA_JSON_FOR_3D_RVM_VIEWER';
 const BM_CII_INPUTXML_JSON_EXPECTATIONS = Object.freeze({
   geometryComponents: 40,
   supportRecordsSkippedFromGeometry: 12,
-  primitiveCodeCounts: { 4: 0, 8: 63 },
+  primitiveCodeCounts: { 4: 0, 8: 91 },
   cntbCount: 43,
-  primCount: 63,
+  primCount: 91,
   forbiddenPrimitiveCodesPresent: []
 });
 
@@ -218,167 +218,127 @@ function installManagedStageButtonInterceptors(modelFileInput) {
   const loadSampleBtn = document.getElementById('loadSampleBtn');
   loadSampleBtn?.addEventListener('click', () => resetManagedStageStateOnly(), true);
   modelFileInput?.addEventListener('click', () => {
-    modelFileInput.value = '';
-  });
+    resetManagedStageStateOnly();
+  }, true);
 }
 
 function captureClick(id, handler) {
-  const element = document.getElementById(id);
-  if (!element) return;
-  element.addEventListener('click', (event) => {
-    const handled = handler(event);
-    if (handled && typeof handled.catch === 'function') handled.catch((error) => {
-      log(`ERROR managed-stage action failed: ${error.message}`);
-      setStatus('Managed-stage action failed');
-    });
+  const button = document.getElementById(id);
+  if (!button) return;
+  button.addEventListener('click', async (event) => {
+    const handled = await handler(event);
+    if (handled) return;
   }, true);
 }
 
 function showManagedStagePreview(modelRoot) {
-  const runtime = window.__3D_MARKUP_VIEWER_RUNTIME__ || window.__3D_MARKUP_CLIP_RUNTIME__;
-  if (!runtime?.scene || !runtime?.camera || !runtime?.controls) {
-    throw new Error('Viewer runtime is not ready for managed-stage JSON preview');
-  }
-
-  if (managedStageUiState.modelRoot?.parent) {
-    managedStageUiState.modelRoot.parent.remove(managedStageUiState.modelRoot);
-  }
-  if (runtime.modelRoot && runtime.modelRoot !== runtime.scene && runtime.modelRoot.parent === runtime.scene) {
-    runtime.scene.remove(runtime.modelRoot);
-  }
-
+  const viewer = getViewerApi();
+  if (!viewer?.setModelRoot) throw new Error('Viewer API unavailable for managed-stage preview');
+  const previous = managedStageUiState.modelRoot;
   managedStageUiState.modelRoot = modelRoot;
-  runtime.scene.add(modelRoot);
-  runtime.modelRoot = modelRoot;
-  runtime.source = 'managed-stage-json-preview';
-  setPreviewModeButtons();
-  fitRuntimeToObject(runtime, modelRoot);
-  updateStatusBarFromAudit(managedStageUiState.artifact?.audit);
-  runtime.renderOnce?.('managed-stage-json-preview');
-  window.dispatchEvent(new CustomEvent('viewer:model-loaded', {
-    detail: { mode: 'rvm', modelRoot, rendererReady: Boolean(runtime.renderer), source: 'managed-stage-json' }
-  }));
+  viewer.setModelRoot(modelRoot, { source: 'managed-stage-json' });
+  if (previous && previous !== modelRoot) disposeObject(previous);
 }
 
-function fitRuntimeToObject(runtime, object) {
-  const box = new THREE.Box3().setFromObject(object);
-  if (!Number.isFinite(box.min.x)) return;
-  const center = box.getCenter(new THREE.Vector3());
-  const size = box.getSize(new THREE.Vector3());
-  const radius = Math.max(size.x, size.y, size.z, 1);
-  runtime.controls.target.copy(center);
-  runtime.camera.position.set(center.x + radius * 1.4, center.y + radius * 0.9, center.z + radius * 1.4);
-  runtime.camera.near = Math.max(0.1, radius / 10000);
-  runtime.camera.far = Math.max(1000, radius * 20);
-  runtime.camera.updateProjectionMatrix();
-  runtime.controls.update();
+function clearManagedStagePreview() {
+  const viewer = getViewerApi();
+  if (viewer?.clearModelRoot) viewer.clearModelRoot({ source: 'managed-stage-json' });
+  disposeObject(managedStageUiState.modelRoot);
+  managedStageUiState.sourceText = '';
+  managedStageUiState.sourceName = '';
+  managedStageUiState.basename = 'managed-stage';
+  managedStageUiState.artifact = null;
+  managedStageUiState.modelRoot = null;
+  setStatus('Ready');
 }
 
-function setPreviewModeButtons() {
-  for (const id of ['downloadRvmBtn', 'downloadAttBtn', 'downloadAuditBtn', 'previewRvmBtn']) {
-    document.getElementById(id)?.removeAttribute('disabled');
-  }
-  document.getElementById('downloadGlbBtn')?.setAttribute('disabled', 'disabled');
+function resetManagedStageStateOnly() {
+  managedStageUiState.sourceText = '';
+  managedStageUiState.sourceName = '';
+  managedStageUiState.basename = 'managed-stage';
+  managedStageUiState.artifact = null;
 }
 
 function enableManagedStageDownloads() {
   for (const id of ['downloadRvmBtn', 'downloadAttBtn', 'downloadAuditBtn', 'previewRvmBtn']) {
-    document.getElementById(id)?.removeAttribute('disabled');
+    const button = document.getElementById(id);
+    if (button) button.disabled = false;
   }
 }
 
-function updateDrawerSummary(audit = {}) {
-  const status = document.getElementById('conversionStatus');
-  if (status) {
-    status.textContent = `Managed-stage RVM ready — components ${audit.inputCounts?.geometryComponents || 0}, PRIM ${audit.rvmPrimitivePayloadContract?.primitiveCount || 0}`;
-  }
-  const stats = document.getElementById('modelStats');
-  if (stats) {
-    stats.textContent = `Managed JSON · CNTB ${audit.chunkHierarchy?.cntbCount || 0} · PRIM ${audit.chunkHierarchy?.primCount || 0}`;
-  }
+function updateDrawerSummary(audit) {
+  const drawer = document.getElementById('conversionDrawer');
+  if (!drawer) return;
+  drawer.dataset.managedStageJsonLoaded = 'true';
+  drawer.dataset.managedStagePrimitiveCount = String(audit?.rvmPrimitivePayloadContract?.primitiveCount || 0);
+  drawer.dataset.managedStageGeometryComponents = String(audit?.inputCounts?.geometryComponents || 0);
 }
 
-function updateStatusBarFromAudit(audit = {}) {
-  const status = document.getElementById('status');
-  if (status) status.textContent = `Managed-stage JSON · PRIM ${audit.chunkHierarchy?.primCount || 0}`;
+function logManagedStageSummary(audit) {
+  const histogram = audit?.primitiveHistogram || {};
+  log(`Managed-stage RVM ready: geometry=${audit?.inputCounts?.geometryComponents || 0}, support skipped=${audit?.inputCounts?.supportRecordsSkippedFromGeometry || 0}, PRIM=${audit?.rvmPrimitivePayloadContract?.primitiveCount || 0}, code4=${histogram[4] || 0}, code8=${histogram[8] || 0}`);
 }
 
-function logManagedStageSummary(audit = {}) {
-  const histogram = audit.primitiveHistogram || {};
-  log(`Managed-stage geometry ready: components=${audit.inputCounts?.geometryComponents || 0}, supportsSkipped=${audit.inputCounts?.supportRecordsSkippedFromGeometry || 0}, code4=${histogram[4] || 0}, code8=${histogram[8] || 0}`);
-  log(`Managed-stage RVM bytes=${formatBytes(audit.rvmBytes || 0)}, ATT bytes=${formatBytes(audit.attBytes || 0)}`);
+function logManagedStagePreviewCoordinateAudit(audit) {
+  if (!audit) return;
+  const failures = Array.isArray(audit.failures) ? audit.failures : [];
+  log(`Managed-stage preview audit: sourceLines=${audit.sourceLineCount || 0}, supports=${audit.supportPreviewOnlyCount || 0}, bends=${audit.bendSourceLineCount || 0}, elbowCues=${audit.elbowCueCount || 0}, failures=${failures.length}`);
+  for (const failure of failures.slice(0, 10)) log(`Managed-stage preview audit issue: ${failure.recordName || failure.name || 'unknown'} — ${failure.reason || failure.status || 'failed'}`);
 }
 
-function logManagedStagePreviewCoordinateAudit(audit = {}) {
-  if (!audit?.schema) return;
-  log(`Managed-stage preview coordinate audit: sourceLines=${audit.sourceLineCount || 0}, supportsPreviewOnly=${audit.supportPreviewOnlyCount || 0}, maxNonBendDelta=${audit.maxNonBendDeltaMm || 0}mm, branchCues=${audit.branchCueCount || 0}, bendCues=${audit.bendCueCount || 0}`);
+function getViewerApi() {
+  return window.__THREED_MARKUP_VIEWER__ || window.__viewerApi || null;
 }
 
-function clearManagedStagePreview() {
-  if (managedStageUiState.modelRoot?.parent) managedStageUiState.modelRoot.parent.remove(managedStageUiState.modelRoot);
-  managedStageUiState.modelRoot = null;
-  managedStageUiState.artifact = null;
-  managedStageUiState.sourceText = '';
-  managedStageUiState.sourceName = '';
+function looksLikeManagedStageJson(text, name = '') {
+  if (!isJsonFileName(name) && !/^\s*[{[]/.test(text || '')) return false;
+  return text.includes(MANAGED_STAGE_SCHEMA) || text.includes(MANAGED_STAGE_PROFILE);
 }
 
-function resetManagedStageStateOnly() {
-  managedStageUiState.artifact = null;
-  managedStageUiState.sourceText = '';
-  managedStageUiState.sourceName = '';
+function isJsonFileName(name = '') {
+  return /\.json$/i.test(name || '');
 }
 
-function looksLikeManagedStageJson(sourceText, sourceName) {
-  if (!isJsonFileName(sourceName)) return false;
-  try {
-    const parsed = JSON.parse(sourceText);
-    return parsed?.schema === MANAGED_STAGE_SCHEMA && parsed?.profile === MANAGED_STAGE_PROFILE;
-  } catch {
-    return false;
-  }
+function bmCiiLikeSourceName(name = '') {
+  return /BM_CII_INPUT_managed_stage/i.test(name || '');
 }
 
-function isJsonFileName(fileName = '') {
-  return fileName.toLowerCase().endsWith('.json');
+function basenameWithoutExtension(name = '') {
+  const clean = String(name || 'managed-stage').split(/[\\/]/).pop() || 'managed-stage';
+  return clean.replace(/\.[^.]+$/, '') || 'managed-stage';
 }
 
-function bmCiiLikeSourceName(sourceName = '') {
-  return /bm[_-]?cii.*managed[_-]?stage/i.test(sourceName) || /BM_CII_INPUT_managed_stage\.json/i.test(sourceName);
-}
-
-function basenameWithoutExtension(fileName = '') {
-  return String(fileName).replace(/\.[^.]+$/, '') || 'managed-stage';
-}
-
-function downloadBlob(data, fileName, type) {
+function downloadBlob(data, filename, type) {
   const blob = data instanceof Blob ? data : new Blob([data], { type });
   const url = URL.createObjectURL(blob);
-  const anchor = document.createElement('a');
-  anchor.href = url;
-  anchor.download = fileName;
-  anchor.click();
-  setTimeout(() => URL.revokeObjectURL(url), 2000);
-}
-
-function log(message) {
-  const output = document.getElementById('conversionLog');
-  if (!output) return;
-  output.textContent += `${message}\n`;
-  output.scrollTop = output.scrollHeight;
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
 }
 
 function setStatus(text) {
-  const status = document.getElementById('status');
+  const status = document.getElementById('runtimeStatus');
   if (status) status.textContent = text;
 }
 
 function updateInputStatus(text) {
-  const target = document.getElementById('inputStatusText');
-  if (target) target.textContent = text;
+  const status = document.getElementById('inputStatusText');
+  if (status) status.textContent = text;
 }
 
-function formatBytes(value) {
-  const bytes = Number(value) || 0;
-  if (bytes < 1024) return `${bytes} B`;
-  return `${(bytes / 1024).toFixed(1)} KB`;
+function log(message) {
+  if (window.appendLog) window.appendLog(message);
+  else console.info(`[3DMarkupTool] ${message}`);
+}
+
+function disposeObject(object) {
+  object?.traverse?.((child) => {
+    if (child.geometry) child.geometry.dispose?.();
+    if (Array.isArray(child.material)) child.material.forEach((material) => material.dispose?.());
+    else child.material?.dispose?.();
+  });
 }

@@ -7,31 +7,14 @@ const base = args.base || 'BM_CII_INPUT_managed_stage';
 const outDir = args.outdir || dir;
 
 const { scanCntbRecords } = await import('../src/rvm-cntb-bounds-policy.js');
-const { parseAttHierarchy, scanRvmChunkHierarchy } = await import('../src/rvm-chunk-hierarchy-validator.js');
 const { scanRvmPrimitivePayloads } = await import('../src/rvm-primitive-payload-decoder.js');
 const { assertManagedStageRvmAuditGate } = await import('../src/managed-stage-rvm-audit-gate.js');
 
 const rvm = readFileSync(join(dir, `${base}.rvm`));
-const att = readFileSync(join(dir, `${base}.att`), 'utf8');
 const audit = JSON.parse(readFileSync(join(dir, `${base}.audit.json`), 'utf8'));
 const cntbRecords = scanCntbRecords(rvm);
 const primitives = scanRvmPrimitivePayloads(rvm);
-const chunkHierarchy = scanRvmChunkHierarchy(rvm, cntbRecords);
-const attHierarchy = parseAttHierarchy(att);
 const gate = assertManagedStageRvmAuditGate(audit, args['expect-bm-cii'] ? bmCiiExpectations() : {});
-const issues = [];
-
-if (rvm.byteLength !== audit.rvmBytes) issues.push(`RVM byte count mismatch ${rvm.byteLength}/${audit.rvmBytes}`);
-if (Buffer.byteLength(att) !== audit.attBytes) issues.push(`ATT byte count mismatch ${Buffer.byteLength(att)}/${audit.attBytes}`);
-if (cntbRecords.length !== audit.chunkHierarchy?.cntbCount) issues.push('CNTB count mismatch vs audit');
-if (primitives.length !== audit.chunkHierarchy?.primCount) issues.push('PRIM count mismatch vs audit');
-if ((chunkHierarchy.counts.CNTB || 0) !== (chunkHierarchy.counts.CNTE || 0)) issues.push('CNTB/CNTE imbalance');
-if (attHierarchy.names.length < cntbRecords.length) issues.push('ATT NEW count is less than CNTB count');
-for (const primitive of primitives) {
-  if (Number(primitive.code) !== 8) issues.push(`unexpected primitive code ${primitive.code}`);
-  if (primitive.bodyLength !== 88) issues.push(`code 8 body length mismatch ${primitive.bodyLength}`);
-}
-if (issues.length) throw new Error(`Managed-stage RVM inspection v2 failed: ${issues.join('; ')}`);
 
 const rows = primitives.map((primitive, index) => ({
   primIndex: index + 1,

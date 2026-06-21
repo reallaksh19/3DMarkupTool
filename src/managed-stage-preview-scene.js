@@ -5,6 +5,9 @@ const PREVIEW_SCHEMA = 'ManagedStageRawPreview.v1';
 const COORDINATE_AUDIT_SCHEMA = 'ManagedStageCoordinateAudit.v1';
 const EPS_MM = 0.001;
 const MAX_BRANCH_CUE_LEGS = 4;
+const ORTHOGONAL_DOT_TOLERANCE = 0.125;
+const ELBOW_RADIUS_DIAMETER_MULTIPLIER = 1.5;
+const ELBOW_ARC_SEGMENTS = 24;
 
 const PREVIEW_COLORS = Object.freeze({
   PIPE: 0x3d74c5,
@@ -50,26 +53,33 @@ export function createManagedStagePreviewScene(sourceTextOrJson, options = {}) {
 
   const renderRows = [];
   const endpointIndex = buildEndpointNodeIndex(records);
+  const elbowPlan = createOrthogonalElbowPreviewPlan(endpointIndex, sourceRadius);
 
   for (const record of records) {
-    const meshInfo = createRecordPreviewObject(record, sourceRadius, pointRadius);
+    const trimInfo = elbowPlan.trimsByPath.get(record.path);
+    const meshInfo = createRecordPreviewObject(record, sourceRadius, pointRadius, trimInfo);
     if (meshInfo.object) root.add(meshInfo.object);
-    renderRows.push(createAuditRow(record, meshInfo));
+    renderRows.push(createAuditRow(record, meshInfo, trimInfo));
+  }
 
-    if (meshInfo.object && isBendLike(record)) {
-      const cue = createBendCue(record, sourceRadius);
-      if (cue) root.add(cue);
-    }
+  for (const elbow of elbowPlan.elbows) {
+    const cue = createOrthogonalElbowCue(elbow);
+    if (cue) root.add(cue);
   }
 
   const branchCueCount = addBranchTopologyCues(root, endpointIndex, sourceRadius);
+  const trimmedRows = renderRows.filter((row) => row.intentionalPreviewTrim);
   const audit = auditManagedStagePreviewCoordinatePreservation(renderRows, {
     schema: COORDINATE_AUDIT_SCHEMA,
     source: 'raw staged JSON APOS/LPOS/POS/BPOS/SUPPORTCOORD',
-    planningPipeline: 'raw-staged-preview-no-rvm-primitive-planning',
+    planningPipeline: 'raw-staged-preview-with-local-orthogonal-elbow-trim',
     recordCount: records.length,
     branchCueCount,
-    bendCueCount: root.children.filter((child) => child.userData?.previewAdditiveCue === true && child.userData?.cueKind === 'bend').length,
+    bendCueCount: elbowPlan.elbows.length,
+    orthogonalElbowCount: elbowPlan.elbows.length,
+    trimmedSourceLineCount: trimmedRows.length,
+    trimmedNonBendSourceLineCount: trimmedRows.filter((row) => !row.isBend).length,
+    elbowRadiusPolicy: '90-degree continuous two-record joins use centerline bend radius = 1.5D; adjacent preview cylinders are trimmed locally by the tangent distance',
     rvmExportPrimitiveCount: countExportPrimitives(options.exportModel),
     rvmExportPreviewSeparated: true
   });
@@ -102,8 +112,8 @@ export function auditManagedStagePreviewCoordinatePreservation(rows = [], base =
   const sourceLineRows = rows.filter((row) => row.sourceCoordinateKind === 'APOS_LPOS');
   const sourcePointRows = rows.filter((row) => row.sourceCoordinateKind !== 'APOS_LPOS' && row.sourceCoordinateKind !== 'NONE');
   const nonBendSourceLineRows = sourceLineRows.filter((row) => !row.isBend);
-  const mutatedNonBendRows = nonBendSourceLineRows.filter((row) => row.deltaMm?.max > EPS_MM);
-  const mutatedRows = rows.filter((row) => row.deltaMm?.max > EPS_MM);
+  const unexplainedNonBendRows = nonBendSourceLineRows.filter((row) => row.deltaMm?.max > EPS_MM && !row.intentionalPreviewTrim);
+  const unexplainedRows = rows.filter((row) => row.deltaMm?.max > EPS_MM && !row.intentionalPreviewTrim);
   const supportPreviewOnlyRows = rows.filter((row) => row.supportLike && row.previewOnly);
   return {
     ...base,
@@ -114,11 +124,13 @@ export function auditManagedStagePreviewCoordinatePreservation(rows = [], base =
     sourcePointCount: sourcePointRows.length,
     nonBendSourceLineCount: nonBendSourceLineRows.length,
     supportPreviewOnlyCount: supportPreviewOnlyRows.length,
-    mutatedRowCount: mutatedRows.length,
-    mutatedNonBendRowCount: mutatedNonBendRows.length,
+    mutatedRowCount: unexplainedRows.length,
+    mutatedNonBendRowCount: unexplainedNonBendRows.length,
+    intentionalPreviewTrimRowCount: rows.filter((row) => row.intentionalPreviewTrim).length,
     maxDeltaMm: round(Math.max(0, ...rows.map((row) => row.deltaMm?.max || 0))),
     maxNonBendDeltaMm: round(Math.max(0, ...nonBendSourceLineRows.map((row) => row.deltaMm?.max || 0))),
-    pass: mutatedNonBendRows.length === 0,
+    maxUnexplainedNonBendDeltaMm: round(Math.max(0, ...unexplainedNonBendRows.map((row) => row.deltaMm?.max || 0))),
+    pass: unexplainedNonBendRows.length === 0,
     rows
   };
 }
@@ -127,32 +139,49 @@ export function assertManagedStagePreviewCoordinatePreservation(audit) {
   if (!audit || audit.schema !== COORDINATE_AUDIT_SCHEMA) throw new Error('Invalid managed-stage coordinate audit');
   if (audit.mutatedNonBendRowCount > 0) {
     const offenders = audit.rows
-      .filter((row) => row.deltaMm?.max > EPS_MM && !row.isBend && row.sourceCoordinateKind === 'APOS_LPOS')
+      .filter((row) => row.deltaMm?.max > EPS_MM && !row.isBend && row.sourceCoordinateKind === 'APOS_LPOS' && !row.intentionalPreviewTrim)
       .map((row) => `${row.name}: ${row.deltaMm.max}mm (${row.deltaReason || 'coordinate drift'})`)
       .join('; ');
-    throw new Error(`Managed-stage preview moved non-bend source records above tolerance: ${offenders}`);
+    throw new Error(`Managed-stage preview moved non-bend source records above tolerance without an intentional elbow-trim policy: ${offenders}`);
   }
-  return { ok: true, maxNonBendDeltaMm: audit.maxNonBendDeltaMm, rowCount: audit.rowCount };
+  return { ok: true, maxUnexplainedNonBendDeltaMm: audit.maxUnexplainedNonBendDeltaMm, rowCount: audit.rowCount };
 }
 
-function createRecordPreviewObject(record, radius, pointRadius) {
+function createRecordPreviewObject(record, radius, pointRadius, trimInfo = null) {
   if (record.source.start && record.source.end && pointDistance(record.source.start, record.source.end) > EPS_MM) {
-    const start = toVec(record.source.start);
-    const end = toVec(record.source.end);
+    const originalStart = record.source.start;
+    const originalEnd = record.source.end;
+    const rendered = applyOrthogonalElbowTrim(originalStart, originalEnd, trimInfo);
+    const start = toVec(rendered.start);
+    const end = toVec(rendered.end);
     const mesh = cylinderBetween(start, end, radiusForRecord(record, radius), mat(colorForRecord(record)), 18, record.path);
     stampSourceUserData(mesh, record, {
       primitiveKind: 'raw-staged-source-line',
       previewSourceGeometry: 'APOS_LPOS',
-      previewStartMm: clonePoint(record.source.start),
-      previewEndMm: clonePoint(record.source.end),
+      sourceStartMm: clonePoint(originalStart),
+      sourceEndMm: clonePoint(originalEnd),
+      previewStartMm: clonePoint(rendered.start),
+      previewEndMm: clonePoint(rendered.end),
       previewOnly: isSupportLike(record),
-      exportedRvmGeometry: false
+      exportedRvmGeometry: false,
+      previewTrimmedForOrthogonalElbow: rendered.trimmed,
+      previewTrim: rendered.trimmed ? cloneTrimInfo(trimInfo) : null,
+      coordinatePolicy: rendered.trimmed
+        ? 'source APOS/LPOS preserved; visible cylinder endpoint locally trimmed for a 1.5D orthogonal elbow cue'
+        : 'raw staged APOS/LPOS/POS coordinates preserved'
     });
-    return { object: mesh, renderedStart: clonePoint(record.source.start), renderedEnd: clonePoint(record.source.end), renderedPos: null };
+    return {
+      object: mesh,
+      renderedStart: clonePoint(rendered.start),
+      renderedEnd: clonePoint(rendered.end),
+      renderedPos: null,
+      intentionalPreviewTrim: rendered.trimmed,
+      previewTrim: rendered.trimmed ? cloneTrimInfo(trimInfo) : null
+    };
   }
 
   const pos = record.source.pos || record.source.bpos || record.source.supportCoord || record.source.apos || record.source.lpos;
-  if (!pos) return { object: null, renderedStart: null, renderedEnd: null, renderedPos: null };
+  if (!pos) return { object: null, renderedStart: null, renderedEnd: null, renderedPos: null, intentionalPreviewTrim: false, previewTrim: null };
   const geometry = isSupportLike(record)
     ? new THREE.BoxGeometry(pointRadius * 1.8, pointRadius * 1.8, pointRadius * 1.8)
     : new THREE.SphereGeometry(pointRadius, 14, 10);
@@ -166,7 +195,7 @@ function createRecordPreviewObject(record, radius, pointRadius) {
     previewOnly: true,
     exportedRvmGeometry: false
   });
-  return { object: mesh, renderedStart: null, renderedEnd: null, renderedPos: clonePoint(pos) };
+  return { object: mesh, renderedStart: null, renderedEnd: null, renderedPos: clonePoint(pos), intentionalPreviewTrim: false, previewTrim: null };
 }
 
 function stampSourceUserData(object, record, extra = {}) {
@@ -189,29 +218,134 @@ function stampSourceUserData(object, record, extra = {}) {
   };
 }
 
-function createBendCue(record, radius) {
-  const start = record.source.start;
-  const end = record.source.end;
-  if (!start || !end) return null;
-  const center = midpoint(start, end);
-  const cueRadius = Math.max(radius * 1.35, 8);
-  const mesh = new THREE.Mesh(new THREE.SphereGeometry(cueRadius, 16, 12), mat(PREVIEW_COLORS.BEND, { transparent: true, opacity: 0.72 }));
-  mesh.name = `${record.path}__BEND_PREVIEW_CUE`;
-  mesh.position.copy(toVec(center));
-  mesh.userData = {
+function createOrthogonalElbowPreviewPlan(endpointIndex, fallbackRadius) {
+  const trimsByPath = new Map();
+  const elbows = [];
+  for (const [nodeId, entries] of endpointIndex.entries()) {
+    if (entries.length !== 2) continue;
+    const [a, b] = entries;
+    if (!a?.point || !a?.otherPoint || !b?.point || !b?.otherPoint) continue;
+    if (!isLineRecord(a.record) || !isLineRecord(b.record)) continue;
+
+    const node = toVec(a.point);
+    const dirA = toVec(a.otherPoint).sub(node);
+    const dirB = toVec(b.otherPoint).sub(node);
+    const lenA = dirA.length();
+    const lenB = dirB.length();
+    if (!(lenA > EPS_MM) || !(lenB > EPS_MM)) continue;
+    dirA.normalize();
+    dirB.normalize();
+    const dot = dirA.dot(dirB);
+    if (Math.abs(dot) > ORTHOGONAL_DOT_TOLERANCE) continue;
+
+    const pipeRadius = Math.max(Math.min(radiusForRecord(a.record, fallbackRadius), radiusForRecord(b.record, fallbackRadius)), 2);
+    const requestedTrim = pipeRadius * 2 * ELBOW_RADIUS_DIAMETER_MULTIPLIER;
+    const trimDistance = Math.min(requestedTrim, lenA * 0.45, lenB * 0.45);
+    if (!(trimDistance > EPS_MM)) continue;
+
+    const elbow = {
+      nodeId,
+      nodePoint: clonePoint(a.point),
+      recordA: a.record.name,
+      recordB: b.record.name,
+      recordPathA: a.record.path,
+      recordPathB: b.record.path,
+      endpointKindA: a.endpointKind,
+      endpointKindB: b.endpointKind,
+      directionA: vecToPoint(dirA),
+      directionB: vecToPoint(dirB),
+      tangentA: vecToPoint(node.clone().add(dirA.clone().multiplyScalar(trimDistance))),
+      tangentB: vecToPoint(node.clone().add(dirB.clone().multiplyScalar(trimDistance))),
+      pipeRadiusMm: round(pipeRadius),
+      diameterMm: round(pipeRadius * 2),
+      centerlineRadiusMm: round(trimDistance),
+      requestedCenterlineRadiusMm: round(requestedTrim),
+      radiusPolicy: '1.5D centerline elbow radius, clamped to 45% of each adjacent segment for preview safety',
+      angleDeg: round(THREE.MathUtils.radToDeg(Math.acos(Math.max(-1, Math.min(1, dot)))))
+    };
+    elbows.push(elbow);
+    registerTrim(trimsByPath, a.record.path, a.endpointKind, trimDistance, nodeId, elbow);
+    registerTrim(trimsByPath, b.record.path, b.endpointKind, trimDistance, nodeId, elbow);
+  }
+  return { trimsByPath, elbows };
+}
+
+function registerTrim(map, path, endpointKind, distanceMm, nodeId, elbow) {
+  if (!path || !endpointKind) return;
+  if (!map.has(path)) map.set(path, { startTrimMm: 0, endTrimMm: 0, nodes: [], elbows: [] });
+  const trim = map.get(path);
+  if (endpointKind === 'start') trim.startTrimMm = Math.max(trim.startTrimMm || 0, distanceMm);
+  else if (endpointKind === 'end') trim.endTrimMm = Math.max(trim.endTrimMm || 0, distanceMm);
+  trim.nodes.push({ nodeId, endpointKind, distanceMm: round(distanceMm) });
+  trim.elbows.push(elbow);
+}
+
+function applyOrthogonalElbowTrim(startPoint, endPoint, trimInfo) {
+  if (!trimInfo) return { start: clonePoint(startPoint), end: clonePoint(endPoint), trimmed: false };
+  const start = toVec(startPoint);
+  const end = toVec(endPoint);
+  const span = end.clone().sub(start);
+  const length = span.length();
+  if (!(length > EPS_MM)) return { start: clonePoint(startPoint), end: clonePoint(endPoint), trimmed: false };
+  const dir = span.clone().normalize();
+  let startTrim = Number(trimInfo.startTrimMm || 0);
+  let endTrim = Number(trimInfo.endTrimMm || 0);
+  if (startTrim + endTrim >= length - EPS_MM) {
+    const scale = Math.max((length * 0.9) / Math.max(startTrim + endTrim, EPS_MM), 0);
+    startTrim *= scale;
+    endTrim *= scale;
+  }
+  const renderedStart = start.clone().add(dir.clone().multiplyScalar(startTrim));
+  const renderedEnd = end.clone().add(dir.clone().multiplyScalar(-endTrim));
+  const trimmed = startTrim > EPS_MM || endTrim > EPS_MM;
+  return { start: vecToPoint(renderedStart), end: vecToPoint(renderedEnd), trimmed };
+}
+
+function createOrthogonalElbowCue(elbow) {
+  if (!elbow) return null;
+  const points = sampleOrthogonalElbowArc(elbow);
+  if (points.length < 3) return null;
+  const material = mat(PREVIEW_COLORS.BEND, { transparent: true, opacity: 0.9 });
+  const curve = new THREE.CatmullRomCurve3(points);
+  const tube = new THREE.Mesh(new THREE.TubeGeometry(curve, ELBOW_ARC_SEGMENTS, Math.max(elbow.pipeRadiusMm, 2), 14, false), material);
+  tube.name = `MANAGED_STAGE_1_5D_ELBOW_NODE_${elbow.nodeId}`;
+  tube.userData = {
     TYPE: 'MANAGED_STAGE_PREVIEW_CUE',
-    sourceName: record.name,
-    sourcePath: record.path,
     cueKind: 'bend',
     previewAdditiveCue: true,
     previewOnly: true,
     exportedRvmGeometry: false,
-    coordinatePolicy: 'additive local cue; source BEND APOS/LPOS line remains unmodified',
-    sourceAposMm: clonePoint(start),
-    sourceLposMm: clonePoint(end),
-    previewPosMm: clonePoint(center)
+    node: elbow.nodeId,
+    sourceRecordA: elbow.recordA,
+    sourceRecordB: elbow.recordB,
+    sourcePathA: elbow.recordPathA,
+    sourcePathB: elbow.recordPathB,
+    tangentA: clonePoint(elbow.tangentA),
+    tangentB: clonePoint(elbow.tangentB),
+    pipeRadiusMm: elbow.pipeRadiusMm,
+    diameterMm: elbow.diameterMm,
+    centerlineRadiusMm: elbow.centerlineRadiusMm,
+    angleDeg: elbow.angleDeg,
+    coordinatePolicy: 'additive 1.5D orthogonal elbow preview cue; adjacent visible straight cylinders are locally trimmed; source APOS/LPOS remains unchanged'
   };
-  return mesh;
+  return tube;
+}
+
+function sampleOrthogonalElbowArc(elbow) {
+  const corner = toVec(elbow.nodePoint);
+  const dirA = toVec(elbow.directionA).normalize();
+  const dirB = toVec(elbow.directionB).normalize();
+  const radius = Number(elbow.centerlineRadiusMm || 0);
+  if (!(radius > EPS_MM)) return [];
+  const center = corner.clone().add(dirA.clone().multiplyScalar(radius)).add(dirB.clone().multiplyScalar(radius));
+  const points = [];
+  for (let i = 0; i <= ELBOW_ARC_SEGMENTS; i += 1) {
+    const theta = (Math.PI * 0.5 * i) / ELBOW_ARC_SEGMENTS;
+    points.push(center.clone()
+      .add(dirB.clone().multiplyScalar(-radius * Math.cos(theta)))
+      .add(dirA.clone().multiplyScalar(-radius * Math.sin(theta))));
+  }
+  return points;
 }
 
 function addBranchTopologyCues(root, endpointIndex, radius) {
@@ -271,7 +405,7 @@ function createBranchCueLeg(basePoint, otherPoint, radius, material, name) {
   return mesh;
 }
 
-function createAuditRow(record, meshInfo) {
+function createAuditRow(record, meshInfo, trimInfo = null) {
   const sourceCoordinateKind = record.source.start && record.source.end ? 'APOS_LPOS' : sourcePointKind(record);
   const beforePlanning = {
     startMm: clonePoint(record.source.start),
@@ -280,7 +414,10 @@ function createAuditRow(record, meshInfo) {
   };
   const afterPlanning = {
     ...beforePlanning,
-    policy: 'unchanged for raw preview pipeline'
+    policy: meshInfo.intentionalPreviewTrim
+      ? 'source coordinates unchanged; local 1.5D elbow trim applied only to rendered preview mesh'
+      : 'unchanged for raw preview pipeline',
+    previewTrim: meshInfo.intentionalPreviewTrim ? cloneTrimInfo(trimInfo) : null
   };
   const rendered = {
     startMm: clonePoint(meshInfo.renderedStart),
@@ -312,8 +449,12 @@ function createAuditRow(record, meshInfo) {
     previewOnly: !isExportableRecord(record),
     supportLike: isSupportLike(record),
     isBend: isBendLike(record),
+    intentionalPreviewTrim: Boolean(meshInfo.intentionalPreviewTrim),
+    previewTrim: meshInfo.intentionalPreviewTrim ? cloneTrimInfo(trimInfo) : null,
     deltaMm,
-    deltaReason: deltaMm.max > EPS_MM ? 'raw preview coordinate drift' : ''
+    deltaReason: deltaMm.max > EPS_MM
+      ? (meshInfo.intentionalPreviewTrim ? 'orthogonal 1.5D elbow preview trim; source coordinates preserved' : 'raw preview coordinate drift')
+      : ''
   };
 }
 
@@ -326,15 +467,15 @@ function computeDelta(beforePlanning, rendered, kind) {
 
 function buildEndpointNodeIndex(records) {
   const map = new Map();
-  const add = (nodeId, point, otherPoint, record) => {
+  const add = (nodeId, point, otherPoint, record, endpointKind) => {
     if (!nodeId || !point || !otherPoint || isSupportLike(record)) return;
     if (!map.has(nodeId)) map.set(nodeId, []);
-    map.get(nodeId).push({ nodeId, point, otherPoint, record });
+    map.get(nodeId).push({ nodeId, point, otherPoint, record, endpointKind });
   };
   for (const record of records) {
     if (!record.source.apos || !record.source.lpos) continue;
-    add(record.fromNode, record.source.apos, record.source.lpos, record);
-    add(record.toNode, record.source.lpos, record.source.apos, record);
+    add(record.fromNode, record.source.apos, record.source.lpos, record, 'start');
+    add(record.toNode, record.source.lpos, record.source.apos, record, 'end');
   }
   return map;
 }
@@ -433,6 +574,10 @@ function isSupportLike(record) {
   return SUPPORT_TYPES.has(type) || SUPPORT_TYPES.has(dtxr);
 }
 
+function isLineRecord(record) {
+  return Boolean(record?.source?.apos && record?.source?.lpos) && !isSupportLike(record);
+}
+
 function isExportableRecord(record) {
   if (isSupportLike(record)) return false;
   if (!record.source.start || !record.source.end) return false;
@@ -529,12 +674,21 @@ function toVec(point) {
   return new THREE.Vector3(point.x, point.y, point.z);
 }
 
+function vecToPoint(vec) {
+  return { x: vec.x, y: vec.y, z: vec.z };
+}
+
 function clonePoint(point) {
   return point ? { x: point.x, y: point.y, z: point.z } : null;
 }
 
-function midpoint(a, b) {
-  return { x: (a.x + b.x) * 0.5, y: (a.y + b.y) * 0.5, z: (a.z + b.z) * 0.5 };
+function cloneTrimInfo(trimInfo) {
+  if (!trimInfo) return null;
+  return {
+    startTrimMm: round(trimInfo.startTrimMm || 0),
+    endTrimMm: round(trimInfo.endTrimMm || 0),
+    nodes: Array.isArray(trimInfo.nodes) ? trimInfo.nodes.map((node) => ({ ...node })) : []
+  };
 }
 
 function pointDistance(a, b) {

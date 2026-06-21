@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { createSpringCoil, createWarningTriangle, mat } from './geometry.js?v=professional-viewer-3';
+import { createSpringCoil, createWarningTriangle, cylinderBetween, mat } from './geometry.js?v=professional-viewer-3';
 
 const EPS_MM = 0.001;
 const DEFAULT_SUPPORT_COLORS = Object.freeze({
@@ -9,7 +9,8 @@ const DEFAULT_SUPPORT_COLORS = Object.freeze({
   LIMIT_STOP: 0xf2a93b,
   HOLDDOWN: 0xf05ab9,
   SPRING_CAN: 0xd273ff,
-  WARNING: 0xff8c73
+  WARNING: 0xff8c73,
+  FALLBACK: 0xb8c7d9
 });
 
 const SUPPORT_TYPES = new Set(['ATTA', 'ANCI', 'SUPP', 'SUPPORT', 'PIPE_SUPPORT', 'PIPESUPPORT']);
@@ -26,7 +27,9 @@ export const MANAGED_STAGE_SUPPORT_VISUAL_POLICY = Object.freeze({
     'Can Spring / Spring Can = warning coil below pipe',
     'gap is record-scoped; no carry-forward attribute is used',
     'axial restraint tips touch unless gap is positive; positive gap creates 10x gap visual separation',
-    'ODx2/3 resolver is applied only to final axial/pipe-parallel symbols'
+    'ODx2/3 resolver is applied only to final axial/pipe-parallel symbols',
+    'known supports sharing the same staged node/POS are spread by a local support-cluster resolver',
+    'unknown support fallback = translucent crossed X rods, never solid cube/block fallback'
   ]
 });
 
@@ -36,31 +39,45 @@ export function createManagedStageSupportPreviewObject(record, options = {}) {
   const visual = resolveManagedStageSupportVisual(record, options.records || [], options);
   const group = new THREE.Group();
   group.name = `MANAGED_STAGE_SUPPORT_${safeName(record?.name || record?.rawName || 'SUPPORT')}`;
-  const center = toVec(pos);
+  const sourceCenter = toVec(pos);
+  const visualCenter = sourceCenter.clone().add(toVec(visual.cluster?.offsetMm));
   const odMm = Math.max(visual.pipeDiameterMm || options.pointRadius * 2 || 40, 1);
-  const genericLength = Math.max(odMm * 0.9, options.pointRadius * 2.25 || 40, 36);
-  const axialLength = Math.max(odMm * (2 / 3), 36);
-  const coneRadius = Math.max(Math.min(odMm * 0.16, genericLength * 0.34), 5);
+  const genericLength = clamp(odMm * 1.2, 60, 220);
+  const axialLength = clamp(odMm * (2 / 3), 45, 180);
+  const coneRadius = clamp(odMm * 0.25, 7, Math.max(genericLength * 0.34, 8));
   const warningScale = Math.max(Math.min(genericLength / 80, 2.6), 0.8);
   const material = mat(colorForFamily(visual.family), { transparent: true, opacity: 0.9 });
+
+  const connector = createClusterConnector(sourceCenter, visualCenter, odMm, visual, `${group.name}_CLUSTER_OFFSET_CONNECTOR`);
+  if (connector) group.add(connector);
 
   if (visual.family === 'SPRING_CAN') {
     const length = Math.max(odMm * 1.35, genericLength);
     const coil = createSpringCoil(
-      center.clone().add(new THREE.Vector3(0, -length * 0.62, 0)),
+      visualCenter.clone().add(new THREE.Vector3(0, -length * 0.62, 0)),
       new THREE.Vector3(0, 1, 0),
       Math.max(odMm * 0.22, 8),
       length,
       mat(DEFAULT_SUPPORT_COLORS.SPRING_CAN, { transparent: true, opacity: 0.9 }),
       `${group.name}_WARNING_COIL_BELOW_PIPE`
     );
-    stampPart(coil, visual, { role: 'warningCoilBelowPipe', popupRequired: true });
+    stampPart(coil, visual, { role: 'warningCoilBelowPipe', popupRequired: true, visualCenterMm: vecToPoint(visualCenter) });
     group.add(coil);
+  } else if (visual.fallbackCrossRods) {
+    const rods = createFallbackCrossRods(
+      visualCenter,
+      Math.max(odMm * 1.5, genericLength),
+      Math.max(odMm * 0.055, 3),
+      mat(DEFAULT_SUPPORT_COLORS.FALLBACK, { transparent: true, opacity: 0.35 }),
+      `${group.name}_FALLBACK_X_RODS`,
+      visual
+    );
+    for (const rod of rods) group.add(rod);
   } else if (visual.popupRequired) {
     const warning = createWarningTriangle('!', warningScale);
     warning.name = `${group.name}_POPUP_REQUIRED`;
-    warning.position.copy(center).add(new THREE.Vector3(0, genericLength * 0.75, 0));
-    stampPart(warning, visual, { role: 'popupRequired', popupRequired: true });
+    warning.position.copy(visualCenter).add(new THREE.Vector3(0, genericLength * 0.75, 0));
+    stampPart(warning, visual, { role: 'popupRequired', popupRequired: true, visualCenterMm: vecToPoint(visualCenter) });
     group.add(warning);
   } else {
     const tipSeparation = visual.gapMm > 0 && AXIAL_FAMILIES.has(visual.family) ? visual.gapMm * 10 : 0;
@@ -69,7 +86,7 @@ export function createManagedStageSupportPreviewObject(record, options = {}) {
       const length = side.axialPipeParallel ? axialLength : genericLength;
       const gapFactor = side.explicitSingle ? 1 : 0.5;
       const tipOffset = AXIAL_FAMILIES.has(visual.family) ? sideVec.clone().multiplyScalar(tipSeparation * gapFactor) : new THREE.Vector3();
-      const tip = center.clone().add(tipOffset);
+      const tip = visualCenter.clone().add(tipOffset);
       const towardTip = side.pointsTowardCenter ? sideVec.clone().multiplyScalar(-1) : sideVec;
       const cone = createPointCone(tip, towardTip, length, coneRadius, material, `${group.name}_${side.role}_${side.axis}`);
       stampPart(cone, visual, {
@@ -78,6 +95,8 @@ export function createManagedStageSupportPreviewObject(record, options = {}) {
         axialPipeParallel: Boolean(side.axialPipeParallel),
         explicitSingle: Boolean(side.explicitSingle),
         tipMm: vecToPoint(tip),
+        sourceTipMm: vecToPoint(sourceCenter),
+        visualCenterMm: vecToPoint(visualCenter),
         pointsTowardCenter: side.pointsTowardCenter !== false,
         odTwoThirdsResolverApplied: Boolean(side.axialPipeParallel)
       });
@@ -91,6 +110,7 @@ export function createManagedStageSupportPreviewObject(record, options = {}) {
     supportVisualPolicy: MANAGED_STAGE_SUPPORT_VISUAL_POLICY.schema,
     managedStageSupportVisual: true,
     supportVisual: visual,
+    supportCluster: visual.cluster,
     previewOnly: true,
     exportedRvmGeometry: false,
     popupRequired: Boolean(visual.popupRequired),
@@ -121,10 +141,12 @@ export function resolveManagedStageSupportVisual(record, records = [], options =
   const pipeAxis = dominantAxis(pipeContext.direction);
   const pipeAxisSigned = signedDominantAxis(pipeContext.direction);
   const pipeDiameterMm = pipeContext.diameterMm || parseDiameter(record) || Math.max(options.pointRadius * 2 || 0, 0);
+  const cluster = resolveSupportCluster(record, records, pipeContext.direction, pipeDiameterMm);
 
   let coneSides = [];
   let popupRequired = false;
   let popupReason = '';
+  let fallbackCrossRods = false;
 
   if (family === 'REST') {
     coneSides = [{ role: 'rest-upward-point-cone', axis: '+Y', pointsTowardCenter: false }];
@@ -154,8 +176,8 @@ export function resolveManagedStageSupportVisual(record, records = [], options =
     popupRequired = true;
     popupReason = 'spring can requires engineering resolution; warning coil below pipe only';
   } else {
-    popupRequired = true;
-    popupReason = 'unknown staged support restraint mapping';
+    fallbackCrossRods = true;
+    popupReason = 'unknown staged support restraint mapping; rendered as translucent crossed X rods fallback';
   }
 
   return {
@@ -175,6 +197,8 @@ export function resolveManagedStageSupportVisual(record, records = [], options =
     explicitSignApplied: Boolean(explicitAxis?.hasSign && AXIAL_FAMILIES.has(family)),
     popupRequired,
     popupReason,
+    fallbackCrossRods,
+    cluster,
     gapMm: round(gapMm),
     gapSource: gapMm > 0 ? 'record' : 'none',
     gapRecordScoped: true,
@@ -197,6 +221,42 @@ function createPointCone(tip, dirTowardTip, length, radius, material, name) {
   return cone;
 }
 
+function createClusterConnector(sourceCenter, visualCenter, odMm, visual, name) {
+  if (!sourceCenter || !visualCenter || sourceCenter.distanceTo(visualCenter) <= EPS_MM) return null;
+  const rod = cylinderBetween(
+    sourceCenter,
+    visualCenter,
+    Math.max(odMm * 0.035, 2),
+    mat(DEFAULT_SUPPORT_COLORS.FALLBACK, { transparent: true, opacity: 0.28 }),
+    8,
+    name
+  );
+  stampPart(rod, visual, {
+    role: 'clusterOffsetConnector',
+    sourceTipMm: vecToPoint(sourceCenter),
+    visualCenterMm: vecToPoint(visualCenter),
+    clusterOffsetConnector: true
+  });
+  return rod;
+}
+
+function createFallbackCrossRods(center, length, radius, material, name, visual) {
+  const half = length / 2;
+  const diagonals = [
+    [new THREE.Vector3(-half, 0, -half), new THREE.Vector3(half, 0, half)],
+    [new THREE.Vector3(-half, 0, half), new THREE.Vector3(half, 0, -half)]
+  ];
+  return diagonals.map(([a, b], index) => {
+    const rod = cylinderBetween(center.clone().add(a), center.clone().add(b), radius, material, 10, `${name}_${index + 1}`);
+    stampPart(rod, visual, {
+      role: 'fallbackCrossRod',
+      fallbackCrossRod: true,
+      visualCenterMm: vecToPoint(center)
+    });
+    return rod;
+  });
+}
+
 function stampPart(object, visual, extra = {}) {
   object.userData = {
     ...(object.userData || {}),
@@ -208,6 +268,8 @@ function stampPart(object, visual, extra = {}) {
     previewOnly: true,
     exportedRvmGeometry: false,
     popupRequired: Boolean(visual.popupRequired),
+    fallbackCrossRods: Boolean(visual.fallbackCrossRods),
+    supportCluster: visual.cluster,
     gapMm: visual.gapMm,
     gapRecordScoped: true,
     gapCarryForward: false,
@@ -241,6 +303,60 @@ function resolvePipeContext(record, records) {
     };
   }
   return { record: null, direction: new THREE.Vector3(1, 0, 0), diameterMm: 0 };
+}
+
+function resolveSupportCluster(record, records, pipeDirection, pipeDiameterMm) {
+  const node = String(record?.attrs?.NODE || record?.fromNode || record?.toNode || '').trim();
+  const pos = record?.source?.supportCoord || record?.source?.pos || record?.source?.bpos || record?.source?.apos || record?.source?.lpos;
+  const recordIndex = (records || []).indexOf(record);
+  const siblings = (records || [])
+    .map((candidate, index) => ({ candidate, index }))
+    .filter(({ candidate }) => candidate && isSupportLike(candidate) && isSameSupportCluster(record, candidate, node, pos))
+    .sort((a, b) => a.index - b.index);
+  const count = siblings.length;
+  const index = Math.max(0, siblings.findIndex((entry) => entry.candidate === record));
+  const spacingMm = clamp((Number(pipeDiameterMm) || 60) * 0.75, 35, 160);
+  let offset = new THREE.Vector3();
+  if (count > 1) {
+    const { u, v } = clusterBasis(pipeDirection);
+    const angle = (-Math.PI / 2) + ((Math.PI * 2 * index) / count);
+    offset = u.multiplyScalar(Math.cos(angle) * spacingMm).add(v.multiplyScalar(Math.sin(angle) * spacingMm));
+  }
+  return {
+    schema: 'ManagedStageSupportCluster.v1',
+    node,
+    sourceIndex: recordIndex,
+    index,
+    count,
+    clustered: count > 1,
+    spacingMm: round(spacingMm),
+    offsetMm: vecToRoundedPoint(offset),
+    offsetMagnitudeMm: round(offset.length()),
+    policy: count > 1
+      ? 'support symbols sharing the same staged node/POS are locally spread for readability; source POS/SUPPORTCOORD is preserved'
+      : 'single support at staged node/POS; no visual cluster offset'
+  };
+}
+
+function isSameSupportCluster(a, b, node, pos) {
+  if (!a || !b) return false;
+  const aNode = String(a?.attrs?.NODE || a?.fromNode || a?.toNode || '').trim();
+  const bNode = String(b?.attrs?.NODE || b?.fromNode || b?.toNode || '').trim();
+  if (node && aNode && bNode && aNode !== bNode) return false;
+  const aPos = a?.source?.supportCoord || a?.source?.pos || a?.source?.bpos || a?.source?.apos || a?.source?.lpos;
+  const bPos = b?.source?.supportCoord || b?.source?.pos || b?.source?.bpos || b?.source?.apos || b?.source?.lpos;
+  if (!aPos || !bPos || !pos) return false;
+  return pointDistance(aPos, bPos) <= 0.01;
+}
+
+function clusterBasis(direction) {
+  const pipe = normalizedOr(direction, new THREE.Vector3(1, 0, 0));
+  const seed = Math.abs(pipe.y) < 0.85 ? new THREE.Vector3(0, 1, 0) : new THREE.Vector3(1, 0, 0);
+  let u = new THREE.Vector3().crossVectors(pipe, seed);
+  if (u.lengthSq() <= EPS_MM) u = new THREE.Vector3(0, 0, 1);
+  u.normalize();
+  const v = new THREE.Vector3().crossVectors(pipe, u).normalize();
+  return { u, v };
 }
 
 function normalizeSupportFamily(rawKind, explicitAxis) {
@@ -336,6 +452,11 @@ function pointToSegmentDistance(point, start, end) {
   return point.distanceTo(start.clone().add(ab.multiplyScalar(t)));
 }
 
+function pointDistance(a, b) {
+  if (!a || !b) return Number.POSITIVE_INFINITY;
+  return toVec(a).distanceTo(toVec(b));
+}
+
 function firstText(...values) {
   for (const value of values) {
     if (value !== undefined && value !== null && String(value).trim() !== '') return String(value).trim();
@@ -357,6 +478,10 @@ function vecToPoint(vec) {
   return { x: vec.x, y: vec.y, z: vec.z };
 }
 
+function vecToRoundedPoint(vec) {
+  return { x: round(vec.x), y: round(vec.y), z: round(vec.z) };
+}
+
 function safeName(value) {
   return String(value || 'SUPPORT').replace(/[^A-Za-z0-9_.-]+/g, '_').replace(/^_+|_+$/g, '') || 'SUPPORT';
 }
@@ -364,4 +489,8 @@ function safeName(value) {
 function round(value) {
   if (!Number.isFinite(value)) return null;
   return Number(Number(value).toFixed(9));
+}
+
+function clamp(value, min, max) {
+  return Math.max(min, Math.min(max, Number(value) || 0));
 }

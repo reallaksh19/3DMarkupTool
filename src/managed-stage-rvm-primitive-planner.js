@@ -9,7 +9,8 @@ export const MANAGED_STAGE_RVM_MATERIALS = Object.freeze({
   FITTING: 5,
   FLANGE: 6,
   VALVE: 7,
-  UNKNOWN_PIPELIKE: 8
+  UNKNOWN_PIPELIKE: 8,
+  SUPPORT: 9
 });
 
 export function planManagedStagePrimitives(recordOrContract, options = {}) {

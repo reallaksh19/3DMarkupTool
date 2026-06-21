@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 
+import { assertManagedStageRvmAuditGate } from '../src/managed-stage-rvm-audit-gate.js';
 import { parseManagedStageProfile } from '../src/managed-stage-profile-parser.js';
 import { auditManagedStageTopology } from '../src/managed-stage-topology-audit.js';
 import { planManagedStagePrimitives } from '../src/managed-stage-rvm-primitive-planner.js';
@@ -46,7 +47,15 @@ assert.equal(subgroup.reviewName, '/BM_CII-CU-PI-P');
 assert.equal(subgroup.children.length, 40);
 assert.equal(exportModel.audit.primitiveCount, 48);
 
-const result = convertManagedStageJsonToRvmAtt(source);
+const expectations = {
+  geometryComponents: 40,
+  supportRecordsSkippedFromGeometry: 12,
+  code4: 7,
+  code8: 41,
+  cntbCount: 43,
+  primCount: 48
+};
+const result = convertManagedStageJsonToRvmAtt(source, { strictAuditExpectations: expectations });
 assert.ok(result.rvm instanceof ArrayBuffer);
 assert.ok(result.rvm.byteLength > 1000);
 assert.ok(result.att.includes('NEW /BM_CII'));
@@ -60,8 +69,14 @@ assert.equal(result.audit.chunkHierarchy.primCount, 48);
 assert.equal(result.audit.chunkHierarchy.colrCount >= 5, true);
 assert.equal(result.audit.torusOrientationAssumptions.length, 7);
 assert.equal(result.audit.boundingExtentsMm.cntbBboxFieldsWritten, false);
+assert.equal(result.audit.managedStageStrictGate.ok, true);
+assert.deepEqual(result.audit.managedStageStrictGate.primitiveHistogram, { 4: 7, 8: 41 });
 for (const bad of [2, 5, 6, 7, 11]) {
   assert.equal(result.audit.primitiveHistogram[bad] || 0, 0);
 }
+assert.throws(
+  () => assertManagedStageRvmAuditGate({ ...result.audit, primitiveHistogram: { ...result.audit.primitiveHistogram, 2: 1 } }),
+  /forbidden primitive code 2/
+);
 
-console.log('Managed-stage BM_CII cylinder/torus RVM profile gate passed');
+console.log('Managed-stage BM_CII cylinder/torus RVM strict audit gate passed');

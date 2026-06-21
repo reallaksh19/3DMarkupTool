@@ -10,6 +10,10 @@ import { assertManagedStageRvmAuditGate } from './managed-stage-rvm-audit-gate.j
 import { buildManagedStageRvmExportModel } from './managed-stage-rvm-export-model.js';
 import { parseManagedStageProfile } from './managed-stage-profile-parser.js';
 import { auditManagedStageTopology } from './managed-stage-topology-audit.js';
+import {
+  assertManagedStageRvmStitchManifest,
+  buildManagedStageRvmStitchManifest
+} from './managed-stage-rvm-stitch-manifest.js';
 
 export const MANAGED_STAGE_CODE4_RVM_OPTIONS = Object.freeze({
   experimentalRvmPrimitiveCodes: ['code4-elbow'],
@@ -30,6 +34,8 @@ export function convertManagedStageJsonToRvmAtt(sourceText, options = {}) {
   const materialTableContract = assertRvmMaterialTableContract(rvm, materialLayerContract);
   const boundingExtentsMm = computeExportModelBoundingExtents(exportModel);
   const chunkHierarchy = assertRvmChunkHierarchy(rvm, att, exportModel);
+  const stitchManifest = buildManagedStageRvmStitchManifest(profile, exportModel, primitivePayloads);
+  const stitchManifestGate = assertManagedStageRvmStitchManifest(stitchManifest);
   const audit = {
     schema: 'ManagedStageRvmConverterAudit.v1',
     source: profile.source,
@@ -56,6 +62,8 @@ export function convertManagedStageJsonToRvmAtt(sourceText, options = {}) {
     materialTableContract,
     boundingExtentsMm,
     chunkHierarchy,
+    stitchManifest,
+    stitchManifestGate,
     rvmPrimitivePayloadContract: primitivePayloadContract,
     rvmBytes: rvm.byteLength,
     attBytes: new TextEncoder().encode(att).byteLength,

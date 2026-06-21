@@ -8,9 +8,9 @@ const exportResult = convertManagedStageJsonToRvmAtt(sourceText, {
   strictAuditExpectations: {
     geometryComponents: 40,
     supportRecordsSkippedFromGeometry: 12,
-    primitiveCodeCounts: { 4: 0, 8: 91 },
+    primitiveCodeCounts: { 4: 0, 8: 63 },
     cntbCount: 43,
-    primCount: 91,
+    primCount: 63,
     forbiddenPrimitiveCodesPresent: []
   }
 });
@@ -28,7 +28,7 @@ assert.equal(audit.supportPreviewOnlyCount, 12);
 assert.equal(audit.mutatedNonBendRowCount, 0);
 assert.equal(audit.maxUnexplainedNonBendDeltaMm, 0);
 assert.equal(audit.rvmExportPreviewSeparated, true);
-assert.equal(audit.rvmExportPrimitiveCount, 91);
+assert.equal(audit.rvmExportPrimitiveCount, 63);
 assert.ok(audit.branchCueCount >= 5);
 assert.equal(audit.orthogonalElbowCount, 7);
 assert.equal(audit.bendCueCount, audit.orthogonalElbowCount);
@@ -65,8 +65,10 @@ for (const row of supportRows) {
 }
 
 assert.equal(exportResult.audit.inputCounts.supportRecordsSkippedFromGeometry, 12);
-assert.equal(exportResult.audit.primitiveHistogram[8], 91);
+assert.equal(exportResult.audit.primitiveHistogram[8], 63);
 assert.equal(exportResult.audit.primitiveHistogram[4] || 0, 0);
+assert.equal(exportResult.audit.inputXmlBendExclusionAudit.sourceRouteBendCount, 7);
+assert.equal(exportResult.audit.inputXmlBendExclusionAudit.genericCode8BendPrimitiveCount, 7);
 assert.equal(exportResult.audit.managedStageStrictGate?.ok, true);
 
 const additiveCues = [];

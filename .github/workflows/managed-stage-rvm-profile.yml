@@ -26,6 +26,9 @@ jobs:
       - name: Run managed-stage RVM profile test
         run: npm run test:managed-stage-rvm
 
+      - name: Verify managed-stage profile summary
+        run: npm run verify:managed-stage-rvm
+
       - name: Generate managed-stage fixture RVM artifact
         run: npm run artifact:managed-stage-rvm
 

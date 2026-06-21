@@ -40,13 +40,27 @@ for (const bad of ['box', 'pyramid', 'sphere', 'mesh', 'cone', 'frustum']) {
 }
 
 const exportModel = buildManagedStageRvmExportModel(profile);
-const subgroup = exportModel.root.children[0].children[0];
+const discipline = exportModel.root.children[0];
+const subgroup = discipline.children[0];
+const supportGroup = discipline.children[1];
 const exportPrimitives = subgroup.children.flatMap((node) => node.primitives);
+const supportPrimitives = supportGroup.children.flatMap((node) => node.primitives);
 assert.equal(exportModel.root.reviewName, '/BM_CII');
-assert.equal(exportModel.root.children[0].reviewName, '/BM_CII-CU-PI');
+assert.equal(discipline.reviewName, '/BM_CII-CU-PI');
 assert.equal(subgroup.reviewName, '/BM_CII-CU-PI-P');
+assert.equal(supportGroup.reviewName, '/BM_CII-CU-PI-SUPPORTS');
 assert.equal(subgroup.children.length, 40);
-assert.equal(exportModel.audit.primitiveCount, 91);
+assert.equal(supportGroup.children.length, 12);
+assert.equal(exportModel.audit.primitiveCount, 116);
+assert.equal(exportModel.audit.geometryPrimitiveCount, 91);
+assert.equal(exportModel.audit.supportGeometryEmitted, true);
+assert.equal(exportModel.audit.supportRvmPrimitiveCount, 25);
+assert.equal(exportModel.audit.supportRvmExportAudit.supportRecordCount, 12);
+assert.equal(exportModel.audit.supportRvmExportAudit.supportNodeCount, 12);
+assert.equal(exportModel.audit.supportRvmExportAudit.supportPrimitiveCount, 25);
+assert.equal(exportModel.audit.supportRvmExportAudit.connectorPrimitiveCount, 8);
+assert.equal(exportModel.audit.supportRvmExportAudit.clusteredSupportRecordCount, 8);
+assert.deepEqual(exportModel.audit.supportRvmExportAudit.familyHistogram, { REST: 7, GUIDE: 2, LINE_STOP: 3 });
 assert.equal(exportModel.audit.processingConfig.excludeBendsWhileProcessingInputXmlBasedJson, true);
 assert.equal(exportModel.audit.processingConfig.inputXmlBendTrimMaxContractFraction, 0.35);
 assert.equal(exportModel.audit.inputXmlBendExclusionAudit.code4BendsExcluded, 7);
@@ -64,6 +78,9 @@ assert.equal(exportModel.audit.inputXmlBranchFittingInferenceAudit.genericBranch
 assert.equal(exportModel.audit.inputXmlBranchFittingInferenceAudit.genericBranchFittingPrimitiveCount, 15);
 assert.equal(exportPrimitives.filter((primitive) => primitive.kind === 'elbow').length, 0);
 assert.equal(exportPrimitives.filter((primitive) => primitive.kind === 'cylinder').length, 91);
+assert.equal(supportPrimitives.filter((primitive) => primitive.kind === 'cylinder').length, 25);
+assert.equal(supportPrimitives.filter((primitive) => primitive.managedStageSupportRvmPrimitive).length, 25);
+assert.equal(supportPrimitives.filter((primitive) => primitive.supportClusterConnector).length, 8);
 assert.equal(exportPrimitives.filter((primitive) => primitive.genericInputXmlBend).length, 7);
 assert.equal(exportPrimitives.filter((primitive) => primitive.inputXmlSourceRouteBend).length, 7);
 assert.equal(exportPrimitives.filter((primitive) => primitive.genericInputXmlNodeLocalElbow).length, 28);
@@ -71,27 +88,33 @@ assert.equal(exportPrimitives.filter((primitive) => primitive.genericInputXmlBra
 assert.equal(exportPrimitives.filter((primitive) => primitive.recipeTrimStartOffsetMm || primitive.recipeTrimEndOffsetMm).length, 5);
 
 const nativeBendModel = buildManagedStageRvmExportModel(profile, { excludeBendsWhileProcessingInputXmlBasedJson: false });
-const nativePrimitives = nativeBendModel.root.children[0].children[0].children.flatMap((node) => node.primitives);
+const nativeGeometryPrimitives = nativeBendModel.root.children[0].children[0].children.flatMap((node) => node.primitives);
+const nativeSupportPrimitives = nativeBendModel.root.children[0].children[1].children.flatMap((node) => node.primitives);
 assert.equal(nativeBendModel.audit.inputXmlBendExclusionAudit.enabled, false);
 assert.equal(nativeBendModel.audit.inputXmlNodeLocalElbowAudit.enabled, false);
-assert.equal(nativePrimitives.filter((primitive) => primitive.kind === 'elbow').length, 7);
-assert.equal(nativePrimitives.filter((primitive) => primitive.kind === 'cylinder').length, 56);
-assert.equal(nativePrimitives.filter((primitive) => primitive.genericInputXmlBranchFitting).length, 15);
+assert.equal(nativeGeometryPrimitives.filter((primitive) => primitive.kind === 'elbow').length, 7);
+assert.equal(nativeGeometryPrimitives.filter((primitive) => primitive.kind === 'cylinder').length, 56);
+assert.equal(nativeSupportPrimitives.length, 25);
 
 const expectations = {
   geometryComponents: 40,
   supportRecordsSkippedFromGeometry: 12,
+  supportRecordsEmittedToRvm: 12,
+  supportRvmPrimitiveCount: 25,
   code4: 0,
-  code8: 91,
-  cntbCount: 43,
-  primCount: 91
+  code8: 116,
+  cntbCount: 56,
+  primCount: 116
 };
 const result = convertManagedStageJsonToRvmAtt(source, { strictAuditExpectations: expectations });
 assert.ok(result.rvm instanceof ArrayBuffer);
 assert.ok(result.rvm.byteLength > 1000);
 assert.ok(result.att.includes('NEW /BM_CII'));
+assert.ok(result.att.includes('NEW /BM_CII-CU-PI-SUPPORTS'));
+assert.ok(result.att.includes('NEW INPUTXML-35-LINESTOP'));
 assert.equal(result.audit.inputCounts.geometryComponents, 40);
 assert.equal(result.audit.inputCounts.supportRecordsSkippedFromGeometry, 12);
+assert.equal(result.audit.inputCounts.supportRecordsEmittedToRvm, 12);
 assert.equal(result.audit.inputCounts.statsRestraintsMismatch, true);
 assert.equal(result.audit.processingConfig.inputXmlBasedJson, true);
 assert.equal(result.audit.processingConfig.excludeBendsWhileProcessingInputXmlBasedJson, true);
@@ -109,24 +132,33 @@ assert.equal(result.audit.inputXmlNodeLocalElbowAudit.trimmedContractCount, 12);
 assert.equal(result.audit.inputXmlNodeLocalElbowAudit.trimApplicationCount, 14);
 assert.equal(result.audit.inputXmlBranchFittingInferenceAudit.genericBranchFittingCount, 5);
 assert.equal(result.audit.inputXmlBranchFittingInferenceAudit.genericBranchFittingPrimitiveCount, 15);
+assert.equal(result.audit.supportRvmExportAudit.supportRecordCount, 12);
+assert.equal(result.audit.supportRvmExportAudit.supportPrimitiveCount, 25);
+assert.equal(result.audit.supportRvmExportAudit.connectorPrimitiveCount, 8);
+assert.equal(result.audit.supportRvmExportAudit.clusteredSupportRecordCount, 8);
 assert.equal(result.audit.primitiveHistogram[4] || 0, 0);
-assert.equal(result.audit.primitiveHistogram[8], 91);
-assert.equal(result.audit.chunkHierarchy.cntbCount, 43);
-assert.equal(result.audit.chunkHierarchy.primCount, 91);
-assert.equal(result.audit.chunkHierarchy.colrCount >= 5, true);
+assert.equal(result.audit.primitiveHistogram[8], 116);
+assert.equal(result.audit.chunkHierarchy.cntbCount, 56);
+assert.equal(result.audit.chunkHierarchy.primCount, 116);
+assert.equal(result.audit.chunkHierarchy.colrCount >= 6, true);
 assert.equal(result.audit.torusOrientationAssumptions.length, 0);
 assert.equal(result.audit.genericInputXmlBendAssumptions.length, 7);
 assert.equal(result.audit.genericInputXmlNodeLocalElbowAssumptions.length, 28);
 assert.equal(result.audit.genericInputXmlBranchFittingAssumptions.length, 15);
+assert.equal(result.audit.exportedSupportRecords.length, 12);
+assert.equal(result.audit.exportedSupportRecords.every((record) => record.rvmExported === true), true);
+assert.equal(result.audit.boundingExtentsMm.primitiveCount, 116);
 assert.equal(result.audit.boundingExtentsMm.cntbBboxFieldsWritten, false);
 assert.equal(result.audit.stitchManifest.schema, 'ManagedStageRvmStitchManifest.v1');
 assert.equal(result.audit.stitchManifest.elementCount, 40);
 assert.equal(result.audit.stitchManifest.exportElementNodeCount, 40);
-assert.equal(result.audit.stitchManifest.primitiveCount, 91);
-assert.equal(result.audit.stitchManifest.decodedPrimitiveCount, 91);
+assert.equal(result.audit.stitchManifest.geometryPrimitiveCount, 91);
+assert.equal(result.audit.stitchManifest.supportOverlayPrimitiveCount, 25);
+assert.equal(result.audit.stitchManifest.primitiveCount, 116);
+assert.equal(result.audit.stitchManifest.decodedPrimitiveCount, 116);
 assert.equal(result.audit.stitchManifest.allElementsMapped, true);
 assert.equal(result.audit.stitchManifest.elementOrderStable, true);
-assert.deepEqual(result.audit.stitchManifest.primitiveCodeHistogram, { 8: 91 });
+assert.deepEqual(result.audit.stitchManifest.primitiveCodeHistogram, { 8: 116 });
 assert.equal(result.audit.stitchManifest.elements[0].inputName, 'PE_001_FLANGE_PAIR_10_TO_20');
 assert.equal(result.audit.stitchManifest.elements[0].primitiveCount, 2);
 assert.equal(result.audit.stitchManifest.elements[6].inputName, 'PE_007_FLANGED_VALVE_83_TO_86');
@@ -136,9 +168,12 @@ assert.deepEqual(result.audit.stitchManifest.elements[13].primitiveCodes, [8, 8,
 assert.equal(result.audit.stitchManifest.elements[13].primitives[0].localName, 'source-route-bend');
 assert.equal(result.audit.stitchManifest.elements[13].primitives.slice(1).every((primitive) => /^node-local-elbow-130-/.test(primitive.localName)), true);
 assert.equal(result.audit.stitchManifestGate.ok, true);
+assert.equal(result.audit.stitchManifestGate.supportOverlayPrimitiveCount, 25);
 assert.equal(result.audit.managedStageStrictGate.ok, true);
+assert.equal(result.audit.managedStageStrictGate.supportRecordsEmittedToRvm, 12);
+assert.equal(result.audit.managedStageStrictGate.supportRvmPrimitiveCount, 25);
 assert.equal(result.audit.managedStageStrictGate.stitchManifestPresent, true);
-assert.deepEqual(result.audit.managedStageStrictGate.primitiveHistogram, { 8: 91 });
+assert.deepEqual(result.audit.managedStageStrictGate.primitiveHistogram, { 8: 116 });
 for (const bad of [2, 5, 6, 7, 11]) {
   assert.equal(result.audit.primitiveHistogram[bad] || 0, 0);
 }
@@ -151,4 +186,4 @@ assert.throws(
   /stitchManifest\.allElementsMapped/
 );
 
-console.log('Managed-stage BM_CII InputXML source-route BEND, node-local elbows, inferred branch fitting, and RVM strict audit passed');
+console.log('Managed-stage BM_CII InputXML source-route BEND, node-local elbows, inferred branch fitting, support RVM overlay, and strict audit passed');

@@ -42,6 +42,24 @@ Outputs:
 - `BM_CII_INPUT_managed_stage.audit.json`
 - `BM_CII_INPUT_managed_stage.zip`
 
+## Verify generated artifact files from disk
+
+After generation, run the round-trip artifact verifier:
+
+```bash
+node scripts/verify-managed-stage-rvm-artifact.mjs --dir=artifacts/managed-stage-rvm --base=BM_CII_INPUT_managed_stage --expect-bm-cii
+```
+
+This re-opens the persisted files and verifies:
+
+- RVM and ATT byte counts match the audit
+- decoded RVM chunk counts match the audit
+- ATT `NEW` hierarchy names match decoded CNTB names in order
+- decoded PRIM histogram matches `audit.primitiveHistogram`
+- `stitchManifest.elements[]` matches element CNTB order
+- stored ZIP contains `.rvm`, `.att`, and `.audit.json`
+- the strict managed-stage gate still passes on the persisted audit
+
 ## Stitch manifest
 
 The generated audit includes `stitchManifest`, which is the element-by-element proof that the staged JSON was assembled into one RVM stream by stitching ordered CNTB element nodes, not by concatenating independent RVM binaries.
@@ -74,6 +92,7 @@ CI uses a synthetic fixture with the same BM_CII profile shape:
 npm run test:managed-stage-rvm
 npm run verify:managed-stage-rvm
 npm run artifact:managed-stage-rvm
+node scripts/verify-managed-stage-rvm-artifact.mjs --dir=artifacts/managed-stage-rvm --base=BM_CII_INPUT_managed_stage --expect-bm-cii
 ```
 
 ## BM_CII expected strict counts

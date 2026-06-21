@@ -6,6 +6,7 @@ import { assertRvmMaterialTableContract } from './rvm-material-table-contract.js
 import { scanRvmPrimitivePayloads } from './rvm-primitive-payload-decoder.js';
 import { writeRvm } from './rvm-writer.js';
 import { evaluateRvmCode4ElbowEmissionCandidate } from './rvm-code4-elbow-emission-candidate-policy.js';
+import { assertManagedStageRvmAuditGate } from './managed-stage-rvm-audit-gate.js';
 import { buildManagedStageRvmExportModel } from './managed-stage-rvm-export-model.js';
 import { parseManagedStageProfile } from './managed-stage-profile-parser.js';
 import { auditManagedStageTopology } from './managed-stage-topology-audit.js';
@@ -60,6 +61,7 @@ export function convertManagedStageJsonToRvmAtt(sourceText, options = {}) {
     attBytes: new TextEncoder().encode(att).byteLength,
     cntbCoordinatePolicy: 'CNTB x/y/z fields are RMSS coordinate fields, not bbox fields'
   };
+  audit.managedStageStrictGate = assertManagedStageRvmAuditGate(audit, options.strictAuditExpectations || {});
   return { profile, exportModel, rvm, att, audit };
 }
 

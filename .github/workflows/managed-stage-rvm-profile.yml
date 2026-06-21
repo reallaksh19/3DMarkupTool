@@ -52,7 +52,7 @@ jobs:
         run: npm run verify:managed-stage-rvm-artifact
 
       - name: Verify managed-stage RVM reference layout compatibility
-        run: npm run verify-managed-stage-rvm-reference
+        run: npm run verify:managed-stage-rvm-reference
 
       - name: Inspect managed-stage RVM artifact
         run: npm run inspect:managed-stage-rvm

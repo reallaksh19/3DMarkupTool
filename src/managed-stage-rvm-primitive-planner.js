@@ -1,4 +1,5 @@
 import { createManagedStageGeometryContract } from './managed-stage-geometry-contract.js';
+import { solveCode4ElbowGeometry } from './rvm-code4-elbow-geometry-solver.js';
 import { buildContractCylinderPrimitive } from './rvm-cylinder-primitive-builder.js';
 
 export const MANAGED_STAGE_RVM_MATERIALS = Object.freeze({
@@ -24,7 +25,7 @@ export function planManagedStagePrimitives(recordOrContract, options = {}) {
   if (dtxr === 'VALVE') return planInlineCylinder(contract, valveRadius(pipeRadius), MANAGED_STAGE_RVM_MATERIALS.VALVE, 'body');
   if (dtxr === 'FLANGE_PAIR') return planFlangePair(contract, pipeRadius);
   if (dtxr === 'FLANGED_VALVE') return planFlangedValve(contract, pipeRadius);
-  if (dtxr === 'BEND') return [planCode4Elbow(contract, pipeRadius)];
+  if (dtxr === 'BEND') return [planCode4Elbow(contract, pipeRadius, options)];
   throw new Error(`Unsupported managed-stage DTXR: ${dtxr}`);
 }
 
@@ -103,26 +104,33 @@ function planFlangedValve(contract, pipeRadius) {
   ];
 }
 
-function planCode4Elbow(contract, pipeRadius) {
-  const bendRadius = Number(contract.arc?.bendRadiusMm);
-  const sweepAngleRad = Number(contract.arc?.sweepAngleRad);
-  if (!(bendRadius > 0) || !(sweepAngleRad > 0)) throw new Error(`Invalid bend payload for ${contract.name}`);
-  const outer = bendRadius + pipeRadius;
+function planCode4Elbow(contract, pipeRadius, options = {}) {
+  const solved = solveCode4ElbowGeometry(contract, options.code4ElbowSolver || {});
   return {
     kind: 'elbow',
     name: `${contract.name}_BEND`,
     localName: 'bend',
-    center: contract.centerMm,
-    direction: contract.axis,
-    bendRadius,
+    center: solved.centerMm,
+    direction: solved.direction,
+    basis: solved.basis,
+    bendRadius: solved.bendRadiusMm,
     tubeRadius: pipeRadius,
-    sweepAngleRad,
+    sweepAngleRad: solved.sweepAngleRad,
     material: MANAGED_STAGE_RVM_MATERIALS.FITTING,
-    localBbox: [0, 0, -pipeRadius, outer, outer, pipeRadius],
-    endpointLocked: false,
+    localBbox: solved.localBbox,
+    endpointLocked: solved.endpointLocked,
+    startMm: solved.startMm,
+    endMm: solved.endMm,
+    chordLengthMm: solved.chordLengthMm,
+    declaredBendRadiusMm: solved.declaredBendRadiusMm,
+    declaredSweepAngleRad: solved.declaredSweepAngleRad,
+    minRadiusForChordMm: solved.minRadiusForChordMm,
+    radiusInflatedMm: solved.radiusInflatedMm,
+    endpointFitErrorMm: solved.endpointFitErrorMm,
+    solverState: solved.solverState,
     sourceContractName: contract.name,
     sourceElementId: contract.sourceElementId || contract.elementId || '',
-    orientationAssumption: 'managed-stage midpoint/fallback code-4 torus orientation'
+    orientationAssumption: solved.orientationAssumption
   };
 }
 

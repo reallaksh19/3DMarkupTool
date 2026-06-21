@@ -15,6 +15,8 @@
     "serve": "python3 -m http.server 5173",
     "build": "node scripts/build-pages.mjs",
     "contract:dry-run": "node scripts/contract-dry-run-report.mjs --input fixtures/contract-dry-run/inputxml-delegated-fittings.json",
+    "test:managed-stage-rvm": "node tests/managed-stage-rvm-profile.test.mjs",
+    "artifact:managed-stage-rvm": "node scripts/generate-managed-stage-rvm-artifact.mjs --fixture=bm-cii --outdir=artifacts/managed-stage-rvm",
     "artifact:rvm-catalogue-sample": "node scripts/generate-rvm-catalogue-sample-artifact.mjs",
     "artifact:rvm-att-viewer-compat": "node scripts/generate-rvm-att-viewer-compat-report.mjs",
     "artifact:glb-catalogue-visual-audit": "node scripts/generate-glb-catalogue-visual-audit.mjs",

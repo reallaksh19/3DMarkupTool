@@ -24,10 +24,10 @@ jobs:
         run: npm install --no-audit --no-fund
 
       - name: Run managed-stage RVM profile test
-        run: node tests/managed-stage-rvm-profile.test.mjs
+        run: npm run test:managed-stage-rvm
 
       - name: Generate managed-stage fixture RVM artifact
-        run: node scripts/generate-managed-stage-rvm-artifact.mjs --fixture=bm-cii --outdir=artifacts/managed-stage-rvm
+        run: npm run artifact:managed-stage-rvm
 
       - name: Upload managed-stage RVM artifact
         uses: actions/upload-artifact@v4

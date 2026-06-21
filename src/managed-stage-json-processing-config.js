@@ -3,7 +3,7 @@ export const MANAGED_STAGE_JSON_PROCESSING_CONFIG_SCHEMA = 'ManagedStageJsonProc
 export const MANAGED_STAGE_DEFAULT_PROCESSING_CONFIG = Object.freeze({
   excludeBendsWhileProcessingInputXmlBasedJson: true,
   genericInputXmlBendRadiusMultiplier: 1.5,
-  inputXmlBendTrimMaxContractFraction: 0.45
+  inputXmlBendTrimMaxContractFraction: 0
 });
 
 export function resolveManagedStageJsonProcessingConfig(profile, options = {}) {
@@ -67,8 +67,8 @@ function positiveNumber(value, fieldName) {
 
 function boundedFraction(value, fieldName) {
   const parsed = Number(value);
-  if (!Number.isFinite(parsed) || parsed <= 0 || parsed >= 0.5) {
-    throw new Error(`Invalid ${fieldName}: expected fraction > 0 and < 0.5`);
+  if (!Number.isFinite(parsed) || parsed < 0 || parsed >= 0.5) {
+    throw new Error(`Invalid ${fieldName}: expected fraction >= 0 and < 0.5`);
   }
   return parsed;
 }

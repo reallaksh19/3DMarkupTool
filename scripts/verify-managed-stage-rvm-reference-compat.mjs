@@ -57,10 +57,13 @@ export function verifyManagedStageRvmReferenceCompatibility({ artifactDir, base,
 
   if (expectBmCii) {
     requireEqual(histogram[4] || 0, 0, 'BM_CII code 4 primitive count', issues);
-    requireEqual(histogram[8] || 0, 91, 'BM_CII code 8 primitive count', issues);
-    requireEqual(binary.counts.CNTB || 0, 43, 'BM_CII CNTB count', issues);
-    requireEqual(binary.counts.PRIM || 0, 91, 'BM_CII PRIM count', issues);
-    requireEqual(audit.inputCounts?.supportRecordsSkippedFromGeometry, 12, 'BM_CII skipped support records', issues);
+    requireEqual(histogram[8] || 0, 116, 'BM_CII code 8 primitive count', issues);
+    requireEqual(binary.counts.CNTB || 0, 56, 'BM_CII CNTB count', issues);
+    requireEqual(binary.counts.PRIM || 0, 116, 'BM_CII PRIM count', issues);
+    requireEqual(audit.inputCounts?.supportRecordsSkippedFromGeometry, 12, 'BM_CII support records skipped from geometry contracts', issues);
+    requireEqual(audit.inputCounts?.supportRecordsEmittedToRvm, 12, 'BM_CII support records emitted to RVM', issues);
+    requireEqual(audit.supportRvmExportAudit?.supportPrimitiveCount || 0, 25, 'BM_CII support RVM primitive count', issues);
+    requireEqual(audit.supportRvmExportAudit?.connectorPrimitiveCount || 0, 8, 'BM_CII support connector primitive count', issues);
     requireEqual(audit.inputXmlBendExclusionAudit?.genericCode8BendPrimitiveCount || 0, 7, 'BM_CII source-route bend primitive count', issues);
     requireEqual(audit.inputXmlBendExclusionAudit?.sourceRouteBendCount || 0, 7, 'BM_CII source-route bend count', issues);
     requireEqual(audit.inputXmlNodeLocalElbowAudit?.genericNodeLocalElbowPrimitiveCount || 0, 28, 'BM_CII node-local elbow primitive count', issues);

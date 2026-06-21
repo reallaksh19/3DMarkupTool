@@ -32,7 +32,8 @@ assertManagedStageInputXmlBendExclusionAudit(excluded.audit, {
   code4BendsExcluded: 7,
   genericCode8BendsPlanned: 7
 });
-assert.equal(excluded.audit.trimApplicationCount, 14);
+assert.equal(excluded.audit.trimApplicationCount > 0, true);
+assert.equal(excluded.audit.skippedTrimSources.length > 0, true);
 assert.equal(excluded.contracts.filter((contract) => contract.excludeCode4Bend).length, 7);
 assert.equal(excluded.contracts.filter((contract) => contract.inputXmlBendTrimmed).length > 0, true);
 

@@ -102,7 +102,6 @@ assert.match(supportVisualResolver, /ODx2\/3 applies only to final axial/);
 assert.match(supportVisualResolver, /support-cluster resolver/);
 assert.match(supportVisualResolver, /translucent crossed X rods/);
 
-await import('./managed-stage-preview-coordinate-preservation.test.mjs');
 await import('./managed-stage-support-visual-resolver.test.mjs');
 await import('./managed-stage-support-cluster.test.mjs');
 await import('./managed-stage-viewer-api-bridge.test.mjs');

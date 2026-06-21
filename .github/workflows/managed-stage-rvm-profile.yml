@@ -33,7 +33,10 @@ jobs:
         run: npm run artifact:managed-stage-rvm
 
       - name: Verify managed-stage artifact round-trip
-        run: node scripts/verify-managed-stage-rvm-artifact.mjs --dir=artifacts/managed-stage-rvm --base=BM_CII_INPUT_managed_stage --expect-bm-cii
+        run: npm run verify:managed-stage-rvm-artifact
+
+      - name: Verify managed-stage RVM reference layout compatibility
+        run: npm run verify:managed-stage-rvm-reference
 
       - name: Upload managed-stage RVM artifact
         uses: actions/upload-artifact@v4

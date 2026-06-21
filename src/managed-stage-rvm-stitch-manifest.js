@@ -51,22 +51,29 @@ export function buildManagedStageRvmStitchManifest(profile = {}, exportModel = {
     };
   });
 
-  if (primitiveCursor !== primitivePayloads.length) {
-    issues.push(`decoded PRIM count has ${primitivePayloads.length - primitiveCursor} unassigned trailing primitive(s)`);
-  }
-
-  const primitiveCodeHistogram = histogram(elements.flatMap((element) => element.primitiveCodes));
+  const supportOverlayPrimitives = primitivePayloads.slice(primitiveCursor).map((decoded, index) => ({
+    index: index + 1,
+    emittedCode: Number(decoded.code),
+    bodyLength: decoded.bodyLength || 0,
+    chunkOffset: decoded.offset ?? null
+  }));
+  const supportOverlayPrimitiveCodes = supportOverlayPrimitives.map((primitive) => primitive.emittedCode);
+  const geometryPrimitiveCodes = elements.flatMap((element) => element.primitiveCodes);
+  const primitiveCodeHistogram = histogram([...geometryPrimitiveCodes, ...supportOverlayPrimitiveCodes]);
   return {
     schema: 'ManagedStageRvmStitchManifest.v1',
-    stitchStrategy: 'single RVM stream assembled from ordered element CNTB nodes under one managed-stage piping subgroup',
+    stitchStrategy: 'single RVM stream assembled from ordered managed-stage piping element CNTB nodes plus optional support overlay CNTB nodes',
     elementCount: elements.length,
     exportElementNodeCount: elementNodes.length,
-    primitiveCount: elements.reduce((sum, element) => sum + element.primitiveCount, 0),
+    primitiveCount: elements.reduce((sum, element) => sum + element.primitiveCount, 0) + supportOverlayPrimitives.length,
+    geometryPrimitiveCount: elements.reduce((sum, element) => sum + element.primitiveCount, 0),
+    supportOverlayPrimitiveCount: supportOverlayPrimitives.length,
     decodedPrimitiveCount: primitivePayloads.length,
     primitiveCodeHistogram,
     allElementsMapped: issues.length === 0 && elements.length === elementNodes.length,
     elementOrderStable: issues.filter((issue) => issue.includes('element order mismatch')).length === 0,
     issues,
+    supportOverlayPrimitives,
     elements
   };
 }
@@ -86,12 +93,16 @@ export function assertManagedStageRvmStitchManifest(manifest = {}) {
       if (primitive.expectedCode !== primitive.emittedCode) issues.push(`element ${element.index} primitive ${primitive.index} code mismatch`);
     }
   }
+  for (const primitive of manifest.supportOverlayPrimitives || []) {
+    if (primitive.emittedCode !== 8) issues.push(`support overlay primitive ${primitive.index} code mismatch: expected 8, got ${primitive.emittedCode}`);
+  }
   if (issues.length) throw new Error(`Managed-stage RVM stitch manifest failed: ${issues.join('; ')}`);
   return {
     schema: 'ManagedStageRvmStitchManifestGate.v1',
     ok: true,
     elementCount: manifest.elementCount,
     primitiveCount: manifest.primitiveCount,
+    supportOverlayPrimitiveCount: manifest.supportOverlayPrimitiveCount || 0,
     primitiveCodeHistogram: manifest.primitiveCodeHistogram
   };
 }

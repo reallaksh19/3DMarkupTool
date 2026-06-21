@@ -128,6 +128,10 @@ function planCode4Elbow(contract, pipeRadius, options = {}) {
     radiusInflatedMm: solved.radiusInflatedMm,
     endpointFitErrorMm: solved.endpointFitErrorMm,
     solverState: solved.solverState,
+    tangentHintState: solved.tangentHintState,
+    tangentHintSources: solved.tangentHintSources,
+    startTangent: solved.startTangent,
+    endTangent: solved.endTangent,
     sourceContractName: contract.name,
     sourceElementId: contract.sourceElementId || contract.elementId || '',
     orientationAssumption: solved.orientationAssumption

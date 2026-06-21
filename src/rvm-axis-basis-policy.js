@@ -13,12 +13,15 @@ export function describeRvmAxisBasisPolicy() {
     matrixOrder: 'basisX,basisY,basisZ,translation',
     basisHandedness: 'right-handed',
     failClosed: true,
-    zeroLengthDirectionsAllowed: false
+    zeroLengthDirectionsAllowed: false,
+    explicitPrimitiveBasisAllowed: true
   };
 }
 
 export function buildRvmPrimitiveTransform(primitive) {
-  const basis = buildRvmAxisBasis(primitive?.direction || [0, 0, 1]);
+  const basis = primitive?.basis
+    ? normalizeRvmAxisBasis(primitive.basis)
+    : buildRvmAxisBasis(primitive?.direction || [0, 0, 1]);
   const center = vector3(primitive?.center, 'center');
   return [
     ...scaleRvmTransformVector(basis.x),
@@ -35,6 +38,16 @@ export function buildRvmAxisBasis(direction) {
   const y = normalizeStrict(cross(z, x), 'basis y');
   assertRvmAxisBasis({ x, y, z });
   return { x, y, z };
+}
+
+export function normalizeRvmAxisBasis(basis) {
+  const normalized = {
+    x: normalizeStrict(vector3(basis?.x, 'basis x'), 'basis x'),
+    y: normalizeStrict(vector3(basis?.y, 'basis y'), 'basis y'),
+    z: normalizeStrict(vector3(basis?.z, 'basis z'), 'basis z')
+  };
+  assertRvmAxisBasis(normalized);
+  return normalized;
 }
 
 export function assertRvmAxisBasis(basis) {

@@ -3,14 +3,30 @@ import { resolveManagedStageSupportVisual } from './managed-stage-support-visual
 
 const SUPPORT_MATERIAL_ID = 9;
 const EPS_MM = 0.001;
-const DEFAULT_RVM_CLUSTER_OFFSET_MAX_MM = 28;
+const SUPPORT_CODE8_CYLINDER = 8;
+const BLOCKED_SUPPORT_PRIMITIVE_CODES = Object.freeze([1, 5, 6, 7, 11]);
+const DEFAULT_RVM_SCALE_POLICY = Object.freeze({
+  supportGlyphLengthMinMm: 25,
+  supportGlyphLengthMaxMm: 60,
+  supportAxialGlyphLengthMaxMm: 55,
+  supportFallbackGlyphLengthMaxMm: 60,
+  supportSpringCanLengthMaxMm: 60,
+  supportBarRadiusMinMm: 1,
+  supportBarRadiusMaxMm: 3,
+  supportClusterOffsetMaxMm: 28,
+  supportGapVisualSeparationMaxMm: 28,
+  supportEndpointEnvelopeMaxMm: 100
+});
 
 export function buildManagedStageSupportRvmExportNodes(profile, options = {}) {
   const records = profile?.records || [];
   const supportRecords = profile?.supportRecords || [];
+  const scalePolicy = resolveSupportRvmScalePolicy(options);
   const adaptedRecords = records.map(adaptRecordForSupportResolver);
   const supportNodes = [];
   const families = {};
+  const primitiveCodeHistogram = {};
+  const supportWarnings = [];
   let primitiveCount = 0;
   let conePrimitiveCount = 0;
   let barPrimitiveCount = 0;
@@ -19,11 +35,15 @@ export function buildManagedStageSupportRvmExportNodes(profile, options = {}) {
   let connectorPrimitiveCount = 0;
   let fallbackPrimitiveCount = 0;
   let warningPrimitiveCount = 0;
+  let maxGlyphExtentMm = 0;
+  let maxClusterOffsetMm = 0;
+  let maxPrimitiveSpanMm = 0;
+  let maxBarRadiusMm = 0;
 
   supportRecords.forEach((record, index) => {
     const adapted = adaptRecordForSupportResolver(record);
     const visual = resolveManagedStageSupportVisual(adapted, adaptedRecords, options);
-    const node = supportElementNode(record, adapted, visual, index, options);
+    const node = supportElementNode(record, adapted, visual, index, { ...options, scalePolicy });
     supportNodes.push(node);
     primitiveCount += node.primitives.length;
     conePrimitiveCount += node.primitives.filter((primitive) => primitive.supportPointCone === true).length;
@@ -34,10 +54,22 @@ export function buildManagedStageSupportRvmExportNodes(profile, options = {}) {
     connectorPrimitiveCount += node.primitives.filter((primitive) => primitive.supportClusterConnector).length;
     fallbackPrimitiveCount += node.primitives.filter((primitive) => primitive.supportFallbackCrossRod).length;
     warningPrimitiveCount += node.primitives.filter((primitive) => primitive.supportWarningMarker).length;
+    supportWarnings.push(...(node.supportWarnings || []));
+
+    for (const primitive of node.primitives) {
+      const code = primitive.kind === 'cylinder' ? SUPPORT_CODE8_CYLINDER : null;
+      primitiveCodeHistogram[code] = (primitiveCodeHistogram[code] || 0) + 1;
+      maxGlyphExtentMm = Math.max(maxGlyphExtentMm, primitiveMaxDistanceFrom(primitive, node.position));
+      maxPrimitiveSpanMm = Math.max(maxPrimitiveSpanMm, Number(primitive.length || 0));
+      maxBarRadiusMm = Math.max(maxBarRadiusMm, Number(primitive.radius || 0));
+      if (primitive.supportClusterConnector) maxClusterOffsetMm = Math.max(maxClusterOffsetMm, Number(primitive.length || 0));
+    }
   });
 
+  const forbiddenPresent = BLOCKED_SUPPORT_PRIMITIVE_CODES.filter((code) => Number(primitiveCodeHistogram[code] || 0) > 0);
+
   return {
-    schema: 'ManagedStageSupportRvmExport.v4',
+    schema: 'ManagedStageSupportRvmExport.v5',
     materialId: options.materialId || SUPPORT_MATERIAL_ID,
     supportRecordCount: supportRecords.length,
     supportNodeCount: supportNodes.length,
@@ -49,24 +81,48 @@ export function buildManagedStageSupportRvmExportNodes(profile, options = {}) {
     fallbackPrimitiveCount,
     warningPrimitiveCount,
     clusteredSupportRecordCount,
+    supportPrimitiveCodeHistogram: cleanHistogram(primitiveCodeHistogram),
+    supportAllowedPrimitiveCodes: [SUPPORT_CODE8_CYLINDER],
+    supportForbiddenPrimitiveCodes: [...BLOCKED_SUPPORT_PRIMITIVE_CODES],
+    supportForbiddenPrimitiveCodesPresent: forbiddenPresent,
+    supportMaxGlyphExtentMm: round(maxGlyphExtentMm),
+    supportMaxClusterOffsetMm: round(maxClusterOffsetMm),
+    supportMaxPrimitiveSpanMm: round(maxPrimitiveSpanMm),
+    supportMaxBarRadiusMm: round(maxBarRadiusMm),
+    supportFamilies: families,
     familyHistogram: families,
+    supportWarnings,
+    scalePolicy,
     nodes: supportNodes,
-    policy: 'managed-stage ATTA/support records are emitted to RVM as conservative single/tick Review-safe code-8 cylinder bar glyphs only; filled code-1 pyramid/cone substitutes and cone-fan glyphs are blocked; source POS/SUPPORTCOORD remains the anchor coordinate'
+    policy: 'managed-stage ATTA/support records are emitted to RVM as compact Review-safe code-8 cylinder bar glyphs only; filled code-1 pyramid/cone substitutes and cone-fan glyphs are blocked; source POS/SUPPORTCOORD remains the anchor coordinate'
   };
 }
 
 function supportElementNode(record, adapted, visual, index, options = {}) {
+  const scalePolicy = options.scalePolicy || resolveSupportRvmScalePolicy(options);
   const sourceCenter = toPoint(adapted.source.supportCoord || adapted.source.pos || adapted.source.bpos || adapted.source.apos || adapted.source.lpos);
   const rawOffset = toPoint(visual.cluster?.offsetMm || [0, 0, 0]);
-  const offset = compactClusterOffset(rawOffset, options);
+  const offset = compactClusterOffset(rawOffset, scalePolicy);
   const visualCenter = add(sourceCenter, offset);
   const odMm = Math.max(Number(visual.pipeDiameterMm || 0), Number(options.pointRadius || 0) * 2, 40);
-  const genericLength = clamp(odMm * 0.72, 42, 105);
-  const axialLength = clamp(odMm * 0.52, 34, 82);
-  const glyphCapLength = clamp(odMm * 0.16, 6, 16);
-  const barRadius = clamp(odMm * 0.028, 1.5, 4.5);
+  const genericLength = supportGlyphLength(odMm, 0.38, scalePolicy.supportGlyphLengthMaxMm, scalePolicy);
+  const axialLength = supportGlyphLength(odMm, 0.32, scalePolicy.supportAxialGlyphLengthMaxMm, scalePolicy);
+  const fallbackLength = supportGlyphLength(odMm, 0.38, scalePolicy.supportFallbackGlyphLengthMaxMm, scalePolicy);
+  const glyphCapLength = clamp(genericLength * 0.32, 8, 18);
+  const barRadius = supportBarRadius(odMm, scalePolicy);
   const supportName = record.attributes?.NAME || record.name || `SUPPORT_${index + 1}`;
   const primitives = [];
+  const supportWarnings = [];
+
+  if (distance(rawOffset, offset) > EPS_MM) {
+    supportWarnings.push({
+      code: 'SUPPORT_CLUSTER_OFFSET_COMPACTED',
+      support: supportName,
+      rawOffsetMm: round(distance(rawOffset, [0, 0, 0])),
+      exportOffsetMm: round(distance(offset, [0, 0, 0])),
+      capMm: scalePolicy.supportClusterOffsetMaxMm
+    });
+  }
 
   if (distance(sourceCenter, visualCenter) > EPS_MM) {
     primitives.push(supportBar({
@@ -74,7 +130,7 @@ function supportElementNode(record, adapted, visual, index, options = {}) {
       localName: 'support-cluster-offset-bar',
       startMm: sourceCenter,
       endMm: visualCenter,
-      radiusMm: Math.max(odMm * 0.018, 1.25),
+      radiusMm: barRadius,
       record,
       visual,
       role: 'cluster-offset-connector',
@@ -82,18 +138,32 @@ function supportElementNode(record, adapted, visual, index, options = {}) {
         supportClusterConnector: true,
         supportRvmClusterOffsetCompacted: distance(rawOffset, offset) > EPS_MM,
         supportRvmClusterRawOffsetMm: rawOffset,
-        supportRvmClusterExportOffsetMm: offset
+        supportRvmClusterExportOffsetMm: offset,
+        supportSourceAnchorMm: sourceCenter,
+        supportVisualCenterMm: visualCenter
       }
     }));
   }
 
   if (visual.family === 'SPRING_CAN') {
-    primitives.push(...springCanBars(supportName, visualCenter, odMm, record, visual));
+    primitives.push(...springCanBars(supportName, visualCenter, odMm, record, visual, scalePolicy));
   } else if (visual.fallbackCrossRods || visual.popupRequired) {
-    const fallback = fallbackCrossBars(supportName, visualCenter, Math.max(odMm * 0.95, genericLength), barRadius, record, visual, visual.popupRequired);
+    const fallback = fallbackCrossBars(supportName, visualCenter, fallbackLength, barRadius, record, visual, visual.popupRequired);
     primitives.push(...fallback);
   } else {
-    const tipSeparation = visual.gapMm > 0 && isAxialFamily(visual.family) ? visual.gapMm * 10 : 0;
+    const rawTipSeparation = visual.gapMm > 0 && isAxialFamily(visual.family)
+      ? Number(visual.gapVisualSeparationMm || visual.gapMm * 10)
+      : 0;
+    const tipSeparation = clamp(rawTipSeparation, 0, scalePolicy.supportGapVisualSeparationMaxMm);
+    if (rawTipSeparation > tipSeparation + EPS_MM) {
+      supportWarnings.push({
+        code: 'SUPPORT_GAP_VISUAL_SEPARATION_CAPPED',
+        support: supportName,
+        rawGapVisualSeparationMm: round(rawTipSeparation),
+        exportGapVisualSeparationMm: round(tipSeparation),
+        capMm: scalePolicy.supportGapVisualSeparationMaxMm
+      });
+    }
     for (const side of visual.coneSides || []) {
       const sideVec = axisVector(side.axis);
       const length = side.axialPipeParallel ? axialLength : genericLength;
@@ -121,8 +191,11 @@ function supportElementNode(record, adapted, visual, index, options = {}) {
           supportConeFanBlocked: true,
           axialPipeParallel: Boolean(side.axialPipeParallel),
           explicitSingle: Boolean(side.explicitSingle),
+          supportSourceAnchorMm: sourceCenter,
           supportTipMm: tip,
           supportVisualCenterMm: visualCenter,
+          supportGapVisualSeparationRawMm: round(rawTipSeparation),
+          supportGapVisualSeparationExportMm: round(tipSeparation),
           supportGlyphCapLengthMm: glyphCapLength,
           supportGlyphLengthMm: length,
           supportGlyphStyle: 'single-bar-with-tip-tick'
@@ -137,6 +210,8 @@ function supportElementNode(record, adapted, visual, index, options = {}) {
     material: options.materialId || SUPPORT_MATERIAL_ID,
     layer: 'SUPPORTS',
     position: visualCenter,
+    sourceAnchor: sourceCenter,
+    supportWarnings,
     attributes: {
       NAME: supportName,
       TYPE: record.type || 'ATTA',
@@ -149,12 +224,17 @@ function supportElementNode(record, adapted, visual, index, options = {}) {
       SOURCE_RESTRAINT_ID: record.attributes?.SOURCE_RESTRAINT_ID || record.attributes?.REF || '',
       SOURCE_FORMAT: record.attributes?.SOURCE_FORMAT || 'inputxml-managed-stage/v1',
       RVM_SUPPORT_OVERLAY: 'YES',
-      SUPPORT_SYMBOL_POLICY: 'CODE8_SINGLE_BAR_GLYPHS_NO_PYRAMIDS_NO_CONE_FAN',
+      SUPPORT_SYMBOL_POLICY: 'CODE8_COMPACT_BAR_GLYPHS_NO_PYRAMIDS_NO_CONE_FAN',
+      SUPPORT_RVM_ALLOWED_CODES: '8',
+      SUPPORT_RVM_FORBIDDEN_CODES: BLOCKED_SUPPORT_PRIMITIVE_CODES.join(','),
       SUPPORT_RVM_PYRAMID_SUBSTITUTE_BLOCKED: 'TRUE',
       SUPPORT_RVM_CONE_FAN_BLOCKED: 'TRUE',
       SUPPORT_CLUSTER_INDEX: String(visual.cluster?.index ?? ''),
       SUPPORT_CLUSTER_COUNT: String(visual.cluster?.count ?? ''),
-      SUPPORT_CLUSTER_RVM_OFFSET_MAX_MM: String(Number(options.rvmSupportClusterOffsetMaxMm ?? DEFAULT_RVM_CLUSTER_OFFSET_MAX_MM))
+      SUPPORT_CLUSTER_RVM_OFFSET_MAX_MM: String(scalePolicy.supportClusterOffsetMaxMm),
+      SUPPORT_GLYPH_RVM_LENGTH_MAX_MM: String(scalePolicy.supportGlyphLengthMaxMm),
+      SUPPORT_BAR_RVM_RADIUS_MAX_MM: String(scalePolicy.supportBarRadiusMaxMm),
+      SUPPORT_GAP_RVM_VISUAL_SEPARATION_MAX_MM: String(scalePolicy.supportGapVisualSeparationMaxMm)
     },
     primitives,
     children: []
@@ -165,10 +245,10 @@ function supportDirectionalGlyphBars({ name, localName, tipMm, directionToTip, l
   const direction = normalize(directionToTip, [0, 1, 0]);
   const tip = vector3(tipMm);
   const base = add(tip, scale(direction, -lengthMm));
-  const capInset = clamp(lengthMm * 0.18, 6, 14);
+  const capInset = clamp(lengthMm * 0.22, 5, 12);
   const capCenter = add(tip, scale(direction, -capInset));
   const { u } = perpendicularBasis(direction);
-  const capHalf = clamp(capLengthMm, 6, 16) / 2;
+  const capHalf = clamp(capLengthMm, 8, 18) / 2;
   const capStart = add(capCenter, scale(u, -capHalf));
   const capEnd = add(capCenter, scale(u, capHalf));
 
@@ -177,7 +257,8 @@ function supportDirectionalGlyphBars({ name, localName, tipMm, directionToTip, l
     supportGlyphTipMm: tip,
     supportGlyphBaseMm: base,
     supportGlyphCapCenterMm: capCenter,
-    orientationAssumption: 'Support/ATTA record exported as conservative single/tick Review-safe code-8 cylinder glyph; canvas may use true THREE.ConeGeometry but RVM export never emits filled code-1 pyramid substitutes or multi-spoke cone fans'
+    supportPrimitiveCode: SUPPORT_CODE8_CYLINDER,
+    orientationAssumption: 'Support/ATTA record exported as compact single/tick Review-safe code-8 cylinder glyph; canvas may use true THREE.ConeGeometry but RVM export never emits filled code-1 pyramid substitutes or multi-spoke cone fans'
   };
 
   return [
@@ -200,7 +281,7 @@ function supportDirectionalGlyphBars({ name, localName, tipMm, directionToTip, l
       localName: `${localName}-rvm-tip-tick`,
       startMm: capStart,
       endMm: capEnd,
-      radiusMm: Math.max(barRadiusMm * 0.72, 1.25),
+      radiusMm: clamp(barRadiusMm * 0.72, 1, 2.25),
       record,
       visual,
       role: `${role}-rvm-tip-tick`,
@@ -235,6 +316,7 @@ function supportBar({ name, localName, startMm, endMm, radiusMm, record, visual,
     ...extra,
     recipeName: 'managed-stage-rvm-support-overlay-bar',
     managedStageSupportRvmPrimitive: true,
+    supportPrimitiveCode: SUPPORT_CODE8_CYLINDER,
     supportPointCone: false,
     supportBar: true,
     supportFamily: visual.family,
@@ -247,14 +329,15 @@ function supportBar({ name, localName, startMm, endMm, radiusMm, record, visual,
   };
 }
 
-function springCanBars(name, center, odMm, record, visual) {
-  const length = clamp(odMm * 0.85, 55, 115);
-  const radius = clamp(odMm * 0.026, 1.5, 4.5);
+function springCanBars(name, center, odMm, record, visual, scalePolicy) {
+  const length = supportGlyphLength(odMm, 0.34, scalePolicy.supportSpringCanLengthMaxMm, scalePolicy);
+  const radius = supportBarRadius(odMm, scalePolicy);
   const bottom = add(center, [0, -length, 0]);
+  const bandHalf = clamp(length * 0.22, 8, 14);
   return [
-    supportBar({ name: `${name}_SPRING_CAN_VERTICAL`, localName: 'spring-can-warning-vertical', startMm: center, endMm: bottom, radiusMm: radius, record, visual, role: 'spring-can-warning-vertical', extra: { supportWarningMarker: true } }),
-    supportBar({ name: `${name}_SPRING_CAN_BAND_1`, localName: 'spring-can-warning-band-1', startMm: add(bottom, [-odMm * 0.24, 0, 0]), endMm: add(bottom, [odMm * 0.24, 0, 0]), radiusMm: radius, record, visual, role: 'spring-can-warning-band', extra: { supportWarningMarker: true } }),
-    supportBar({ name: `${name}_SPRING_CAN_BAND_2`, localName: 'spring-can-warning-band-2', startMm: add(bottom, [0, length * 0.32, -odMm * 0.24]), endMm: add(bottom, [0, length * 0.32, odMm * 0.24]), radiusMm: radius, record, visual, role: 'spring-can-warning-band', extra: { supportWarningMarker: true } })
+    supportBar({ name: `${name}_SPRING_CAN_VERTICAL`, localName: 'spring-can-warning-vertical', startMm: center, endMm: bottom, radiusMm: radius, record, visual, role: 'spring-can-warning-vertical', extra: { supportWarningMarker: true, supportVisualCenterMm: center } }),
+    supportBar({ name: `${name}_SPRING_CAN_BAND_1`, localName: 'spring-can-warning-band-1', startMm: add(bottom, [-bandHalf, 0, 0]), endMm: add(bottom, [bandHalf, 0, 0]), radiusMm: radius, record, visual, role: 'spring-can-warning-band', extra: { supportWarningMarker: true, supportVisualCenterMm: center } }),
+    supportBar({ name: `${name}_SPRING_CAN_BAND_2`, localName: 'spring-can-warning-band-2', startMm: add(bottom, [0, length * 0.32, -bandHalf]), endMm: add(bottom, [0, length * 0.32, bandHalf]), radiusMm: radius, record, visual, role: 'spring-can-warning-band', extra: { supportWarningMarker: true, supportVisualCenterMm: center } })
   ];
 }
 
@@ -273,7 +356,9 @@ function fallbackCrossBars(name, center, length, radius, record, visual, warning
     record,
     visual,
     role: warning ? 'support-warning-x-bar' : 'support-fallback-x-bar',
-    extra: warning ? { supportWarningMarker: true } : { supportFallbackCrossRod: true }
+    extra: warning
+      ? { supportWarningMarker: true, supportVisualCenterMm: center }
+      : { supportFallbackCrossRod: true, supportVisualCenterMm: center }
   }));
 }
 
@@ -357,13 +442,50 @@ function safeName(value) {
   return String(value || 'SUPPORT').replace(/[^A-Za-z0-9_.-]+/g, '_');
 }
 
-function compactClusterOffset(offset, options = {}) {
+function resolveSupportRvmScalePolicy(options = {}) {
+  return Object.freeze({
+    supportGlyphLengthMinMm: finiteOption(options.rvmSupportGlyphLengthMinMm, DEFAULT_RVM_SCALE_POLICY.supportGlyphLengthMinMm),
+    supportGlyphLengthMaxMm: finiteOption(options.rvmSupportGlyphLengthMaxMm, DEFAULT_RVM_SCALE_POLICY.supportGlyphLengthMaxMm),
+    supportAxialGlyphLengthMaxMm: finiteOption(options.rvmSupportAxialGlyphLengthMaxMm, DEFAULT_RVM_SCALE_POLICY.supportAxialGlyphLengthMaxMm),
+    supportFallbackGlyphLengthMaxMm: finiteOption(options.rvmSupportFallbackGlyphLengthMaxMm, DEFAULT_RVM_SCALE_POLICY.supportFallbackGlyphLengthMaxMm),
+    supportSpringCanLengthMaxMm: finiteOption(options.rvmSupportSpringCanLengthMaxMm, DEFAULT_RVM_SCALE_POLICY.supportSpringCanLengthMaxMm),
+    supportBarRadiusMinMm: finiteOption(options.rvmSupportBarRadiusMinMm, DEFAULT_RVM_SCALE_POLICY.supportBarRadiusMinMm),
+    supportBarRadiusMaxMm: finiteOption(options.rvmSupportBarRadiusMaxMm, DEFAULT_RVM_SCALE_POLICY.supportBarRadiusMaxMm),
+    supportClusterOffsetMaxMm: finiteOption(options.rvmSupportClusterOffsetMaxMm, DEFAULT_RVM_SCALE_POLICY.supportClusterOffsetMaxMm),
+    supportGapVisualSeparationMaxMm: finiteOption(options.rvmSupportGapVisualSeparationMaxMm, DEFAULT_RVM_SCALE_POLICY.supportGapVisualSeparationMaxMm),
+    supportEndpointEnvelopeMaxMm: finiteOption(options.rvmSupportEndpointEnvelopeMaxMm, DEFAULT_RVM_SCALE_POLICY.supportEndpointEnvelopeMaxMm)
+  });
+}
+
+function supportGlyphLength(odMm, multiplier, maxMm, policy) {
+  const maxLength = Math.min(Number(maxMm), policy.supportGlyphLengthMaxMm);
+  return clamp(Number(odMm) * multiplier, policy.supportGlyphLengthMinMm, maxLength);
+}
+
+function supportBarRadius(odMm, policy) {
+  return clamp(Number(odMm) * 0.012, policy.supportBarRadiusMinMm, policy.supportBarRadiusMaxMm);
+}
+
+function compactClusterOffset(offset, policy) {
   const vector = vector3(offset);
-  const maxMm = Number(options.rvmSupportClusterOffsetMaxMm ?? DEFAULT_RVM_CLUSTER_OFFSET_MAX_MM);
+  const maxMm = Number(policy.supportClusterOffsetMaxMm);
   if (!Number.isFinite(maxMm) || maxMm < 0) return vector;
   const magnitude = Math.hypot(vector[0], vector[1], vector[2]);
   if (magnitude <= maxMm || magnitude <= EPS_MM) return vector;
   return scale(vector, maxMm / magnitude);
+}
+
+function primitiveMaxDistanceFrom(primitive, center) {
+  const c = vector3(center);
+  return Math.max(
+    pointDistanceOrZero(primitive.startMm, c),
+    pointDistanceOrZero(primitive.endMm, c)
+  );
+}
+
+function pointDistanceOrZero(point, center) {
+  if (!Array.isArray(point)) return 0;
+  return distance(vector3(point), center);
 }
 
 function perpendicularBasis(direction) {
@@ -382,4 +504,22 @@ function cross(a, b) {
     a[2] * b[0] - a[0] * b[2],
     a[0] * b[1] - a[1] * b[0]
   ];
+}
+
+function finiteOption(value, fallback) {
+  const number = Number(value);
+  return Number.isFinite(number) ? number : fallback;
+}
+
+function cleanHistogram(histogram) {
+  const out = {};
+  for (const [key, value] of Object.entries(histogram)) {
+    if (key === 'null') continue;
+    out[Number(key)] = Number(value);
+  }
+  return out;
+}
+
+function round(value) {
+  return Number(Number(value || 0).toFixed(6));
 }

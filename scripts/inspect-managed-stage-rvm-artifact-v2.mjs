@@ -27,9 +27,22 @@ mkdirSync(outDir, { recursive: true });
 writeFileSync(join(outDir, `${base}.inspection.json`), `${JSON.stringify({ schema: 'ManagedStageRvmArtifactInspection.v2', base, gate, cntbCount: cntbRecords.length, primitiveCount: primitives.length, supportRvmExportAudit: audit.supportRvmExportAudit || null, issues: [] }, null, 2)}\n`);
 writeFileSync(join(outDir, `${base}.primitives.csv`), renderCsv(rows));
 writeFileSync(join(outDir, `${base}.elements.csv`), renderCsv((audit.stitchManifest?.elements || []).map((element) => ({ elementIndex: element.index, reviewName: element.reviewName, primitiveCount: element.primitiveCount }))));
-writeFileSync(join(outDir, `${base}.inspection.md`), `# Managed-stage RVM inspection\n\nBase: ${base}\nCNTB: ${cntbRecords.length}\nPRIM: ${primitives.length}\nSupport RVM primitives: ${audit.supportRvmExportAudit?.supportPrimitiveCount || 0}\nSupport cones: ${audit.supportRvmExportAudit?.supportConePrimitiveCount || 0}\nSupport bars: ${audit.supportRvmExportAudit?.supportBarPrimitiveCount || 0}\n`);
+writeFileSync(join(outDir, `${base}.inspection.md`), `# Managed-stage RVM inspection\n\nBase: ${base}\nCNTB: ${cntbRecords.length}\nPRIM: ${primitives.length}\nSupport RVM primitives: ${audit.supportRvmExportAudit?.supportPrimitiveCount || 0}\nSupport code histogram: ${JSON.stringify(audit.supportRvmExportAudit?.supportPrimitiveCodeHistogram || {})}\nSupport cones: ${audit.supportRvmExportAudit?.supportConePrimitiveCount || 0}\nSupport bars: ${audit.supportRvmExportAudit?.supportBarPrimitiveCount || 0}\nSupport max glyph extent mm: ${audit.supportRvmExportAudit?.supportMaxGlyphExtentMm || 0}\nSupport max cluster offset mm: ${audit.supportRvmExportAudit?.supportMaxClusterOffsetMm || 0}\n`);
 
-console.log(JSON.stringify({ schema: 'ManagedStageRvmArtifactInspection.v2', ok: true, base, cntbCount: cntbRecords.length, primitiveCount: primitives.length, primitiveHistogram: audit.primitiveHistogram, supportRvmPrimitives: audit.supportRvmExportAudit?.supportPrimitiveCount || 0, supportCones: audit.supportRvmExportAudit?.supportConePrimitiveCount || 0, supportBars: audit.supportRvmExportAudit?.supportBarPrimitiveCount || 0 }, null, 2));
+console.log(JSON.stringify({
+  schema: 'ManagedStageRvmArtifactInspection.v2',
+  ok: true,
+  base,
+  cntbCount: cntbRecords.length,
+  primitiveCount: primitives.length,
+  primitiveHistogram: audit.primitiveHistogram,
+  supportRvmPrimitives: audit.supportRvmExportAudit?.supportPrimitiveCount || 0,
+  supportPrimitiveCodeHistogram: audit.supportRvmExportAudit?.supportPrimitiveCodeHistogram || {},
+  supportCones: audit.supportRvmExportAudit?.supportConePrimitiveCount || 0,
+  supportBars: audit.supportRvmExportAudit?.supportBarPrimitiveCount || 0,
+  supportMaxGlyphExtentMm: audit.supportRvmExportAudit?.supportMaxGlyphExtentMm || 0,
+  supportMaxClusterOffsetMm: audit.supportRvmExportAudit?.supportMaxClusterOffsetMm || 0
+}, null, 2));
 
 function parseArgs(values) {
   const out = {};
@@ -41,7 +54,7 @@ function parseArgs(values) {
   return out;
 }
 function bmCiiExpectations() {
-  return { geometryComponents: 40, supportRecordsSkippedFromGeometry: 12, supportRecordsEmittedToRvm: 12, supportRvmPrimitiveCount: 25, code1: 17, code4: 0, code8: 99, cntbCount: 56, primCount: 116 };
+  return { geometryComponents: 40, supportRecordsSkippedFromGeometry: 12, supportRecordsEmittedToRvm: 12, supportRvmPrimitiveCount: 42, code1: 0, code4: 0, code8: 133, cntbCount: 56, primCount: 133, supportMaxGlyphExtentMm: 100, supportMaxClusterOffsetMm: 30, supportMaxPrimitiveSpanMm: 60, supportMaxBarRadiusMm: 3 };
 }
 function renderCsv(rows) {
   if (!rows.length) return '';

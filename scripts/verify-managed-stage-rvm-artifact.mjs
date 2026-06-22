@@ -34,6 +34,7 @@ export function verifyManagedStageRvmArtifact({ artifactDir, base, expectations 
   const chunkHierarchy = scanRvmChunkHierarchy(rvm, cntbRecords);
   const attHierarchy = parseAttHierarchy(att);
   const primitiveHistogram = histogram(primitivePayloads.map((primitive) => primitive.code));
+  const supportPrimitiveHistogram = histogram(primitivePayloads.slice(audit.stitchManifest?.geometryPrimitiveCount || 0).map((primitive) => primitive.code));
   const zip = inspectStoredZip(readFileSync(zipPath));
   const issues = [];
 
@@ -46,6 +47,7 @@ export function verifyManagedStageRvmArtifact({ artifactDir, base, expectations 
   requireEqual(audit.chunkHierarchy.primCount, primitivePayloads.length, 'decoded PRIM count', issues);
   if (attHierarchy.names.length < cntbRecords.length) issues.push(`ATT NEW count is less than CNTB count: ${attHierarchy.names.length}/${cntbRecords.length}`);
   compareHistogram(audit.primitiveHistogram || {}, primitiveHistogram, 'primitive histogram', issues);
+  compareHistogram(audit.supportRvmExportAudit?.supportPrimitiveCodeHistogram || {}, supportPrimitiveHistogram, 'support primitive histogram', issues);
 
   for (const expectedName of [`${base}.rvm`, `${base}.att`, `${base}.audit.json`]) {
     if (!zip.entries.includes(expectedName)) issues.push(`ZIP missing ${expectedName}`);
@@ -63,8 +65,11 @@ export function verifyManagedStageRvmArtifact({ artifactDir, base, expectations 
     strictGateOk: strictGate.ok,
     supportRecordsEmittedToRvm: audit.supportRvmExportAudit?.supportRecordCount || 0,
     supportRvmPrimitives: audit.supportRvmExportAudit?.supportPrimitiveCount || 0,
+    supportPrimitiveCodeHistogram: audit.supportRvmExportAudit?.supportPrimitiveCodeHistogram || {},
     supportConePrimitives: audit.supportRvmExportAudit?.supportConePrimitiveCount || 0,
     supportBarPrimitives: audit.supportRvmExportAudit?.supportBarPrimitiveCount || 0,
+    supportMaxGlyphExtentMm: audit.supportRvmExportAudit?.supportMaxGlyphExtentMm || 0,
+    supportMaxClusterOffsetMm: audit.supportRvmExportAudit?.supportMaxClusterOffsetMm || 0,
     rvmBytes: rvm.byteLength,
     attBytes: Buffer.byteLength(att),
     cntbCount: cntbRecords.length,
@@ -129,12 +134,16 @@ function bmCiiExpectations() {
     geometryComponents: 40,
     supportRecordsSkippedFromGeometry: 12,
     supportRecordsEmittedToRvm: 12,
-    supportRvmPrimitiveCount: 25,
-    code1: 17,
+    supportRvmPrimitiveCount: 42,
+    code1: 0,
     code4: 0,
-    code8: 99,
+    code8: 133,
     cntbCount: 56,
-    primCount: 116
+    primCount: 133,
+    supportMaxGlyphExtentMm: 100,
+    supportMaxClusterOffsetMm: 30,
+    supportMaxPrimitiveSpanMm: 60,
+    supportMaxBarRadiusMm: 3
   };
 }
 

@@ -1,6 +1,12 @@
 const FORBIDDEN_CODES = Object.freeze([2, 5, 6, 7, 11]);
 const ALLOWED_CODES = Object.freeze([1, 4, 8]);
+const SUPPORT_ALLOWED_CODES = Object.freeze([8]);
+const SUPPORT_FORBIDDEN_CODES = Object.freeze([1, 5, 6, 7, 11]);
 const DEFAULT_GAP_TOLERANCE_MM = 0.001;
+const DEFAULT_SUPPORT_MAX_GLYPH_EXTENT_MM = 100;
+const DEFAULT_SUPPORT_MAX_CLUSTER_OFFSET_MM = 30;
+const DEFAULT_SUPPORT_MAX_PRIMITIVE_SPAN_MM = 60;
+const DEFAULT_SUPPORT_MAX_BAR_RADIUS_MM = 3;
 
 export function assertManagedStageRvmAuditGate(audit = {}, expectations = {}) {
   const issues = [];
@@ -52,6 +58,8 @@ export function assertManagedStageRvmAuditGate(audit = {}, expectations = {}) {
     requireEqual(sumHistogram(normalizeHistogram(stitchManifest.primitiveCodeHistogram || {})), chunkHierarchy.primCount, 'stitchManifest primitive histogram sum', issues);
   }
 
+  assertSupportOverlayContract(supportExport, stitchManifest, expectations, issues);
+
   checkExpected(expectations.geometryComponents, inputCounts.geometryComponents, 'expected geometry components', issues);
   checkExpected(expectations.supportRecordsSkippedFromGeometry, inputCounts.supportRecordsSkippedFromGeometry, 'expected skipped support records', issues);
   checkExpected(expectations.supportRecordsEmittedToRvm, inputCounts.supportRecordsEmittedToRvm, 'expected support records emitted to RVM', issues);
@@ -80,10 +88,17 @@ export function assertManagedStageRvmAuditGate(audit = {}, expectations = {}) {
     warningOnly: nonBlockingIssues.length > 0,
     allowedPrimitiveCodes: [...ALLOWED_CODES],
     forbiddenPrimitiveCodes: [...FORBIDDEN_CODES],
+    supportAllowedPrimitiveCodes: [...SUPPORT_ALLOWED_CODES],
+    supportForbiddenPrimitiveCodes: [...SUPPORT_FORBIDDEN_CODES],
     maxCenterlineGapMm: Number(topology.maxCenterlineGapMm || 0),
     primitiveHistogram,
+    supportPrimitiveCodeHistogram: normalizeHistogram(supportExport.supportPrimitiveCodeHistogram || {}),
     supportRecordsEmittedToRvm: Number(inputCounts.supportRecordsEmittedToRvm || 0),
     supportRvmPrimitiveCount: Number(supportExport.supportPrimitiveCount || 0),
+    supportMaxGlyphExtentMm: Number(supportExport.supportMaxGlyphExtentMm || 0),
+    supportMaxClusterOffsetMm: Number(supportExport.supportMaxClusterOffsetMm || 0),
+    supportMaxPrimitiveSpanMm: Number(supportExport.supportMaxPrimitiveSpanMm || 0),
+    supportMaxBarRadiusMm: Number(supportExport.supportMaxBarRadiusMm || 0),
     stitchManifestPresent: stitchManifest.schema === 'ManagedStageRvmStitchManifest.v1',
     chunkCounts: {
       HEAD: chunkHierarchy.headCount || 0,
@@ -97,6 +112,30 @@ export function assertManagedStageRvmAuditGate(audit = {}, expectations = {}) {
   };
 }
 
+function assertSupportOverlayContract(supportExport = {}, stitchManifest = {}, expectations = {}, issues = []) {
+  const supportPrimitiveCount = Number(supportExport.supportPrimitiveCount || 0);
+  const supportHistogram = normalizeHistogram(supportExport.supportPrimitiveCodeHistogram || {});
+  const manifestSupportHistogram = histogram((stitchManifest.supportOverlayPrimitives || []).map((primitive) => primitive.emittedCode));
+
+  if (supportPrimitiveCount > 0) {
+    requireEqual(sumHistogram(supportHistogram), supportPrimitiveCount, 'support primitive histogram sum', issues);
+    for (const code of Object.keys(supportHistogram).map(Number)) {
+      if (!SUPPORT_ALLOWED_CODES.includes(code)) issues.push(`support overlay contains non-code8 primitive code ${code}`);
+    }
+    for (const code of SUPPORT_FORBIDDEN_CODES) {
+      if ((supportHistogram[code] || 0) !== 0) issues.push(`support overlay emitted forbidden primitive code ${code}`);
+    }
+    if (stitchManifest.schema === 'ManagedStageRvmStitchManifest.v1') {
+      requireEqual(stitchManifest.supportOverlayPrimitiveCount || 0, supportPrimitiveCount, 'support stitch/export primitive count', issues);
+      compareHistogram(supportHistogram, manifestSupportHistogram, 'support primitive histogram vs stitch manifest', issues);
+    }
+    requireMax(supportExport.supportMaxGlyphExtentMm, expectations.supportMaxGlyphExtentMm ?? DEFAULT_SUPPORT_MAX_GLYPH_EXTENT_MM, 'supportMaxGlyphExtentMm', issues);
+    requireMax(supportExport.supportMaxClusterOffsetMm, expectations.supportMaxClusterOffsetMm ?? DEFAULT_SUPPORT_MAX_CLUSTER_OFFSET_MM, 'supportMaxClusterOffsetMm', issues);
+    requireMax(supportExport.supportMaxPrimitiveSpanMm, expectations.supportMaxPrimitiveSpanMm ?? DEFAULT_SUPPORT_MAX_PRIMITIVE_SPAN_MM, 'supportMaxPrimitiveSpanMm', issues);
+    requireMax(supportExport.supportMaxBarRadiusMm, expectations.supportMaxBarRadiusMm ?? DEFAULT_SUPPORT_MAX_BAR_RADIUS_MM, 'supportMaxBarRadiusMm', issues);
+  }
+}
+
 function normalizeHistogram(histogram) {
   const out = {};
   for (const [key, value] of Object.entries(histogram)) out[Number(key)] = Number(value);
@@ -105,6 +144,19 @@ function normalizeHistogram(histogram) {
 
 function sumHistogram(histogram) {
   return Object.values(histogram).reduce((sum, value) => sum + Number(value || 0), 0);
+}
+
+function histogram(values) {
+  return values.reduce((out, value) => {
+    const key = Number(value);
+    if (Number.isFinite(key)) out[key] = (out[key] || 0) + 1;
+    return out;
+  }, {});
+}
+
+function compareHistogram(actual, expected, label, issues) {
+  const keys = new Set([...Object.keys(actual), ...Object.keys(expected)].map(String));
+  for (const key of keys) requireEqual(Number(actual[key] || 0), Number(expected[key] || 0), `${label} code ${key}`, issues);
 }
 
 function checkExpected(expected, actual, label, issues) {

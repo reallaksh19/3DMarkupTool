@@ -46,12 +46,16 @@ function bmCiiExpectations() {
     geometryComponents: 40,
     supportRecordsSkippedFromGeometry: 12,
     supportRecordsEmittedToRvm: 12,
-    supportRvmPrimitiveCount: 25,
-    code1: 17,
+    supportRvmPrimitiveCount: 42,
+    code1: 0,
     code4: 0,
-    code8: 99,
+    code8: 133,
     cntbCount: 56,
-    primCount: 116
+    primCount: 133,
+    supportMaxGlyphExtentMm: 100,
+    supportMaxClusterOffsetMm: 30,
+    supportMaxPrimitiveSpanMm: 60,
+    supportMaxBarRadiusMm: 3
   };
 }
 

@@ -13,7 +13,11 @@ const result = convertManagedStageJsonToRvmAtt(JSON.stringify(createBmCiiManaged
     code4: 0,
     code8: 133,
     cntbCount: 56,
-    primCount: 133
+    primCount: 133,
+    supportMaxGlyphExtentMm: 100,
+    supportMaxClusterOffsetMm: 30,
+    supportMaxPrimitiveSpanMm: 60,
+    supportMaxBarRadiusMm: 3
   }
 });
 
@@ -26,9 +30,15 @@ assert.equal(manifest.supportOverlayPrimitives.filter((primitive) => primitive.k
 assert.equal(manifest.supportOverlayPrimitives.filter((primitive) => primitive.emittedCode === 8).length, 42);
 assert.ok(manifest.supportOverlayPrimitives.every((primitive) => primitive.expectedCode === primitive.emittedCode));
 assert.deepEqual(result.audit.primitiveHistogram, { 8: 133 });
+assert.deepEqual(result.audit.supportRvmExportAudit.supportPrimitiveCodeHistogram, { 8: 42 });
+assert.deepEqual(result.audit.supportRvmExportAudit.supportForbiddenPrimitiveCodesPresent, []);
 assert.equal(result.audit.supportRvmExportAudit.supportConePrimitiveCount, 0);
 assert.equal(result.audit.supportRvmExportAudit.supportDirectionalGlyphPrimitiveCount, 34);
-assert.match(result.audit.supportRvmExportAudit.policy, /single\/tick Review-safe code-8 cylinder bar glyphs only/);
+assert.match(result.audit.supportRvmExportAudit.policy, /code-8 cylinder bar glyphs only/);
+assert.ok(result.audit.supportRvmExportAudit.supportMaxGlyphExtentMm <= 100);
+assert.ok(result.audit.supportRvmExportAudit.supportMaxClusterOffsetMm <= 30);
+assert.ok(result.audit.supportRvmExportAudit.supportMaxPrimitiveSpanMm <= 60);
+assert.ok(result.audit.supportRvmExportAudit.supportMaxBarRadiusMm <= 3);
 
 const supportPrimitives = result.exportModel.audit.supportRvmExportAudit.nodes.flatMap((node) => node.primitives);
 assert.equal(supportPrimitives.filter((primitive) => primitive.supportConeFanBlocked === true).length, 34);
@@ -36,5 +46,6 @@ assert.equal(supportPrimitives.filter((primitive) => primitive.supportGlyphStemB
 assert.equal(supportPrimitives.filter((primitive) => primitive.supportGlyphTipTick === true).length, 17);
 assert.ok(supportPrimitives.every((primitive) => primitive.kind === 'cylinder'));
 assert.ok(supportPrimitives.every((primitive) => primitive.supportPointCone === false));
+assert.ok(supportPrimitives.every((primitive) => primitive.supportPrimitiveCode === 8));
 
-console.log('managed-stage stitch manifest blocks support code-1 pyramids and emits support arrows as single/tick code-8 bar glyphs');
+console.log('managed-stage stitch manifest emits support overlays as compact code-8 bars only');

@@ -19,6 +19,7 @@ assert.match(buildScript, /assets\/static-shell\.bundle\.js/, 'Pages build must 
 assert.match(buildScript, /stripVersionQueryPlugin/, 'Pages build must strip cache query suffixes from local source imports.');
 assert.match(buildScript, /id === 'three' \|\| id === 'lucide' \|\| id\.startsWith\('three\/'\)/, 'Rollup build must keep CDN/importmap vendor modules external.');
 assert.match(buildScript, new RegExp(`const VERSION = '${ACTIVE_CACHE_KEY}'`), 'Pages bundle cache key must expose the active BM_CII support export release.');
+assert.match(buildScript, /html = html\.replaceAll\(`\?v=\$\{LEGACY_CACHE_KEY\}`, `\?v=\$\{VERSION\}`\)/, 'Pages build must rewrite deployed source-module cache keys.');
 assert.match(appLoader, new RegExp(`APP_LOADER_VERSION = '${ACTIVE_CACHE_KEY}'`), 'App loader cache key must expose the active BM_CII support export release.');
 assert.match(appLoader, /MANAGED_STAGE_JSON_UI_MODULE_URL = `\.\/managed-stage-json-ui-controller\.js\?v=\$\{APP_LOADER_VERSION\}`/, 'Managed-stage JSON UI controller must be cache-busted through the active app loader key.');
 

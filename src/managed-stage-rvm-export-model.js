@@ -31,7 +31,11 @@ import { point3 } from './managed-stage-topology-audit.js';
 
 export function buildManagedStageRvmExportModel(profile, options = {}) {
   const processingConfig = resolveManagedStageJsonProcessingConfig(profile, options);
-  const contractSet = buildManagedStageGeometryContractSet(profile);
+  const contractSet = buildManagedStageGeometryContractSet(profile, {
+    ...options,
+    nonBlockingGeometryGates: options.nonBlockingGeometryGates !== false,
+    warningOnlyManagedStageGates: options.warningOnlyManagedStageGates !== false
+  });
   const hintedContracts = applyManagedStageElbowTangentHints(contractSet.contracts);
   const tangentHintAudit = auditManagedStageElbowTangentHints(hintedContracts);
   const bendExclusion = applyManagedStageInputXmlBendExclusion(hintedContracts, processingConfig);
@@ -67,6 +71,8 @@ export function buildManagedStageRvmExportModel(profile, options = {}) {
     audit: {
       schema: 'ManagedStageRvmExportModel.v1',
       componentCount: elements.length,
+      sourceGeometryRecordCount: contractSet.audit.sourceGeometryRecordCount || profile.geometryRecords.length,
+      skippedGeometryContractCount: contractSet.audit.skippedContractCount || 0,
       supportGeometryEmitted: supportExport.supportPrimitiveCount > 0,
       primitiveCount: geometryPrimitiveCount + supportExport.supportPrimitiveCount,
       geometryPrimitiveCount,
@@ -128,7 +134,8 @@ function elementNodeFromContract(contract, index) {
       INPUTXML_NODE_LOCAL_ELBOW_HOST: contract.genericInputXmlNodeLocalElbows?.length ? 'YES' : 'NO',
       INPUTXML_BEND_ENDPOINT_LOCKED: contract.genericInputXmlBend?.endpointLocks?.length ? 'YES' : 'NO',
       RVM_TRIM_START_MM: contract.rvmTrimStartOffsetMm ? String(contract.rvmTrimStartOffsetMm) : '',
-      RVM_TRIM_END_MM: contract.rvmTrimEndOffsetMm ? String(contract.rvmTrimEndOffsetMm) : ''
+      RVM_TRIM_END_MM: contract.rvmTrimEndOffsetMm ? String(contract.rvmTrimEndOffsetMm) : '',
+      MANAGED_STAGE_GEOMETRY_WARNINGS: (contract.nonBlockingGeometryWarnings || []).map((warning) => warning.message).join(' | ')
     },
     primitives: planManagedStagePrimitives(contract),
     children: []

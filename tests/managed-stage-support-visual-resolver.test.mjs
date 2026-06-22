@@ -8,7 +8,9 @@ const bmScene = createManagedStagePreviewScene(createBmCiiManagedStageSampleJson
 const bmAudit = bmScene.userData.managedStageCoordinateAudit;
 
 assert.equal(bmAudit.supportPreviewOnlyCount, 12);
-assert.equal(bmAudit.supportVisualPolicy.schema, 'ManagedStageSupportVisualResolver.v1');
+assert.equal(bmAudit.supportVisualPolicy.schema, 'ManagedStageSupportVisualResolver.v2');
+assert.equal(bmAudit.supportVisualPolicy.previewGeometry, 'compact-code8-equivalent-cylinder-bars-no-cones');
+assert.ok(bmAudit.supportVisualPolicy.blockedPreviewGeometry.includes('ConeGeometry'));
 assert.equal(bmAudit.supportVisualCounts.total, 12);
 assert.equal(bmAudit.supportVisualCounts.REST, 4);
 assert.equal(bmAudit.supportVisualCounts.GUIDE, 4);
@@ -21,6 +23,7 @@ for (const row of supportRows) {
   assert.equal(row.previewOnly, true);
   assert.equal(row.supportVisual.gapRecordScoped, true);
   assert.equal(row.supportVisual.gapCarryForward, false);
+  assert.equal(row.supportVisual.previewGlyphGeometry, 'compact-cylinder-bars-no-cones');
 }
 
 const rest = supportRows.find((row) => row.supportVisual.family === 'REST');
@@ -28,6 +31,7 @@ assert.ok(rest);
 assert.equal(rest.supportVisual.coneCount, 1);
 assert.equal(rest.supportVisual.coneSides[0].axis, '+Y');
 assert.match(rest.supportVisual.coneSides[0].role, /rest-upward/);
+assert.equal(rest.supportVisual.directionalGlyphCount, 1);
 
 const guideOnZPipe = supportRows.find((row) => row.supportVisual.family === 'GUIDE' && row.supportVisual.pipeAxis === 'Z');
 assert.ok(guideOnZPipe);
@@ -52,7 +56,10 @@ assert.equal(supportRoots.length, 12);
 assert.ok(supportParts.length >= 20);
 assert.ok(supportRoots.every((object) => object.userData.TYPE === 'MANAGED_STAGE_SUPPORT_RESTRAINT_PREVIEW'));
 assert.ok(supportRoots.every((object) => object.userData.exportedRvmGeometry === false));
+assert.ok(supportRoots.every((object) => object.userData.supportPreviewNoCone === true));
 assert.ok(supportParts.every((object) => object.userData.exportedRvmGeometry === false));
+assert.ok(supportParts.every((object) => object.geometry?.type !== 'ConeGeometry'));
+assert.ok(supportParts.every((object) => object.userData.supportDirectionalCone !== true));
 
 const customStage = {
   schema: 'inputxml-managed-stage/v1',
@@ -110,7 +117,7 @@ assert.equal(gapped.supportVisual.gapMm, 5);
 assert.equal(gapped.supportVisual.gapSource, 'record');
 assert.equal(gapped.supportVisual.gapRecordScoped, true);
 assert.equal(gapped.supportVisual.gapCarryForward, false);
-assert.equal(gapped.supportVisual.gapVisualSeparationMm, 50);
+assert.equal(gapped.supportVisual.gapVisualSeparationMm, 28);
 assert.equal(gapped.supportVisual.coneCount, 2);
 assert.deepEqual(gapped.supportVisual.coneSides.map((side) => side.axis).sort(), ['+X', '-X'].sort());
 
@@ -130,15 +137,17 @@ customScene.traverse((object) => {
 });
 assert.ok(customParts.some((object) => object.userData.role === 'popupRequired'));
 assert.ok(customParts.some((object) => object.userData.role === 'warningCoilBelowPipe'));
-const customAxialTips = customParts
+assert.ok(customParts.every((object) => object.geometry?.type !== 'ConeGeometry'));
+const customAxialTips = [...new Set(customParts
   .filter((object) => object.userData.axialPipeParallel === true)
   .map((object) => object.userData.tipMm.x)
-  .sort((a, b) => a - b);
-assert.deepEqual(customAxialTips, [-25, 25]);
+  .sort((a, b) => a - b))];
+assert.deepEqual(customAxialTips, [-14, 14]);
 assert.ok(customParts.filter((object) => object.userData.axialPipeParallel === true).every((object) => object.userData.odTwoThirdsResolverApplied === true));
 
 console.log(JSON.stringify({
   schema: bmAudit.supportVisualPolicy.schema,
+  previewGeometry: bmAudit.supportVisualPolicy.previewGeometry,
   bmCiiSupportVisualCounts: bmAudit.supportVisualCounts,
   gappedLineStopSeparationMm: gapped.supportVisual.gapVisualSeparationMm,
   gappedLineStopTipXs: customAxialTips,

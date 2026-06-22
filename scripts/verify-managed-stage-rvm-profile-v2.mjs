@@ -26,8 +26,11 @@ console.log(JSON.stringify({
   supportRecordsSkippedFromGeometry: result.audit.inputCounts.supportRecordsSkippedFromGeometry,
   supportRecordsEmittedToRvm: result.audit.inputCounts.supportRecordsEmittedToRvm,
   supportRvmPrimitives: result.audit.supportRvmExportAudit?.supportPrimitiveCount || 0,
+  supportPrimitiveCodeHistogram: result.audit.supportRvmExportAudit?.supportPrimitiveCodeHistogram || {},
   supportConePrimitives: result.audit.supportRvmExportAudit?.supportConePrimitiveCount || 0,
   supportBarPrimitives: result.audit.supportRvmExportAudit?.supportBarPrimitiveCount || 0,
+  supportMaxGlyphExtentMm: result.audit.supportRvmExportAudit?.supportMaxGlyphExtentMm || 0,
+  supportMaxClusterOffsetMm: result.audit.supportRvmExportAudit?.supportMaxClusterOffsetMm || 0,
   primitiveHistogram: result.audit.primitiveHistogram,
   cntbCount: result.audit.chunkHierarchy.cntbCount,
   primCount: result.audit.chunkHierarchy.primCount,
@@ -49,12 +52,16 @@ function bmCiiExpectations() {
     geometryComponents: 40,
     supportRecordsSkippedFromGeometry: 12,
     supportRecordsEmittedToRvm: 12,
-    supportRvmPrimitiveCount: 25,
-    code1: 17,
+    supportRvmPrimitiveCount: 42,
+    code1: 0,
     code4: 0,
-    code8: 99,
+    code8: 133,
     cntbCount: 56,
-    primCount: 116
+    primCount: 133,
+    supportMaxGlyphExtentMm: 100,
+    supportMaxClusterOffsetMm: 30,
+    supportMaxPrimitiveSpanMm: 60,
+    supportMaxBarRadiusMm: 3
   };
 }
 

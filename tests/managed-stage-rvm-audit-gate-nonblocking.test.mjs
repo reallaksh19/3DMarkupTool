@@ -20,7 +20,12 @@ const baseAudit = {
     cntbBboxFieldsWritten: false
   },
   supportRvmExportAudit: {
-    supportPrimitiveCount: 30
+    supportPrimitiveCount: 30,
+    supportPrimitiveCodeHistogram: { 8: 30 },
+    supportMaxGlyphExtentMm: 60,
+    supportMaxClusterOffsetMm: 20,
+    supportMaxPrimitiveSpanMm: 55,
+    supportMaxBarRadiusMm: 2.5
   },
   chunkHierarchy: {
     headCount: 1,
@@ -66,4 +71,26 @@ assert.throws(
   /expected geometry components: expected 39, got 40/
 );
 
-console.log('managed-stage audit gate permits UI-only non-geometry warnings without unblocking geometry failures');
+assert.throws(
+  () => assertManagedStageRvmAuditGate({
+    ...baseAudit,
+    supportRvmExportAudit: {
+      ...baseAudit.supportRvmExportAudit,
+      supportPrimitiveCodeHistogram: { 1: 1, 8: 29 }
+    }
+  }),
+  /support overlay contains non-code8 primitive code 1/
+);
+
+assert.throws(
+  () => assertManagedStageRvmAuditGate({
+    ...baseAudit,
+    supportRvmExportAudit: {
+      ...baseAudit.supportRvmExportAudit,
+      supportMaxGlyphExtentMm: 101
+    }
+  }),
+  /supportMaxGlyphExtentMm: expected <= 100, got 101/
+);
+
+console.log('managed-stage audit gate permits UI-only non-geometry warnings while blocking support code/envelope failures');

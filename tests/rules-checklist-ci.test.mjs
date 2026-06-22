@@ -39,7 +39,8 @@ function extractActiveQueryKeys(html) {
 
 const htmlKeys = extractActiveQueryKeys(index);
 assert.ok(htmlKeys.length >= 4, 'index must expose versioned first-paint assets');
-assert.deepEqual([...new Set(htmlKeys)], [LEGACY_FIRST_PAINT_CACHE_KEY], 'source index ?v= keys must remain internally consistent');
+assert.deepEqual([...new Set(htmlKeys)], [ACTIVE_CACHE_KEY], 'source index ?v= keys must use the active BM_CII support export cache key');
+assert.doesNotMatch(index, escaped(LEGACY_FIRST_PAINT_CACHE_KEY), 'source index must not keep stale root-serving cache keys');
 assert.match(ACTIVE_CACHE_KEY, dateStampedKey, 'active deployed cache key must be auditable/date-stamped');
 assert.match(LEGACY_FIRST_PAINT_CACHE_KEY, dateStampedKey, 'source first-paint cache key must be auditable/date-stamped');
 

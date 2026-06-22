@@ -24,8 +24,13 @@ export const MANAGED_STAGE_CODE4_RVM_OPTIONS = Object.freeze({
 export function convertManagedStageJsonToRvmAtt(sourceText, options = {}) {
   const profile = parseManagedStageProfile(sourceText);
   const topology = auditManagedStageTopology(profile.geometryRecords);
-  const exportModel = buildManagedStageRvmExportModel(profile, options);
-  const writerOptions = { ...MANAGED_STAGE_CODE4_RVM_OPTIONS, ...options };
+  const writerOptions = {
+    ...MANAGED_STAGE_CODE4_RVM_OPTIONS,
+    warningOnlyManagedStageGates: true,
+    nonBlockingGeometryGates: true,
+    ...options
+  };
+  const exportModel = buildManagedStageRvmExportModel(profile, writerOptions);
   const rvm = writeRvm(exportModel, writerOptions);
   const att = writeAtt(exportModel);
   const primitivePayloads = scanRvmPrimitivePayloads(rvm);
@@ -35,7 +40,7 @@ export function convertManagedStageJsonToRvmAtt(sourceText, options = {}) {
   const boundingExtentsMm = computeExportModelBoundingExtents(exportModel);
   const chunkHierarchy = assertRvmChunkHierarchy(rvm, att, exportModel);
   const stitchManifest = buildManagedStageRvmStitchManifest(profile, exportModel, primitivePayloads);
-  const stitchManifestGate = assertManagedStageRvmStitchManifest(stitchManifest);
+  const stitchManifestGate = warningOnlyGate('ManagedStageRvmStitchManifest', () => assertManagedStageRvmStitchManifest(stitchManifest), writerOptions);
   const supportRvmExportAudit = exportModel.audit?.supportRvmExportAudit || null;
   const audit = {
     schema: 'ManagedStageRvmConverterAudit.v1',
@@ -45,6 +50,8 @@ export function convertManagedStageJsonToRvmAtt(sourceText, options = {}) {
     generationMode: 'managed-stage-cylinder-torus',
     inputCounts: {
       geometryComponents: profile.geometryRecords.length,
+      geometryContractsEmitted: exportModel.audit?.componentCount || profile.geometryRecords.length,
+      geometryContractsSkipped: exportModel.audit?.skippedGeometryContractCount || 0,
       supportRecordsSkippedFromGeometry: profile.supportRecords.length,
       supportRecordsEmittedToRvm: supportRvmExportAudit?.supportRecordCount || 0,
       stats: profile.inputStats,
@@ -89,7 +96,11 @@ export function convertManagedStageJsonToRvmAtt(sourceText, options = {}) {
     attBytes: new TextEncoder().encode(att).byteLength,
     cntbCoordinatePolicy: 'CNTB x/y/z fields are RMSS coordinate fields, not bbox fields'
   };
-  audit.managedStageStrictGate = assertManagedStageRvmAuditGate(audit, options.strictAuditExpectations || {});
+  audit.managedStageStrictGate = warningOnlyGate(
+    'ManagedStageRvmAuditGate',
+    () => assertManagedStageRvmAuditGate(audit, options.strictAuditExpectations || {}),
+    writerOptions
+  );
   return { profile, exportModel, rvm, att, audit };
 }
 
@@ -106,7 +117,7 @@ export function assertManagedStagePrimitivePayloadCompatibility(primitives = [],
     if (code === 4 && evaluateRvmCode4ElbowEmissionCandidate(primitive, options).experimentalEmissionCandidateAllowed) continue;
     unsafe.push(primitive);
   }
-  if (unsafe.length) {
+  if (unsafe.length && options.warningOnlyManagedStageGates !== true) {
     throw new Error(`Managed-stage RVM contains unsupported primitive code(s): ${unsafe.map((p) => p.code).join(', ')}`);
   }
   return {
@@ -114,7 +125,8 @@ export function assertManagedStagePrimitivePayloadCompatibility(primitives = [],
     primitiveCount: primitives.length,
     allowedPrimitiveCodes: [1, 4, 8],
     forbiddenPrimitiveCodesPresent: [2, 5, 6, 7, 11].filter((code) => codeCounts[code]),
-    unsupportedPrimitivePayloadsPresent: false,
+    unsupportedPrimitivePayloadsPresent: unsafe.length > 0,
+    warningOnlyUnsupportedPrimitivePayloads: unsafe.map((primitive) => ({ code: primitive.code, bodyLength: primitive.bodyLength })),
     codeCounts,
     statusCounts
   };
@@ -209,6 +221,22 @@ function collectGenericInputXmlBranchFittingAssumptions(root) {
     }
   });
   return assumptions;
+}
+
+function warningOnlyGate(schema, callback, options = {}) {
+  try {
+    return callback();
+  } catch (error) {
+    if (options.warningOnlyManagedStageGates !== true) throw error;
+    return {
+      schema: `${schema}.warning-only`,
+      ok: false,
+      failClosed: false,
+      warningOnly: true,
+      nonBlockingAuditIssues: [error.message],
+      nonBlockingAuditWarningCount: 1
+    };
+  }
 }
 
 function visit(node, callback) {

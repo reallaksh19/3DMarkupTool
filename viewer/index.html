@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PCF GLB RVM Viewer</title>
+<meta name="theme-color" content="#07111F">
+<meta name="application-name" content="PCF GLB RVM Viewer">
+<meta name="apple-mobile-web-app-title" content="RVM Viewer">
+<link rel="icon" type="image/svg+xml" href="./assets/app-icon.svg?v=20260621-app-brand-icon-1">
+<link rel="manifest" href="./site.webmanifest?v=20260621-app-brand-icon-1">
+<style>
+html,body{height:100%;margin:0;background:#090f1a;color:#dce8f4;font-family:system-ui,"Segoe UI",Arial,sans-serif}#app-layout,.app-shell{min-height:100vh;height:100%;display:flex;overflow:hidden}.app-nav{width:176px;flex:0 0 176px;background:#111827;border-right:1px solid rgba(148,163,184,.18);padding:8px;overflow:auto}.app-content{flex:1;min-width:0;overflow:hidden;background:#0b1120}.app-nav-button{display:block;width:100%;margin:3px 0;padding:7px 8px;border:1px solid rgba(148,163,184,.20);border-radius:7px;background:rgba(255,255,255,.04);color:#cbd5e1;text-align:left}.app-nav-button.is-active{background:#1d4ed8;color:#fff}.app-nav-group-label{margin:10px 0 5px;color:#94a3b8;font-size:11px;text-transform:uppercase;letter-spacing:.05em}#app-loading-overlay{position:fixed;inset:0;display:none;place-items:center;background:rgba(2,6,23,.7);z-index:9999}#app-loading-overlay.is-visible{display:grid}
+</style>
+<link rel="stylesheet" href="styles/base.css">
+<link rel="stylesheet" href="styles/tabs.css?v=20260618-modular-app-shell-1">
+<link rel="stylesheet" href="styles/app-shell-header-fix.css?v=20260621-app-brand-icon-1">
+<link rel="stylesheet" href="styles/viewer3d.css?v=20260518-statusbar-theme-12">
+<link rel="stylesheet" href="tabs/model-converters-tab.css?v=20260621-model-converters-css-1">
+<link rel="stylesheet" href="tabs/model-converters-css-fix.css?v=20260621-model-converters-css-1">
+<link rel="stylesheet" href="tabs/viewer3d-rvm-tab.css?v=20260620-rvm-direct-tab-1">
+<link rel="preconnect" href="//unpkg.com" crossorigin>
+<script type="importmap">
+{"imports":{"three":"https:\/\/unpkg.com\/three@0.160.1\/build\/three.module.js","three/addons\/":"https:\/\/unpkg.com\/three@0.160.1\/examples\/jsm\/","gltf-exporter":"https:\/\/unpkg.com\/three@0.160.1\/examples\/jsm\/exporters\/GLTFExporter.js","mdb-reader":"https:\/\/esm.sh\/mdb-reader@2","buffer":"https:\/\/esm.sh\/buffer@6","xlsx":"https:\/\/cdn.jsdelivr.net\/npm\/xlsx@0.18.5\/+esm"}}
+</script>
+</head>
+<body>
+<div id="app-layout"><nav id="tab-bar"></nav><main id="tab-content"></main></div>
+<div id="app-loading-overlay" aria-live="polite" aria-label="Loading"><div class="app-loading-spinner" aria-hidden="true"></div><span class="app-loading-label" id="app-loading-label">Loading…</span></div>
+<div id="app-toast-container" aria-live="assertive" role="status"></div>
+<!-- Legacy static-contract marker: main-rhbg-fitguard.js?v=20260620-rvm-stagedjson-validation-1 -->
+<!-- Previous cache marker: main-rhbg-fitguard.js?v=20260621-rvm-perf-lazy-bridges-1 -->
+<!-- Previous cache marker: main-rhbg-fitguard.js?v=20260621-rvm-button-hardening-1 -->
+<!-- Previous cache marker: main-rhbg-fitguard.js?v=20260621-rvm-ui-interaction-panels-1 -->
+<!-- Previous cache marker: main-rhbg-fitguard.js?v=20260621-rvm-property-collapse-1 -->
+<!-- Previous cache marker: main-rhbg-fitguard.js?v=20260621-app-brand-icon-1 -->
+<!-- Previous cache marker: main-rhbg-fitguard.js?v=20260621-rvm-label-perf-1 -->
+<!-- Previous cache marker: main-rhbg-fitguard.js?v=20260621-rvm-json-pcf-trigger-1 -->
+<!-- Previous cache marker: main-rhbg-fitguard.js?v=20260621-rvm-policy-info-1 -->
+<!-- Previous cache marker: main-rhbg-fitguard.js?v=20260621-rvm-zone-lod-labels-1 -->
+<!-- Previous cache marker: main-rhbg-fitguard.js?v=20260621-rvm-navis-hierarchy-1 -->
+<!-- Previous cache marker: main-rhbg-fitguard.js?v=20260621-rvm-native-facet-primary-1 -->
+<!-- Previous cache marker: main-rhbg-fitguard.js?v=20260621-rvm-zone-lod-context-1 -->
+<!-- Previous cache marker: main-rhbg-fitguard.js?v=20260621-rvm-pcf-visible-scope-1 -->
+<!-- Previous cache marker: main-rhbg-fitguard.js?v=20260621-rvm-preload-hierarchy-selector-1 -->
+<!-- Previous cache marker: main-rhbg-fitguard.js?v=20260621-rvm-selection-details-inspector-1 -->
+<!-- Previous cache marker: main-rhbg-fitguard.js?v=20260621-rvm-isolate-visibility-toolbar-1 -->
+<!-- Previous cache marker: main-rhbg-fitguard.js?v=20260621-rvm-visibility-snapshots-1 -->
+<!-- Previous cache marker: main-rhbg-fitguard.js?v=20260621-rvm-object-search-1 -->
+<!-- Previous cache marker: main-rhbg-fitguard.js?v=20260621-rvm-measure-tools-1 -->
+<!-- Previous cache marker: main-rhbg-fitguard.js?v=20260621-rvm-section-box-1 -->
+<!-- Previous cache marker: main-rhbg-fitguard.js?v=20260621-rvm-selection-sets-1 -->
+<!-- Previous cache marker: main-rhbg-fitguard.js?v=20260621-rvm-report-export-1 -->
+<!-- Previous cache marker: main-rhbg-fitguard.js?v=20260621-rvm-model-health-1 -->
+<!-- Previous cache marker: main-rhbg-fitguard.js?v=20260621-rvm-health-issues-1 -->
+<!-- Previous cache marker: main-rhbg-fitguard.js?v=20260622-rvm-facet-ghost-panels-1 -->
+<!-- Previous cache marker: main-rhbg-fitguard.js?v=20260622-app-root-startup-1 -->
+<!-- Previous cache marker: main-rhbg-fitguard.js?v=20260622-tab-click-state-1 -->
+<!-- Previous cache marker: main-rhbg-fitguard.js?v=20260622-geometry-workspace-1 -->
+<!-- Previous cache marker: main-rhbg-fitguard.js?v=20260622-geometry-import-tree-1 -->
+<!-- Previous cache marker: main-rhbg-fitguard.js?v=20260622-geometry-mapping-1 -->
+<!-- Previous cache marker: main-rhbg-fitguard.js?v=20260622-geometry-profile-ui-1 -->
+<!-- Previous cache marker: main-rhbg-fitguard.js?v=20260622-geometry-calc-canvas-1 -->
+<script type="module" src="./main-rhbg-fitguard.js?v=20260622-rvm-native-support-overlay-1"></script>
+</body>
+</html>

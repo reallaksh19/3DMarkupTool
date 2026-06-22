@@ -7,6 +7,7 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const SITE_DIR = path.join(ROOT, '_site');
 const ASSET_DIR = path.join(SITE_DIR, 'assets');
 const VERSION = 'bm-cii-code8-support-export-20260622';
+const LEGACY_CACHE_KEY = 'tool-fixes-v2-20260620';
 
 await rm(SITE_DIR, { recursive: true, force: true });
 await copyStaticSite(ROOT, SITE_DIR);
@@ -74,6 +75,7 @@ function stripVersionQueryPlugin() {
 async function injectBundleManifest() {
   const indexPath = path.join(SITE_DIR, 'index.html');
   let html = await readFile(indexPath, 'utf8');
+  html = html.replaceAll(`?v=${LEGACY_CACHE_KEY}`, `?v=${VERSION}`);
   const manifest = [
     `<link rel="modulepreload" href="./assets/app.bundle.js?v=${VERSION}" />`,
     `<link rel="modulepreload" href="./assets/static-shell.bundle.js?v=${VERSION}" />`,

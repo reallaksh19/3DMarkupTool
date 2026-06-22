@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
+const ACTIVE_CACHE_KEY = 'bm-cii-code8-support-export-20260622';
+
 const buildScript = readFileSync(new URL('../scripts/build-pages.mjs', import.meta.url), 'utf8');
 const workflow = readFileSync(new URL('../.github/workflows/pages.yml', import.meta.url), 'utf8');
 const packageJson = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
@@ -16,7 +18,10 @@ assert.match(buildScript, /assets\/app\.bundle\.js/, 'Pages build must write the
 assert.match(buildScript, /assets\/static-shell\.bundle\.js/, 'Pages build must write the shell bundle.');
 assert.match(buildScript, /stripVersionQueryPlugin/, 'Pages build must strip cache query suffixes from local source imports.');
 assert.match(buildScript, /id === 'three' \|\| id === 'lucide' \|\| id\.startsWith\('three\/'\)/, 'Rollup build must keep CDN/importmap vendor modules external.');
-assert.match(buildScript, /const VERSION = 'tool-fixes-v2-20260620'/, 'Pages bundle cache key must expose the active tool-fixes UI release.');
+assert.match(buildScript, new RegExp(`const VERSION = '${ACTIVE_CACHE_KEY}'`), 'Pages bundle cache key must expose the active BM_CII support export release.');
+assert.match(buildScript, /html = html\.replaceAll\(`\?v=\$\{LEGACY_CACHE_KEY\}`, `\?v=\$\{VERSION\}`\)/, 'Pages build must rewrite deployed source-module cache keys.');
+assert.match(appLoader, new RegExp(`APP_LOADER_VERSION = '${ACTIVE_CACHE_KEY}'`), 'App loader cache key must expose the active BM_CII support export release.');
+assert.match(appLoader, /MANAGED_STAGE_JSON_UI_MODULE_URL = `\.\/managed-stage-json-ui-controller\.js\?v=\$\{APP_LOADER_VERSION\}`/, 'Managed-stage JSON UI controller must be cache-busted through the active app loader key.');
 
 assert.match(workflow, /npm install/, 'GitHub Pages workflow must install build dependencies.');
 assert.match(workflow, /npm test/, 'GitHub Pages workflow must run regression tests before deploy.');
@@ -30,6 +35,6 @@ assert.ok(packageJson.devDependencies?.rollup, 'Rollup must be declared as a bui
 
 assert.match(appLoader, /APP_BUNDLE_URL/, 'App loader must consume the built app bundle manifest.');
 assert.match(safeBootstrap, /STATIC_SHELL_BUNDLE_URL/, 'Static UI bootstrap must consume the built shell bundle manifest.');
-assert.match(safeBootstrap, /SAFE_UI_VERSION = 'tool-fixes-v2-20260620'/, 'Static UI fallback imports must use the active tool-fixes cache key.');
+assert.match(safeBootstrap, /SAFE_UI_VERSION = 'tool-fixes-v2-20260620'/, 'Static UI fallback imports must keep the current stable shell cache key.');
 
 console.log('Pages bundle build regression gate passed');

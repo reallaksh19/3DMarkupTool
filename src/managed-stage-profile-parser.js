@@ -1,6 +1,9 @@
 export const MANAGED_STAGE_PROFILE_SCHEMA = 'inputxml-managed-stage/v1';
 export const MANAGED_STAGE_RVM_PROFILE = 'AVEVA_JSON_FOR_3D_RVM_VIEWER';
 
+const SUPPORT_RECORD_TYPES = new Set(['ATTA', 'ANCI', 'SUPP', 'SUPPORT', 'PIPE_SUPPORT', 'PIPESUPPORT']);
+const CONTAINER_RECORD_TYPES = new Set(['BRAN', 'BRANCH', 'GROUP', 'ROOT', 'DISCIPLINE', 'ZONE', 'SITE']);
+
 export function parseManagedStageProfile(sourceText) {
   const json = parseJson(sourceText);
   if (json.schema !== MANAGED_STAGE_PROFILE_SCHEMA) {
@@ -16,21 +19,15 @@ export function parseManagedStageProfile(sourceText) {
   const branches = Array.isArray(json.hierarchy) ? json.hierarchy : [];
   const records = [];
   for (const branch of branches) {
+    const branchName = branch.name || '';
+    const branchType = branch.type || '';
     for (const child of branch.children || []) {
-      const attributes = child.attributes || {};
-      records.push({
-        branchName: branch.name || '',
-        branchType: branch.type || '',
-        rawName: child.name || attributes.NAME || 'UNNAMED',
-        name: attributes.NAME || child.name || 'UNNAMED',
-        type: child.type || attributes.TYPE || 'UNKNOWN',
-        attributes
-      });
+      collectManagedStageRecord(child, { branchName, branchType, parentPath: branchName }, records);
     }
   }
 
-  const geometryRecords = records.filter((record) => record.type !== 'ATTA');
-  const supportRecords = records.filter((record) => record.type === 'ATTA');
+  const supportRecords = records.filter(isSupportRecord);
+  const geometryRecords = records.filter((record) => !isSupportRecord(record));
   return {
     schema: json.schema,
     profile: json.profile,
@@ -42,8 +39,57 @@ export function parseManagedStageProfile(sourceText) {
     branches,
     records,
     geometryRecords,
-    supportRecords
+    supportRecords,
+    recordDiscovery: {
+      schema: 'ManagedStageRecordDiscovery.v2',
+      traversal: 'recursive-branch-children',
+      supportRecordTypes: [...SUPPORT_RECORD_TYPES],
+      containerRecordTypesSkipped: [...CONTAINER_RECORD_TYPES],
+      recordCount: records.length,
+      geometryRecordCount: geometryRecords.length,
+      supportRecordCount: supportRecords.length
+    }
   };
+}
+
+function collectManagedStageRecord(node, context, records) {
+  if (!node || typeof node !== 'object') return;
+  const attributes = node.attributes || {};
+  const rawName = node.name || attributes.NAME || 'UNNAMED';
+  const name = attributes.NAME || node.name || 'UNNAMED';
+  const type = node.type || attributes.TYPE || 'UNKNOWN';
+  const path = context.parentPath ? `${context.parentPath}/${rawName}` : rawName;
+
+  if (!CONTAINER_RECORD_TYPES.has(normalizeToken(type))) {
+    records.push({
+      branchName: context.branchName || '',
+      branchType: context.branchType || '',
+      path,
+      rawName,
+      name,
+      type,
+      attributes
+    });
+  }
+
+  for (const child of Array.isArray(node.children) ? node.children : []) {
+    collectManagedStageRecord(child, { ...context, parentPath: path }, records);
+  }
+}
+
+function isSupportRecord(record) {
+  const attributes = record?.attributes || {};
+  const type = normalizeToken(record?.type);
+  const rawType = normalizeToken(attributes.RAW_TYPE);
+  const dtxr = normalizeToken(attributes.DTXR);
+  return SUPPORT_RECORD_TYPES.has(type) || SUPPORT_RECORD_TYPES.has(rawType) || SUPPORT_RECORD_TYPES.has(dtxr);
+}
+
+function normalizeToken(value) {
+  return String(value || '')
+    .trim()
+    .toUpperCase()
+    .replace(/[\s\-]+/g, '_');
 }
 
 function parseJson(sourceText) {

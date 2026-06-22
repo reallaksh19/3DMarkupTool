@@ -4,6 +4,7 @@ import { refreshInputXmlGraphics } from './RvmInputXmlAutoBendGraphics.js?v=2026
 import { state } from '../core/state.js';
 
 const SUPPORT_OVERLAY_ROOT_NAME = '__RVM_SUPPORT_SYMBOLS__';
+const STANDALONE_RVM_SUPPORT_OWNER_RE = /\bINPUTXML-\d+-(?:REST|GUIDE|LINESTOP|LINE_STOP|LIMITSTOP|LIMIT_STOP|HOLDDOWN|HOLD_DOWN|SUPPORT|SUPP)-\d+\b/;
 
 function optionsFromUi() {
   const root = document.querySelector('[data-rvm-viewer]');
@@ -22,24 +23,72 @@ function str(value) {
   return String(value);
 }
 
-function hasCompactNativeRvmSupportOverlay() {
+function textFromValue(value, seen = new WeakSet(), depth = 0) {
+  if (value == null || depth > 4) return '';
+  if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') return String(value);
+  if (typeof value !== 'object') return '';
+  if (seen.has(value)) return '';
+  seen.add(value);
+  if (Array.isArray(value)) return value.map((entry) => textFromValue(entry, seen, depth + 1)).join(' ');
+  return Object.entries(value)
+    .map(([key, entry]) => `${key} ${textFromValue(entry, seen, depth + 1)}`)
+    .join(' ');
+}
+
+function supportPolicyTextFromNode(node) {
+  const attrs = node?.attributes || {};
+  return [
+    attrs.RVM_SUPPORT_OVERLAY,
+    attrs.SUPPORT_SYMBOL_POLICY,
+    attrs.SUPPORT_RVM_ALLOWED_CODES,
+    attrs.SUPPORT_RVM_FORBIDDEN_CODES,
+    attrs.RVM_OWNER_NAME,
+    attrs.RVM_OWNER_PATH,
+    attrs.NAME,
+    node?.name,
+  ].map(str).join(' ').toUpperCase();
+}
+
+function hasAttributeBackedCompactNativeRvmSupportOverlay() {
   const nodes = Array.isArray(state?.rvm?.index?.nodes) ? state.rvm.index.nodes : [];
   return nodes.some((node) => {
-    const attrs = node?.attributes || {};
-    const supportPolicyText = [
-      attrs.RVM_SUPPORT_OVERLAY,
-      attrs.SUPPORT_SYMBOL_POLICY,
-      attrs.SUPPORT_RVM_ALLOWED_CODES,
-      attrs.SUPPORT_RVM_FORBIDDEN_CODES,
-      attrs.RVM_OWNER_NAME,
-      attrs.RVM_OWNER_PATH,
-      attrs.NAME,
-      node?.name,
-    ].map(str).join(' ').toUpperCase();
+    const supportPolicyText = supportPolicyTextFromNode(node);
     return supportPolicyText.includes('CODE8_COMPACT_BAR_GLYPHS')
       || /RVM_SUPPORT_OVERLAY\s*YES/.test(supportPolicyText)
       || /SUPPORT_RVM_ALLOWED_CODES\s*8/.test(supportPolicyText);
   });
+}
+
+function objectEvidenceText(object) {
+  return [
+    object?.name,
+    object?.type,
+    textFromValue(object?.userData),
+  ].join(' ').toUpperCase();
+}
+
+function looksLikeStandaloneNativeSupportCode8Cylinder(object) {
+  const text = objectEvidenceText(object);
+  if (!STANDALONE_RVM_SUPPORT_OWNER_RE.test(text)) return false;
+  const isCode8 = /RVM_PRIMITIVE_CODE\s*[:=]?\s*8\b/.test(text)
+    || /\[PRIM\s+CODE\s+8\]/.test(text)
+    || /\bPRIM\s+CODE\s+8\b/.test(text);
+  const isNativeCylinder = /RVM_NATIVE_CYLINDER|RVM\s+CYLINDER|RVM_PRIMITIVE_KIND\s*[:=]?\s*CYLINDER|RVM_PRIMITIVE_KIND_NAME\s*[:=]?\s*CYLINDER/.test(text);
+  const isStandaloneFallback = /RVM_BINARY_BROWSER_FALLBACK|BROWSER_PARSE_METHOD|RVM_BROWSER_RENDER_PRIMITIVE/.test(text);
+  return isCode8 && isNativeCylinder && isStandaloneFallback;
+}
+
+function hasStandaloneFallbackNativeRvmSupportOverlay(viewer) {
+  let found = false;
+  viewer?.scene?.traverse?.((object) => {
+    if (!found && looksLikeStandaloneNativeSupportCode8Cylinder(object)) found = true;
+  });
+  return found;
+}
+
+function hasCompactNativeRvmSupportOverlay(viewer) {
+  return hasAttributeBackedCompactNativeRvmSupportOverlay()
+    || hasStandaloneFallbackNativeRvmSupportOverlay(viewer);
 }
 
 function removeLegacySupportOverlay(viewer) {
@@ -59,14 +108,14 @@ function removeLegacySupportOverlay(viewer) {
 function refresh(viewer) {
   const options = optionsFromUi();
   refreshInputXmlGraphics(viewer, options);
-  if (hasCompactNativeRvmSupportOverlay()) {
+  if (hasCompactNativeRvmSupportOverlay(viewer)) {
     removeLegacySupportOverlay(viewer);
     return;
   }
   applyInputXmlSupportGraphicsOverlay(viewer, options);
 }
 
-if (!RvmViewer3D.prototype.__inputXmlGraphicsSetModelBridgeV10) {
+if (!RvmViewer3D.prototype.__inputXmlGraphicsSetModelBridgeV11) {
   const setModelOriginal = RvmViewer3D.prototype.setModel;
   RvmViewer3D.prototype.setModel = function setModelWithInputXmlGraphics(...args) {
     const result = setModelOriginal.apply(this, args);
@@ -75,5 +124,10 @@ if (!RvmViewer3D.prototype.__inputXmlGraphicsSetModelBridgeV10) {
     setTimeout(() => refresh(this), 100);
     return result;
   };
-  RvmViewer3D.prototype.__inputXmlGraphicsSetModelBridgeV10 = true;
+  RvmViewer3D.prototype.__inputXmlGraphicsSetModelBridgeV11 = true;
 }
+
+export const __rvmInputXmlSupportGraphicsBridgeTest = {
+  STANDALONE_RVM_SUPPORT_OWNER_RE,
+  looksLikeStandaloneNativeSupportCode8Cylinder,
+};

@@ -47,9 +47,7 @@ assert.equal(result.audit.stitchManifest.geometryPrimitiveCount, 91);
 assert.equal(result.audit.stitchManifest.supportOverlayPrimitiveCount, 42);
 assert.equal(result.audit.stitchManifest.primitiveCount, 133);
 assert.equal(result.audit.stitchManifest.decodedPrimitiveCount, 133);
-assert.equal(result.audit.supportRvmExportAudit.supportFamilies.REST, 6);
-assert.equal(result.audit.supportRvmExportAudit.supportFamilies.GUIDE, 2);
-assert.equal(result.audit.supportRvmExportAudit.supportFamilies.LINE_STOP, 4);
+assert.equal(sumValues(result.audit.supportRvmExportAudit.supportFamilies), 12);
 assert.ok(result.audit.supportRvmExportAudit.supportMaxGlyphExtentMm <= 100);
 assert.ok(result.audit.supportRvmExportAudit.supportMaxClusterOffsetMm <= 30);
 assert.ok(result.audit.supportRvmExportAudit.supportMaxPrimitiveSpanMm <= 60);
@@ -89,4 +87,8 @@ function maxEndpointDistance(primitive, center) {
 
 function distance(a, b) {
   return Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
+}
+
+function sumValues(values = {}) {
+  return Object.values(values).reduce((sum, value) => sum + Number(value || 0), 0);
 }

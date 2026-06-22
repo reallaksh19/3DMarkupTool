@@ -8,26 +8,33 @@ const result = convertManagedStageJsonToRvmAtt(JSON.stringify(createBmCiiManaged
     geometryComponents: 40,
     supportRecordsSkippedFromGeometry: 12,
     supportRecordsEmittedToRvm: 12,
-    supportRvmPrimitiveCount: 76,
+    supportRvmPrimitiveCount: 42,
     code1: 0,
     code4: 0,
-    code8: 167,
+    code8: 133,
     cntbCount: 56,
-    primCount: 167
+    primCount: 133
   }
 });
 
 const manifest = result.audit.stitchManifest;
 assert.equal(result.audit.managedStageStrictGate.ok, true);
-assert.equal(manifest.supportOverlayPrimitiveCount, 76);
+assert.equal(manifest.supportOverlayPrimitiveCount, 42);
 assert.deepEqual(manifest.supportOverlayAllowedPrimitiveCodes, [8]);
 assert.equal(manifest.supportOverlayPrimitives.filter((primitive) => primitive.emittedCode === 1).length, 0);
 assert.equal(manifest.supportOverlayPrimitives.filter((primitive) => primitive.kind === 'pyramid').length, 0);
-assert.equal(manifest.supportOverlayPrimitives.filter((primitive) => primitive.emittedCode === 8).length, 76);
+assert.equal(manifest.supportOverlayPrimitives.filter((primitive) => primitive.emittedCode === 8).length, 42);
 assert.ok(manifest.supportOverlayPrimitives.every((primitive) => primitive.expectedCode === primitive.emittedCode));
-assert.deepEqual(result.audit.primitiveHistogram, { 8: 167 });
+assert.deepEqual(result.audit.primitiveHistogram, { 8: 133 });
 assert.equal(result.audit.supportRvmExportAudit.supportConePrimitiveCount, 0);
-assert.equal(result.audit.supportRvmExportAudit.supportDirectionalGlyphPrimitiveCount, 68);
-assert.match(result.audit.supportRvmExportAudit.policy, /code-8 cylinder bar glyphs only/);
+assert.equal(result.audit.supportRvmExportAudit.supportDirectionalGlyphPrimitiveCount, 34);
+assert.match(result.audit.supportRvmExportAudit.policy, /single\/tick Review-safe code-8 cylinder bar glyphs only/);
 
-console.log('managed-stage stitch manifest blocks support code-1 pyramids and emits support arrows as code-8 bar glyphs');
+const supportPrimitives = result.exportModel.audit.supportRvmExportAudit.nodes.flatMap((node) => node.primitives);
+assert.equal(supportPrimitives.filter((primitive) => primitive.supportConeFanBlocked === true).length, 34);
+assert.equal(supportPrimitives.filter((primitive) => primitive.supportGlyphStemBar === true).length, 17);
+assert.equal(supportPrimitives.filter((primitive) => primitive.supportGlyphTipTick === true).length, 17);
+assert.ok(supportPrimitives.every((primitive) => primitive.kind === 'cylinder'));
+assert.ok(supportPrimitives.every((primitive) => primitive.supportPointCone === false));
+
+console.log('managed-stage stitch manifest blocks support code-1 pyramids and emits support arrows as single/tick code-8 bar glyphs');

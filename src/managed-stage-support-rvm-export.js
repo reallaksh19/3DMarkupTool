@@ -37,7 +37,7 @@ export function buildManagedStageSupportRvmExportNodes(profile, options = {}) {
   });
 
   return {
-    schema: 'ManagedStageSupportRvmExport.v3',
+    schema: 'ManagedStageSupportRvmExport.v4',
     materialId: options.materialId || SUPPORT_MATERIAL_ID,
     supportRecordCount: supportRecords.length,
     supportNodeCount: supportNodes.length,
@@ -51,7 +51,7 @@ export function buildManagedStageSupportRvmExportNodes(profile, options = {}) {
     clusteredSupportRecordCount,
     familyHistogram: families,
     nodes: supportNodes,
-    policy: 'managed-stage ATTA/support records are emitted to RVM as Review-safe code-8 cylinder bar glyphs only; filled code-1 pyramid/cone substitutes are blocked; source POS/SUPPORTCOORD remains the anchor coordinate'
+    policy: 'managed-stage ATTA/support records are emitted to RVM as conservative single/tick Review-safe code-8 cylinder bar glyphs only; filled code-1 pyramid/cone substitutes and cone-fan glyphs are blocked; source POS/SUPPORTCOORD remains the anchor coordinate'
   };
 }
 
@@ -63,7 +63,7 @@ function supportElementNode(record, adapted, visual, index, options = {}) {
   const odMm = Math.max(Number(visual.pipeDiameterMm || 0), Number(options.pointRadius || 0) * 2, 40);
   const genericLength = clamp(odMm * 0.72, 42, 105);
   const axialLength = clamp(odMm * 0.52, 34, 82);
-  const glyphBaseRadius = clamp(odMm * 0.18, 6, 18);
+  const glyphCapLength = clamp(odMm * 0.16, 6, 16);
   const barRadius = clamp(odMm * 0.028, 1.5, 4.5);
   const supportName = record.attributes?.NAME || record.name || `SUPPORT_${index + 1}`;
   const primitives = [];
@@ -106,7 +106,7 @@ function supportElementNode(record, adapted, visual, index, options = {}) {
         tipMm: tip,
         directionToTip,
         lengthMm: length,
-        baseRadiusMm: glyphBaseRadius,
+        capLengthMm: glyphCapLength,
         barRadiusMm: barRadius,
         record,
         visual,
@@ -118,12 +118,14 @@ function supportElementNode(record, adapted, visual, index, options = {}) {
           supportDirectionalGlyphBar: true,
           supportPointCone: false,
           supportPyramidSubstituteBlocked: true,
+          supportConeFanBlocked: true,
           axialPipeParallel: Boolean(side.axialPipeParallel),
           explicitSingle: Boolean(side.explicitSingle),
           supportTipMm: tip,
           supportVisualCenterMm: visualCenter,
-          supportGlyphBaseRadiusMm: glyphBaseRadius,
-          supportGlyphLengthMm: length
+          supportGlyphCapLengthMm: glyphCapLength,
+          supportGlyphLengthMm: length,
+          supportGlyphStyle: 'single-bar-with-tip-tick'
         }
       }));
     }
@@ -147,8 +149,9 @@ function supportElementNode(record, adapted, visual, index, options = {}) {
       SOURCE_RESTRAINT_ID: record.attributes?.SOURCE_RESTRAINT_ID || record.attributes?.REF || '',
       SOURCE_FORMAT: record.attributes?.SOURCE_FORMAT || 'inputxml-managed-stage/v1',
       RVM_SUPPORT_OVERLAY: 'YES',
-      SUPPORT_SYMBOL_POLICY: 'CODE8_BAR_GLYPHS_NO_PYRAMIDS',
+      SUPPORT_SYMBOL_POLICY: 'CODE8_SINGLE_BAR_GLYPHS_NO_PYRAMIDS_NO_CONE_FAN',
       SUPPORT_RVM_PYRAMID_SUBSTITUTE_BLOCKED: 'TRUE',
+      SUPPORT_RVM_CONE_FAN_BLOCKED: 'TRUE',
       SUPPORT_CLUSTER_INDEX: String(visual.cluster?.index ?? ''),
       SUPPORT_CLUSTER_COUNT: String(visual.cluster?.count ?? ''),
       SUPPORT_CLUSTER_RVM_OFFSET_MAX_MM: String(Number(options.rvmSupportClusterOffsetMaxMm ?? DEFAULT_RVM_CLUSTER_OFFSET_MAX_MM))
@@ -158,35 +161,57 @@ function supportElementNode(record, adapted, visual, index, options = {}) {
   };
 }
 
-function supportDirectionalGlyphBars({ name, localName, tipMm, directionToTip, lengthMm, baseRadiusMm, barRadiusMm, record, visual, role, extra = {} }) {
+function supportDirectionalGlyphBars({ name, localName, tipMm, directionToTip, lengthMm, capLengthMm, barRadiusMm, record, visual, role, extra = {} }) {
   const direction = normalize(directionToTip, [0, 1, 0]);
   const tip = vector3(tipMm);
-  const baseCenter = add(tip, scale(direction, -lengthMm));
-  const { u, v } = perpendicularBasis(direction);
-  const basePoints = [
-    add(baseCenter, scale(u, baseRadiusMm)),
-    add(baseCenter, scale(u, -baseRadiusMm)),
-    add(baseCenter, scale(v, baseRadiusMm)),
-    add(baseCenter, scale(v, -baseRadiusMm))
-  ];
+  const base = add(tip, scale(direction, -lengthMm));
+  const capInset = clamp(lengthMm * 0.18, 6, 14);
+  const capCenter = add(tip, scale(direction, -capInset));
+  const { u } = perpendicularBasis(direction);
+  const capHalf = clamp(capLengthMm, 6, 16) / 2;
+  const capStart = add(capCenter, scale(u, -capHalf));
+  const capEnd = add(capCenter, scale(u, capHalf));
 
-  return basePoints.map((start, index) => supportBar({
-    name: `${name}_RVM_BAR_${index + 1}`,
-    localName: `${localName}-rvm-bar-${index + 1}`,
-    startMm: start,
-    endMm: tip,
-    radiusMm: barRadiusMm,
-    record,
-    visual,
-    role: `${role}-rvm-bar`,
-    extra: {
-      ...extra,
-      supportGlyphSpokeIndex: index + 1,
-      supportGlyphBaseMm: start,
-      supportGlyphTipMm: tip,
-      orientationAssumption: 'Support/ATTA record exported as Review-safe code-8 cylinder wire-glyph; canvas may use true THREE.ConeGeometry but RVM export never emits filled code-1 pyramid substitutes'
-    }
-  }));
+  const commonExtra = {
+    ...extra,
+    supportGlyphTipMm: tip,
+    supportGlyphBaseMm: base,
+    supportGlyphCapCenterMm: capCenter,
+    orientationAssumption: 'Support/ATTA record exported as conservative single/tick Review-safe code-8 cylinder glyph; canvas may use true THREE.ConeGeometry but RVM export never emits filled code-1 pyramid substitutes or multi-spoke cone fans'
+  };
+
+  return [
+    supportBar({
+      name: `${name}_RVM_STEM_BAR`,
+      localName: `${localName}-rvm-stem-bar`,
+      startMm: base,
+      endMm: tip,
+      radiusMm: barRadiusMm,
+      record,
+      visual,
+      role: `${role}-rvm-stem-bar`,
+      extra: {
+        ...commonExtra,
+        supportGlyphStemBar: true
+      }
+    }),
+    supportBar({
+      name: `${name}_RVM_TIP_TICK`,
+      localName: `${localName}-rvm-tip-tick`,
+      startMm: capStart,
+      endMm: capEnd,
+      radiusMm: Math.max(barRadiusMm * 0.72, 1.25),
+      record,
+      visual,
+      role: `${role}-rvm-tip-tick`,
+      extra: {
+        ...commonExtra,
+        supportGlyphTipTick: true,
+        supportGlyphTickStartMm: capStart,
+        supportGlyphTickEndMm: capEnd
+      }
+    })
+  ];
 }
 
 function supportBar({ name, localName, startMm, endMm, radiusMm, record, visual, role, extra = {} }) {

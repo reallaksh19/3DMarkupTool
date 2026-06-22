@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
-const ACTIVE_CACHE_KEY = 'tool-fixes-v2-20260620';
-const FIRST_PAINT_CACHE_KEY = 'tool-fixes-v2-20260620';
+const ACTIVE_CACHE_KEY = 'bm-cii-code8-support-export-20260622';
+const LEGACY_FIRST_PAINT_CACHE_KEY = 'tool-fixes-v2-20260620';
 const dateStampedKey = /^[a-z0-9-]+-20\d{6}$/;
 
 const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
@@ -39,24 +39,26 @@ function extractActiveQueryKeys(html) {
 
 const htmlKeys = extractActiveQueryKeys(index);
 assert.ok(htmlKeys.length >= 4, 'index must expose versioned first-paint assets');
-assert.deepEqual([...new Set(htmlKeys)], [FIRST_PAINT_CACHE_KEY], 'all active index ?v= keys must use the first-paint cache key');
-assert.match(ACTIVE_CACHE_KEY, dateStampedKey, 'active bundle cache key must be auditable/date-stamped');
-assert.match(FIRST_PAINT_CACHE_KEY, dateStampedKey, 'first-paint cache key must be auditable/date-stamped');
+assert.deepEqual([...new Set(htmlKeys)], [LEGACY_FIRST_PAINT_CACHE_KEY], 'source index ?v= keys must remain internally consistent');
+assert.match(ACTIVE_CACHE_KEY, dateStampedKey, 'active deployed cache key must be auditable/date-stamped');
+assert.match(LEGACY_FIRST_PAINT_CACHE_KEY, dateStampedKey, 'source first-paint cache key must be auditable/date-stamped');
 
 for (const [name, source] of [
-  ['safe-ui-bootstrap.js', safeBootstrap],
-  ['build-pages.mjs', buildScript]
+  ['build-pages.mjs', buildScript],
+  ['app-loader.js', appLoader]
 ]) {
-  assert.match(source, escaped(ACTIVE_CACHE_KEY), `${name} must use the active selection-first bundle cache key`);
+  assert.match(source, escaped(ACTIVE_CACHE_KEY), `${name} must use the active BM_CII support export cache key`);
   assert.doesNotMatch(source, /perf-static-drawer-bundle-20260620/, `${name} must not keep the prior static-drawer bundle key active`);
 }
 
 for (const [name, source] of [
-  ['app-loader.js', appLoader],
+  ['safe-ui-bootstrap.js', safeBootstrap],
   ['static-browser-diagnostics-controller.js', diagnostics]
 ]) {
-  assert.match(source, escaped(FIRST_PAINT_CACHE_KEY), `${name} must use the first-paint cache key`);
+  assert.match(source, escaped(LEGACY_FIRST_PAINT_CACHE_KEY), `${name} must keep the stable first-paint shell cache key`);
 }
+assert.match(buildScript, /LEGACY_CACHE_KEY = 'tool-fixes-v2-20260620'/, 'Pages build must name the source index cache key it rewrites');
+assert.match(buildScript, /replaceAll\(`\?v=\$\{LEGACY_CACHE_KEY\}`, `\?v=\$\{VERSION\}`\)/, 'Pages build must rewrite deployed index source-module cache keys');
 assert.match(diagnostics, /STALE_SHELL_VERSION = 'perf-static-drawer-bundle-20260620'/, 'diagnostics may retain the prior key only as stale-asset detection data');
 
 assertBefore(safeBootstrap, /const SAFE_UI_VERSION/, /scheduleCoreShell\(\)/, 'safe-ui-bootstrap constants must be declared before module-init calls');

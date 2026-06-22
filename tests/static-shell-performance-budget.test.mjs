@@ -17,9 +17,10 @@ const pkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url),
 const moduleScriptCount = (index.match(/<script\s+type="module"/g) || []).length;
 const staticShellImports = (bootstrap.match(/\.js\?v=\$\{SAFE_UI_VERSION\}/g) || []).length;
 const startupScriptBlock = index.slice(index.indexOf('<script type="module"'));
+const rootCacheKeyPattern = /bm-cii-code8-support-export-20260622|tool-fixes-v2-20260620|perf-tdz-fix-20260620|perf-static-drawer-bundle-20260620|perf-idle-diagnostics-20260620|perf-static-shell-20260620/;
 
 assert.ok(moduleScriptCount <= 3, `index.html should keep top-level module scripts bounded; found ${moduleScriptCount}.`);
-assert.match(index, /static-shell-performance\.css\?v=(tool-fixes-v2-20260620|perf-tdz-fix-20260620|perf-static-drawer-bundle-20260620|perf-idle-diagnostics-20260620|perf-static-shell-20260620)/, 'Index must load static performance CSS before JS bootstrap.');
+assert.match(index, new RegExp(`static-shell-performance\\.css\\?v=(${rootCacheKeyPattern.source})`), 'Index must load static performance CSS before JS bootstrap.');
 assert.match(index, /id="topReviewMenu"[\s\S]*review-top-menu-btn/, 'Top Review menu slot must be statically reserved before JS decorates it.');
 assert.match(index, /id="staticReviewRibbonGroup"/, 'Review ribbon group must be statically reserved before JS decorates it.');
 assert.match(index, /class="tool-group toolbar-group navis-tag-tools tag-lite-host static-markup-tools"/, 'Markup row host must be statically present before JS decorates it.');

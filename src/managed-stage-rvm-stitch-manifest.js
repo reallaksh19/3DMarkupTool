@@ -1,5 +1,5 @@
 const PRIMITIVE_CODE_BY_KIND = Object.freeze({ pyramid: 1, cylinder: 8, elbow: 4 });
-const SUPPORT_OVERLAY_PRIMITIVE_CODES = Object.freeze([1, 8]);
+const SUPPORT_OVERLAY_PRIMITIVE_CODES = Object.freeze([8]);
 
 export function buildManagedStageRvmStitchManifest(profile = {}, exportModel = {}, primitivePayloads = []) {
   const geometryRecords = profile.geometryRecords || [];
@@ -60,6 +60,9 @@ export function buildManagedStageRvmStitchManifest(profile = {}, exportModel = {
     if (planned.kind && expectedCode !== Number(decoded.code)) {
       issues.push(`support overlay primitive ${index + 1} code mismatch: expected ${expectedCode}, got ${decoded.code}`);
     }
+    if (planned.kind === 'pyramid') {
+      issues.push(`support overlay primitive ${index + 1} uses blocked filled pyramid substitute`);
+    }
     return {
       index: index + 1,
       localName: planned.localName || planned.name || `SUPPORT_PRIM_${index + 1}`,
@@ -80,6 +83,7 @@ export function buildManagedStageRvmStitchManifest(profile = {}, exportModel = {
   return {
     schema: 'ManagedStageRvmStitchManifest.v1',
     stitchStrategy: 'single RVM stream assembled from ordered managed-stage piping element CNTB nodes plus optional support overlay CNTB nodes',
+    supportOverlayPolicy: 'support overlays are Review-safe code-8 cylinder bar glyphs only; filled code-1 pyramid/cone substitutes are blocked',
     elementCount: elements.length,
     exportElementNodeCount: elementNodes.length,
     primitiveCount: elements.reduce((sum, element) => sum + element.primitiveCount, 0) + supportOverlayPrimitives.length,
@@ -114,6 +118,9 @@ export function assertManagedStageRvmStitchManifest(manifest = {}) {
   for (const primitive of manifest.supportOverlayPrimitives || []) {
     if (!SUPPORT_OVERLAY_PRIMITIVE_CODES.includes(Number(primitive.emittedCode))) {
       issues.push(`support overlay primitive ${primitive.index} code mismatch: expected one of ${SUPPORT_OVERLAY_PRIMITIVE_CODES.join('/')}, got ${primitive.emittedCode}`);
+    }
+    if (Number(primitive.emittedCode) === 1 || primitive.kind === 'pyramid') {
+      issues.push(`support overlay primitive ${primitive.index} uses blocked filled pyramid substitute`);
     }
     if (primitive.expectedCode !== null && primitive.expectedCode !== undefined && primitive.expectedCode !== primitive.emittedCode) {
       issues.push(`support overlay primitive ${primitive.index} planned code mismatch: expected ${primitive.expectedCode}, got ${primitive.emittedCode}`);

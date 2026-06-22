@@ -3,28 +3,54 @@ import { distance, point3 } from './managed-stage-topology-audit.js';
 const EPS_MM = 0.001;
 const SUPPORTED_DTXR = new Set(['PIPE', 'UNSPECIFIED', 'BEND', 'FLANGE', 'FLANGE_PAIR', 'VALVE', 'FLANGED_VALVE']);
 
-export function buildManagedStageGeometryContractSet(profileOrRecords) {
+export function buildManagedStageGeometryContractSet(profileOrRecords, options = {}) {
   const geometryRecords = Array.isArray(profileOrRecords) ? profileOrRecords : profileOrRecords.geometryRecords || [];
   const supportRecords = Array.isArray(profileOrRecords) ? [] : profileOrRecords.supportRecords || [];
-  const contracts = geometryRecords.map((record, index) => createManagedStageGeometryContract(record, index));
-  const audit = auditManagedStageGeometryContracts(contracts, { supportRecordsSkippedFromGeometry: supportRecords.length });
+  const contracts = [];
+  const warnings = [];
+  const skippedContracts = [];
+  for (const [index, record] of geometryRecords.entries()) {
+    try {
+      const contract = createManagedStageGeometryContract(record, index, options);
+      contracts.push(contract);
+      warnings.push(...(contract.nonBlockingGeometryWarnings || []));
+    } catch (error) {
+      if (!warningOnly(options)) throw error;
+      const name = record?.attributes?.NAME || record?.name || `ELEMENT_${index + 1}`;
+      const warning = geometryWarning('contract-skipped', name, error.message);
+      warnings.push(warning);
+      skippedContracts.push(warning);
+    }
+  }
+  const audit = auditManagedStageGeometryContracts(contracts, {
+    sourceGeometryRecordCount: geometryRecords.length,
+    supportRecordsSkippedFromGeometry: supportRecords.length,
+    nonBlockingWarnings: warnings,
+    skippedContracts
+  });
   return {
     schema: 'ManagedStageGeometryContractSet.v1',
     units: 'mm',
     contractCount: contracts.length,
+    sourceGeometryRecordCount: geometryRecords.length,
     supportRecordsSkippedFromGeometry: supportRecords.length,
     contracts,
     audit
   };
 }
 
-export function createManagedStageGeometryContract(record, elementIndex = 0) {
+export function createManagedStageGeometryContract(record, elementIndex = 0, options = {}) {
   const a = record.attributes || {};
   if (record.type === 'ATTA' || a.TYPE === 'ATTA') {
     throw new Error(`Support/restraint record is not a geometry contract: ${record.name || a.NAME || 'UNNAMED'}`);
   }
-  const dtxr = a.DTXR || a.RAW_TYPE || record.type || 'UNKNOWN';
-  if (!SUPPORTED_DTXR.has(dtxr)) throw new Error(`Unsupported managed-stage geometry DTXR: ${dtxr}`);
+  let dtxr = a.DTXR || a.RAW_TYPE || record.type || 'UNKNOWN';
+  const warnings = [];
+  if (!SUPPORTED_DTXR.has(dtxr)) {
+    if (!warningOnly(options)) throw new Error(`Unsupported managed-stage geometry DTXR: ${dtxr}`);
+    warnings.push(geometryWarning('unsupported-dtxr-degraded', a.NAME || record.name || 'UNNAMED', `Unsupported managed-stage geometry DTXR ${dtxr}; emitted as UNSPECIFIED`));
+    dtxr = 'UNSPECIFIED';
+  }
 
   const start = point3(a.APOS, `${record.name}.APOS`);
   const end = point3(a.LPOS, `${record.name}.LPOS`);
@@ -59,21 +85,32 @@ export function createManagedStageGeometryContract(record, elementIndex = 0) {
     material: a.MATERIAL || '',
     wallThickMm: parseOptionalMm(a.WALL_THICK),
     sourceFormat: a.SOURCE_FORMAT || '',
-    sourceElementId: a.SOURCE_ELEMENT_ID || ''
+    sourceElementId: a.SOURCE_ELEMENT_ID || '',
+    nonBlockingGeometryWarnings: warnings
   };
 
   if (contract.centerlineKind === 'arc') {
     const bendRadiusMm = parseOptionalMm(a.BEND_RADIUS);
-    const bendAngleDeg = Number(a.BEND_ANGLE || 90);
-    if (!(bendRadiusMm > 0)) throw new Error(`Missing/invalid bend radius for ${contract.name}`);
-    if (!(bendAngleDeg > 0)) throw new Error(`Missing/invalid bend angle for ${contract.name}`);
-    contract.arc = {
-      bendRadiusMm,
-      tubeRadiusMm: contract.radiusMm,
-      bendAngleDeg,
-      sweepAngleRad: (bendAngleDeg * Math.PI) / 180,
-      solverState: 'endpoint-contract-only'
-    };
+    const bendAngleDeg = parseOptionalNumber(a.BEND_ANGLE);
+    const bendIssues = [];
+    if (!(bendRadiusMm > 0)) bendIssues.push(`Missing/invalid bend radius for ${contract.name}`);
+    if (!(bendAngleDeg > 0)) bendIssues.push(`Missing/invalid bend angle for ${contract.name}`);
+    if (bendIssues.length) {
+      if (!warningOnly(options)) throw new Error(bendIssues[0]);
+      for (const issue of bendIssues) warnings.push(geometryWarning('bend-arc-degraded-to-source-route', contract.name, issue));
+      contract.centerlineKind = 'line';
+      contract.excludeCode4Bend = true;
+      contract.degradedBendToSourceRouteCylinder = true;
+      contract.bendArcDegradationReason = bendIssues.join('; ');
+    } else {
+      contract.arc = {
+        bendRadiusMm,
+        tubeRadiusMm: contract.radiusMm,
+        bendAngleDeg,
+        sweepAngleRad: (bendAngleDeg * Math.PI) / 180,
+        solverState: 'endpoint-contract-only'
+      };
+    }
   }
 
   return contract;
@@ -87,6 +124,7 @@ export function auditManagedStageGeometryContracts(contracts = [], options = {})
   const invalidAxis = [];
   const unsupportedDtxr = [];
   const missingNodes = [];
+  const degradedBends = [];
   let maxAxisLengthError = 0;
 
   for (const contract of contracts) {
@@ -94,6 +132,7 @@ export function auditManagedStageGeometryContracts(contracts = [], options = {})
     classHistogram[contract.componentClass] = (classHistogram[contract.componentClass] || 0) + 1;
     centerlineKindHistogram[contract.centerlineKind] = (centerlineKindHistogram[contract.centerlineKind] || 0) + 1;
     if (!SUPPORTED_DTXR.has(contract.dtxr)) unsupportedDtxr.push(contract.name);
+    if (contract.degradedBendToSourceRouteCylinder) degradedBends.push(contract.name);
     if (!(contract.lengthMm > 0)) zeroLength.push(contract.name);
     if (!contract.fromNode || !contract.toNode) missingNodes.push(contract.name);
     const axisLen = Math.hypot(contract.axis?.[0] || 0, contract.axis?.[1] || 0, contract.axis?.[2] || 0);
@@ -105,7 +144,9 @@ export function auditManagedStageGeometryContracts(contracts = [], options = {})
   return {
     schema: 'ManagedStageGeometryContractAudit.v1',
     toleranceMm: EPS_MM,
+    sourceGeometryRecordCount: options.sourceGeometryRecordCount ?? contracts.length,
     contractCount: contracts.length,
+    skippedContractCount: options.skippedContracts?.length || 0,
     supportRecordsSkippedFromGeometry: options.supportRecordsSkippedFromGeometry || 0,
     dtxrHistogram,
     classHistogram,
@@ -114,6 +155,10 @@ export function auditManagedStageGeometryContracts(contracts = [], options = {})
     invalidAxis,
     unsupportedDtxr,
     missingNodes,
+    degradedBends,
+    nonBlockingWarnings: options.nonBlockingWarnings || [],
+    nonBlockingWarningCount: (options.nonBlockingWarnings || []).length,
+    skippedContracts: options.skippedContracts || [],
     maxAxisLengthError: round(maxAxisLengthError),
     allEndpointLocked: contracts.every((contract) => contract.endpointLocked === true),
     allEmitGeometry: contracts.every((contract) => contract.emitGeometry === true)
@@ -148,6 +193,14 @@ export function componentClassForDtxr(dtxr) {
   return 'UNKNOWN';
 }
 
+function warningOnly(options = {}) {
+  return options.nonBlockingGeometryGates === true || options.warningOnlyManagedStageGates === true;
+}
+
+function geometryWarning(code, elementName, message) {
+  return { code, severity: 'warning', elementName, message };
+}
+
 function parseMm(value) {
   if (typeof value === 'number') return value;
   return Number(String(value || '').replace(/mm$/i, '').trim());
@@ -156,6 +209,12 @@ function parseMm(value) {
 function parseOptionalMm(value) {
   if (value === undefined || value === null || value === '') return null;
   const parsed = parseMm(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function parseOptionalNumber(value) {
+  if (value === undefined || value === null || value === '') return null;
+  const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : null;
 }
 

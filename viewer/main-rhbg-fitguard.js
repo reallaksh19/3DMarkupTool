@@ -1,7 +1,7 @@
 const STARTUP_SIDE_EFFECT_MODULES = [
   './rvm/AvevaJsonAutoConnectOverride.js?v=20260618-inputxml-auto-connect-1',
-  './rvm-viewer/RvmInputXmlSupportGraphicsSetModelBridge.js?v=20260622-rvm-native-support-overlay-1',
-  './rvm-viewer/RvmInputXmlSupportGraphicsUiBridge.js?v=20260619-source-bend-collapse-1',
+  './rvm-viewer/RvmInputXmlSupportGraphicsSetModelBridge.js?v=20260622-nonprimitive-overlay-gate-1',
+  './rvm-viewer/RvmInputXmlSupportGraphicsUiBridge.js?v=20260622-nonprimitive-overlay-gate-1',
   './tabs/model-converters/xml-cii-finalise-run-button.js?v=20260619-workflow-perf-1',
 ];
 // Legacy static-contract marker: core/app.js?v=20260620-rvm-stagedjson-validation-1
@@ -37,7 +37,8 @@ const STARTUP_SIDE_EFFECT_MODULES = [
 // Previous cache marker: core/app.js?v=20260622-geometry-mapping-1
 // Previous cache marker: core/app.js?v=20260622-geometry-profile-ui-1
 // Previous cache marker: core/app.js?v=20260622-geometry-calc-canvas-1
-// Active cache key: core/app.js?v=20260622-rvm-native-support-overlay-1
+// Previous cache marker: core/app.js?v=20260622-rvm-native-support-overlay-1
+// Active cache key: core/app.js?v=20260622-nonprimitive-overlay-gate-1
 
 function startupMount() {
   return document.getElementById('app') || document.getElementById('app-layout') || document.getElementById('app-shell') || document.body;

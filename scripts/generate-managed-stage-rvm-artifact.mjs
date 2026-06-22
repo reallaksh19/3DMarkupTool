@@ -37,8 +37,11 @@ console.log(`InputXML bends excluded: ${result.audit.inputXmlBendExclusionAudit?
 console.log(`InputXML branch fittings inferred: ${result.audit.inputXmlBranchFittingInferenceAudit?.genericBranchFittingCount || 0}`);
 console.log(`Support records emitted to RVM: ${result.audit.supportRvmExportAudit?.supportRecordCount || 0}`);
 console.log(`Support RVM primitives: ${result.audit.supportRvmExportAudit?.supportPrimitiveCount || 0}`);
+console.log(`Support code histogram: ${JSON.stringify(result.audit.supportRvmExportAudit?.supportPrimitiveCodeHistogram || {})}`);
 console.log(`Support cones: ${result.audit.supportRvmExportAudit?.supportConePrimitiveCount || 0}`);
 console.log(`Support bars: ${result.audit.supportRvmExportAudit?.supportBarPrimitiveCount || 0}`);
+console.log(`Support max glyph extent mm: ${result.audit.supportRvmExportAudit?.supportMaxGlyphExtentMm || 0}`);
+console.log(`Support max cluster offset mm: ${result.audit.supportRvmExportAudit?.supportMaxClusterOffsetMm || 0}`);
 console.log(`Max centerline gap mm: ${result.audit.topology.maxCenterlineGapMm}`);
 console.log(`Strict audit gate: ${result.audit.managedStageStrictGate.ok ? 'PASS' : 'FAIL'}`);
 
@@ -63,12 +66,16 @@ function bmCiiExpectations() {
     geometryComponents: 40,
     supportRecordsSkippedFromGeometry: 12,
     supportRecordsEmittedToRvm: 12,
-    supportRvmPrimitiveCount: 25,
-    code1: 17,
+    supportRvmPrimitiveCount: 42,
+    code1: 0,
     code4: 0,
-    code8: 99,
+    code8: 133,
     cntbCount: 56,
-    primCount: 116
+    primCount: 133,
+    supportMaxGlyphExtentMm: 100,
+    supportMaxClusterOffsetMm: 30,
+    supportMaxPrimitiveSpanMm: 60,
+    supportMaxBarRadiusMm: 3
   };
 }
 

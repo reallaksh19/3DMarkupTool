@@ -100,20 +100,23 @@ assert.match(rawPreview, /createManagedStageSupportPreviewObject/);
 assert.match(rawPreview, /supportVisualPolicy/);
 assert.match(rawPreview, /MANAGED_STAGE_SUPPORT_RESTRAINT_PREVIEW/);
 
-assert.match(supportVisualResolver, /ManagedStageSupportVisualResolver\.v1/);
-assert.match(supportVisualResolver, /REST = \+Y upward point cone/);
-assert.match(supportVisualResolver, /HOLDDOWN = \+\/-Y double vertical point cones/);
+assert.match(supportVisualResolver, /ManagedStageSupportVisualResolver\.v2/);
+assert.match(supportVisualResolver, /REST\/GUIDE\/LINESTOP\/HOLDDOWN preview uses compact cylinder stem\+tick bars, not solid cones/);
+assert.match(supportVisualResolver, /RVM export and raw preview share a compact glyph envelope/);
 assert.match(supportVisualResolver, /X pipe -> \+\/-Z/);
 assert.match(supportVisualResolver, /Z pipe -> \+\/-X/);
 assert.match(supportVisualResolver, /single-axis restraints without \+\/- are warning markers/);
 assert.match(supportVisualResolver, /gap is record-scoped/);
-assert.match(supportVisualResolver, /ODx2\/3 applies only to final axial/);
+assert.match(supportVisualResolver, /ODx2\/3 resolver is applied only to final axial/);
 assert.match(supportVisualResolver, /support-cluster resolver/);
 assert.match(supportVisualResolver, /translucent crossed X rods/);
+assert.doesNotMatch(supportVisualResolver, /REST = \+Y upward point cone/);
+assert.doesNotMatch(supportVisualResolver, /HOLDDOWN = \+\/-Y double vertical point cones/);
 
 await import('./managed-stage-rvm-audit-gate-nonblocking.test.mjs');
 await import('./managed-stage-support-visual-resolver.test.mjs');
 await import('./managed-stage-support-cluster.test.mjs');
+await import('./managed-stage-nonprimitive-overlay-gate.test.mjs');
 await import('./managed-stage-viewer-api-bridge.test.mjs');
 
-console.log('unified InputXML / managed-stage JSON UI uses coordinate-preserving preview pipeline, support visual resolver, compact code-8 support-bar RVM contract, and non-blocking UI warnings');
+console.log('unified InputXML / managed-stage JSON UI uses coordinate-preserving preview pipeline, support visual resolver, compact code-8 support-bar RVM contract, non-primitive overlay gates, and non-blocking UI warnings');

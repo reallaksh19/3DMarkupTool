@@ -5,10 +5,11 @@ import { MANAGED_STAGE_SUPPORT_SOURCE_MODES, normalizeManagedStageSupportMapperR
 
 export const MANAGED_STAGE_SUPPORT_SOURCE_PREVIEW_BRIDGE_SCHEMA = 'ManagedStageSupportSourcePreviewBridge.v1';
 export const MANAGED_STAGE_SUPPORT_SOURCE_PREVIEW_DIAGNOSTICS_SCHEMA = 'ManagedStageSupportSourcePreviewDiagnostics.v1';
-export const MANAGED_STAGE_SUPPORT_SOURCE_PREVIEW_BRIDGE_CACHE_KEY = '20260623-staged-json-support-source-preview-7-preflight-issues';
+export const MANAGED_STAGE_SUPPORT_SOURCE_PREVIEW_BRIDGE_CACHE_KEY = '20260623-staged-json-support-source-preview-8-rule-preview-rows';
 export const ISONOTE_SUPPORT_SOURCE_OVERLAY_ROOT = 'MANAGED_STAGE_SUPPORT_SOURCE_OVERLAY_ISONOTE';
 export const STAGED_JSON_SUPPORT_SOURCE_OVERLAY_ROOT = 'MANAGED_STAGE_SUPPORT_SOURCE_OVERLAY_STAGED_JSON';
 const MAX_PREFLIGHT_ISSUES = 50;
+const MAX_RULE_PREVIEW_ROWS = 80;
 
 export function installManagedStageSupportSourcePreviewBridge({ win = globalThis.window, doc = globalThis.document } = {}) {
   if (!win || win.__3D_MARKUP_SUPPORT_SOURCE_PREVIEW_BRIDGE__?.schema === MANAGED_STAGE_SUPPORT_SOURCE_PREVIEW_BRIDGE_SCHEMA) return win?.__3D_MARKUP_SUPPORT_SOURCE_PREVIEW_BRIDGE__ || null;
@@ -99,7 +100,7 @@ export function buildIsonoteSupportPreviewRecords(isonoteText = '', pipeRecords 
 }
 
 export function collectManagedStageSupportSourcePreviewDiagnostics(modelRoot, result = {}) {
-  const diagnostics = { schema: MANAGED_STAGE_SUPPORT_SOURCE_PREVIEW_DIAGNOSTICS_SCHEMA, sourceMode: result.sourceMode || '', status: result.status || '', removed: Number(result.removed || 0), mapperConfigApplied: Boolean(result.mapperConfigApplied), pipeRecordCount: Number(result.pipeRecordCount || 0), stagedJsonSupportRecordCount: Number(result.stagedJsonSupportRecordCount || 0), isonoteSupportRecordCount: Number(result.isonoteSupportRecordCount || 0), overlayPrimitiveGroupCount: Number(result.overlayPrimitiveGroupCount || 0), stagedJsonOverlayRootCount: 0, isonoteOverlayRootCount: 0, supportSymbolCount: 0, stagedJsonSymbolCount: 0, isonoteSymbolCount: 0, supportVisualPartCount: 0, supportFamilyHistogram: {}, supportCanvasAxisHistogram: {}, axisBasisAppliedCount: 0, popupRequiredCount: 0, warningCount: 0, gapRecordScopedCount: 0, gapCarryForwardViolationCount: 0, mapperPreflightIssueCount: 0, mapperPreflightWarningCount: 0, mapperPreflightErrorCount: 0, mapperPreflightPopupRequiredCount: 0, mapperPreflightIssues: [], maxGlyphLengthMm: 0, maxClusterOffsetMm: 0, maxGapVisualSeparationMm: 0, activeSourceExclusive: true, pass: true };
+  const diagnostics = { schema: MANAGED_STAGE_SUPPORT_SOURCE_PREVIEW_DIAGNOSTICS_SCHEMA, sourceMode: result.sourceMode || '', status: result.status || '', removed: Number(result.removed || 0), mapperConfigApplied: Boolean(result.mapperConfigApplied), pipeRecordCount: Number(result.pipeRecordCount || 0), stagedJsonSupportRecordCount: Number(result.stagedJsonSupportRecordCount || 0), isonoteSupportRecordCount: Number(result.isonoteSupportRecordCount || 0), overlayPrimitiveGroupCount: Number(result.overlayPrimitiveGroupCount || 0), stagedJsonOverlayRootCount: 0, isonoteOverlayRootCount: 0, supportSymbolCount: 0, stagedJsonSymbolCount: 0, isonoteSymbolCount: 0, supportVisualPartCount: 0, supportFamilyHistogram: {}, supportCanvasAxisHistogram: {}, axisBasisAppliedCount: 0, popupRequiredCount: 0, warningCount: 0, gapRecordScopedCount: 0, gapCarryForwardViolationCount: 0, mapperPreflightIssueCount: 0, mapperPreflightWarningCount: 0, mapperPreflightErrorCount: 0, mapperPreflightPopupRequiredCount: 0, mapperPreflightIssues: [], supportRulePreviewRows: [], maxGlyphLengthMm: 0, maxClusterOffsetMm: 0, maxGapVisualSeparationMm: 0, activeSourceExclusive: true, pass: true };
   modelRoot?.traverse?.((object) => {
     const data = object?.userData || {};
     if (object?.name === STAGED_JSON_SUPPORT_SOURCE_OVERLAY_ROOT) diagnostics.stagedJsonOverlayRootCount += 1;
@@ -122,6 +123,9 @@ export function collectManagedStageSupportSourcePreviewDiagnostics(modelRoot, re
     diagnostics.supportFamilyHistogram[family] = (diagnostics.supportFamilyHistogram[family] || 0) + 1;
     if (canvasAxis) diagnostics.supportCanvasAxisHistogram[canvasAxis] = (diagnostics.supportCanvasAxisHistogram[canvasAxis] || 0) + 1;
     if (mapperRecord?.attrs?.SUPPORT_AXIS_CANVAS_APPLIED === 'TRUE') diagnostics.axisBasisAppliedCount += 1;
+    if (diagnostics.supportRulePreviewRows.length < MAX_RULE_PREVIEW_ROWS) {
+      diagnostics.supportRulePreviewRows.push(buildSupportRulePreviewRow(object, data, visual, mapperRecord, { itemMode, family, canvasAxis }));
+    }
     const preflight = mapperRecord?.preflight || null;
     if (preflight) {
       diagnostics.mapperPreflightIssueCount += Number(preflight.issueCount || 0);
@@ -216,6 +220,51 @@ function mappedAxisOverrideAttrs(mapperRecord) {
     SUPPORT_AXIS_CANVAS_APPLIED: 'TRUE',
     SUPPORT_AXIS_SOURCE_ORIGINAL: sourceAxis
   };
+}
+
+function buildSupportRulePreviewRow(object, data, visual, mapperRecord, context = {}) {
+  const explicitAxis = visual.explicitAxis || null;
+  const sourceAxis = mapperRecord?.axis?.sourceAxis || data?.SUPPORT_AXIS_SOURCE_ORIGINAL || explicitAxisText(explicitAxis) || '';
+  const canvasAxis = context.canvasAxis || mapperRecord?.axis?.canvasAxis || explicitAxisText(explicitAxis) || '';
+  const sign = mapperRecord?.attrs?.SUPPORT_SIGN_MAPPED || explicitAxis?.sign || (visual.explicitSignApplied ? explicitAxis?.sign : '');
+  const emittedSymbolCount = countSupportVisualParts(object);
+  return {
+    sourceMode: context.itemMode || data.supportSourceMode || '',
+    sourceRow: data.isonoteRawText || data.sourcePath || data.sourceName || object.name || '',
+    supportTag: data.sourceName || mapperRecord?.supportTag || data.sourcePath || object.name || '',
+    family: context.family || mapperRecord?.family || visual.family || 'UNKNOWN',
+    node: String(visual.node || data.fromNode || data.toNode || mapperRecord?.attrs?.NODE || ''),
+    sourceAxis,
+    canvasAxis,
+    sign,
+    gapMm: round(visual.gapMm),
+    gapVisualSeparationMm: round(visual.gapVisualSeparationMm),
+    graphicsRule: mapperRecord?.graphicsRule || visualRuleName(visual),
+    emittedSymbolCount,
+    symbolRoleCount: Number(visual.directionalGlyphCount || visual.coneCount || 0),
+    popupRequired: Boolean(data.popupRequired || visual.popupRequired || mapperRecord?.preflight?.popupRequired),
+    preflightPass: mapperRecord?.preflight ? Boolean(mapperRecord.preflight.pass) : true
+  };
+}
+
+function visualRuleName(visual = {}) {
+  const family = String(visual.family || '').toUpperCase();
+  if (family === 'REST') return 'positive-y-upward-arrow';
+  if (family === 'HOLDDOWN') return 'double-vertical-y-arrows';
+  if (family === 'GUIDE') return 'lateral-by-pipe-orientation';
+  if (family === 'LINE_STOP' || family === 'LIMIT_STOP') return 'axial-pair-or-explicit-sign';
+  if (family === 'SPRING_CAN') return 'warning-coil-below-pipe';
+  if (family === 'SINGLE_AXIS_WARNING') return 'warning-marker-popup-required';
+  if (visual.fallbackCrossRods) return 'fallback-cross-rods';
+  return 'unknown-support-rule';
+}
+
+function countSupportVisualParts(object) {
+  let count = 0;
+  object?.traverse?.((child) => {
+    if (child !== object && child?.userData?.managedStageSupportVisualPart) count += 1;
+  });
+  return count;
 }
 
 function appendPreflightIssues(diagnostics, preflight, mapperRecord, context = {}) {

@@ -1,4 +1,4 @@
-const APP_LOADER_VERSION = 'bm-cii-code8-support-export-20260622';
+const APP_LOADER_VERSION = 'stagedjson-support-mapper-diagnostics-20260623';
 const APP_MODULE_URL = `./app.js?v=${APP_LOADER_VERSION}`;
 const CLIP_HOOK_MODULE_URL = `./clip-render-hook.js?v=${APP_LOADER_VERSION}`;
 const FRESH_CLIP_MODULE_URL = `./fresh-clip-controller.js?v=${APP_LOADER_VERSION}`;
@@ -10,6 +10,7 @@ const MANAGED_STAGE_INPUTXML_CLASSIFICATION_GUARD_MODULE_URL = `./managed-stage-
 const MANAGED_STAGE_GEOMETRY_LEDGER_MODULE_URL = `./managed-stage-geometry-ledger.js?v=${APP_LOADER_VERSION}`;
 const MANAGED_STAGE_SUPPORT_SOURCE_UI_MODULE_URL = `./managed-stage-support-source-ui-controller.js?v=${APP_LOADER_VERSION}`;
 const MANAGED_STAGE_SUPPORT_SOURCE_PREVIEW_MODULE_URL = `./managed-stage-support-source-preview-bridge.js?v=${APP_LOADER_VERSION}`;
+const MANAGED_STAGE_SUPPORT_MAPPER_DIAGNOSTICS_UI_MODULE_URL = `./managed-stage-support-mapper-diagnostics-ui.js?v=${APP_LOADER_VERSION}`;
 const BUNDLED_ASSETS = window.__3D_MARKUP_BUNDLED_ASSETS__ || {};
 // Resolve against document.baseURI: import() is module-relative but the
 // manifest URL (./assets/) is meant to be document-relative.
@@ -130,6 +131,7 @@ function loadManagedStageJsonUiController() {
     .then(() => import(MANAGED_STAGE_GEOMETRY_LEDGER_MODULE_URL))
     .then(() => import(MANAGED_STAGE_SUPPORT_SOURCE_UI_MODULE_URL))
     .then(() => import(MANAGED_STAGE_SUPPORT_SOURCE_PREVIEW_MODULE_URL))
+    .then(() => import(MANAGED_STAGE_SUPPORT_MAPPER_DIAGNOSTICS_UI_MODULE_URL))
     .catch((error) => {
       console.warn('[3DMarkupTool] Managed-stage JSON UI controller skipped.', error);
       window.dispatchEvent(new CustomEvent('viewer:managed-stage-json-ui-skipped', {

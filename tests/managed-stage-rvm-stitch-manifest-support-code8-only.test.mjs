@@ -11,9 +11,9 @@ const result = convertManagedStageJsonToRvmAtt(JSON.stringify(createBmCiiManaged
     supportRvmPrimitiveCount: 42,
     code1: 0,
     code4: 0,
-    code8: 133,
+    code8: 157,
     cntbCount: 56,
-    primCount: 133,
+    primCount: 157,
     supportMaxGlyphExtentMm: 100,
     supportMaxClusterOffsetMm: 30,
     supportMaxPrimitiveSpanMm: 60,
@@ -29,7 +29,7 @@ assert.equal(manifest.supportOverlayPrimitives.filter((primitive) => primitive.e
 assert.equal(manifest.supportOverlayPrimitives.filter((primitive) => primitive.kind === 'pyramid').length, 0);
 assert.equal(manifest.supportOverlayPrimitives.filter((primitive) => primitive.emittedCode === 8).length, 42);
 assert.ok(manifest.supportOverlayPrimitives.every((primitive) => primitive.expectedCode === primitive.emittedCode));
-assert.deepEqual(result.audit.primitiveHistogram, { 8: 133 });
+assert.deepEqual(result.audit.primitiveHistogram, { 8: 157 });
 assert.deepEqual(result.audit.supportRvmExportAudit.supportPrimitiveCodeHistogram, { 8: 42 });
 assert.deepEqual(result.audit.supportRvmExportAudit.supportForbiddenPrimitiveCodesPresent, []);
 assert.equal(result.audit.supportRvmExportAudit.supportConePrimitiveCount, 0);
@@ -40,6 +40,15 @@ assert.ok(result.audit.supportRvmExportAudit.supportMaxClusterOffsetMm <= 30);
 assert.ok(result.audit.supportRvmExportAudit.supportMaxPrimitiveSpanMm <= 60);
 assert.ok(result.audit.supportRvmExportAudit.supportMaxBarRadiusMm <= 3);
 
+const componentAudit = result.exportModel.audit.componentPrimitiveSymbolExportAudit;
+assert.equal(componentAudit.supportNodeCount, 12);
+assert.equal(componentAudit.flangeNodeCount, 8);
+assert.equal(componentAudit.valveNodeCount, 6);
+assert.equal(componentAudit.weldNeckFlangePrimitiveCount, 12);
+assert.equal(componentAudit.ballValvePrimitiveCount, 30);
+assert.equal(manifest.geometryPrimitiveCount, 115);
+assert.equal(manifest.primitiveCount, 157);
+
 const supportPrimitives = result.exportModel.audit.supportRvmExportAudit.nodes.flatMap((node) => node.primitives);
 assert.equal(supportPrimitives.filter((primitive) => primitive.supportConeFanBlocked === true).length, 34);
 assert.equal(supportPrimitives.filter((primitive) => primitive.supportGlyphStemBar === true).length, 17);
@@ -48,4 +57,4 @@ assert.ok(supportPrimitives.every((primitive) => primitive.kind === 'cylinder'))
 assert.ok(supportPrimitives.every((primitive) => primitive.supportPointCone === false));
 assert.ok(supportPrimitives.every((primitive) => primitive.supportPrimitiveCode === 8));
 
-console.log('managed-stage stitch manifest emits support overlays as compact code-8 bars only');
+console.log('managed-stage stitch manifest emits support overlays and component symbols as code-8 RVM primitives');

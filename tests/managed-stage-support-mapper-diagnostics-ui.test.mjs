@@ -35,6 +35,21 @@ const diagnostics = {
       axis: '+Z'
     }
   ],
+  supportRulePreviewRows: [
+    {
+      sourceMode: 'isonote',
+      supportTag: 'PS-001',
+      family: 'LINE_STOP',
+      node: '10',
+      sourceAxis: '-X',
+      canvasAxis: '+Z',
+      sign: '+',
+      gapMm: 4,
+      gapVisualSeparationMm: 28,
+      graphicsRule: 'axial-pair-or-explicit-sign',
+      emittedSymbolCount: 2
+    }
+  ],
   popupRequiredCount: 1,
   warningCount: 1,
   gapRecordScopedCount: 2,
@@ -55,6 +70,8 @@ assert.equal(rows.some((row) => row.key === 'supportSymbolCount' && row.value ==
 assert.equal(rows.some((row) => row.key === 'mapperPreflightIssueCount' && row.value === '1'), true);
 assert.equal(rows.some((row) => row.key === 'mapperPreflightPopupRequiredCount' && row.value === '1'), true);
 assert.equal(rows.some((row) => row.key === 'mapperPreflightIssues' && row.value.includes('single-axis-missing-sign')), true);
+assert.equal(rows.some((row) => row.key === 'supportRulePreviewRows' && row.value.includes('axial-pair-or-explicit-sign')), true);
+assert.equal(rows.some((row) => row.key === 'supportRulePreviewRows' && row.value.includes('PS-001:LINE_STOP:+Z')), true);
 assert.equal(rows.some((row) => row.key === 'gapCarryForwardViolationCount' && row.value === '0'), true);
 assert.equal(rows.some((row) => row.key === 'supportFamilyHistogram' && row.value.includes('GUIDE:1')), true);
 assert.equal(rows.some((row) => row.key === 'supportCanvasAxisHistogram' && row.value.includes('+Z:2')), true);
@@ -62,6 +79,7 @@ assert.equal(rows.some((row) => row.key === 'supportCanvasAxisHistogram' && row.
 const summary = supportMapperDiagnosticsSummary(diagnostics);
 assert.equal(summary.includes('isonote'), true);
 assert.equal(summary.includes('symbols 3'), true);
+assert.equal(summary.includes('rule rows 1'), true);
 assert.equal(summary.includes('preflight 0E/1W'), true);
 assert.equal(summary.includes('listed issues 1'), true);
 assert.equal(summary.includes('gap carry-forward 0'), true);
@@ -76,6 +94,11 @@ assert.equal(html.includes('PS-001'), true);
 assert.equal(html.includes('Family histogram'), true);
 assert.equal(html.includes('REST:1'), true);
 assert.equal(html.includes('+Z:2'), true);
+assert.equal(html.includes('Support rule preview'), true);
+assert.equal(html.includes('Source axis'), true);
+assert.equal(html.includes('Canvas axis'), true);
+assert.equal(html.includes('axial-pair-or-explicit-sign'), true);
+assert.equal(html.includes('LINE_STOP'), true);
 
 const failingSummary = supportMapperDiagnosticsSummary({ ...diagnostics, pass: false, mapperPreflightErrorCount: 1, gapCarryForwardViolationCount: 1 });
 assert.equal(failingSummary.includes('preflight 1E/1W'), true);

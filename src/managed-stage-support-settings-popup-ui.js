@@ -1,5 +1,5 @@
-export const MANAGED_STAGE_SUPPORT_SETTINGS_POPUP_SCHEMA = 'ManagedStageSupportSettingsPopup.v1';
-export const MANAGED_STAGE_SUPPORT_SETTINGS_POPUP_CACHE_KEY = '20260623-support-settings-popup-1';
+export const MANAGED_STAGE_SUPPORT_SETTINGS_POPUP_SCHEMA = 'ManagedStageSupportSettingsPopup.v2';
+export const MANAGED_STAGE_SUPPORT_SETTINGS_POPUP_CACHE_KEY = '20260623-support-settings-modal-2';
 
 export function buildManagedStageSupportSettingsPopupModel({ supportUi = {}, isonoteWorkflow = {} } = {}) {
   const sourceMode = String(supportUi.sourceMode || 'stagedJson');
@@ -24,6 +24,8 @@ export function buildManagedStageSupportSettingsPopupModel({ supportUi = {}, iso
     northSourceAxis,
     northCanvasAxis,
     disabled,
+    modal: true,
+    mainPanelMode: 'summary-only',
     summaryText,
     isonoteSummaryText,
     isonoteSupportRecordCount: recordCount,
@@ -34,11 +36,13 @@ export function buildManagedStageSupportSettingsPopupModel({ supportUi = {}, iso
 
 export function installManagedStageSupportSettingsPopupUi({ doc = globalThis.document, win = globalThis.window } = {}) {
   if (!doc || typeof doc.getElementById !== 'function') return null;
+  installSupportSettingsModalStyles(doc);
   const conversionSection = doc.querySelector?.('[data-section="conversion"]') || doc.getElementById('conversion-options-body')?.parentElement || doc.body;
   if (!conversionSection) return null;
   const shell = ensureSupportSettingsShell(doc, conversionSection);
   adoptSupportSettingControls(doc, shell);
   hideRetiredStageSettings(doc);
+  hideEmptySideloadSection(doc);
   const refresh = () => {
     const model = buildManagedStageSupportSettingsPopupModel({
       supportUi: win?.__3D_MARKUP_SUPPORT_SOURCE_UI__ || {},
@@ -50,10 +54,14 @@ export function installManagedStageSupportSettingsPopupUi({ doc = globalThis.doc
   };
   if (shell.dataset.supportSettingsPopupInstalled !== 'true') {
     shell.addEventListener?.('click', (event) => {
-      const action = event?.target?.getAttribute?.('data-support-settings-action');
+      const actionNode = event?.target?.closest?.('[data-support-settings-action]');
+      const action = actionNode?.getAttribute?.('data-support-settings-action');
       if (!action) return;
       event.preventDefault?.();
-      setPopupOpen(shell, action === 'open');
+      setPopupOpen(shell, action === 'open', doc);
+    });
+    doc.addEventListener?.('keydown', (event) => {
+      if (event.key === 'Escape') setPopupOpen(shell, false, doc);
     });
     doc.addEventListener?.('change', refresh, true);
     doc.addEventListener?.('input', refresh, true);
@@ -71,15 +79,16 @@ function ensureSupportSettingsShell(doc, parent) {
   if (shell) return shell;
   shell = doc.createElement('section');
   shell.id = 'supportMappingSettingsShell';
-  shell.className = 'conversion-collapsible-content support-mapping-settings-shell';
+  shell.className = 'support-mapping-settings-shell';
+  shell.setAttribute('aria-label', 'Support mapping and ISONOTE controls');
   shell.innerHTML = [
     '<div class="support-mapping-settings-launcher">',
-    '<button type="button" data-support-settings-action="open">Support mapping / ISONOTE…</button>',
+    '<button type="button" class="support-mapping-settings-open" data-support-settings-action="open">Support mapping / ISONOTE…</button>',
     '<small data-support-settings-launcher-summary aria-live="polite"></small>',
     '</div>',
-    '<div id="supportMappingSettingsPopup" class="support-mapping-settings-popup" role="dialog" aria-modal="false" aria-label="Support mapping settings" hidden>',
-    '<div class="support-mapping-settings-popup-header"><h3>Support mapping settings</h3><button type="button" data-support-settings-action="close" aria-label="Close support mapping settings">×</button></div>',
-    '<small data-support-settings-popup-status aria-live="polite"></small>',
+    '<div id="supportMappingSettingsBackdrop" class="support-mapping-settings-backdrop" data-support-settings-action="close" hidden></div>',
+    '<div id="supportMappingSettingsPopup" class="support-mapping-settings-popup" role="dialog" aria-modal="true" aria-label="Support mapping settings" hidden>',
+    '<div class="support-mapping-settings-popup-header"><div><h3>Support mapping / ISONOTE</h3><small data-support-settings-popup-status aria-live="polite"></small></div><button type="button" data-support-settings-action="close" aria-label="Close support mapping settings">×</button></div>',
     '<div class="support-mapping-settings-popup-grid">',
     '<section data-support-settings-controls><h4>Source, preset and axis</h4></section>',
     '<section data-support-settings-isonote-host><h4>ISONOTE side-load</h4></section>',
@@ -105,6 +114,7 @@ function adoptSupportSettingControls(doc, shell) {
   adoptLabeledControl(doc, controlsHost, 'supportMode', 'Support source');
   adoptLabeledControl(doc, controlsHost, 'supportMapperPreset', 'Mapper preset');
   adoptLabeledControl(doc, controlsHost, 'supportNorthAxis', 'CAESAR North axis');
+  adoptLabeledControl(doc, controlsHost, 'singleAxisDecision', 'Single-axis unresolved decision');
   adoptNode(mapperHost, doc.getElementById('supportMapperSourceSummary'));
   adoptNode(mapperHost, doc.getElementById('supportMapperConfigDetails'));
   adoptTextarea(doc, isonoteHost, 'lineNoText', 'Line No sideload CSV');
@@ -148,6 +158,7 @@ function adoptTextarea(doc, host, id, labelText) {
     label.appendChild(span);
     label.appendChild(textarea);
   }
+  textarea.rows = Math.max(Number(textarea.rows || 0), id === 'isonoteText' ? 8 : 4);
   label.hidden = false;
   label.style.display = '';
   host.appendChild(label);
@@ -177,10 +188,56 @@ function hideRetiredStageSettings(doc) {
   }
 }
 
-function setPopupOpen(shell, isOpen) {
+function hideEmptySideloadSection(doc) {
+  const section = doc.querySelector?.('[data-section="sideload"]');
+  const body = doc.getElementById('sideload-options-body');
+  if (!section || !body) return;
+  const hasVisibleControls = [...body.querySelectorAll?.('input, textarea, select, button') || []]
+    .some((node) => !node.closest('[hidden]') && node.offsetParent !== null);
+  if (!hasVisibleControls) {
+    section.hidden = true;
+    section.setAttribute('aria-hidden', 'true');
+    section.dataset.replacedBySupportSettingsModal = 'true';
+  }
+}
+
+function setPopupOpen(shell, isOpen, doc) {
   const popup = shell.querySelector?.('#supportMappingSettingsPopup');
+  const backdrop = shell.querySelector?.('#supportMappingSettingsBackdrop');
   if (!popup) return;
   popup.hidden = !isOpen;
+  if (backdrop) backdrop.hidden = !isOpen;
+  shell.dataset.supportSettingsOpen = isOpen ? 'true' : 'false';
+  doc?.body?.classList?.toggle?.('support-settings-modal-open', Boolean(isOpen));
+  if (isOpen) popup.querySelector?.('button, input, select, textarea, summary')?.focus?.();
+}
+
+function installSupportSettingsModalStyles(doc) {
+  if (doc.getElementById('supportSettingsModalStyle')) return;
+  const style = doc.createElement('style');
+  style.id = 'supportSettingsModalStyle';
+  style.textContent = `
+    .support-mapping-settings-shell { display: grid; gap: 6px; margin: 6px 0 10px; padding: 8px; border: 1px solid rgba(148,163,184,.28); border-radius: 10px; background: rgba(15,23,42,.52); }
+    .support-mapping-settings-launcher { display: grid; gap: 5px; }
+    .support-mapping-settings-open { width: 100%; min-height: 34px; border-radius: 8px; border: 1px solid rgba(96,165,250,.55); background: rgba(30,64,175,.45); color: #dbeafe; font-weight: 700; cursor: pointer; }
+    .support-mapping-settings-launcher small { color: #bfdbfe; line-height: 1.35; }
+    .support-mapping-settings-backdrop { position: fixed; inset: 0; z-index: 9998; background: rgba(2,6,23,.68); backdrop-filter: blur(2px); }
+    .support-mapping-settings-popup { position: fixed; z-index: 9999; left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(1120px, calc(100vw - 36px)); max-height: min(84vh, 860px); overflow: auto; border: 1px solid rgba(148,163,184,.36); border-radius: 16px; background: #0f172a; color: #e5e7eb; box-shadow: 0 24px 80px rgba(0,0,0,.55); padding: 14px; }
+    .support-mapping-settings-popup-header { position: sticky; top: -14px; z-index: 1; display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin: -14px -14px 12px; padding: 14px; background: rgba(15,23,42,.98); border-bottom: 1px solid rgba(148,163,184,.22); }
+    .support-mapping-settings-popup-header h3 { margin: 0 0 3px; font-size: 16px; }
+    .support-mapping-settings-popup-header small { color: #cbd5e1; }
+    .support-mapping-settings-popup-header button { width: 34px; height: 34px; border-radius: 999px; border: 1px solid rgba(148,163,184,.36); background: rgba(30,41,59,.95); color: #f8fafc; font-size: 22px; cursor: pointer; }
+    .support-mapping-settings-popup-grid { display: grid; grid-template-columns: minmax(220px, .72fr) minmax(260px, .95fr) minmax(360px, 1.35fr); gap: 12px; align-items: start; }
+    .support-mapping-settings-popup-grid > section { min-width: 0; padding: 12px; border: 1px solid rgba(148,163,184,.22); border-radius: 12px; background: rgba(15,23,42,.72); }
+    .support-mapping-settings-popup-grid h4 { margin: 0 0 10px; color: #dbeafe; }
+    .support-settings-popup-field, .support-settings-textarea { display: grid !important; gap: 5px; margin: 0 0 10px; }
+    .support-settings-popup-field span, .support-settings-textarea span { color: #cbd5e1; font-size: 12px; }
+    .support-settings-popup-field select, .support-settings-popup-field input, .support-settings-textarea textarea { width: 100%; box-sizing: border-box; border-radius: 8px; border: 1px solid rgba(148,163,184,.35); background: rgba(2,6,23,.62); color: #e5e7eb; padding: 7px; }
+    .support-settings-textarea textarea { min-height: 92px; resize: vertical; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px; }
+    body.support-settings-modal-open { overflow: hidden; }
+    @media (max-width: 900px) { .support-mapping-settings-popup-grid { grid-template-columns: 1fr; } }
+  `;
+  doc.head?.appendChild(style);
 }
 
 function sourceLabelFromMode(sourceMode) {

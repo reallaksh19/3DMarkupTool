@@ -5,11 +5,13 @@ import { MANAGED_STAGE_SUPPORT_SOURCE_MODES, normalizeManagedStageSupportMapperR
 
 export const MANAGED_STAGE_SUPPORT_SOURCE_PREVIEW_BRIDGE_SCHEMA = 'ManagedStageSupportSourcePreviewBridge.v1';
 export const MANAGED_STAGE_SUPPORT_SOURCE_PREVIEW_DIAGNOSTICS_SCHEMA = 'ManagedStageSupportSourcePreviewDiagnostics.v1';
-export const MANAGED_STAGE_SUPPORT_SOURCE_PREVIEW_BRIDGE_CACHE_KEY = '20260623-staged-json-support-source-preview-8-rule-preview-rows';
+export const MANAGED_STAGE_SUPPORT_SOURCE_PREVIEW_BRIDGE_CACHE_KEY = '20260623-staged-json-support-source-preview-9-support-extraction';
 export const ISONOTE_SUPPORT_SOURCE_OVERLAY_ROOT = 'MANAGED_STAGE_SUPPORT_SOURCE_OVERLAY_ISONOTE';
 export const STAGED_JSON_SUPPORT_SOURCE_OVERLAY_ROOT = 'MANAGED_STAGE_SUPPORT_SOURCE_OVERLAY_STAGED_JSON';
 const MAX_PREFLIGHT_ISSUES = 50;
 const MAX_RULE_PREVIEW_ROWS = 80;
+
+const STAGED_JSON_SUPPORT_ATTR_KEY_PATTERN = /^(DTXR|RAW_TYPE|TYPE|NAME|REF|NODE|FROM_NODE|TO_NODE|TAG|SUPPORT(?:_|$)|RESTRAINT(?:_|$)|AXIS$|DIRECTION$|SIGN$|PLUS_MINUS$|.*GAP.*)/i;
 
 export function installManagedStageSupportSourcePreviewBridge({ win = globalThis.window, doc = globalThis.document } = {}) {
   if (!win || win.__3D_MARKUP_SUPPORT_SOURCE_PREVIEW_BRIDGE__?.schema === MANAGED_STAGE_SUPPORT_SOURCE_PREVIEW_BRIDGE_SCHEMA) return win?.__3D_MARKUP_SUPPORT_SOURCE_PREVIEW_BRIDGE__ || null;
@@ -68,17 +70,18 @@ export function collectPreviewPipeRecordsFromScene(modelRoot) {
     const apos = clonePoint(data.sourceAposMm);
     const lpos = clonePoint(data.sourceLposMm);
     if (!apos || !lpos) return;
+    const sourceAttrs = collectStagedJsonRecordAttributes(data);
     records.push({
       node: null,
-      attrs: { TYPE: String(data.stagedType || 'PIPE'), DTXR: String(data.dtxr || data.rawType || 'PIPE'), FROM_NODE: String(data.fromNode || ''), TO_NODE: String(data.toNode || '') },
+      attrs: { ...sourceAttrs, TYPE: String(data.stagedType || sourceAttrs.TYPE || 'PIPE'), DTXR: String(data.dtxr || data.rawType || sourceAttrs.DTXR || 'PIPE'), FROM_NODE: String(data.fromNode || sourceAttrs.FROM_NODE || ''), TO_NODE: String(data.toNode || sourceAttrs.TO_NODE || '') },
       rawName: String(data.sourceName || object.name || 'PIPE'),
       name: String(data.sourceName || object.name || 'PIPE'),
       path: String(data.sourcePath || object.name || 'PIPE'),
-      type: String(data.stagedType || 'PIPE'),
-      rawType: String(data.rawType || data.dtxr || ''),
-      dtxr: String(data.dtxr || 'PIPE'),
-      fromNode: String(data.fromNode || ''),
-      toNode: String(data.toNode || ''),
+      type: String(data.stagedType || sourceAttrs.TYPE || 'PIPE'),
+      rawType: String(data.rawType || data.dtxr || sourceAttrs.RAW_TYPE || ''),
+      dtxr: String(data.dtxr || sourceAttrs.DTXR || 'PIPE'),
+      fromNode: String(data.fromNode || sourceAttrs.FROM_NODE || ''),
+      toNode: String(data.toNode || sourceAttrs.TO_NODE || ''),
       source: { apos, lpos, start: apos, end: lpos }
     });
   });
@@ -133,7 +136,7 @@ export function collectManagedStageSupportSourcePreviewDiagnostics(modelRoot, re
       diagnostics.mapperPreflightErrorCount += Number(preflight.errorCount || 0);
       if (preflight.popupRequired) diagnostics.mapperPreflightPopupRequiredCount += 1;
       diagnostics.warningCount += Number(preflight.warningCount || 0);
-      appendPreflightIssues(diagnostics, preflight, mapperRecord, { sourceMode: itemMode, family, supportTag: data.sourceName || mapperRecord.supportTag || data.sourcePath || '', node: visual.node || data.fromNode || data.toNode || '', axis: canvasAxis });
+      appendPreflightIssues(diagnostics, preflight, mapperRecord, { sourceMode: itemMode, family, supportTag: mapperRecord.supportTag || data.sourceName || data.sourcePath || '', node: visual.node || data.fromNode || data.toNode || '', axis: canvasAxis });
     }
     if (data.popupRequired || visual.popupRequired || preflight?.popupRequired) diagnostics.popupRequiredCount += 1;
     if (visual.popupRequired || visual.fallbackCrossRods || /WARNING|UNKNOWN/.test(family)) diagnostics.warningCount += 1;
@@ -158,9 +161,7 @@ function collectStagedJsonSupportPreviewRecords(modelRoot, options = {}) {
     const pos = clonePoint(data.previewPosMm || data.sourcePosMm);
     if (!pos) return;
     const visual = data.supportVisual || {};
-    const sourceAxis = visual.explicitAxis ? `${visual.explicitAxis.sign || ''}${visual.explicitAxis.axis || ''}` : '';
-    const gapText = visual.gapMm ? `${visual.gapMm}mm` : '';
-    const baseAttrs = { TYPE: data.stagedType || 'SUPPORT', DTXR: data.dtxr || data.rawType || 'SUPPORT', RAW_TYPE: data.rawType || visual.rawKind || visual.family || 'SUPPORT', NAME: data.sourceName || data.sourcePath || '', REF: data.sourcePath || data.sourceName || '', NODE: visual.node || data.fromNode || data.toNode || '', SUPPORT_TAG: data.sourceName || data.sourcePath || '', SUPPORT_KIND: visual.rawKind || visual.family || data.supportFamily || '', SUPPORT_GRAPHICS_RULE: visual.rawKind || visual.family || '', SUPPORT_AXIS: sourceAxis, SUPPORT_SIGN: visual.explicitAxis?.sign || '', SUPPORT_GAP_MM: gapText, GAP: gapText, SUPPORTCOORD: pos, POS: pos };
+    const baseAttrs = buildStagedJsonSupportMapperAttrs(data, visual, pos);
     const mapperRecord = normalizeManagedStageSupportMapperRecord({ attrs: baseAttrs }, options.mapperConfig || {});
     const mappedAxisAttrs = mappedAxisOverrideAttrs(mapperRecord);
     const attrs = { ...baseAttrs, ...(mapperRecord.attrs || {}), ...mappedAxisAttrs, TYPE: 'SUPPORT', DTXR: 'SUPPORT', RAW_TYPE: 'STAGED_JSON_SUPPORT', SUPPORT_SOURCE_MODE: MANAGED_STAGE_SUPPORT_SOURCE_MODES.STAGED_JSON, SUPPORTCOORD: pos, POS: pos };
@@ -170,6 +171,69 @@ function collectStagedJsonSupportPreviewRecords(modelRoot, options = {}) {
     records.push({ node: null, attrs, rawName: `STAGED_JSON ${nodeId || 'NODE'} ${family} ${index}`, name: `STAGED_JSON_${safeName(nodeId || 'NODE')}_${safeName(family)}_${index}`, path: `STAGED_JSON/${safeName(nodeId || 'NODE')}/${safeName(family)}/${index}`, type: 'SUPPORT', rawType: 'STAGED_JSON_SUPPORT', dtxr: 'SUPPORT', fromNode: nodeId, toNode: '', source: { supportCoord: pos, pos, start: null, end: null }, stagedJsonMapperRecord: mapperRecord });
   });
   return records;
+}
+
+function buildStagedJsonSupportMapperAttrs(data = {}, visual = {}, pos = null) {
+  const sourceAttrs = collectStagedJsonRecordAttributes(data);
+  const sourceAxis = visual.explicitAxis ? `${visual.explicitAxis.sign || ''}${visual.explicitAxis.axis || ''}` : '';
+  const gapText = visual.gapMm ? `${visual.gapMm}mm` : '';
+  const node = firstText(sourceAttrs.NODE, data.node, visual.node, data.fromNode, data.toNode);
+  const supportTag = firstText(sourceAttrs.SUPPORT_TAG, sourceAttrs.SUPPORT_NO, sourceAttrs.SUPPORT_ID, sourceAttrs.TAG, data.supportTag, data.sourceName, data.sourcePath);
+  const supportKind = firstText(sourceAttrs.SUPPORT_KIND, sourceAttrs.SUPPORT_TYPE, sourceAttrs.RESTRAINT_KIND, sourceAttrs.RESTRAINT, sourceAttrs.DTXR, visual.rawKind, visual.family, data.supportFamily);
+  const graphicsRule = firstText(sourceAttrs.SUPPORT_GRAPHICS_RULE, sourceAttrs.SUPPORT_RULE, sourceAttrs.GRAPHICS_RULE, sourceAttrs.SUPPORT_KIND, sourceAttrs.SUPPORT_TYPE, sourceAttrs.DTXR, visual.rawKind, visual.family);
+
+  return {
+    ...sourceAttrs,
+    TYPE: firstText(sourceAttrs.TYPE, data.stagedType, 'SUPPORT'),
+    DTXR: firstText(sourceAttrs.DTXR, data.dtxr, data.rawType, 'SUPPORT'),
+    RAW_TYPE: firstText(sourceAttrs.RAW_TYPE, data.rawType, visual.rawKind, visual.family, 'SUPPORT'),
+    NAME: firstText(sourceAttrs.NAME, data.sourceName, data.sourcePath),
+    REF: firstText(sourceAttrs.REF, data.sourcePath, data.sourceName),
+    NODE: node,
+    FROM_NODE: firstText(sourceAttrs.FROM_NODE, data.fromNode),
+    TO_NODE: firstText(sourceAttrs.TO_NODE, data.toNode),
+    SUPPORT_TAG: supportTag,
+    SUPPORT_KIND: supportKind,
+    SUPPORT_TYPE: firstText(sourceAttrs.SUPPORT_TYPE, supportKind),
+    SUPPORT_GRAPHICS_RULE: graphicsRule,
+    SUPPORT_AXIS: firstText(sourceAttrs.SUPPORT_AXIS, sourceAttrs.RESTRAINT_AXIS, sourceAttrs.AXIS, sourceAttrs.DIRECTION, sourceAxis),
+    RESTRAINT_AXIS: firstText(sourceAttrs.RESTRAINT_AXIS, sourceAttrs.SUPPORT_AXIS, sourceAttrs.AXIS, sourceAttrs.DIRECTION, sourceAxis),
+    AXIS: firstText(sourceAttrs.AXIS, sourceAttrs.SUPPORT_AXIS, sourceAttrs.RESTRAINT_AXIS, sourceAttrs.DIRECTION, sourceAxis),
+    DIRECTION: firstText(sourceAttrs.DIRECTION, sourceAttrs.SUPPORT_AXIS, sourceAttrs.RESTRAINT_AXIS, sourceAttrs.AXIS, sourceAxis),
+    SUPPORT_SIGN: firstText(sourceAttrs.SUPPORT_SIGN, sourceAttrs.RESTRAINT_SIGN, sourceAttrs.SIGN, visual.explicitAxis?.sign),
+    SUPPORT_GAP_MM: firstText(sourceAttrs.SUPPORT_GAP_MM, gapText),
+    GAP: firstText(sourceAttrs.GAP, gapText),
+    SUPPORTCOORD: pos,
+    POS: pos
+  };
+}
+
+function collectStagedJsonRecordAttributes(data = {}) {
+  const attrs = {};
+  copyAttributeBag(attrs, data.sourceAttributes);
+  copyAttributeBag(attrs, data.stagedJsonAttributes);
+  copyAttributeBag(attrs, data.rawAttributes);
+  copyAttributeBag(attrs, data.attributes);
+  copyAttributeBag(attrs, data.attrs);
+
+  for (const [key, value] of Object.entries(data || {})) {
+    if (!STAGED_JSON_SUPPORT_ATTR_KEY_PATTERN.test(String(key || ''))) continue;
+    copyMeaningfulAttribute(attrs, key, value);
+  }
+
+  return attrs;
+}
+
+function copyAttributeBag(target, bag) {
+  if (!bag || typeof bag !== 'object' || Array.isArray(bag)) return;
+  for (const [key, value] of Object.entries(bag)) copyMeaningfulAttribute(target, key, value);
+}
+
+function copyMeaningfulAttribute(target, key, value) {
+  if (!key || value === undefined || value === null) return;
+  if (typeof value === 'string' && !value.trim()) return;
+  if (typeof value === 'function') return;
+  target[String(key).trim()] = value;
 }
 
 function createSupportOverlay(rootName, sourceMode, supportRecords, pipeRecords, options = {}) {
@@ -230,8 +294,8 @@ function buildSupportRulePreviewRow(object, data, visual, mapperRecord, context 
   const emittedSymbolCount = countSupportVisualParts(object);
   return {
     sourceMode: context.itemMode || data.supportSourceMode || '',
-    sourceRow: data.isonoteRawText || data.sourcePath || data.sourceName || object.name || '',
-    supportTag: data.sourceName || mapperRecord?.supportTag || data.sourcePath || object.name || '',
+    sourceRow: data.isonoteRawText || mapperRecord?.attrs?.REF || data.sourcePath || data.sourceName || object.name || '',
+    supportTag: mapperRecord?.supportTag || data.sourceName || data.sourcePath || object.name || '',
     family: context.family || mapperRecord?.family || visual.family || 'UNKNOWN',
     node: String(visual.node || data.fromNode || data.toNode || mapperRecord?.attrs?.NODE || ''),
     sourceAxis,
@@ -289,6 +353,15 @@ function appendPreflightIssues(diagnostics, preflight, mapperRecord, context = {
 function explicitAxisText(axisInfo) {
   if (!axisInfo?.axis) return '';
   return `${axisInfo.sign || '+'}${axisInfo.axis}`;
+}
+
+function firstText(...values) {
+  for (const value of values) {
+    if (value === undefined || value === null) continue;
+    const text = String(value).trim();
+    if (text) return text;
+  }
+  return '';
 }
 
 function stampBridgeAudit(modelRoot, result) {

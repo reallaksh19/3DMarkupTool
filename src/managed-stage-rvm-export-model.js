@@ -47,6 +47,7 @@ export function buildManagedStageRvmExportModel(profile, options = {}) {
   const supportExport = buildManagedStageSupportRvmExportNodes(profile, {
     materialId: MANAGED_STAGE_RVM_MATERIALS.SUPPORT
   });
+  const componentPrimitiveSymbolExportAudit = auditComponentPrimitiveSymbolExport(elements, supportExport);
   const disciplineChildren = [
     groupNode('/BM_CII-CU-PI-P', 'GROUP', 'PIPING_GROUP', elements)
   ];
@@ -77,6 +78,7 @@ export function buildManagedStageRvmExportModel(profile, options = {}) {
       primitiveCount: geometryPrimitiveCount + supportExport.supportPrimitiveCount,
       geometryPrimitiveCount,
       supportRvmPrimitiveCount: supportExport.supportPrimitiveCount,
+      componentPrimitiveSymbolExportAudit,
       processingConfig,
       geometryContractAudit: contractSet.audit,
       elbowTangentHintAudit: tangentHintAudit,
@@ -109,6 +111,7 @@ function elementNode(recordOrContract, index) {
 function elementNodeFromContract(contract, index) {
   const componentClass = managedStageComponentClass(contract);
   const material = managedStageMaterialForClass(componentClass);
+  const primitives = planManagedStagePrimitives(contract);
   return {
     name: contract.name,
     reviewName: contract.name,
@@ -118,6 +121,7 @@ function elementNodeFromContract(contract, index) {
       NAME: contract.name,
       TYPE: contract.type,
       RAW_TYPE: contract.rawType,
+      SOURCE_DTXR: contract.sourceDtxr || contract.rawType,
       DTXR: contract.dtxr,
       FROM_NODE: contract.fromNode,
       TO_NODE: contract.toNode,
@@ -129,6 +133,9 @@ function elementNodeFromContract(contract, index) {
       ELEMENT_INDEX: String(index + 1),
       SOURCE_ELEMENT_ID: contract.sourceElementId || contract.elementId || contract.name,
       SOURCE_FORMAT: contract.sourceFormat || 'inputxml-managed-stage/v1',
+      RVM_COMPONENT_PRIMITIVE_RECIPE: primitiveRecipeSummary(primitives),
+      RVM_COMPONENT_PRIMITIVE_COUNT: String(primitives.length),
+      RVM_COMPONENT_SYMBOL_EXPORTED: primitives.some((primitive) => primitive.exportedManagedStageComponentSymbol) ? 'YES' : 'NO',
       INPUTXML_BEND_EXCLUDED: contract.excludeCode4Bend ? 'YES' : 'NO',
       INPUTXML_BRANCH_FITTING_HOST: contract.genericInputXmlBranchFittings?.length ? 'YES' : 'NO',
       INPUTXML_NODE_LOCAL_ELBOW_HOST: contract.genericInputXmlNodeLocalElbows?.length ? 'YES' : 'NO',
@@ -137,7 +144,7 @@ function elementNodeFromContract(contract, index) {
       RVM_TRIM_END_MM: contract.rvmTrimEndOffsetMm ? String(contract.rvmTrimEndOffsetMm) : '',
       MANAGED_STAGE_GEOMETRY_WARNINGS: (contract.nonBlockingGeometryWarnings || []).map((warning) => warning.message).join(' | ')
     },
-    primitives: planManagedStagePrimitives(contract),
+    primitives,
     children: []
   };
 }
@@ -147,6 +154,7 @@ function elementNodeFromRecord(record, index) {
   const material = managedStageMaterialForClass(componentClass);
   const position = midpoint(point3(record.attributes.APOS, `${record.name}.APOS`), point3(record.attributes.LPOS, `${record.name}.LPOS`));
   const attributes = record.attributes || {};
+  const primitives = planManagedStagePrimitives(record);
   return {
     name: record.name,
     reviewName: record.name,
@@ -166,11 +174,61 @@ function elementNodeFromRecord(record, index) {
       COMPONENT_CLASS: componentClass,
       ELEMENT_INDEX: String(index + 1),
       SOURCE_ELEMENT_ID: attributes.SOURCE_ELEMENT_ID || record.name,
-      SOURCE_FORMAT: attributes.SOURCE_FORMAT || 'inputxml-managed-stage/v1'
+      SOURCE_FORMAT: attributes.SOURCE_FORMAT || 'inputxml-managed-stage/v1',
+      RVM_COMPONENT_PRIMITIVE_RECIPE: primitiveRecipeSummary(primitives),
+      RVM_COMPONENT_PRIMITIVE_COUNT: String(primitives.length),
+      RVM_COMPONENT_SYMBOL_EXPORTED: primitives.some((primitive) => primitive.exportedManagedStageComponentSymbol) ? 'YES' : 'NO'
     },
-    primitives: planManagedStagePrimitives(record),
+    primitives,
     children: []
   };
+}
+
+function auditComponentPrimitiveSymbolExport(elements, supportExport) {
+  const rows = [];
+  const recipeHistogram = {};
+  const classHistogram = {};
+  let flangeNodeCount = 0;
+  let valveNodeCount = 0;
+  let weldNeckFlangePrimitiveCount = 0;
+  let ballValvePrimitiveCount = 0;
+  for (const node of elements) {
+    const componentClass = node.attributes?.COMPONENT_CLASS || 'UNKNOWN';
+    const recipes = [...new Set((node.primitives || []).map((primitive) => primitive.recipeName || primitive.localName || 'unknown'))];
+    classHistogram[componentClass] = (classHistogram[componentClass] || 0) + 1;
+    for (const recipe of recipes) recipeHistogram[recipe] = (recipeHistogram[recipe] || 0) + 1;
+    if (componentClass.includes('FLANGE')) flangeNodeCount += 1;
+    if (componentClass.includes('VALVE')) valveNodeCount += 1;
+    weldNeckFlangePrimitiveCount += node.primitives.filter((primitive) => primitive.recipeName === 'weldneck-flange-contiguous-2part').length;
+    ballValvePrimitiveCount += node.primitives.filter((primitive) => primitive.recipeName === 'ball-valve-contiguous-5part' || primitive.recipeName === 'flanged-ball-valve-contiguous-5part').length;
+    if (componentClass.includes('FLANGE') || componentClass.includes('VALVE')) {
+      rows.push({
+        name: node.name,
+        componentClass,
+        primitiveCount: node.primitives.length,
+        recipes,
+        endpointLocked: node.primitives.every((primitive) => primitive.endpointLocked === true),
+        exportedRvmGeometry: node.primitives.every((primitive) => primitive.exportedRvmGeometry !== false)
+      });
+    }
+  }
+  return {
+    schema: 'ManagedStageComponentPrimitiveRvmExport.v1',
+    policy: 'stagedJson flange/valve visual primitives are emitted into generated RVM as endpoint-locked code-8 cylinder recipes, not Canvas-only overlays; supports are emitted as compact code-8 support glyphs',
+    flangeNodeCount,
+    valveNodeCount,
+    supportNodeCount: supportExport.supportNodeCount || 0,
+    supportPrimitiveCount: supportExport.supportPrimitiveCount || 0,
+    weldNeckFlangePrimitiveCount,
+    ballValvePrimitiveCount,
+    recipeHistogram,
+    classHistogram,
+    rows
+  };
+}
+
+function primitiveRecipeSummary(primitives = []) {
+  return [...new Set(primitives.map((primitive) => primitive.recipeName || primitive.localName || 'unknown'))].join(',');
 }
 
 function midpoint(a, b) {

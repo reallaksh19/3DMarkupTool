@@ -46,7 +46,7 @@ export function buildManagedStageIsonoteTextWorkflowModel(text = '', options = {
       family: String(record.mapperRecord?.family || record.attrs?.SUPPORT_KIND || '').trim(),
       sourceAxis: String(record.mapperRecord?.axis?.sourceAxis || record.attrs?.SUPPORT_AXIS || '').trim(),
       sign: String(record.mapperRecord?.sign || record.attrs?.SUPPORT_SIGN || '').trim(),
-      gapMm: record.mapperRecord?.gapMm ?? '',
+      gapMm: record.mapperRecord?.gap?.value ?? record.attrs?.SUPPORT_GAP_MM ?? '',
       rawText: String(record.rawText || '').trim()
     })),
     issues
@@ -80,7 +80,7 @@ export function applyManagedStageIsonoteTextWorkflowToCanvas({ doc = globalThis.
     });
     runtime.renderOnce?.('isonote-workflow:apply');
   }
-  win?.dispatchEvent?.(new CustomEvent('managed-stage:isonote-workflow-apply', { detail: { schema: MANAGED_STAGE_ISONOTE_TEXT_WORKFLOW_SCHEMA, appliedToCanvas: Boolean(bridgeResult), model, bridgeResult } }));
+  dispatchCustomEvent(win, 'managed-stage:isonote-workflow-apply', { schema: MANAGED_STAGE_ISONOTE_TEXT_WORKFLOW_SCHEMA, appliedToCanvas: Boolean(bridgeResult), model, bridgeResult });
   return { ...model, appliedToCanvas: Boolean(bridgeResult), bridgeResult };
 }
 
@@ -110,7 +110,7 @@ export function installManagedStageIsonoteTextWorkflowUi({ doc = globalThis.docu
     panel.dataset.isonoteWorkflowInstalled = 'true';
   }
   const installed = refresh();
-  doc.dispatchEvent?.(new CustomEvent('managed-stage:isonote-workflow-ui-ready', { detail: installed }));
+  dispatchCustomEvent(doc, 'managed-stage:isonote-workflow-ui-ready', installed);
   return installed;
 }
 
@@ -185,6 +185,11 @@ function countNonEmptyLines(value) {
 function dispatchDomEvent(target, type) {
   const EventCtor = target?.ownerDocument?.defaultView?.Event || globalThis.Event;
   if (typeof EventCtor === 'function') target?.dispatchEvent?.(new EventCtor(type, { bubbles: true }));
+}
+
+function dispatchCustomEvent(target, type, detail) {
+  const EventCtor = target?.defaultView?.CustomEvent || target?.CustomEvent || globalThis.CustomEvent;
+  if (typeof EventCtor === 'function') target?.dispatchEvent?.(new EventCtor(type, { detail }));
 }
 
 function escapeHtml(value) {

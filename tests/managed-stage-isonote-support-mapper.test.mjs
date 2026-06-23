@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { parseManagedStageIsonoteSupportRecords } from '../src/managed-stage-isonote-support-mapper.js';
 import { resolveManagedStageSupportSymbolCatalogue } from '../src/managed-stage-support-symbol-catalogue.js';
 
-const text = ['NODE,ISONOTE', '35,REST, GUIDE, LINE STOP', '130,SINGLE AXIS Z', '205,REST, HOLDDOWN, SPRING CAN'].join('\n');
+const text = ['NODE,ISONOTE', '35,REST; GUIDE; LINE STOP', '130,SINGLE AXIS Z', '205,REST; HOLDDOWN; LINE STOP; SPRING CAN'].join('\n');
 const records = parseManagedStageIsonoteSupportRecords(text);
 assert.equal(records.length, 8);
 assert.ok(records.every((record) => record.sourceMode === 'isonote'));

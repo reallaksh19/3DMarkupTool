@@ -73,7 +73,7 @@ assert.equal(pipeRecords.length, 1);
 assert.equal(pipeRecords[0].fromNode, '10');
 assert.deepEqual(pipeRecords[0].source.apos, { x: 0, y: 0, z: 0 });
 
-const noteText = 'NODE,ISONOTE\n10,"/PS-001:ISONOTE GUIDE, LINE STOP GAP 4mm"';
+const noteText = 'NODE,ISONOTE\n10,"/PS-001:ISONOTE GUIDE, LINE STOP AXIS -X GAP 4mm"';
 const customMapperConfig = {
   fieldMapper: {
     supportTagFields: ['SUPPORT_TAG'],
@@ -82,6 +82,11 @@ const customMapperConfig = {
     axisFields: ['SUPPORT_AXIS'],
     signFields: ['SUPPORT_SIGN'],
     gapFields: ['SUPPORT_GAP_MM', '*GAP*']
+  },
+  axisBasis: {
+    axes: {
+      '-X': { engineeringDirection: 'NORTH', canvasAxis: '+Z' }
+    }
   }
 };
 const isonoteRecords = buildIsonoteSupportPreviewRecords(noteText, pipeRecords, { mapperConfig: customMapperConfig });
@@ -92,6 +97,13 @@ assert.equal(isonoteRecords[0].source.supportCoord.z, 0);
 assert.equal(isonoteRecords[0].isonoteMapperRecord.config.fieldMapper.supportKindFields[0], 'SUPPORT_KIND');
 assert.equal(isonoteRecords[1].attrs.SUPPORT_GAP_MM, '4mm');
 assert.equal(isonoteRecords[1].attrs.SUPPORT_GAP_CARRY_FORWARD, 'FALSE');
+assert.equal(isonoteRecords[1].isonoteMapperRecord.axis.sourceAxis, '-X');
+assert.equal(isonoteRecords[1].isonoteMapperRecord.axis.canvasAxis, '+Z');
+assert.equal(isonoteRecords[1].attrs.AXIS, '+Z');
+assert.equal(isonoteRecords[1].attrs.DIRECTION, '+Z');
+assert.equal(isonoteRecords[1].attrs.RESTRAINT_AXIS, '+Z');
+assert.equal(isonoteRecords[1].attrs.SUPPORT_AXIS_SOURCE_ORIGINAL, '-X');
+assert.equal(isonoteRecords[1].attrs.SUPPORT_AXIS_CANVAS_APPLIED, 'TRUE');
 
 const preDiagnostics = collectManagedStageSupportSourcePreviewDiagnostics(scene, { sourceMode: 'stagedJson', status: 'stagedJson' });
 assert.equal(preDiagnostics.stagedJsonSymbolCount, 1);
@@ -115,6 +127,8 @@ assert.equal(isonoteResult.diagnostics.isonoteSymbolCount, 2);
 assert.equal(isonoteResult.diagnostics.stagedJsonSymbolCount, 0);
 assert.equal(isonoteResult.diagnostics.activeSourceExclusive, true);
 assert.equal(isonoteResult.diagnostics.gapCarryForwardViolationCount, 0);
+assert.equal(isonoteResult.diagnostics.axisBasisAppliedCount, 1);
+assert.equal(isonoteResult.diagnostics.supportCanvasAxisHistogram['+Z'], 1);
 assert.equal(isonoteResult.diagnostics.pass, true);
 assert.equal(scene.children.includes(stagedSupport), false, 'ISONOTE mode must remove stagedJson support symbols');
 const overlay = scene.children.find((child) => child.name === ISONOTE_SUPPORT_SOURCE_OVERLAY_ROOT);
@@ -122,6 +136,11 @@ assert.ok(overlay, 'ISONOTE mode should create a dedicated support source overla
 assert.equal(overlay.children.length, 2);
 assert.equal(overlay.userData.sourceMode, MANAGED_STAGE_SUPPORT_SOURCE_MODES.ISONOTE);
 assert.equal(overlay.userData.mapperConfigApplied, true);
+const lineStopOverlay = overlay.children.find((child) => child.userData?.isonoteMapperRecord?.family === 'LINE_STOP');
+assert.ok(lineStopOverlay, 'ISONOTE line stop should be present');
+assert.deepEqual(lineStopOverlay.userData.supportVisual.coneSides.map((side) => side.axis), ['+Z']);
+assert.equal(lineStopOverlay.userData.supportVisual.explicitAxis.axis, 'Z');
+assert.equal(lineStopOverlay.userData.supportVisual.explicitAxis.sign, '+');
 
 const offResult = applyManagedStageSupportSourcePreview(scene, { sourceMode: 'off' });
 assert.equal(offResult.status, 'off');

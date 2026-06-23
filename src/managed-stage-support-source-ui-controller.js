@@ -7,7 +7,18 @@ import {
 } from './managed-stage-support-mapper-config.js';
 
 export const MANAGED_STAGE_SUPPORT_SOURCE_UI_SCHEMA = 'ManagedStageSupportSourceUi.v1';
-export const MANAGED_STAGE_SUPPORT_SOURCE_UI_CACHE_KEY = '20260623-staged-json-support-source-ui-2';
+export const MANAGED_STAGE_SUPPORT_SOURCE_UI_CACHE_KEY = '20260623-staged-json-support-source-ui-3';
+export const MANAGED_STAGE_SUPPORT_MAPPER_STORAGE_KEY = 'managedStage.supportMapperConfig.v1';
+
+const FIELD_PURPOSE_TO_MAPPER_KEY = Object.freeze({
+  supportTag: 'supportTagFields',
+  supportKind: 'supportKindFields',
+  graphicsRule: 'graphicsRuleFields',
+  axis: 'axisFields',
+  sign: 'signFields',
+  gap: 'gapFields',
+  coordinate: 'coordinateFields'
+});
 
 export function normalizeManagedStageSupportSourceMode(value) {
   const text = String(value || '').trim().toLowerCase();
@@ -54,6 +65,7 @@ export function buildManagedStageSupportSourceUiModel(options = {}) {
       basis: axisBasisForUi
     },
     axisBasisRows: buildManagedStageSupportAxisBasisRows(axisBasisForUi),
+    mapperConfig,
     mapperColumns: [
       'fieldPurpose',
       'sourceFieldCandidates',
@@ -94,10 +106,62 @@ export function buildManagedStageSupportAxisBasisRows(axisBasis = CAESAR_TO_CANV
   });
 }
 
+export function normalizeManagedStageMapperFieldCandidates(value) {
+  if (Array.isArray(value)) {
+    return value
+      .map((entry) => String(entry || '').trim())
+      .filter(Boolean);
+  }
+  return String(value || '')
+    .split(',')
+    .map((entry) => entry.trim())
+    .filter(Boolean);
+}
+
+export function buildManagedStageSupportMapperConfigFromUiFields(fields = {}) {
+  const fieldMapper = {};
+  for (const [fieldPurpose, mapperKey] of Object.entries(FIELD_PURPOSE_TO_MAPPER_KEY)) {
+    const values = normalizeManagedStageMapperFieldCandidates(fields[fieldPurpose]);
+    if (values.length) fieldMapper[mapperKey] = values;
+  }
+  return { fieldMapper };
+}
+
+export function serializeManagedStageSupportMapperConfig(config = {}) {
+  const resolved = resolveManagedStageSupportMapperConfig(config);
+  return JSON.stringify({ fieldMapper: resolved.fieldMapper }, null, 2);
+}
+
+export function parseManagedStageSupportMapperConfig(text) {
+  if (!text) return {};
+  try {
+    const parsed = JSON.parse(String(text));
+    return parsed && typeof parsed === 'object' ? parsed : {};
+  } catch (_) {
+    return {};
+  }
+}
+
+export function readStoredMapperConfig(storage = globalThis.localStorage) {
+  try {
+    return parseManagedStageSupportMapperConfig(storage?.getItem?.(MANAGED_STAGE_SUPPORT_MAPPER_STORAGE_KEY) || '');
+  } catch (_) {
+    return {};
+  }
+}
+
+export function writeStoredMapperConfig(config = {}, storage = globalThis.localStorage) {
+  try {
+    storage?.setItem?.(MANAGED_STAGE_SUPPORT_MAPPER_STORAGE_KEY, serializeManagedStageSupportMapperConfig(config));
+  } catch (_) {}
+}
+
 export function installManagedStageSupportSourceUi({ doc = globalThis.document } = {}) {
   if (!doc || typeof doc.getElementById !== 'function') return null;
   const model = buildManagedStageSupportSourceUiModel({
-    sourceMode: doc.getElementById('supportMode')?.value || readStoredSourceMode()
+    sourceMode: doc.getElementById('supportMode')?.value || readStoredSourceMode(),
+    northSourceAxis: readStoredNorthAxis(),
+    mapperConfig: readStoredMapperConfig()
   });
   const conversionSection = doc.querySelector?.('[data-section="conversion"]') || doc.getElementById('conversion-options-body')?.parentElement;
   if (!conversionSection) return model;
@@ -107,13 +171,16 @@ export function installManagedStageSupportSourceUi({ doc = globalThis.document }
   const summary = ensureMapperSummary(doc, conversionSection);
   const details = ensureMapperDetails(doc, conversionSection);
   const sync = () => {
+    const mapperConfig = readMapperConfigFromDetails(doc) || readStoredMapperConfig();
     const nextModel = buildManagedStageSupportSourceUiModel({
       sourceMode: sourceSelect.value,
-      northSourceAxis: axisSelect.value
+      northSourceAxis: axisSelect.value,
+      mapperConfig
     });
     syncLegacySupportCheckboxes(doc, nextModel.legacyFlags);
     summary.textContent = supportSourceSummary(nextModel);
     details.innerHTML = renderMapperDetails(nextModel);
+    writeStoredMapperConfig(nextModel.mapperConfig);
     try { globalThis.localStorage?.setItem?.('managedStage.supportSourceMode', nextModel.sourceMode); } catch (_) {}
     try { globalThis.localStorage?.setItem?.('managedStage.supportNorthAxis', nextModel.axisBasis.northSourceAxis); } catch (_) {}
     globalThis.__3D_MARKUP_SUPPORT_SOURCE_UI__ = nextModel;
@@ -121,6 +188,7 @@ export function installManagedStageSupportSourceUi({ doc = globalThis.document }
   };
   sourceSelect.addEventListener?.('change', sync);
   axisSelect.addEventListener?.('change', sync);
+  details.addEventListener?.('change', sync);
   const installed = sync();
   doc.dispatchEvent?.(new CustomEvent('managed-stage:support-source-ui-ready', { detail: installed }));
   return installed;
@@ -201,13 +269,28 @@ function syncLegacySupportCheckboxes(doc, flags) {
 
 function supportSourceSummary(model) {
   if (model.sourceMode === MANAGED_STAGE_SUPPORT_SOURCE_MODES.OFF) return 'Support symbols disabled.';
-  return `Support source: ${model.legacyFlags.sourceLabel}; CAESAR +Y=UP, ${model.axisBasis.northSourceAxis}=NORTH → Canvas ${model.axisBasis.northCanvasAxis}.`;
+  return `Support source: ${model.legacyFlags.sourceLabel}; CAESAR +Y=UP, ${model.axisBasis.northSourceAxis}=NORTH → Canvas ${model.axisBasis.northCanvasAxis}. Mapper fields are editable and persisted locally.`;
 }
 
 function renderMapperDetails(model) {
-  const rows = model.mapperRows.map((row) => `<tr><td>${escapeHtml(row.fieldPurpose)}</td><td>${escapeHtml(row.sourceFieldCandidates.join(', '))}</td><td>${escapeHtml(row.normalizedOutput)}</td><td>${escapeHtml(row.graphicsRule)}</td></tr>`).join('');
+  const rows = model.mapperRows.map((row) => {
+    const value = row.sourceFieldCandidates.join(', ');
+    return `<tr><td>${escapeHtml(row.label || row.fieldPurpose)}</td><td><input data-support-mapper-fields="${escapeAttribute(row.fieldPurpose)}" value="${escapeAttribute(value)}" aria-label="${escapeAttribute(row.label || row.fieldPurpose)} fields"></td><td>${escapeHtml(row.normalizedOutput)}</td><td>${escapeHtml(row.graphicsRule)}</td></tr>`;
+  }).join('');
   const axisRows = model.axisBasisRows.map((row) => `<tr><td>${escapeHtml(row.sourceAxis)}</td><td>${escapeHtml(row.engineeringDirection)}</td><td>${escapeHtml(row.canvasAxis)}</td><td>${escapeHtml(row.canvasVectorText)}</td></tr>`).join('');
-  return `<summary>Support mapper config</summary><table><thead><tr><th>Purpose</th><th>Source fields</th><th>Output</th><th>Rule</th></tr></thead><tbody>${rows}</tbody></table><table><thead><tr><th>Source axis</th><th>Meaning</th><th>Canvas axis</th><th>Vector</th></tr></thead><tbody>${axisRows}</tbody></table>`;
+  return `<summary>Support mapper config</summary><p>Source fields are comma-separated and stored in browser localStorage.</p><table><thead><tr><th>Purpose</th><th>Source fields</th><th>Output</th><th>Rule</th></tr></thead><tbody>${rows}</tbody></table><table><thead><tr><th>Source axis</th><th>Meaning</th><th>Canvas axis</th><th>Vector</th></tr></thead><tbody>${axisRows}</tbody></table>`;
+}
+
+function readMapperConfigFromDetails(doc) {
+  const nodes = Array.from(doc.querySelectorAll?.('[data-support-mapper-fields]') || []);
+  if (!nodes.length) return null;
+  const fields = {};
+  for (const node of nodes) {
+    const purpose = node.getAttribute?.('data-support-mapper-fields') || '';
+    if (!purpose) continue;
+    fields[purpose] = node.value || '';
+  }
+  return buildManagedStageSupportMapperConfigFromUiFields(fields);
 }
 
 function buildUiAxisBasis({ northSourceAxis = '-X', axisBasis = {} } = {}) {
@@ -242,6 +325,10 @@ function mapperRow(fieldPurpose, label, sourceFieldCandidates = [], normalizedOu
 
 function readStoredSourceMode() {
   try { return globalThis.localStorage?.getItem?.('managedStage.supportSourceMode') || ''; } catch (_) { return ''; }
+}
+
+function readStoredNorthAxis() {
+  try { return globalThis.localStorage?.getItem?.('managedStage.supportNorthAxis') || '-X'; } catch (_) { return '-X'; }
 }
 
 function normalizeSignedAxis(axisToken) {

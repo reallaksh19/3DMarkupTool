@@ -4,7 +4,14 @@ import {
   buildManagedStageSupportMapperUiRows,
   buildManagedStageSupportAxisBasisRows,
   applyManagedStageSupportSourceModeToLegacyFlags,
-  normalizeManagedStageSupportSourceMode
+  normalizeManagedStageSupportSourceMode,
+  normalizeManagedStageMapperFieldCandidates,
+  buildManagedStageSupportMapperConfigFromUiFields,
+  serializeManagedStageSupportMapperConfig,
+  parseManagedStageSupportMapperConfig,
+  readStoredMapperConfig,
+  writeStoredMapperConfig,
+  MANAGED_STAGE_SUPPORT_MAPPER_STORAGE_KEY
 } from '../src/managed-stage-support-source-ui-controller.js';
 import { MANAGED_STAGE_SUPPORT_SOURCE_MODES } from '../src/managed-stage-support-mapper-config.js';
 
@@ -70,5 +77,40 @@ assert.equal(customNorth.axisBasis.northEngineeringDirection, 'NORTH');
 assert.equal(customNorth.axisBasisRows.find((row) => row.sourceAxis === '+Z')?.engineeringDirection, 'NORTH');
 assert.equal(customNorth.legacyFlags.renderExpectedSupport, true);
 assert.equal(customNorth.legacyFlags.renderActualSupport, false);
+
+assert.deepEqual(normalizeManagedStageMapperFieldCandidates('SUPPORT_TAG, PS_NO,, NAME '), ['SUPPORT_TAG', 'PS_NO', 'NAME']);
+assert.deepEqual(normalizeManagedStageMapperFieldCandidates([' TAG ', '', 'REF']), ['TAG', 'REF']);
+
+const uiConfig = buildManagedStageSupportMapperConfigFromUiFields({
+  supportTag: 'PS_NO, SUPPORT_TAG',
+  supportKind: 'SUPPORT_KIND, DTXR',
+  graphicsRule: 'SUPPORT_RULE',
+  axis: 'CAESAR_AXIS',
+  sign: 'PLUS_MINUS',
+  gap: 'SUPPORT_GAP_MM, *GAP*',
+  coordinate: 'SUPPORTCOORD'
+});
+assert.deepEqual(uiConfig.fieldMapper.supportTagFields, ['PS_NO', 'SUPPORT_TAG']);
+assert.deepEqual(uiConfig.fieldMapper.supportKindFields, ['SUPPORT_KIND', 'DTXR']);
+assert.deepEqual(uiConfig.fieldMapper.gapFields, ['SUPPORT_GAP_MM', '*GAP*']);
+
+const customModel = buildManagedStageSupportSourceUiModel({ mapperConfig: uiConfig });
+assert.deepEqual(customModel.mapperRows.find((row) => row.fieldPurpose === 'supportTag')?.sourceFieldCandidates, ['PS_NO', 'SUPPORT_TAG']);
+assert.deepEqual(customModel.mapperRows.find((row) => row.fieldPurpose === 'axis')?.sourceFieldCandidates, ['CAESAR_AXIS']);
+
+const serialized = serializeManagedStageSupportMapperConfig(uiConfig);
+const parsed = parseManagedStageSupportMapperConfig(serialized);
+assert.deepEqual(parsed.fieldMapper.supportTagFields, ['PS_NO', 'SUPPORT_TAG']);
+assert.deepEqual(parsed.fieldMapper.coordinateFields, ['SUPPORTCOORD']);
+assert.deepEqual(parseManagedStageSupportMapperConfig('{bad json'), {});
+
+const storage = new Map();
+const storageShim = {
+  getItem: (key) => storage.get(key) || '',
+  setItem: (key, value) => storage.set(key, String(value))
+};
+writeStoredMapperConfig(uiConfig, storageShim);
+assert.equal(storage.has(MANAGED_STAGE_SUPPORT_MAPPER_STORAGE_KEY), true);
+assert.deepEqual(readStoredMapperConfig(storageShim).fieldMapper.supportTagFields, ['PS_NO', 'SUPPORT_TAG']);
 
 console.log('managed-stage support source UI controller: ok');

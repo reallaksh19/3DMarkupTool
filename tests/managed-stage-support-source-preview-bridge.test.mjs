@@ -109,6 +109,10 @@ const preDiagnostics = collectManagedStageSupportSourcePreviewDiagnostics(scene,
 assert.equal(preDiagnostics.stagedJsonSymbolCount, 1);
 assert.equal(preDiagnostics.isonoteSymbolCount, 0);
 assert.equal(preDiagnostics.supportFamilyHistogram.GUIDE, 1);
+assert.equal(preDiagnostics.supportRulePreviewRows.length, 1);
+assert.equal(preDiagnostics.supportRulePreviewRows[0].supportTag, 'PS-001');
+assert.equal(preDiagnostics.supportRulePreviewRows[0].family, 'GUIDE');
+assert.equal(preDiagnostics.supportRulePreviewRows[0].graphicsRule, 'lateral-by-pipe-orientation');
 assert.equal(preDiagnostics.activeSourceExclusive, true);
 assert.equal(preDiagnostics.pass, true);
 
@@ -139,6 +143,8 @@ assert.equal(issueDiagnostics.mapperPreflightIssues.length, 1);
 assert.equal(issueDiagnostics.mapperPreflightIssues[0].code, 'unknown-support-family');
 assert.equal(issueDiagnostics.mapperPreflightIssues[0].supportTag, 'PS-BAD');
 assert.equal(issueDiagnostics.mapperPreflightIssues[0].axis, '+X');
+assert.equal(issueDiagnostics.supportRulePreviewRows[0].supportTag, 'PS-BAD');
+assert.equal(issueDiagnostics.supportRulePreviewRows[0].popupRequired, true);
 
 const isonoteResult = applyManagedStageSupportSourcePreview(scene, {
   sourceMode: 'isonote',
@@ -157,6 +163,15 @@ assert.equal(isonoteResult.diagnostics.activeSourceExclusive, true);
 assert.equal(isonoteResult.diagnostics.gapCarryForwardViolationCount, 0);
 assert.equal(isonoteResult.diagnostics.axisBasisAppliedCount, 1);
 assert.equal(isonoteResult.diagnostics.supportCanvasAxisHistogram['+Z'], 1);
+assert.equal(isonoteResult.diagnostics.supportRulePreviewRows.length, 2);
+const lineStopRuleRow = isonoteResult.diagnostics.supportRulePreviewRows.find((row) => row.family === 'LINE_STOP');
+assert.ok(lineStopRuleRow, 'rule preview should include ISONOTE line stop');
+assert.equal(lineStopRuleRow.sourceAxis, '-X');
+assert.equal(lineStopRuleRow.canvasAxis, '+Z');
+assert.equal(lineStopRuleRow.sign, '+');
+assert.equal(lineStopRuleRow.gapMm, 4);
+assert.equal(lineStopRuleRow.graphicsRule, 'axial-pair-or-explicit-sign');
+assert.equal(lineStopRuleRow.emittedSymbolCount, 2);
 assert.equal(isonoteResult.diagnostics.pass, true);
 assert.equal(scene.children.includes(stagedSupport), false, 'ISONOTE mode must remove stagedJson support symbols');
 const overlay = scene.children.find((child) => child.name === ISONOTE_SUPPORT_SOURCE_OVERLAY_ROOT);
@@ -173,6 +188,7 @@ assert.equal(lineStopOverlay.userData.supportVisual.explicitAxis.sign, '+');
 const offResult = applyManagedStageSupportSourcePreview(scene, { sourceMode: 'off' });
 assert.equal(offResult.status, 'off');
 assert.equal(offResult.diagnostics.supportSymbolCount, 0);
+assert.equal(offResult.diagnostics.supportRulePreviewRows.length, 0);
 assert.equal(offResult.diagnostics.pass, true);
 assert.equal(scene.children.some((child) => child.name === ISONOTE_SUPPORT_SOURCE_OVERLAY_ROOT), false, 'Off mode should remove ISONOTE support overlay');
 
@@ -188,6 +204,10 @@ assert.equal(stagedResult.diagnostics.mapperConfigApplied, true);
 assert.equal(stagedResult.diagnostics.stagedJsonSymbolCount, 1);
 assert.equal(stagedResult.diagnostics.isonoteSymbolCount, 0);
 assert.equal(stagedResult.diagnostics.supportFamilyHistogram.REST, 1, 'mapper rebuild should use SUPPORT_KIND/rawKind for stagedJson support family');
+assert.equal(stagedResult.diagnostics.supportRulePreviewRows.length, 1);
+assert.equal(stagedResult.diagnostics.supportRulePreviewRows[0].sourceMode, MANAGED_STAGE_SUPPORT_SOURCE_MODES.STAGED_JSON);
+assert.equal(stagedResult.diagnostics.supportRulePreviewRows[0].family, 'REST');
+assert.equal(stagedResult.diagnostics.supportRulePreviewRows[0].graphicsRule, 'positive-y-upward-arrow');
 assert.equal(stagedResult.diagnostics.pass, true);
 assert.equal(stagedScene.children.includes(stagedOnlySupport), false, 'mapper-enabled stagedJson mode should rebuild stagedJson support symbols through the mapper contract');
 const stagedOverlay = stagedScene.children.find((child) => child.name === STAGED_JSON_SUPPORT_SOURCE_OVERLAY_ROOT);

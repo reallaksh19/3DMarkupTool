@@ -23,6 +23,18 @@ const diagnostics = {
   mapperPreflightWarningCount: 1,
   mapperPreflightErrorCount: 0,
   mapperPreflightPopupRequiredCount: 1,
+  mapperPreflightIssues: [
+    {
+      sourceMode: 'isonote',
+      severity: 'warning',
+      code: 'single-axis-missing-sign',
+      message: 'Single-axis restraint has an axis but no explicit +/- sign; popupRequired is set.',
+      supportTag: 'PS-001',
+      family: 'UNKNOWN',
+      node: '10',
+      axis: '+Z'
+    }
+  ],
   popupRequiredCount: 1,
   warningCount: 1,
   gapRecordScopedCount: 2,
@@ -42,6 +54,7 @@ assert.equal(rows.some((row) => row.key === 'sourceMode' && row.value === 'isono
 assert.equal(rows.some((row) => row.key === 'supportSymbolCount' && row.value === '3'), true);
 assert.equal(rows.some((row) => row.key === 'mapperPreflightIssueCount' && row.value === '1'), true);
 assert.equal(rows.some((row) => row.key === 'mapperPreflightPopupRequiredCount' && row.value === '1'), true);
+assert.equal(rows.some((row) => row.key === 'mapperPreflightIssues' && row.value.includes('single-axis-missing-sign')), true);
 assert.equal(rows.some((row) => row.key === 'gapCarryForwardViolationCount' && row.value === '0'), true);
 assert.equal(rows.some((row) => row.key === 'supportFamilyHistogram' && row.value.includes('GUIDE:1')), true);
 assert.equal(rows.some((row) => row.key === 'supportCanvasAxisHistogram' && row.value.includes('+Z:2')), true);
@@ -50,12 +63,16 @@ const summary = supportMapperDiagnosticsSummary(diagnostics);
 assert.equal(summary.includes('isonote'), true);
 assert.equal(summary.includes('symbols 3'), true);
 assert.equal(summary.includes('preflight 0E/1W'), true);
+assert.equal(summary.includes('listed issues 1'), true);
 assert.equal(summary.includes('gap carry-forward 0'), true);
 assert.equal(summary.endsWith('PASS.'), true);
 
 const html = renderManagedStageSupportMapperDiagnostics(diagnostics);
 assert.equal(html.includes('Support mapper diagnostics'), true);
 assert.equal(html.includes('Mapper preflight issues'), true);
+assert.equal(html.includes('Preflight issue details'), true);
+assert.equal(html.includes('single-axis-missing-sign'), true);
+assert.equal(html.includes('PS-001'), true);
 assert.equal(html.includes('Family histogram'), true);
 assert.equal(html.includes('REST:1'), true);
 assert.equal(html.includes('+Z:2'), true);

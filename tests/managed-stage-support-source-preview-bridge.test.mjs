@@ -112,6 +112,34 @@ assert.equal(preDiagnostics.supportFamilyHistogram.GUIDE, 1);
 assert.equal(preDiagnostics.activeSourceExclusive, true);
 assert.equal(preDiagnostics.pass, true);
 
+const issueScene = new THREE.Scene();
+const issueSupport = makeStagedSupport();
+issueSupport.userData.sourceName = 'PS-BAD';
+issueSupport.userData.stagedJsonMapperRecord = {
+  sourceMode: MANAGED_STAGE_SUPPORT_SOURCE_MODES.STAGED_JSON,
+  supportTag: 'PS-BAD',
+  family: 'UNKNOWN',
+  axis: { canvasAxis: '+X' },
+  attrs: { NODE: '10', SUPPORT_KIND_SOURCE_FIELD: 'SUPPORT_KIND', SUPPORT_AXIS_SOURCE_FIELD: 'SUPPORT_AXIS' },
+  preflight: {
+    pass: true,
+    popupRequired: true,
+    issueCount: 1,
+    warningCount: 1,
+    errorCount: 0,
+    issues: [{ code: 'unknown-support-family', severity: 'warning', message: 'Support kind did not match configured graphics rules.' }]
+  }
+};
+issueScene.add(issueSupport);
+const issueDiagnostics = collectManagedStageSupportSourcePreviewDiagnostics(issueScene, { sourceMode: 'stagedJson', status: 'stagedJson' });
+assert.equal(issueDiagnostics.mapperPreflightIssueCount, 1);
+assert.equal(issueDiagnostics.mapperPreflightWarningCount, 1);
+assert.equal(issueDiagnostics.mapperPreflightPopupRequiredCount, 1);
+assert.equal(issueDiagnostics.mapperPreflightIssues.length, 1);
+assert.equal(issueDiagnostics.mapperPreflightIssues[0].code, 'unknown-support-family');
+assert.equal(issueDiagnostics.mapperPreflightIssues[0].supportTag, 'PS-BAD');
+assert.equal(issueDiagnostics.mapperPreflightIssues[0].axis, '+X');
+
 const isonoteResult = applyManagedStageSupportSourcePreview(scene, {
   sourceMode: 'isonote',
   isonoteText: noteText,

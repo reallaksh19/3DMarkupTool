@@ -5,7 +5,7 @@ import { MANAGED_STAGE_SUPPORT_SOURCE_MODES, normalizeManagedStageSupportMapperR
 
 export const MANAGED_STAGE_SUPPORT_SOURCE_PREVIEW_BRIDGE_SCHEMA = 'ManagedStageSupportSourcePreviewBridge.v1';
 export const MANAGED_STAGE_SUPPORT_SOURCE_PREVIEW_DIAGNOSTICS_SCHEMA = 'ManagedStageSupportSourcePreviewDiagnostics.v1';
-export const MANAGED_STAGE_SUPPORT_SOURCE_PREVIEW_BRIDGE_CACHE_KEY = '20260623-staged-json-support-source-preview-4';
+export const MANAGED_STAGE_SUPPORT_SOURCE_PREVIEW_BRIDGE_CACHE_KEY = '20260623-staged-json-support-source-preview-5-axis-basis';
 export const ISONOTE_SUPPORT_SOURCE_OVERLAY_ROOT = 'MANAGED_STAGE_SUPPORT_SOURCE_OVERLAY_ISONOTE';
 export const STAGED_JSON_SUPPORT_SOURCE_OVERLAY_ROOT = 'MANAGED_STAGE_SUPPORT_SOURCE_OVERLAY_STAGED_JSON';
 
@@ -90,14 +90,15 @@ export function buildIsonoteSupportPreviewRecords(isonoteText = '', pipeRecords 
     const nodeId = String(entry.nodeId || entry.attrs?.NODE || '').trim();
     const supportCoord = clonePoint(nodePoints.get(nodeId));
     if (!supportCoord) return null;
-    const attrs = { ...(entry.attrs || {}), TYPE: 'SUPPORT', DTXR: 'SUPPORT', RAW_TYPE: 'ISONOTE_SUPPORT', NODE: nodeId, SUPPORT_SOURCE_MODE: MANAGED_STAGE_SUPPORT_SOURCE_MODES.ISONOTE, SUPPORTCOORD: supportCoord, POS: supportCoord };
+    const mappedAxisAttrs = mappedAxisOverrideAttrs(entry.mapperRecord);
+    const attrs = { ...(entry.attrs || {}), ...mappedAxisAttrs, TYPE: 'SUPPORT', DTXR: 'SUPPORT', RAW_TYPE: 'ISONOTE_SUPPORT', NODE: nodeId, SUPPORT_SOURCE_MODE: MANAGED_STAGE_SUPPORT_SOURCE_MODES.ISONOTE, SUPPORTCOORD: supportCoord, POS: supportCoord };
     const family = entry.mapperRecord?.family || attrs.SUPPORT_KIND_MAPPED || attrs.SUPPORT_KIND || 'SUPPORT';
     return { node: null, attrs, rawName: `ISONOTE ${nodeId || 'NODE'} ${family} ${index + 1}`, name: `ISONOTE_${safeName(nodeId || 'NODE')}_${safeName(family)}_${index + 1}`, path: `ISONOTE/${safeName(nodeId || 'NODE')}/${safeName(family)}/${index + 1}`, type: 'SUPPORT', rawType: 'ISONOTE_SUPPORT', dtxr: 'SUPPORT', fromNode: nodeId, toNode: '', source: { supportCoord, pos: supportCoord, start: null, end: null }, isonoteMapperRecord: entry.mapperRecord, isonoteRawText: entry.rawText || '' };
   }).filter(Boolean);
 }
 
 export function collectManagedStageSupportSourcePreviewDiagnostics(modelRoot, result = {}) {
-  const diagnostics = { schema: MANAGED_STAGE_SUPPORT_SOURCE_PREVIEW_DIAGNOSTICS_SCHEMA, sourceMode: result.sourceMode || '', status: result.status || '', removed: Number(result.removed || 0), mapperConfigApplied: Boolean(result.mapperConfigApplied), pipeRecordCount: Number(result.pipeRecordCount || 0), stagedJsonSupportRecordCount: Number(result.stagedJsonSupportRecordCount || 0), isonoteSupportRecordCount: Number(result.isonoteSupportRecordCount || 0), overlayPrimitiveGroupCount: Number(result.overlayPrimitiveGroupCount || 0), stagedJsonOverlayRootCount: 0, isonoteOverlayRootCount: 0, supportSymbolCount: 0, stagedJsonSymbolCount: 0, isonoteSymbolCount: 0, supportVisualPartCount: 0, supportFamilyHistogram: {}, popupRequiredCount: 0, warningCount: 0, gapRecordScopedCount: 0, gapCarryForwardViolationCount: 0, maxGlyphLengthMm: 0, maxClusterOffsetMm: 0, maxGapVisualSeparationMm: 0, activeSourceExclusive: true, pass: true };
+  const diagnostics = { schema: MANAGED_STAGE_SUPPORT_SOURCE_PREVIEW_DIAGNOSTICS_SCHEMA, sourceMode: result.sourceMode || '', status: result.status || '', removed: Number(result.removed || 0), mapperConfigApplied: Boolean(result.mapperConfigApplied), pipeRecordCount: Number(result.pipeRecordCount || 0), stagedJsonSupportRecordCount: Number(result.stagedJsonSupportRecordCount || 0), isonoteSupportRecordCount: Number(result.isonoteSupportRecordCount || 0), overlayPrimitiveGroupCount: Number(result.overlayPrimitiveGroupCount || 0), stagedJsonOverlayRootCount: 0, isonoteOverlayRootCount: 0, supportSymbolCount: 0, stagedJsonSymbolCount: 0, isonoteSymbolCount: 0, supportVisualPartCount: 0, supportFamilyHistogram: {}, supportCanvasAxisHistogram: {}, axisBasisAppliedCount: 0, popupRequiredCount: 0, warningCount: 0, gapRecordScopedCount: 0, gapCarryForwardViolationCount: 0, maxGlyphLengthMm: 0, maxClusterOffsetMm: 0, maxGapVisualSeparationMm: 0, activeSourceExclusive: true, pass: true };
   modelRoot?.traverse?.((object) => {
     const data = object?.userData || {};
     if (object?.name === STAGED_JSON_SUPPORT_SOURCE_OVERLAY_ROOT) diagnostics.stagedJsonOverlayRootCount += 1;
@@ -112,10 +113,14 @@ export function collectManagedStageSupportSourcePreviewDiagnostics(modelRoot, re
     const visual = data.supportVisual || {};
     const family = String(visual.family || data.supportFamily || 'UNKNOWN').trim() || 'UNKNOWN';
     const itemMode = data.supportSourceMode || (data.isonoteSupportOverlay ? MANAGED_STAGE_SUPPORT_SOURCE_MODES.ISONOTE : MANAGED_STAGE_SUPPORT_SOURCE_MODES.STAGED_JSON);
+    const mapperRecord = data.stagedJsonMapperRecord || data.isonoteMapperRecord || null;
+    const canvasAxis = mapperRecord?.axis?.canvasAxis || explicitAxisText(visual.explicitAxis);
     diagnostics.supportSymbolCount += 1;
     if (itemMode === MANAGED_STAGE_SUPPORT_SOURCE_MODES.ISONOTE) diagnostics.isonoteSymbolCount += 1;
     else diagnostics.stagedJsonSymbolCount += 1;
     diagnostics.supportFamilyHistogram[family] = (diagnostics.supportFamilyHistogram[family] || 0) + 1;
+    if (canvasAxis) diagnostics.supportCanvasAxisHistogram[canvasAxis] = (diagnostics.supportCanvasAxisHistogram[canvasAxis] || 0) + 1;
+    if (mapperRecord?.attrs?.SUPPORT_AXIS_CANVAS_APPLIED === 'TRUE') diagnostics.axisBasisAppliedCount += 1;
     if (data.popupRequired || visual.popupRequired) diagnostics.popupRequiredCount += 1;
     if (visual.popupRequired || visual.fallbackCrossRods || /WARNING|UNKNOWN/.test(family)) diagnostics.warningCount += 1;
     if (visual.gapRecordScoped) diagnostics.gapRecordScopedCount += 1;
@@ -143,7 +148,8 @@ function collectStagedJsonSupportPreviewRecords(modelRoot, options = {}) {
     const gapText = visual.gapMm ? `${visual.gapMm}mm` : '';
     const baseAttrs = { TYPE: data.stagedType || 'SUPPORT', DTXR: data.dtxr || data.rawType || 'SUPPORT', RAW_TYPE: data.rawType || visual.rawKind || visual.family || 'SUPPORT', NAME: data.sourceName || data.sourcePath || '', REF: data.sourcePath || data.sourceName || '', NODE: visual.node || data.fromNode || data.toNode || '', SUPPORT_TAG: data.sourceName || data.sourcePath || '', SUPPORT_KIND: visual.rawKind || visual.family || data.supportFamily || '', SUPPORT_GRAPHICS_RULE: visual.rawKind || visual.family || '', SUPPORT_AXIS: sourceAxis, SUPPORT_SIGN: visual.explicitAxis?.sign || '', SUPPORT_GAP_MM: gapText, GAP: gapText, SUPPORTCOORD: pos, POS: pos };
     const mapperRecord = normalizeManagedStageSupportMapperRecord({ attrs: baseAttrs }, options.mapperConfig || {});
-    const attrs = { ...baseAttrs, ...(mapperRecord.attrs || {}), TYPE: 'SUPPORT', DTXR: 'SUPPORT', RAW_TYPE: 'STAGED_JSON_SUPPORT', SUPPORT_SOURCE_MODE: MANAGED_STAGE_SUPPORT_SOURCE_MODES.STAGED_JSON, SUPPORTCOORD: pos, POS: pos };
+    const mappedAxisAttrs = mappedAxisOverrideAttrs(mapperRecord);
+    const attrs = { ...baseAttrs, ...(mapperRecord.attrs || {}), ...mappedAxisAttrs, TYPE: 'SUPPORT', DTXR: 'SUPPORT', RAW_TYPE: 'STAGED_JSON_SUPPORT', SUPPORT_SOURCE_MODE: MANAGED_STAGE_SUPPORT_SOURCE_MODES.STAGED_JSON, SUPPORTCOORD: pos, POS: pos };
     const family = mapperRecord.family || attrs.SUPPORT_KIND_MAPPED || visual.family || 'SUPPORT';
     const nodeId = String(attrs.NODE || data.fromNode || data.toNode || visual.node || '').trim();
     const index = records.length + 1;
@@ -187,6 +193,24 @@ function buildNodePointMap(records = []) {
     if (record.toNode && record.source?.lpos && !map.has(String(record.toNode))) map.set(String(record.toNode), record.source.lpos);
   }
   return map;
+}
+
+function mappedAxisOverrideAttrs(mapperRecord) {
+  const canvasAxis = String(mapperRecord?.axis?.canvasAxis || mapperRecord?.attrs?.SUPPORT_AXIS_CANVAS || '').trim();
+  if (!canvasAxis) return {};
+  const sourceAxis = String(mapperRecord?.axis?.sourceAxis || mapperRecord?.attrs?.SUPPORT_AXIS_SOURCE || '').trim();
+  return {
+    AXIS: canvasAxis,
+    DIRECTION: canvasAxis,
+    RESTRAINT_AXIS: canvasAxis,
+    SUPPORT_AXIS_CANVAS_APPLIED: 'TRUE',
+    SUPPORT_AXIS_SOURCE_ORIGINAL: sourceAxis
+  };
+}
+
+function explicitAxisText(axisInfo) {
+  if (!axisInfo?.axis) return '';
+  return `${axisInfo.sign || '+'}${axisInfo.axis}`;
 }
 
 function stampBridgeAudit(modelRoot, result) {

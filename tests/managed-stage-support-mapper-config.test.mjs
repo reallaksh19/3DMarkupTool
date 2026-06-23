@@ -3,9 +3,11 @@ import {
   CAESAR_TO_CANVAS_AXIS_BASIS_PRESET,
   DEFAULT_STAGED_JSON_SUPPORT_MAPPER_CONFIG,
   MANAGED_STAGE_SUPPORT_MAPPER_CONFIG_SCHEMA,
+  MANAGED_STAGE_SUPPORT_MAPPER_PREFLIGHT_SCHEMA,
   MANAGED_STAGE_SUPPORT_SOURCE_MODES,
   mapManagedStageSupportAxisToCanvas,
   normalizeManagedStageSupportMapperRecord,
+  preflightManagedStageSupportMapperRecord,
   resolveManagedStageSupportMapperConfig
 } from '../src/managed-stage-support-mapper-config.js';
 
@@ -68,6 +70,8 @@ assert.equal(stagedGuide.gap.carryForward, false);
 assert.equal(stagedGuide.attrs.SUPPORT_FIELD_MAPPER_CONFIGURED, 'TRUE');
 assert.equal(stagedGuide.attrs.SUPPORT_AXIS_BASIS_CONFIGURED, 'TRUE');
 assert.equal(stagedGuide.attrs.SUPPORT_GRAPHICS_RULE_CONFIGURED, 'TRUE');
+assert.equal(stagedGuide.preflight.schema, MANAGED_STAGE_SUPPORT_MAPPER_PREFLIGHT_SCHEMA);
+assert.equal(stagedGuide.preflight.pass, true);
 
 const isonoteConfig = resolveManagedStageSupportMapperConfig({ sourceMode: 'isonote' });
 assert.equal(isonoteConfig.sourceMode, MANAGED_STAGE_SUPPORT_SOURCE_MODES.ISONOTE, 'ISONOTE must be a first-class support source toggle mode');
@@ -85,5 +89,33 @@ assert.equal(lineStop.axis.sourceAxis, '-X');
 assert.equal(lineStop.attrs.SUPPORT_AXIS_ENGINEERING, 'NORTH');
 assert.equal(lineStop.attrs.SUPPORT_AXIS_CANVAS, '-X');
 assert.equal(lineStop.attrs.SUPPORT_SIGN_MAPPED, '-');
+assert.equal(lineStop.preflight.pass, true, 'line stop without axis ambiguity should pass preflight');
+
+const unresolvedSingleAxis = normalizeManagedStageSupportMapperRecord({
+  attrs: {
+    SUPPORT_TAG: 'PS-300',
+    AXIS: 'X'
+  }
+}, {
+  fieldMapper: {
+    supportKindFields: ['MISSING_KIND'],
+    graphicsRuleFields: ['MISSING_RULE'],
+    axisFields: ['AXIS'],
+    signFields: ['MISSING_SIGN']
+  }
+});
+assert.equal(unresolvedSingleAxis.family, 'UNKNOWN');
+assert.equal(unresolvedSingleAxis.preflight.pass, true, 'warnings do not block preview');
+assert.equal(unresolvedSingleAxis.preflight.popupRequired, true);
+assert.ok(unresolvedSingleAxis.preflight.issues.some((issue) => issue.code === 'single-axis-missing-sign'));
+assert.equal(unresolvedSingleAxis.attrs.SUPPORT_MAPPER_PREFLIGHT_POPUP_REQUIRED, 'TRUE');
+
+const gapCarryForwardPreflight = preflightManagedStageSupportMapperRecord({
+  ...stagedGuide,
+  gap: { ...stagedGuide.gap, carryForward: true },
+  attrs: { ...stagedGuide.attrs, SUPPORT_GAP_CARRY_FORWARD: 'TRUE' }
+});
+assert.equal(gapCarryForwardPreflight.pass, false);
+assert.ok(gapCarryForwardPreflight.issues.some((issue) => issue.code === 'gap-carry-forward-violation'));
 
 console.log('managed-stage support mapper config: ok');

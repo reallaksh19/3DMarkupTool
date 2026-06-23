@@ -13,7 +13,7 @@ const onReadyBody = controller.match(/function onReady\(\) \{([\s\S]*?)\n\}/)?.[
 
 assert.match(index, new RegExp(activeCacheKey));
 assert.doesNotMatch(index, /fresh-clip-core-20260619/);
-assert.match(index, new RegExp(`safe-ui-bootstrap\.js\?v=${activeCacheKey}`));
+assert.ok(index.includes(`safe-ui-bootstrap.js?v=${activeCacheKey}`), 'index must load safe-ui-bootstrap with the active cache key');
 assert.match(bootstrap, phaseKeyPattern);
 assert.match(bootstrap, /LATE_IDLE_MODULE_URLS[\s\S]*static-browser-diagnostics-controller\.js\?v=\$\{SAFE_UI_VERSION\}/);
 assert.doesNotMatch(bootstrap, /static-properties-actions-controller\.js/);

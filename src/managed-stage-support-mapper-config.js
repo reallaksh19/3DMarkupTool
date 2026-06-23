@@ -1,6 +1,7 @@
 import { normalizeManagedStageSupportGapAttributes } from './managed-stage-support-gap-mapper.js';
 
 export const MANAGED_STAGE_SUPPORT_MAPPER_CONFIG_SCHEMA = 'ManagedStageSupportMapperConfig.v1';
+export const MANAGED_STAGE_SUPPORT_MAPPER_PREFLIGHT_SCHEMA = 'ManagedStageSupportMapperPreflight.v1';
 
 export const MANAGED_STAGE_SUPPORT_SOURCE_MODES = Object.freeze({
   OFF: 'off',
@@ -98,7 +99,7 @@ export function normalizeManagedStageSupportMapperRecord(record, config = {}) {
     SUPPORT_GRAPHICS_RULE_CONFIGURED: 'TRUE'
   };
 
-  return {
+  const result = {
     schema: MANAGED_STAGE_SUPPORT_MAPPER_CONFIG_SCHEMA,
     sourceMode: resolvedConfig.sourceMode,
     supportTag: normalizedAttrs.SUPPORT_TAG_MAPPED,
@@ -119,6 +120,61 @@ export function normalizeManagedStageSupportMapperRecord(record, config = {}) {
     },
     attrs: normalizedAttrs,
     config: resolvedConfig
+  };
+
+  const preflight = preflightManagedStageSupportMapperRecord(result);
+  result.preflight = preflight;
+  result.attrs = {
+    ...result.attrs,
+    SUPPORT_MAPPER_PREFLIGHT_SCHEMA: preflight.schema,
+    SUPPORT_MAPPER_PREFLIGHT_PASS: preflight.pass ? 'TRUE' : 'FALSE',
+    SUPPORT_MAPPER_PREFLIGHT_POPUP_REQUIRED: preflight.popupRequired ? 'TRUE' : 'FALSE',
+    SUPPORT_MAPPER_PREFLIGHT_ISSUE_COUNT: String(preflight.issueCount),
+    SUPPORT_MAPPER_PREFLIGHT_ERROR_COUNT: String(preflight.errorCount),
+    SUPPORT_MAPPER_PREFLIGHT_WARNING_COUNT: String(preflight.warningCount),
+    SUPPORT_MAPPER_PREFLIGHT_ISSUES: preflight.issues.map((issue) => issue.code).join('|')
+  };
+  return result;
+}
+
+export function preflightManagedStageSupportMapperRecord(mapperRecord = {}) {
+  const attrs = mapperRecord.attrs || {};
+  const family = String(mapperRecord.family || attrs.SUPPORT_KIND_MAPPED || 'UNKNOWN').trim() || 'UNKNOWN';
+  const issues = [];
+
+  if (!String(mapperRecord.supportTag || attrs.SUPPORT_TAG_MAPPED || '').trim()) {
+    issues.push(preflightIssue('missing-support-tag', 'warning', 'Support tag is empty after mapper normalization.'));
+  }
+
+  if (!family || family === 'UNKNOWN') {
+    issues.push(preflightIssue('unknown-support-family', 'warning', 'Support kind did not match REST/GUIDE/HOLDDOWN/LINESTOP/LIMIT/LIM/SPRING_CAN.'));
+  }
+
+  const axisSourceField = String(attrs.SUPPORT_AXIS_SOURCE_FIELD || '').trim();
+  const rawAxisValue = String(axisSourceField ? attrs[axisSourceField] : attrs.SUPPORT_AXIS_SOURCE || '').trim();
+  const signSourceField = String(attrs.SUPPORT_SIGN_SOURCE_FIELD || '').trim();
+  const hasBareAxis = /^[XYZ]$/i.test(rawAxisValue);
+  const hasExplicitSign = /^[+-]/.test(rawAxisValue) || Boolean(signSourceField && String(attrs[signSourceField] || '').trim()) || /^[+-]/.test(String(attrs.SUPPORT_SIGN_MAPPED || '').trim());
+  if (hasBareAxis && !hasExplicitSign && family === 'UNKNOWN') {
+    issues.push(preflightIssue('single-axis-missing-sign', 'warning', 'Single-axis restraint has an axis but no explicit +/- sign; popupRequired is set.'));
+  }
+
+  if (mapperRecord.gap?.carryForward || attrs.SUPPORT_GAP_CARRY_FORWARD === 'TRUE') {
+    issues.push(preflightIssue('gap-carry-forward-violation', 'error', 'Support gap must be record-scoped and must not carry forward.'));
+  }
+
+  const errorCount = issues.filter((issue) => issue.severity === 'error').length;
+  const warningCount = issues.filter((issue) => issue.severity === 'warning').length;
+  const popupRequired = issues.some((issue) => issue.code === 'single-axis-missing-sign' || issue.code === 'unknown-support-family');
+  return {
+    schema: MANAGED_STAGE_SUPPORT_MAPPER_PREFLIGHT_SCHEMA,
+    pass: errorCount === 0,
+    popupRequired,
+    issueCount: issues.length,
+    errorCount,
+    warningCount,
+    issues,
+    warnings: issues.filter((issue) => issue.severity === 'warning')
   };
 }
 
@@ -236,6 +292,10 @@ function axisTokenToVector(axisToken) {
   if (dim === 'Y') return { x: 0, y: sign, z: 0 };
   if (dim === 'Z') return { x: 0, y: 0, z: sign };
   return { x: sign, y: 0, z: 0 };
+}
+
+function preflightIssue(code, severity, message) {
+  return { code, severity, message };
 }
 
 function normalizeKey(value) {

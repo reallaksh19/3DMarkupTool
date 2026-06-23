@@ -7,7 +7,8 @@ import {
 } from './managed-stage-support-mapper-config.js';
 
 export const MANAGED_STAGE_SUPPORT_SOURCE_UI_SCHEMA = 'ManagedStageSupportSourceUi.v1';
-export const MANAGED_STAGE_SUPPORT_SOURCE_UI_CACHE_KEY = '20260623-staged-json-support-source-ui-3';
+export const MANAGED_STAGE_SUPPORT_MAPPER_EXPORT_SCHEMA = 'ManagedStageSupportMapperExport.v1';
+export const MANAGED_STAGE_SUPPORT_SOURCE_UI_CACHE_KEY = '20260623-staged-json-support-source-ui-4';
 export const MANAGED_STAGE_SUPPORT_MAPPER_STORAGE_KEY = 'managedStage.supportMapperConfig.v1';
 
 const FIELD_PURPOSE_TO_MAPPER_KEY = Object.freeze({
@@ -74,6 +75,7 @@ export function buildManagedStageSupportSourceUiModel(options = {}) {
       'axisBasis'
     ],
     mapperRows: buildManagedStageSupportMapperUiRows(mapperConfig),
+    mapperExportText: serializeManagedStageSupportMapperExportPayload(mapperConfig, { sourceMode, northSourceAxis, axisBasis: axisBasisForUi }),
     legacyFlags: applyManagedStageSupportSourceModeToLegacyFlags(sourceMode)
   };
 }
@@ -142,6 +144,35 @@ export function parseManagedStageSupportMapperConfig(text) {
   }
 }
 
+export function buildManagedStageSupportMapperExportPayload(config = {}, options = {}) {
+  const resolved = resolveManagedStageSupportMapperConfig(config);
+  const sourceMode = normalizeManagedStageSupportSourceMode(options.sourceMode || DEFAULT_STAGED_JSON_SUPPORT_MAPPER_CONFIG.defaultSourceMode);
+  const northSourceAxis = normalizeSignedAxis(options.northSourceAxis || '-X') || '-X';
+  const axisBasisForExport = buildUiAxisBasis({ northSourceAxis, axisBasis: options.axisBasis });
+  return {
+    schema: MANAGED_STAGE_SUPPORT_MAPPER_EXPORT_SCHEMA,
+    sourceMode,
+    mapperConfig: { fieldMapper: resolved.fieldMapper },
+    axisBasis: {
+      preset: 'CAESAR',
+      northSourceAxis,
+      axes: axisBasisForExport.axes
+    }
+  };
+}
+
+export function serializeManagedStageSupportMapperExportPayload(config = {}, options = {}) {
+  return JSON.stringify(buildManagedStageSupportMapperExportPayload(config, options), null, 2);
+}
+
+export function parseManagedStageSupportMapperExportPayload(text) {
+  const parsed = parseManagedStageSupportMapperConfig(text);
+  if (parsed?.schema === MANAGED_STAGE_SUPPORT_MAPPER_EXPORT_SCHEMA && parsed.mapperConfig) return parsed.mapperConfig;
+  if (parsed?.mapperConfig) return parsed.mapperConfig;
+  if (parsed?.fieldMapper) return parsed;
+  return {};
+}
+
 export function readStoredMapperConfig(storage = globalThis.localStorage) {
   try {
     return parseManagedStageSupportMapperConfig(storage?.getItem?.(MANAGED_STAGE_SUPPORT_MAPPER_STORAGE_KEY) || '');
@@ -154,6 +185,14 @@ export function writeStoredMapperConfig(config = {}, storage = globalThis.localS
   try {
     storage?.setItem?.(MANAGED_STAGE_SUPPORT_MAPPER_STORAGE_KEY, serializeManagedStageSupportMapperConfig(config));
   } catch (_) {}
+}
+
+export function resetStoredMapperConfig(storage = globalThis.localStorage) {
+  try {
+    if (typeof storage?.removeItem === 'function') storage.removeItem(MANAGED_STAGE_SUPPORT_MAPPER_STORAGE_KEY);
+    else storage?.setItem?.(MANAGED_STAGE_SUPPORT_MAPPER_STORAGE_KEY, '');
+  } catch (_) {}
+  return resolveManagedStageSupportMapperConfig({});
 }
 
 export function installManagedStageSupportSourceUi({ doc = globalThis.document } = {}) {
@@ -186,9 +225,34 @@ export function installManagedStageSupportSourceUi({ doc = globalThis.document }
     globalThis.__3D_MARKUP_SUPPORT_SOURCE_UI__ = nextModel;
     return nextModel;
   };
+  const handleMapperAction = (event) => {
+    const action = event?.target?.getAttribute?.('data-support-mapper-action');
+    if (!action) return;
+    event.preventDefault?.();
+    const textarea = doc.getElementById('supportMapperConfigJson');
+    if (action === 'export') {
+      const mapperConfig = readMapperConfigFromDetails(doc) || readStoredMapperConfig();
+      const modelForExport = buildManagedStageSupportSourceUiModel({ sourceMode: sourceSelect.value, northSourceAxis: axisSelect.value, mapperConfig });
+      if (textarea) textarea.value = modelForExport.mapperExportText;
+      return;
+    }
+    if (action === 'import') {
+      const imported = parseManagedStageSupportMapperExportPayload(textarea?.value || '');
+      writeMapperConfigToDetails(doc, imported);
+      writeStoredMapperConfig(imported);
+      sync();
+      return;
+    }
+    if (action === 'reset') {
+      const defaults = resetStoredMapperConfig();
+      writeMapperConfigToDetails(doc, defaults);
+      sync();
+    }
+  };
   sourceSelect.addEventListener?.('change', sync);
   axisSelect.addEventListener?.('change', sync);
   details.addEventListener?.('change', sync);
+  details.addEventListener?.('click', handleMapperAction);
   const installed = sync();
   doc.dispatchEvent?.(new CustomEvent('managed-stage:support-source-ui-ready', { detail: installed }));
   return installed;
@@ -269,7 +333,7 @@ function syncLegacySupportCheckboxes(doc, flags) {
 
 function supportSourceSummary(model) {
   if (model.sourceMode === MANAGED_STAGE_SUPPORT_SOURCE_MODES.OFF) return 'Support symbols disabled.';
-  return `Support source: ${model.legacyFlags.sourceLabel}; CAESAR +Y=UP, ${model.axisBasis.northSourceAxis}=NORTH → Canvas ${model.axisBasis.northCanvasAxis}. Mapper fields are editable and persisted locally.`;
+  return `Support source: ${model.legacyFlags.sourceLabel}; CAESAR +Y=UP, ${model.axisBasis.northSourceAxis}=NORTH → Canvas ${model.axisBasis.northCanvasAxis}. Mapper fields are editable, importable, exportable, and persisted locally.`;
 }
 
 function renderMapperDetails(model) {
@@ -278,7 +342,7 @@ function renderMapperDetails(model) {
     return `<tr><td>${escapeHtml(row.label || row.fieldPurpose)}</td><td><input data-support-mapper-fields="${escapeAttribute(row.fieldPurpose)}" value="${escapeAttribute(value)}" aria-label="${escapeAttribute(row.label || row.fieldPurpose)} fields"></td><td>${escapeHtml(row.normalizedOutput)}</td><td>${escapeHtml(row.graphicsRule)}</td></tr>`;
   }).join('');
   const axisRows = model.axisBasisRows.map((row) => `<tr><td>${escapeHtml(row.sourceAxis)}</td><td>${escapeHtml(row.engineeringDirection)}</td><td>${escapeHtml(row.canvasAxis)}</td><td>${escapeHtml(row.canvasVectorText)}</td></tr>`).join('');
-  return `<summary>Support mapper config</summary><p>Source fields are comma-separated and stored in browser localStorage.</p><table><thead><tr><th>Purpose</th><th>Source fields</th><th>Output</th><th>Rule</th></tr></thead><tbody>${rows}</tbody></table><table><thead><tr><th>Source axis</th><th>Meaning</th><th>Canvas axis</th><th>Vector</th></tr></thead><tbody>${axisRows}</tbody></table>`;
+  return `<summary>Support mapper config</summary><p>Source fields are comma-separated and stored in browser localStorage.</p><table><thead><tr><th>Purpose</th><th>Source fields</th><th>Output</th><th>Rule</th></tr></thead><tbody>${rows}</tbody></table><table><thead><tr><th>Source axis</th><th>Meaning</th><th>Canvas axis</th><th>Vector</th></tr></thead><tbody>${axisRows}</tbody></table><div class="support-mapper-config-io"><button type="button" data-support-mapper-action="export">Export mapper config</button><button type="button" data-support-mapper-action="import">Import mapper config</button><button type="button" data-support-mapper-action="reset">Reset mapper config</button><textarea id="supportMapperConfigJson" aria-label="Support mapper config JSON" rows="8">${escapeHtml(model.mapperExportText)}</textarea></div>`;
 }
 
 function readMapperConfigFromDetails(doc) {
@@ -291,6 +355,16 @@ function readMapperConfigFromDetails(doc) {
     fields[purpose] = node.value || '';
   }
   return buildManagedStageSupportMapperConfigFromUiFields(fields);
+}
+
+function writeMapperConfigToDetails(doc, config = {}) {
+  const rows = buildManagedStageSupportMapperUiRows(config);
+  for (const row of rows) {
+    const node = doc.querySelector?.(`[data-support-mapper-fields="${row.fieldPurpose}"]`);
+    if (node) node.value = row.sourceFieldCandidates.join(', ');
+  }
+  const textarea = doc.getElementById?.('supportMapperConfigJson');
+  if (textarea) textarea.value = serializeManagedStageSupportMapperExportPayload(config);
 }
 
 function buildUiAxisBasis({ northSourceAxis = '-X', axisBasis = {} } = {}) {

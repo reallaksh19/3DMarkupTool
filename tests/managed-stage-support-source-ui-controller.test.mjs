@@ -9,8 +9,13 @@ import {
   buildManagedStageSupportMapperConfigFromUiFields,
   serializeManagedStageSupportMapperConfig,
   parseManagedStageSupportMapperConfig,
+  buildManagedStageSupportMapperExportPayload,
+  serializeManagedStageSupportMapperExportPayload,
+  parseManagedStageSupportMapperExportPayload,
   readStoredMapperConfig,
   writeStoredMapperConfig,
+  resetStoredMapperConfig,
+  MANAGED_STAGE_SUPPORT_MAPPER_EXPORT_SCHEMA,
   MANAGED_STAGE_SUPPORT_MAPPER_STORAGE_KEY
 } from '../src/managed-stage-support-source-ui-controller.js';
 import { MANAGED_STAGE_SUPPORT_SOURCE_MODES } from '../src/managed-stage-support-mapper-config.js';
@@ -52,6 +57,7 @@ assert.equal(defaultModel.mapperRows.some((row) => row.fieldPurpose === 'gap' &&
 assert.equal(defaultModel.axisBasisRows.find((row) => row.sourceAxis === '+Y')?.engineeringDirection, 'UP');
 assert.equal(defaultModel.axisBasisRows.find((row) => row.sourceAxis === '-Y')?.engineeringDirection, 'DOWN');
 assert.equal(defaultModel.axisBasisRows.find((row) => row.sourceAxis === '-X')?.engineeringDirection, 'NORTH');
+assert.equal(defaultModel.mapperExportText.includes(MANAGED_STAGE_SUPPORT_MAPPER_EXPORT_SCHEMA), true);
 
 const explicitRows = buildManagedStageSupportMapperUiRows({
   fieldMapper: {
@@ -104,13 +110,28 @@ assert.deepEqual(parsed.fieldMapper.supportTagFields, ['PS_NO', 'SUPPORT_TAG']);
 assert.deepEqual(parsed.fieldMapper.coordinateFields, ['SUPPORTCOORD']);
 assert.deepEqual(parseManagedStageSupportMapperConfig('{bad json'), {});
 
+const exportPayload = buildManagedStageSupportMapperExportPayload(uiConfig, { sourceMode: 'isonote', northSourceAxis: '+Z' });
+assert.equal(exportPayload.schema, MANAGED_STAGE_SUPPORT_MAPPER_EXPORT_SCHEMA);
+assert.equal(exportPayload.sourceMode, 'isonote');
+assert.equal(exportPayload.axisBasis.northSourceAxis, '+Z');
+assert.deepEqual(exportPayload.mapperConfig.fieldMapper.graphicsRuleFields, ['SUPPORT_RULE']);
+const serializedExport = serializeManagedStageSupportMapperExportPayload(uiConfig, { sourceMode: 'isonote', northSourceAxis: '+Z' });
+assert.equal(serializedExport.includes('SUPPORT_RULE'), true);
+assert.deepEqual(parseManagedStageSupportMapperExportPayload(serializedExport).fieldMapper.axisFields, ['CAESAR_AXIS']);
+assert.deepEqual(parseManagedStageSupportMapperExportPayload(serialized).fieldMapper.supportTagFields, ['PS_NO', 'SUPPORT_TAG']);
+assert.deepEqual(parseManagedStageSupportMapperExportPayload('{bad json'), {});
+
 const storage = new Map();
 const storageShim = {
   getItem: (key) => storage.get(key) || '',
-  setItem: (key, value) => storage.set(key, String(value))
+  setItem: (key, value) => storage.set(key, String(value)),
+  removeItem: (key) => storage.delete(key)
 };
 writeStoredMapperConfig(uiConfig, storageShim);
 assert.equal(storage.has(MANAGED_STAGE_SUPPORT_MAPPER_STORAGE_KEY), true);
 assert.deepEqual(readStoredMapperConfig(storageShim).fieldMapper.supportTagFields, ['PS_NO', 'SUPPORT_TAG']);
+const resetConfig = resetStoredMapperConfig(storageShim);
+assert.equal(storage.has(MANAGED_STAGE_SUPPORT_MAPPER_STORAGE_KEY), false);
+assert.equal(resetConfig.fieldMapper.gapFields.includes('SUPPORT_GAP_MM'), true);
 
 console.log('managed-stage support source UI controller: ok');

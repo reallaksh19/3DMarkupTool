@@ -7,13 +7,13 @@ const controller = readFileSync(new URL('../src/static-browser-diagnostics-contr
 const checklist = readFileSync(new URL('../docs/post-pr133-recovery-checklist.md', import.meta.url), 'utf8');
 const pkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
 
-const activeCacheKey = 'support-ui-render-export-fix-20260623';
+const activeCacheKey = 'app-boot-dialog-conversion-hotfix-20260623';
 const phaseKeyPattern = /input-always-visible-20260619|phase4-global-esc-lifecycle-20260619|phase4a-static-input-panel-cleanup-20260619|perf-static-shell-20260620|perf-lcp-deferred-app-20260620|perf-idle-diagnostics-20260620|perf-tdz-fix-20260620|canvas-tool-manager-20260620|tool-fixes-v2-20260620/;
 const onReadyBody = controller.match(/function onReady\(\) \{([\s\S]*?)\n\}/)?.[1] || '';
 
 assert.match(index, new RegExp(activeCacheKey));
 assert.doesNotMatch(index, /fresh-clip-core-20260619/);
-assert.match(index, new RegExp(`safe-ui-bootstrap\\.js\\?v=${activeCacheKey}`));
+assert.match(index, new RegExp(`safe-ui-bootstrap\.js\?v=${activeCacheKey}`));
 assert.match(bootstrap, phaseKeyPattern);
 assert.match(bootstrap, /LATE_IDLE_MODULE_URLS[\s\S]*static-browser-diagnostics-controller\.js\?v=\$\{SAFE_UI_VERSION\}/);
 assert.doesNotMatch(bootstrap, /static-properties-actions-controller\.js/);

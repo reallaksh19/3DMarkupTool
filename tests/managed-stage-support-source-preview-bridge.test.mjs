@@ -215,4 +215,54 @@ assert.ok(stagedOverlay, 'stagedJson mode should create a dedicated mapper-appli
 assert.equal(stagedOverlay.children.length, 1);
 assert.equal(stagedOverlay.userData.sourceMode, MANAGED_STAGE_SUPPORT_SOURCE_MODES.STAGED_JSON);
 assert.equal(stagedOverlay.userData.mapperConfigApplied, true);
+
+const rawFieldScene = new THREE.Scene();
+rawFieldScene.add(makePipe());
+const rawFieldSupport = makeStagedSupport();
+rawFieldSupport.userData.sourceName = 'GENERIC_SUPPORT_OBJECT';
+rawFieldSupport.userData.sourcePath = '/BRANCH/GENERIC_SUPPORT_OBJECT';
+rawFieldSupport.userData.previewPosMm = { x: 1000, y: 0, z: 0 };
+rawFieldSupport.userData.sourceAttributes = {
+  DTXR: 'LINE STOP',
+  SUPPORT_TAG: 'PS-RAW-010',
+  SUPPORT_KIND: 'LINE STOP',
+  SUPPORT_TYPE: 'LIMIT',
+  SUPPORT_AXIS: '-X',
+  SUPPORT_GAP_MM: '10mm',
+  NODE: '20'
+};
+rawFieldSupport.userData.supportVisual = {
+  rawKind: 'SUPPORT',
+  family: 'UNKNOWN',
+  node: '20',
+  popupRequired: false,
+  gapRecordScoped: true,
+  gapCarryForward: false,
+  cluster: { offsetMagnitudeMm: 0 },
+  gapVisualSeparationMm: 0
+};
+rawFieldScene.add(rawFieldSupport);
+const rawFieldResult = applyManagedStageSupportSourcePreview(rawFieldScene, { sourceMode: 'stagedJson', mapperConfig: customMapperConfig });
+assert.equal(rawFieldResult.status, 'stagedJson');
+assert.equal(rawFieldResult.stagedJsonSupportRecordCount, 1);
+assert.equal(rawFieldResult.diagnostics.supportFamilyHistogram.LINE_STOP, 1, 'stagedJson source fields should drive family extraction');
+assert.equal(rawFieldResult.diagnostics.supportCanvasAxisHistogram['+Z'], 1);
+const rawFieldRow = rawFieldResult.diagnostics.supportRulePreviewRows[0];
+assert.equal(rawFieldRow.supportTag, 'PS-RAW-010');
+assert.equal(rawFieldRow.family, 'LINE_STOP');
+assert.equal(rawFieldRow.sourceAxis, '-X');
+assert.equal(rawFieldRow.canvasAxis, '+Z');
+assert.equal(rawFieldRow.gapMm, 10);
+assert.equal(rawFieldRow.graphicsRule, 'axial-pair-or-explicit-sign');
+const rawFieldOverlay = rawFieldScene.children.find((child) => child.name === STAGED_JSON_SUPPORT_SOURCE_OVERLAY_ROOT);
+assert.ok(rawFieldOverlay, 'source-attribute stagedJson support should rebuild into the staged overlay');
+const rebuiltLineStop = rawFieldOverlay.children[0];
+assert.equal(rebuiltLineStop.userData.stagedJsonMapperRecord.supportTag, 'PS-RAW-010');
+assert.equal(rebuiltLineStop.userData.stagedJsonMapperRecord.attrs.SUPPORT_TAG_SOURCE_FIELD, 'SUPPORT_TAG');
+assert.equal(rebuiltLineStop.userData.stagedJsonMapperRecord.attrs.SUPPORT_KIND_SOURCE_FIELD, 'SUPPORT_KIND');
+assert.equal(rebuiltLineStop.userData.stagedJsonMapperRecord.attrs.SUPPORT_AXIS_SOURCE_FIELD, 'SUPPORT_AXIS');
+assert.equal(rebuiltLineStop.userData.stagedJsonMapperRecord.attrs.SUPPORT_GAP_SOURCE_FIELD, 'SUPPORT_GAP_MM');
+assert.equal(rebuiltLineStop.userData.supportVisual.explicitAxis.axis, 'Z');
+assert.equal(rebuiltLineStop.userData.supportVisual.explicitAxis.sign, '+');
+
 console.log('managed-stage-support-source-preview-bridge tests passed');

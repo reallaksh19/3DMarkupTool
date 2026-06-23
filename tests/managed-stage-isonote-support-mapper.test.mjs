@@ -1,9 +1,10 @@
 import assert from 'node:assert/strict';
 import { parseManagedStageIsonoteSupportRecords } from '../src/managed-stage-isonote-support-mapper.js';
+import { resolveManagedStageSupportSymbolCatalogue } from '../src/managed-stage-support-symbol-catalogue.js';
 
-const text = ['NODE,ISONOTE', '35,REST GUIDE LINE STOP', '130,SINGLE AXIS Z'].join('\n');
+const text = ['NODE,ISONOTE', '35,REST, GUIDE, LINE STOP', '130,SINGLE AXIS Z', '205,REST, HOLDDOWN, SPRING CAN'].join('\n');
 const records = parseManagedStageIsonoteSupportRecords(text);
-assert.ok(records.length >= 3);
+assert.equal(records.length, 8);
 assert.ok(records.every((record) => record.sourceMode === 'isonote'));
 assert.ok(records.every((record) => record.mapperRecord.gap.recordScoped === true));
 assert.ok(records.every((record) => record.mapperRecord.gap.carryForward === false));
@@ -12,9 +13,19 @@ const families = records.map((record) => record.mapperRecord.family);
 assert.ok(families.includes('REST'));
 assert.ok(families.includes('GUIDE'));
 assert.ok(families.includes('LINE_STOP'));
+assert.ok(families.includes('HOLDDOWN'));
+assert.ok(families.includes('SPRING_CAN'));
+
+const warning = records.find((record) => record.nodeId === '130');
+assert.equal(warning.mapperRecord.family, 'UNKNOWN');
+assert.equal(warning.mapperRecord.axis.sourceAxis, '+Z');
+const warningSymbol = resolveManagedStageSupportSymbolCatalogue(warning.mapperRecord, { pipeAxisSigned: '+X' });
+assert.equal(warningSymbol.family, 'SINGLE_AXIS_WARNING');
+assert.equal(warningSymbol.popupRequired, true);
 
 const gapRows = parseManagedStageIsonoteSupportRecords('NODE,ISONOTE\n10,GUIDE GAP=5mm\n20,LINE STOP\n');
 assert.equal(gapRows[0].mapperRecord.gap.value, '5mm');
+assert.equal(gapRows[0].mapperRecord.gap.sourceField, 'ISONOTE_SEGMENT');
 assert.equal(gapRows[1].mapperRecord.gap.value, '');
 
 console.log('managed-stage ISONOTE support mapper: ok');

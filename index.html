@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>InputXML GLB/RVM Review Viewer</title>
+  <title>StagedJson GLB/RVM Review Viewer</title>
   <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
   <link rel="shortcut icon" href="./favicon.ico" />
   <link rel="preconnect" href="https://unpkg.com" crossorigin />
@@ -31,7 +31,7 @@
           <i data-lucide="box"></i>
         </div>
         <div>
-          <h1>InputXML GLB/RVM Review Viewer</h1>
+          <h1>StagedJson GLB/RVM Review Viewer</h1>
         </div>
       </div>
 
@@ -89,8 +89,8 @@
       </div>
     </nav>
 
-    <div class="markup-ribbon" aria-label="Markup and XML tools">
-      <div class="tool-group toolbar-group navis-tag-tools tag-lite-host static-markup-tools" aria-label="Markup, XML, and session tools"></div>
+    <div class="markup-ribbon" aria-label="Markup and JSON tools">
+      <div class="tool-group toolbar-group navis-tag-tools tag-lite-host static-markup-tools" aria-label="Markup, JSON, and session tools"></div>
     </div>
   </header>
 
@@ -99,7 +99,7 @@
       <div class="drawer-head">
         <div>
           <h2><i data-lucide="file-input"></i> Input / Export</h2>
-          <p>Load InputXML, sideload metadata, convert, then export GLB or RVM+ATT.</p>
+          <p>Load stagedJson, sideload metadata, convert, then export GLB or RVM+ATT.</p>
         </div>
         <button id="closeInputBtn" type="button" class="icon-btn" title="Close input panel"><i data-lucide="chevrons-left"></i></button>
       </div>
@@ -131,7 +131,7 @@
         </div>
 
         <p id="drawerSummaryHint" class="drawer-summary-hint">
-          Load InputXML or BM_CII sample to begin.
+          Load stagedJson or bundled sample to begin.
         </p>
       </section>
 
@@ -139,12 +139,12 @@
         <h3><span class="section-no">1</span> Input</h3>
         <div id="inputFileStatus" class="input-file-status" aria-live="polite">No file chosen</div>
         <label class="file-drop input-file-drop-visible">
-          <input type="file" id="xmlFile" accept=".xml,.txt" />
+          <input type="file" id="xmlFile" accept=".json,.jscon,application/json" />
           <i data-lucide="upload"></i>
-          <span>Choose InputXML</span>
+          <span>Choose stagedJson</span>
         </label>
         <div class="button-row input-primary-actions">
-          <button id="loadSampleBtn" type="button" class="primary icon-text" title="Load BM_CII sample without replacing the file chooser status" aria-label="Load BM_CII sample"><i data-lucide="folder-open"></i><span>Load BM_CII sample</span></button>
+          <button id="loadSampleBtn" type="button" class="primary icon-text" title="Load bundled stagedJson sample without replacing the file chooser status" aria-label="Load stagedJson sample"><i data-lucide="folder-open"></i><span>Load stagedJson sample</span></button>
           <button id="clearBtn" type="button" class="ghost icon-text" aria-label="Clear all input and sample data"><i data-lucide="folder-x"></i><span>Clear All</span></button>
         </div>
       </section>
@@ -156,7 +156,7 @@
         <label class="field conversion-collapsible-content"><span>Board width</span><input id="boardWidthInput" type="number" value="2.8" step="0.1" min="0.5" /></label>
         <label class="field conversion-collapsible-content"><span>RVM version</span><input id="rvmVersion" type="text" value="3.0" /></label>
         <label class="field checkbox-field conversion-collapsible-content"><input id="renderExpectedSupport" type="checkbox" checked /><span>Render expected supports from ISONOTE</span></label>
-        <label class="field checkbox-field conversion-collapsible-content"><input id="renderActualSupport" type="checkbox" checked /><span>Render actual supports from InputXML</span></label>
+        <label class="field checkbox-field conversion-collapsible-content"><input id="renderActualSupport" type="checkbox" checked /><span>Render actual supports from stagedJson</span></label>
         <label class="field checkbox-field conversion-collapsible-content"><input id="showSupportLabel" type="checkbox" /><span>Show support labels</span></label>
         <label class="field conversion-collapsible-content"><span>Single-axis unresolved decision</span><select id="singleAxisDecision"><option value="warning" selected>Warning marker only</option><option value="+">Use + axis</option><option value="-">Use - axis</option></select></label>
 

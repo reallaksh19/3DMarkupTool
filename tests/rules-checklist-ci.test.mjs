@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
 const ACTIVE_CACHE_KEY = 'support-debug-log-20260623';
-const SOURCE_INDEX_CACHE_KEY = 'support-native-dialog-render-fix-20260623';
+const SOURCE_INDEX_CACHE_KEY = 'app-boot-dialog-conversion-hotfix-20260623';
 const LEGACY_FIRST_PAINT_CACHE_KEY = 'tool-fixes-v2-20260620';
 const dateStampedKey = /^[a-z0-9-]+-20\d{6}$/;
 
@@ -40,7 +40,7 @@ function extractActiveQueryKeys(html) {
 
 const htmlKeys = extractActiveQueryKeys(index);
 assert.ok(htmlKeys.length >= 4, 'index must expose versioned first-paint assets');
-assert.deepEqual([...new Set(htmlKeys)], [SOURCE_INDEX_CACHE_KEY], 'source index ?v= keys must use the source native-dialog cache key that Pages rewrites');
+assert.deepEqual([...new Set(htmlKeys)], [SOURCE_INDEX_CACHE_KEY], 'source index ?v= keys must use the source boot-hotfix cache key that Pages rewrites');
 assert.doesNotMatch(index, escaped(LEGACY_FIRST_PAINT_CACHE_KEY), 'source index must not keep stale root-serving cache keys');
 for (const key of [ACTIVE_CACHE_KEY, SOURCE_INDEX_CACHE_KEY, LEGACY_FIRST_PAINT_CACHE_KEY]) {
   assert.match(key, dateStampedKey, `${key} must be auditable/date-stamped`);

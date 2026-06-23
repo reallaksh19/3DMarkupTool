@@ -10,14 +10,10 @@ export function planManagedStagePipingComponentRecipe(contract, options = {}) {
   const span = effectiveRecipeSpan(contract);
   if (dtxr === 'PIPE') return buildRecipe(contract, span, 'pipe-full-span', [segment(0, span.lengthMm, 'body', pipeRadius, materials.PIPE)]);
   if (dtxr === 'UNSPECIFIED') return buildRecipe(contract, span, 'unknown-pipelike-full-span', [segment(0, span.lengthMm, 'body', pipeRadius, materials.UNKNOWN_PIPELIKE)]);
-  if (dtxr === 'FLANGE') {
-    return buildRecipe(contract, span, 'flange-full-span', [segment(0, span.lengthMm, 'flange', flangeRadius(pipeRadius), materials.FLANGE)]);
-  }
-  if (dtxr === 'VALVE') {
-    return buildRecipe(contract, span, 'valve-full-span', [segment(0, span.lengthMm, 'body', valveRadius(pipeRadius), materials.VALVE)]);
-  }
+  if (dtxr === 'FLANGE') return buildWeldNeckFlangeRecipe(contract, span, pipeRadius, materials);
+  if (dtxr === 'VALVE') return buildBallValveRecipe(contract, span, pipeRadius, materials, 'ball-valve-contiguous-5part');
   if (dtxr === 'FLANGE_PAIR') return buildFlangePairRecipe(contract, span, pipeRadius, materials);
-  if (dtxr === 'FLANGED_VALVE') return buildFlangedValveRecipe(contract, span, pipeRadius, materials);
+  if (dtxr === 'FLANGED_VALVE') return buildBallValveRecipe(contract, span, pipeRadius, materials, 'flanged-ball-valve-contiguous-5part');
   throw new Error(`Unsupported cylinder recipe DTXR: ${dtxr}`);
 }
 
@@ -43,6 +39,14 @@ export function assertManagedStagePipingComponentRecipe(recipe, expectations = {
 export function flangeRadius(pipeRadius) { return Math.max(positiveNumber(pipeRadius, 'pipeRadius') * 1.55, pipeRadius + 35); }
 export function valveRadius(pipeRadius) { return Math.max(positiveNumber(pipeRadius, 'pipeRadius') * 1.35, pipeRadius + 25); }
 
+function buildWeldNeckFlangeRecipe(contract, span, pipeRadius, materials) {
+  const split = span.lengthMm * 0.46;
+  return buildRecipe(contract, span, 'weldneck-flange-contiguous-2part', [
+    segment(0, split, 'weldNeckHub', Math.max(pipeRadius * 1.18, pipeRadius + 8), materials.FLANGE),
+    segment(split, span.lengthMm, 'raisedFaceDisk', flangeRadius(pipeRadius), materials.FLANGE)
+  ]);
+}
+
 function buildFlangePairRecipe(contract, span, pipeRadius, materials) {
   const split = span.lengthMm / 2;
   return buildRecipe(contract, span, 'flange-pair-contiguous-split', [
@@ -51,17 +55,28 @@ function buildFlangePairRecipe(contract, span, pipeRadius, materials) {
   ]);
 }
 
-function buildFlangedValveRecipe(contract, span, pipeRadius, materials) {
+function buildBallValveRecipe(contract, span, pipeRadius, materials, recipeName) {
   const length = span.lengthMm;
-  const maxFlangeLen = Math.min(90, length * 0.22);
-  const minBodyLen = Math.max(1, length * 0.35);
-  const flangeLen = Math.min(maxFlangeLen, (length - minBodyLen) / 2);
-  if (!(flangeLen > 0)) throw new Error(`Invalid flanged valve recipe span for ${contract.name}`);
-  return buildRecipe(contract, span, 'flanged-valve-contiguous-3part', [
-    segment(0, flangeLen, 'flangeA', flangeRadius(pipeRadius), materials.FLANGE),
-    segment(flangeLen, length - flangeLen, 'body', valveRadius(pipeRadius), materials.VALVE),
-    segment(length - flangeLen, length, 'flangeB', flangeRadius(pipeRadius), materials.FLANGE)
+  const cuts = proportionalCuts(length, [0.14, 0.16, 0.40, 0.16, 0.14]);
+  return buildRecipe(contract, span, recipeName, [
+    segment(cuts[0], cuts[1], 'leftEndFlange', flangeRadius(pipeRadius), materials.FLANGE),
+    segment(cuts[1], cuts[2], 'leftSeat', Math.max(pipeRadius * 1.04, pipeRadius + 2), materials.VALVE),
+    segment(cuts[2], cuts[3], 'centralBallBody', valveRadius(pipeRadius), materials.VALVE),
+    segment(cuts[3], cuts[4], 'rightSeat', Math.max(pipeRadius * 1.04, pipeRadius + 2), materials.VALVE),
+    segment(cuts[4], cuts[5], 'rightEndFlange', flangeRadius(pipeRadius), materials.FLANGE)
   ]);
+}
+
+function proportionalCuts(length, weights) {
+  const total = weights.reduce((sum, value) => sum + value, 0);
+  const cuts = [0];
+  let cursor = 0;
+  for (const weight of weights) {
+    cursor += length * (weight / total);
+    cuts.push(cursor);
+  }
+  cuts[cuts.length - 1] = length;
+  return cuts;
 }
 
 function buildRecipe(contract, span, recipeName, segments) {
@@ -84,7 +99,12 @@ function buildRecipe(contract, span, recipeName, segments) {
       recipeSegmentEndDistanceMm: entry.endDistanceMm,
       recipeTrimStartOffsetMm: span.startOffsetMm,
       recipeTrimEndOffsetMm: span.endOffsetMm,
-      recipeContinuous: true
+      recipeContinuous: true,
+      exportedRvmGeometry: true,
+      exportedManagedStageComponentSymbol: isPrimitiveSymbolRecipe(recipeName),
+      componentPrimitiveBudgetCounted: true,
+      componentPrimitiveBudgetLimit: primitiveBudgetLimit(recipeName),
+      geometryPrimitivePolicy: geometryPrimitivePolicy(recipeName)
     };
   });
   return {
@@ -98,11 +118,37 @@ function buildRecipe(contract, span, recipeName, segments) {
     trimStartOffsetMm: span.startOffsetMm,
     trimEndOffsetMm: span.endOffsetMm,
     primitiveCount: primitives.length,
+    primitiveBudgetLimit: primitiveBudgetLimit(recipeName),
+    exportedRvmGeometry: true,
+    exportedManagedStageComponentSymbol: isPrimitiveSymbolRecipe(recipeName),
+    geometryPrimitivePolicy: geometryPrimitivePolicy(recipeName),
     coveredLengthMm: coveredLength(segments),
     continuous: true,
     segments: segments.map((entry) => ({ ...entry, lengthMm: entry.endDistanceMm - entry.startDistanceMm })),
     primitives
   };
+}
+
+function isPrimitiveSymbolRecipe(recipeName) {
+  return recipeName === 'weldneck-flange-contiguous-2part'
+    || recipeName === 'ball-valve-contiguous-5part'
+    || recipeName === 'flanged-ball-valve-contiguous-5part';
+}
+
+function primitiveBudgetLimit(recipeName) {
+  if (recipeName === 'weldneck-flange-contiguous-2part') return 2;
+  if (recipeName === 'ball-valve-contiguous-5part' || recipeName === 'flanged-ball-valve-contiguous-5part') return 6;
+  return null;
+}
+
+function geometryPrimitivePolicy(recipeName) {
+  if (recipeName === 'weldneck-flange-contiguous-2part') {
+    return 'RVM export emits WeldNeck flange as 2 contiguous code-8 cylinders: weld-neck hub + raised-face disk, covering full APOS/LPOS span.';
+  }
+  if (recipeName === 'ball-valve-contiguous-5part' || recipeName === 'flanged-ball-valve-contiguous-5part') {
+    return 'RVM export emits Ball valve as 5 contiguous code-8 cylinders: end flange + seat + central ball/body + seat + end flange, covering full APOS/LPOS span with no stem/handwheel/box substitute.';
+  }
+  return 'RVM export emits source APOS/LPOS span as contiguous code-8 cylinder recipe.';
 }
 
 function effectiveRecipeSpan(contract) {

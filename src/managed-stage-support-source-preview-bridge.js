@@ -3,15 +3,16 @@ import { createManagedStageSupportPreviewObject } from './managed-stage-support-
 import { parseManagedStageIsonoteSupportRecords } from './managed-stage-isonote-support-mapper.js';
 import { MANAGED_STAGE_SUPPORT_SOURCE_MODES, normalizeManagedStageSupportMapperRecord } from './managed-stage-support-mapper-config.js';
 
-export const MANAGED_STAGE_SUPPORT_SOURCE_PREVIEW_BRIDGE_SCHEMA = 'ManagedStageSupportSourcePreviewBridge.v1';
+export const MANAGED_STAGE_SUPPORT_SOURCE_PREVIEW_BRIDGE_SCHEMA = 'ManagedStageSupportSourcePreviewBridge.v2';
 export const MANAGED_STAGE_SUPPORT_SOURCE_PREVIEW_DIAGNOSTICS_SCHEMA = 'ManagedStageSupportSourcePreviewDiagnostics.v1';
-export const MANAGED_STAGE_SUPPORT_SOURCE_PREVIEW_BRIDGE_CACHE_KEY = '20260623-staged-json-support-source-preview-9-support-extraction';
+export const MANAGED_STAGE_SUPPORT_SOURCE_PREVIEW_BRIDGE_CACHE_KEY = '20260623-staged-json-support-source-preview-10-source-records';
 export const ISONOTE_SUPPORT_SOURCE_OVERLAY_ROOT = 'MANAGED_STAGE_SUPPORT_SOURCE_OVERLAY_ISONOTE';
 export const STAGED_JSON_SUPPORT_SOURCE_OVERLAY_ROOT = 'MANAGED_STAGE_SUPPORT_SOURCE_OVERLAY_STAGED_JSON';
 const MAX_PREFLIGHT_ISSUES = 50;
 const MAX_RULE_PREVIEW_ROWS = 80;
 
 const STAGED_JSON_SUPPORT_ATTR_KEY_PATTERN = /^(DTXR|RAW_TYPE|TYPE|NAME|REF|NODE|FROM_NODE|TO_NODE|TAG|SUPPORT(?:_|$)|RESTRAINT(?:_|$)|AXIS$|DIRECTION$|SIGN$|PLUS_MINUS$|.*GAP.*)/i;
+const SUPPORT_TOKEN_PATTERN = /\b(ATTA|ANCI|SUPP|SUPPORT|PIPE_SUPPORT|PIPESUPPORT|REST|RESTRAINT|GUIDE|GUID|HOLDDOWN|HOLD_DOWN|LINE\s*STOP|LINE_STOP|LINESTOP|LIMIT|LIM|SPRING\s*CAN|SPRING_CAN|SPRINGCAN|ANCHOR)\b/i;
 
 export function installManagedStageSupportSourcePreviewBridge({ win = globalThis.window, doc = globalThis.document } = {}) {
   if (!win || win.__3D_MARKUP_SUPPORT_SOURCE_PREVIEW_BRIDGE__?.schema === MANAGED_STAGE_SUPPORT_SOURCE_PREVIEW_BRIDGE_SCHEMA) return win?.__3D_MARKUP_SUPPORT_SOURCE_PREVIEW_BRIDGE__ || null;
@@ -39,7 +40,7 @@ export function applyManagedStageSupportSourcePreview(modelRoot, options = {}) {
 
   if (sourceMode === MANAGED_STAGE_SUPPORT_SOURCE_MODES.STAGED_JSON) {
     let overlayPrimitiveGroupCount = 0;
-    if (mapperConfigApplied && stagedRecords.length) {
+    if (stagedRecords.length) {
       const overlay = createSupportOverlay(STAGED_JSON_SUPPORT_SOURCE_OVERLAY_ROOT, MANAGED_STAGE_SUPPORT_SOURCE_MODES.STAGED_JSON, stagedRecords, pipeRecords, options);
       overlayPrimitiveGroupCount = overlay.children.length;
       if (overlay.children.length) modelRoot.add(overlay);
@@ -67,6 +68,7 @@ export function collectPreviewPipeRecordsFromScene(modelRoot) {
   modelRoot?.traverse?.((object) => {
     const data = object?.userData || {};
     if (data.primitiveKind !== 'raw-staged-source-line') return;
+    if (isStagedJsonSupportSourceCandidate(data)) return;
     const apos = clonePoint(data.sourceAposMm);
     const lpos = clonePoint(data.sourceLposMm);
     if (!apos || !lpos) return;
@@ -155,22 +157,38 @@ export function collectManagedStageSupportSourcePreviewDiagnostics(modelRoot, re
 
 function collectStagedJsonSupportPreviewRecords(modelRoot, options = {}) {
   const records = [];
+  const seen = new Set();
   modelRoot?.traverse?.((object) => {
     const data = object?.userData || {};
-    if (!(data.managedStageSupportVisual && data.primitiveKind === 'managed-stage-support-symbol') || data.isonoteSupportOverlay) return;
-    const pos = clonePoint(data.previewPosMm || data.sourcePosMm);
+    if (data.isonoteSupportOverlay) return;
+    if (data.managedStageSupportVisual && data.primitiveKind === 'managed-stage-support-symbol') {
+      const pos = clonePoint(data.previewPosMm || data.sourcePosMm);
+      if (!pos) return;
+      const visual = data.supportVisual || {};
+      const baseAttrs = buildStagedJsonSupportMapperAttrs(data, visual, pos);
+      pushStagedJsonSupportRecord(records, seen, data, visual, baseAttrs, pos, options);
+      return;
+    }
+    if (!isStagedJsonSupportSourceCandidate(data)) return;
+    const pos = supportRecordPositionFromData(data);
     if (!pos) return;
-    const visual = data.supportVisual || {};
-    const baseAttrs = buildStagedJsonSupportMapperAttrs(data, visual, pos);
-    const mapperRecord = normalizeManagedStageSupportMapperRecord({ attrs: baseAttrs }, options.mapperConfig || {});
-    const mappedAxisAttrs = mappedAxisOverrideAttrs(mapperRecord);
-    const attrs = { ...baseAttrs, ...(mapperRecord.attrs || {}), ...mappedAxisAttrs, TYPE: 'SUPPORT', DTXR: 'SUPPORT', RAW_TYPE: 'STAGED_JSON_SUPPORT', SUPPORT_SOURCE_MODE: MANAGED_STAGE_SUPPORT_SOURCE_MODES.STAGED_JSON, SUPPORTCOORD: pos, POS: pos };
-    const family = mapperRecord.family || attrs.SUPPORT_KIND_MAPPED || visual.family || 'SUPPORT';
-    const nodeId = String(attrs.NODE || data.fromNode || data.toNode || visual.node || '').trim();
-    const index = records.length + 1;
-    records.push({ node: null, attrs, rawName: `STAGED_JSON ${nodeId || 'NODE'} ${family} ${index}`, name: `STAGED_JSON_${safeName(nodeId || 'NODE')}_${safeName(family)}_${index}`, path: `STAGED_JSON/${safeName(nodeId || 'NODE')}/${safeName(family)}/${index}`, type: 'SUPPORT', rawType: 'STAGED_JSON_SUPPORT', dtxr: 'SUPPORT', fromNode: nodeId, toNode: '', source: { supportCoord: pos, pos, start: null, end: null }, stagedJsonMapperRecord: mapperRecord });
+    const baseAttrs = buildStagedJsonSupportMapperAttrs(data, {}, pos);
+    pushStagedJsonSupportRecord(records, seen, data, {}, baseAttrs, pos, options);
   });
   return records;
+}
+
+function pushStagedJsonSupportRecord(records, seen, data, visual, baseAttrs, pos, options) {
+  const identity = String(data.sourcePath || data.sourceName || baseAttrs.REF || baseAttrs.NAME || records.length);
+  if (seen.has(identity)) return;
+  seen.add(identity);
+  const mapperRecord = normalizeManagedStageSupportMapperRecord({ attrs: baseAttrs }, options.mapperConfig || {});
+  const mappedAxisAttrs = mappedAxisOverrideAttrs(mapperRecord);
+  const attrs = { ...baseAttrs, ...(mapperRecord.attrs || {}), ...mappedAxisAttrs, TYPE: 'SUPPORT', DTXR: 'SUPPORT', RAW_TYPE: 'STAGED_JSON_SUPPORT', SUPPORT_SOURCE_MODE: MANAGED_STAGE_SUPPORT_SOURCE_MODES.STAGED_JSON, SUPPORTCOORD: pos, POS: pos };
+  const family = mapperRecord.family || attrs.SUPPORT_KIND_MAPPED || visual.family || attrs.SUPPORT_KIND || 'SUPPORT';
+  const nodeId = String(attrs.NODE || data.fromNode || data.toNode || visual.node || '').trim();
+  const index = records.length + 1;
+  records.push({ node: null, attrs, rawName: `STAGED_JSON ${nodeId || 'NODE'} ${family} ${index}`, name: `STAGED_JSON_${safeName(nodeId || 'NODE')}_${safeName(family)}_${index}`, path: `STAGED_JSON/${safeName(nodeId || 'NODE')}/${safeName(family)}/${index}`, type: 'SUPPORT', rawType: 'STAGED_JSON_SUPPORT', dtxr: 'SUPPORT', fromNode: nodeId, toNode: '', source: { supportCoord: pos, pos, start: null, end: null }, stagedJsonMapperRecord: mapperRecord });
 }
 
 function buildStagedJsonSupportMapperAttrs(data = {}, visual = {}, pos = null) {
@@ -179,13 +197,13 @@ function buildStagedJsonSupportMapperAttrs(data = {}, visual = {}, pos = null) {
   const gapText = visual.gapMm ? `${visual.gapMm}mm` : '';
   const node = firstText(sourceAttrs.NODE, data.node, visual.node, data.fromNode, data.toNode);
   const supportTag = firstText(sourceAttrs.SUPPORT_TAG, sourceAttrs.SUPPORT_NO, sourceAttrs.SUPPORT_ID, sourceAttrs.TAG, data.supportTag, data.sourceName, data.sourcePath);
-  const supportKind = firstText(sourceAttrs.SUPPORT_KIND, sourceAttrs.SUPPORT_TYPE, sourceAttrs.RESTRAINT_KIND, sourceAttrs.RESTRAINT, sourceAttrs.DTXR, visual.rawKind, visual.family, data.supportFamily);
-  const graphicsRule = firstText(sourceAttrs.SUPPORT_GRAPHICS_RULE, sourceAttrs.SUPPORT_RULE, sourceAttrs.GRAPHICS_RULE, sourceAttrs.SUPPORT_KIND, sourceAttrs.SUPPORT_TYPE, sourceAttrs.DTXR, visual.rawKind, visual.family);
+  const supportKind = firstText(sourceAttrs.SUPPORT_KIND, sourceAttrs.SUPPORT_TYPE, sourceAttrs.RESTRAINT_KIND, sourceAttrs.RESTRAINT, sourceAttrs.DTXR, sourceAttrs.RAW_TYPE, sourceAttrs.TYPE, visual.rawKind, visual.family, data.supportFamily, data.dtxr, data.rawType, data.stagedType);
+  const graphicsRule = firstText(sourceAttrs.SUPPORT_GRAPHICS_RULE, sourceAttrs.SUPPORT_RULE, sourceAttrs.GRAPHICS_RULE, sourceAttrs.SUPPORT_KIND, sourceAttrs.SUPPORT_TYPE, sourceAttrs.DTXR, sourceAttrs.NAME, visual.rawKind, visual.family);
 
   return {
     ...sourceAttrs,
     TYPE: firstText(sourceAttrs.TYPE, data.stagedType, 'SUPPORT'),
-    DTXR: firstText(sourceAttrs.DTXR, data.dtxr, data.rawType, 'SUPPORT'),
+    DTXR: firstText(sourceAttrs.DTXR, data.dtxr, data.rawType, sourceAttrs.SUPPORT_KIND, 'SUPPORT'),
     RAW_TYPE: firstText(sourceAttrs.RAW_TYPE, data.rawType, visual.rawKind, visual.family, 'SUPPORT'),
     NAME: firstText(sourceAttrs.NAME, data.sourceName, data.sourcePath),
     REF: firstText(sourceAttrs.REF, data.sourcePath, data.sourceName),
@@ -262,6 +280,27 @@ function removeGeneratedSupportPreviewObjects(modelRoot, { removeStagedJsonSymbo
   });
   for (const object of toRemove) { object.parent?.remove?.(object); disposeObject(object); removed += 1; }
   return removed;
+}
+
+function isStagedJsonSupportSourceCandidate(data = {}) {
+  if (data.primitiveKind !== 'raw-staged-source-line' && data.primitiveKind !== 'raw-staged-source-point') return false;
+  if (data.managedStageSupportVisual || data.stagedJsonSupportOverlay || data.isonoteSupportOverlay) return false;
+  const attrs = collectStagedJsonRecordAttributes(data);
+  const candidates = [data.TYPE, data.stagedType, data.rawType, data.dtxr, data.sourceName, data.sourcePath, attrs.TYPE, attrs.RAW_TYPE, attrs.DTXR, attrs.SUPPORT_KIND, attrs.SUPPORT_TYPE, attrs.RESTRAINT_KIND, attrs.RESTRAINT, attrs.SUPPORT_GRAPHICS_RULE, attrs.GRAPHICS_RULE, attrs.NAME].filter(Boolean).join(' ');
+  return Boolean(data.previewOnly) || SUPPORT_TOKEN_PATTERN.test(candidates);
+}
+
+function supportRecordPositionFromData(data = {}) {
+  return clonePoint(data.previewPosMm || data.sourcePosMm || data.sourceSupportCoordMm || data.supportCoordMm)
+    || midpointPoint(data.sourceAposMm, data.sourceLposMm)
+    || clonePoint(data.previewStartMm)
+    || clonePoint(data.sourceAposMm)
+    || clonePoint(data.sourceLposMm);
+}
+
+function midpointPoint(a, b) {
+  if (!a || !b) return null;
+  return { x: ((Number(a.x) || 0) + (Number(b.x) || 0)) / 2, y: ((Number(a.y) || 0) + (Number(b.y) || 0)) / 2, z: ((Number(a.z) || 0) + (Number(b.z) || 0)) / 2 };
 }
 
 function buildNodePointMap(records = []) {

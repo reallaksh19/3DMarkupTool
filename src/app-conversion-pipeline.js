@@ -1,6 +1,9 @@
+import { convertInputXmlToGlb as defaultConvertInputXmlToGlb } from './converter.js?v=professional-viewer-3';
+import { convertInputXmlToRvmAtt as defaultConvertInputXmlToRvmAtt } from './rvm-converter.js?v=professional-viewer-3';
+import { createRvmPreviewScene as defaultCreateRvmPreviewScene } from './rvm-preview.js?v=professional-viewer-3';
 import { convertInputXmlToGlbWithPipingShadow } from './converter-shadow-diagnostics.js';
 
-export const APP_CONVERSION_PIPELINE_SCHEMA = 'AppConversionPipeline.v1';
+export const APP_CONVERSION_PIPELINE_SCHEMA = 'AppConversionPipeline.v2';
 
 export async function runAppConversionPipeline(sourceText, options = {}, deps = {}) {
   const {
@@ -43,7 +46,8 @@ export async function runAppConversionPipeline(sourceText, options = {}, deps = 
         activeRenderer: glbResult.audit?.contractPipeline?.activeRenderer || 'LEGACY_FALLBACK_ONLY',
         contractShadowOk: Boolean(glbResult.audit?.contractPipeline?.ok),
         hasGlbScene: Boolean(glbResult.scene),
-        hasRvmScene: true
+        hasRvmScene: true,
+        dependencyPolicy: 'static-defaults-with-override'
       }
     }
   };
@@ -67,22 +71,16 @@ export function assertAppConversionPipelineResult(result) {
 }
 
 async function resolveAppConversionDeps(deps = {}) {
-  const resolved = { ...deps };
-
-  if (typeof resolved.convertInputXmlToGlb !== 'function') {
-    const mod = await import('./converter.js?v=professional-viewer-3');
-    resolved.convertInputXmlToGlb = mod.convertInputXmlToGlb;
-  }
-
-  if (typeof resolved.convertInputXmlToRvmAtt !== 'function') {
-    const mod = await import('./rvm-converter.js?v=professional-viewer-3');
-    resolved.convertInputXmlToRvmAtt = mod.convertInputXmlToRvmAtt;
-  }
-
-  if (typeof resolved.createRvmPreviewScene !== 'function') {
-    const mod = await import('./rvm-preview.js?v=professional-viewer-3');
-    resolved.createRvmPreviewScene = mod.createRvmPreviewScene;
-  }
-
-  return resolved;
+  return {
+    ...deps,
+    convertInputXmlToGlb: typeof deps.convertInputXmlToGlb === 'function'
+      ? deps.convertInputXmlToGlb
+      : defaultConvertInputXmlToGlb,
+    convertInputXmlToRvmAtt: typeof deps.convertInputXmlToRvmAtt === 'function'
+      ? deps.convertInputXmlToRvmAtt
+      : defaultConvertInputXmlToRvmAtt,
+    createRvmPreviewScene: typeof deps.createRvmPreviewScene === 'function'
+      ? deps.createRvmPreviewScene
+      : defaultCreateRvmPreviewScene
+  };
 }

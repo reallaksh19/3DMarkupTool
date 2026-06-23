@@ -1,5 +1,5 @@
-export const MANAGED_STAGE_SUPPORT_PREVIEW_AUTO_APPLY_SCHEMA = 'ManagedStageSupportPreviewAutoApply.v1';
-export const MANAGED_STAGE_SUPPORT_PREVIEW_AUTO_APPLY_CACHE_KEY = '20260623-support-preview-auto-apply-1';
+export const MANAGED_STAGE_SUPPORT_PREVIEW_AUTO_APPLY_SCHEMA = 'ManagedStageSupportPreviewAutoApply.v2';
+export const MANAGED_STAGE_SUPPORT_PREVIEW_AUTO_APPLY_CACHE_KEY = '20260623-support-preview-auto-apply-2-debug-events';
 
 installManagedStageSupportPreviewAutoApply();
 
@@ -34,10 +34,14 @@ export function installManagedStageSupportPreviewAutoApply({ win = globalThis.wi
 
 function applySupportPreviewNow({ win, doc, modelRoot = null, reason = 'manual' } = {}) {
   const bridge = win?.__3D_MARKUP_SUPPORT_SOURCE_PREVIEW_BRIDGE__;
-  if (typeof bridge?.apply !== 'function') return autoApplyResult('skipped', { reason: 'missing bridge', requestedBy: reason });
+  if (typeof bridge?.apply !== 'function') {
+    return publishAutoApplyResult(win, null, autoApplyResult('skipped', { reason: 'missing bridge', requestedBy: reason }));
+  }
 
   const root = modelRoot || resolveModelRoot(win);
-  if (!root?.traverse) return autoApplyResult('skipped', { reason: 'missing modelRoot', requestedBy: reason });
+  if (!root?.traverse) {
+    return publishAutoApplyResult(win, null, autoApplyResult('skipped', { reason: 'missing modelRoot', requestedBy: reason }));
+  }
 
   const ui = win?.__3D_MARKUP_SUPPORT_SOURCE_UI__ || {};
   const sourceMode = ui.sourceMode || 'stagedJson';
@@ -58,6 +62,20 @@ function applySupportPreviewNow({ win, doc, modelRoot = null, reason = 'manual' 
     managedStageSupportPreviewAutoApply: result
   };
   win?.__3D_MARKUP_VIEWER_RUNTIME__?.renderOnce?.(`support-preview-auto-apply:${reason}`);
+  return publishAutoApplyResult(win, root, result, bridgeResult);
+}
+
+function publishAutoApplyResult(win, modelRoot, result, bridgeResult = null) {
+  if (win) {
+    win.__3D_MARKUP_SUPPORT_PREVIEW_AUTO_APPLY_LAST_RESULT__ = result;
+    win.dispatchEvent?.(new CustomEvent('managed-stage:support-preview-auto-apply-result', {
+      detail: {
+        ...result,
+        modelRoot,
+        diagnostics: bridgeResult?.diagnostics || modelRoot?.userData?.managedStageSupportSourcePreview?.diagnostics || null
+      }
+    }));
+  }
   return result;
 }
 

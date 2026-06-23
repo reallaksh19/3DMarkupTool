@@ -1,4 +1,4 @@
-const APP_LOADER_VERSION = 'app-boot-dialog-conversion-hotfix-20260623';
+const APP_LOADER_VERSION = 'support-native-dialog-render-fix-20260623';
 const APP_MODULE_URL = `./app.js?v=${APP_LOADER_VERSION}`;
 const CLIP_HOOK_MODULE_URL = `./clip-render-hook.js?v=${APP_LOADER_VERSION}`;
 const FRESH_CLIP_MODULE_URL = `./fresh-clip-controller.js?v=${APP_LOADER_VERSION}`;
@@ -11,6 +11,7 @@ const MANAGED_STAGE_INPUTXML_CLASSIFICATION_GUARD_MODULE_URL = `./managed-stage-
 const MANAGED_STAGE_GEOMETRY_LEDGER_MODULE_URL = `./managed-stage-geometry-ledger.js?v=${APP_LOADER_VERSION}`;
 const MANAGED_STAGE_SUPPORT_SOURCE_UI_MODULE_URL = `./managed-stage-support-source-ui-controller.js?v=${APP_LOADER_VERSION}`;
 const MANAGED_STAGE_SUPPORT_SOURCE_PREVIEW_MODULE_URL = `./managed-stage-support-source-preview-bridge.js?v=${APP_LOADER_VERSION}`;
+const MANAGED_STAGE_SUPPORT_PREVIEW_AUTO_APPLY_MODULE_URL = `./managed-stage-support-preview-auto-apply.js?v=${APP_LOADER_VERSION}`;
 const MANAGED_STAGE_SUPPORT_MAPPER_DIAGNOSTICS_UI_MODULE_URL = `./managed-stage-support-mapper-diagnostics-ui.js?v=${APP_LOADER_VERSION}`;
 const MANAGED_STAGE_ISONOTE_WORKFLOW_UI_MODULE_URL = `./managed-stage-isonote-workflow-ui.js?v=${APP_LOADER_VERSION}`;
 const MANAGED_STAGE_SUPPORT_SETTINGS_POPUP_UI_MODULE_URL = `./managed-stage-support-settings-popup-ui.js?v=${APP_LOADER_VERSION}`;
@@ -135,11 +136,12 @@ function loadManagedStageJsonUiController() {
     .then(() => import(MANAGED_STAGE_GEOMETRY_LEDGER_MODULE_URL))
     .then(() => import(MANAGED_STAGE_SUPPORT_SOURCE_UI_MODULE_URL))
     .then(() => import(MANAGED_STAGE_SUPPORT_SOURCE_PREVIEW_MODULE_URL))
+    .then(() => import(MANAGED_STAGE_SUPPORT_PREVIEW_AUTO_APPLY_MODULE_URL))
     .then(() => import(MANAGED_STAGE_SUPPORT_MAPPER_DIAGNOSTICS_UI_MODULE_URL))
     .then(() => import(MANAGED_STAGE_ISONOTE_WORKFLOW_UI_MODULE_URL))
     .then(() => import(MANAGED_STAGE_SUPPORT_SETTINGS_POPUP_UI_MODULE_URL))
     .catch((error) => {
-      console.warn('[3DMarkupTool] Managed-stage JSON UI controller skipped.', error);
+      console.warn('[3DMarkupTool] Managed-stage support UI skipped.', error);
       window.dispatchEvent(new CustomEvent('viewer:managed-stage-json-ui-skipped', {
         detail: {
           version: APP_LOADER_VERSION,

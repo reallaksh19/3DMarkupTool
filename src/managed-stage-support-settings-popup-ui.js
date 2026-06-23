@@ -1,5 +1,5 @@
-export const MANAGED_STAGE_SUPPORT_SETTINGS_POPUP_SCHEMA = 'ManagedStageSupportSettingsPopup.v2';
-export const MANAGED_STAGE_SUPPORT_SETTINGS_POPUP_CACHE_KEY = '20260623-support-settings-modal-2';
+export const MANAGED_STAGE_SUPPORT_SETTINGS_POPUP_SCHEMA = 'ManagedStageSupportSettingsPopup.v3';
+export const MANAGED_STAGE_SUPPORT_SETTINGS_POPUP_CACHE_KEY = '20260623-support-settings-native-dialog-1';
 
 export function buildManagedStageSupportSettingsPopupModel({ supportUi = {}, isonoteWorkflow = {} } = {}) {
   const sourceMode = String(supportUi.sourceMode || 'stagedJson');
@@ -25,6 +25,7 @@ export function buildManagedStageSupportSettingsPopupModel({ supportUi = {}, iso
     northCanvasAxis,
     disabled,
     modal: true,
+    nativeDialog: true,
     mainPanelMode: 'summary-only',
     summaryText,
     isonoteSummaryText,
@@ -39,8 +40,9 @@ export function installManagedStageSupportSettingsPopupUi({ doc = globalThis.doc
   installSupportSettingsModalStyles(doc);
   const conversionSection = doc.querySelector?.('[data-section="conversion"]') || doc.getElementById('conversion-options-body')?.parentElement || doc.body;
   if (!conversionSection) return null;
-  const shell = ensureSupportSettingsShell(doc, conversionSection);
-  adoptSupportSettingControls(doc, shell);
+  const shell = ensureSupportSettingsLauncherShell(doc, conversionSection);
+  const dialog = ensureSupportSettingsDialog(doc);
+  adoptSupportSettingControls(doc, dialog);
   hideRetiredStageSettings(doc);
   hideEmptySideloadSection(doc);
   const refresh = () => {
@@ -48,7 +50,7 @@ export function installManagedStageSupportSettingsPopupUi({ doc = globalThis.doc
       supportUi: win?.__3D_MARKUP_SUPPORT_SOURCE_UI__ || {},
       isonoteWorkflow: win?.__3D_MARKUP_ISONOTE_TEXT_WORKFLOW__ || {}
     });
-    renderSupportSettingsShell(shell, model);
+    renderSupportSettingsShell(shell, dialog, model);
     win.__3D_MARKUP_SUPPORT_SETTINGS_POPUP__ = model;
     return model;
   };
@@ -58,59 +60,94 @@ export function installManagedStageSupportSettingsPopupUi({ doc = globalThis.doc
       const action = actionNode?.getAttribute?.('data-support-settings-action');
       if (!action) return;
       event.preventDefault?.();
-      setPopupOpen(shell, action === 'open', doc);
+      setPopupOpen(dialog, action === 'open', doc);
+    });
+    shell.dataset.supportSettingsPopupInstalled = 'true';
+  }
+  if (dialog.dataset.supportSettingsPopupInstalled !== 'true') {
+    dialog.addEventListener?.('click', (event) => {
+      const actionNode = event?.target?.closest?.('[data-support-settings-action]');
+      const action = actionNode?.getAttribute?.('data-support-settings-action');
+      if (action === 'close' || event.target === dialog) {
+        event.preventDefault?.();
+        setPopupOpen(dialog, false, doc);
+      }
+    });
+    dialog.addEventListener?.('close', () => {
+      doc?.body?.classList?.remove?.('support-settings-modal-open');
+      shell.dataset.supportSettingsOpen = 'false';
     });
     doc.addEventListener?.('keydown', (event) => {
-      if (event.key === 'Escape') setPopupOpen(shell, false, doc);
+      if (event.key === 'Escape' && isDialogOpen(dialog)) setPopupOpen(dialog, false, doc);
     });
     doc.addEventListener?.('change', refresh, true);
     doc.addEventListener?.('input', refresh, true);
     win?.addEventListener?.('managed-stage:support-source-ui-ready', refresh);
     win?.addEventListener?.('managed-stage:isonote-workflow-apply', refresh);
-    shell.dataset.supportSettingsPopupInstalled = 'true';
+    dialog.dataset.supportSettingsPopupInstalled = 'true';
   }
   const installed = refresh();
   dispatchCustomEvent(doc, 'managed-stage:support-settings-popup-ready', installed);
   return installed;
 }
 
-function ensureSupportSettingsShell(doc, parent) {
+function ensureSupportSettingsLauncherShell(doc, parent) {
   let shell = doc.getElementById('supportMappingSettingsShell');
-  if (shell) return shell;
-  shell = doc.createElement('section');
-  shell.id = 'supportMappingSettingsShell';
+  if (!shell) {
+    shell = doc.createElement('section');
+    shell.id = 'supportMappingSettingsShell';
+    shell.className = 'support-mapping-settings-shell';
+    shell.setAttribute('aria-label', 'Support mapping and ISONOTE launcher');
+    parent.insertBefore?.(shell, parent.firstChild || null) || parent.appendChild(shell);
+  }
   shell.className = 'support-mapping-settings-shell';
-  shell.setAttribute('aria-label', 'Support mapping and ISONOTE controls');
   shell.innerHTML = [
     '<div class="support-mapping-settings-launcher">',
-    '<button type="button" class="support-mapping-settings-open" data-support-settings-action="open">Support mapping / ISONOTE…</button>',
+    '<button type="button" class="support-mapping-settings-open" data-support-settings-action="open" aria-haspopup="dialog" aria-controls="supportMappingSettingsDialog">Support mapping / ISONOTE…</button>',
     '<small data-support-settings-launcher-summary aria-live="polite"></small>',
-    '</div>',
-    '<div id="supportMappingSettingsBackdrop" class="support-mapping-settings-backdrop" data-support-settings-action="close" hidden></div>',
-    '<div id="supportMappingSettingsPopup" class="support-mapping-settings-popup" role="dialog" aria-modal="true" aria-label="Support mapping settings" hidden>',
-    '<div class="support-mapping-settings-popup-header"><div><h3>Support mapping / ISONOTE</h3><small data-support-settings-popup-status aria-live="polite"></small></div><button type="button" data-support-settings-action="close" aria-label="Close support mapping settings">×</button></div>',
-    '<div class="support-mapping-settings-popup-grid">',
-    '<section data-support-settings-controls><h4>Source, preset and axis</h4></section>',
-    '<section data-support-settings-isonote-host><h4>ISONOTE side-load</h4></section>',
-    '<section data-support-settings-mapper-host><h4>Mapper fields and import/export</h4></section>',
-    '</div>',
     '</div>'
   ].join('');
-  parent.insertBefore?.(shell, parent.firstChild || null) || parent.appendChild(shell);
+  shell.querySelector?.('#supportMappingSettingsPopup')?.remove?.();
+  shell.querySelector?.('#supportMappingSettingsBackdrop')?.remove?.();
   return shell;
 }
 
-function renderSupportSettingsShell(shell, model) {
+function ensureSupportSettingsDialog(doc) {
+  let dialog = doc.getElementById('supportMappingSettingsDialog');
+  if (!dialog) {
+    dialog = doc.createElement('dialog');
+    dialog.id = 'supportMappingSettingsDialog';
+    dialog.className = 'support-mapping-settings-popup support-mapping-settings-dialog';
+    dialog.setAttribute('aria-label', 'Support mapping settings');
+    dialog.innerHTML = [
+      '<div class="support-mapping-settings-popup-header">',
+      '<div><h3>Support mapping / ISONOTE</h3><small data-support-settings-popup-status aria-live="polite"></small></div>',
+      '<button type="button" data-support-settings-action="close" aria-label="Close support mapping settings">×</button>',
+      '</div>',
+      '<div class="support-mapping-settings-popup-grid">',
+      '<section data-support-settings-controls><h4>Source, preset and axis</h4></section>',
+      '<section data-support-settings-isonote-host><h4>ISONOTE side-load</h4></section>',
+      '<section data-support-settings-mapper-host><h4>Mapper fields and import/export</h4></section>',
+      '</div>'
+    ].join('');
+    doc.body?.appendChild?.(dialog);
+  }
+  dialog.querySelector?.('#supportMappingSettingsPopup')?.remove?.();
+  dialog.querySelector?.('#supportMappingSettingsBackdrop')?.remove?.();
+  return dialog;
+}
+
+function renderSupportSettingsShell(shell, dialog, model) {
   const launcher = shell.querySelector?.('[data-support-settings-launcher-summary]');
-  const status = shell.querySelector?.('[data-support-settings-popup-status]');
+  const status = dialog.querySelector?.('[data-support-settings-popup-status]');
   if (launcher) launcher.textContent = model.summaryText;
   if (status) status.textContent = `${model.summaryText}. ${model.isonoteSummaryText}.`;
 }
 
-function adoptSupportSettingControls(doc, shell) {
-  const controlsHost = shell.querySelector?.('[data-support-settings-controls]');
-  const mapperHost = shell.querySelector?.('[data-support-settings-mapper-host]');
-  const isonoteHost = shell.querySelector?.('[data-support-settings-isonote-host]');
+function adoptSupportSettingControls(doc, dialog) {
+  const controlsHost = dialog.querySelector?.('[data-support-settings-controls]');
+  const mapperHost = dialog.querySelector?.('[data-support-settings-mapper-host]');
+  const isonoteHost = dialog.querySelector?.('[data-support-settings-isonote-host]');
   adoptLabeledControl(doc, controlsHost, 'supportMode', 'Support source');
   adoptLabeledControl(doc, controlsHost, 'supportMapperPreset', 'Mapper preset');
   adoptLabeledControl(doc, controlsHost, 'supportNorthAxis', 'CAESAR North axis');
@@ -201,15 +238,26 @@ function hideEmptySideloadSection(doc) {
   }
 }
 
-function setPopupOpen(shell, isOpen, doc) {
-  const popup = shell.querySelector?.('#supportMappingSettingsPopup');
-  const backdrop = shell.querySelector?.('#supportMappingSettingsBackdrop');
-  if (!popup) return;
-  popup.hidden = !isOpen;
-  if (backdrop) backdrop.hidden = !isOpen;
-  shell.dataset.supportSettingsOpen = isOpen ? 'true' : 'false';
-  doc?.body?.classList?.toggle?.('support-settings-modal-open', Boolean(isOpen));
-  if (isOpen) popup.querySelector?.('button, input, select, textarea, summary')?.focus?.();
+function setPopupOpen(dialog, isOpen, doc) {
+  if (!dialog) return;
+  if (isOpen) {
+    if (!isDialogOpen(dialog)) {
+      if (typeof dialog.showModal === 'function') dialog.showModal();
+      else dialog.setAttribute('open', '');
+    }
+    doc?.body?.classList?.add?.('support-settings-modal-open');
+    dialog.querySelector?.('button, input, select, textarea, summary')?.focus?.();
+    return;
+  }
+  if (isDialogOpen(dialog)) {
+    if (typeof dialog.close === 'function') dialog.close();
+    else dialog.removeAttribute('open');
+  }
+  doc?.body?.classList?.remove?.('support-settings-modal-open');
+}
+
+function isDialogOpen(dialog) {
+  return Boolean(dialog?.open || dialog?.hasAttribute?.('open'));
 }
 
 function installSupportSettingsModalStyles(doc) {
@@ -221,8 +269,9 @@ function installSupportSettingsModalStyles(doc) {
     .support-mapping-settings-launcher { display: grid; gap: 5px; }
     .support-mapping-settings-open { width: 100%; min-height: 34px; border-radius: 8px; border: 1px solid rgba(96,165,250,.55); background: rgba(30,64,175,.45); color: #dbeafe; font-weight: 700; cursor: pointer; }
     .support-mapping-settings-launcher small { color: #bfdbfe; line-height: 1.35; }
-    .support-mapping-settings-backdrop { position: fixed; inset: 0; z-index: 9998; background: rgba(2,6,23,.68); backdrop-filter: blur(2px); }
-    .support-mapping-settings-popup { position: fixed; z-index: 9999; left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(1120px, calc(100vw - 36px)); max-height: min(84vh, 860px); overflow: auto; border: 1px solid rgba(148,163,184,.36); border-radius: 16px; background: #0f172a; color: #e5e7eb; box-shadow: 0 24px 80px rgba(0,0,0,.55); padding: 14px; }
+    .support-mapping-settings-dialog:not([open]) { display: none !important; }
+    .support-mapping-settings-dialog::backdrop { background: rgba(2,6,23,.68); backdrop-filter: blur(2px); }
+    .support-mapping-settings-popup { position: fixed; z-index: 9999; left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(1120px, calc(100vw - 36px)); max-height: min(84vh, 860px); overflow: auto; border: 1px solid rgba(148,163,184,.36); border-radius: 16px; background: #0f172a; color: #e5e7eb; box-shadow: 0 24px 80px rgba(0,0,0,.55); padding: 14px; margin: 0; }
     .support-mapping-settings-popup-header { position: sticky; top: -14px; z-index: 1; display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin: -14px -14px 12px; padding: 14px; background: rgba(15,23,42,.98); border-bottom: 1px solid rgba(148,163,184,.22); }
     .support-mapping-settings-popup-header h3 { margin: 0 0 3px; font-size: 16px; }
     .support-mapping-settings-popup-header small { color: #cbd5e1; }
@@ -235,7 +284,7 @@ function installSupportSettingsModalStyles(doc) {
     .support-settings-popup-field select, .support-settings-popup-field input, .support-settings-textarea textarea { width: 100%; box-sizing: border-box; border-radius: 8px; border: 1px solid rgba(148,163,184,.35); background: rgba(2,6,23,.62); color: #e5e7eb; padding: 7px; }
     .support-settings-textarea textarea { min-height: 92px; resize: vertical; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px; }
     body.support-settings-modal-open { overflow: hidden; }
-    @media (max-width: 900px) { .support-mapping-settings-popup-grid { grid-template-columns: 1fr; } }
+    @media (max-width: 900px) { .support-mapping-settings-popup { width: calc(100vw - 24px); max-height: calc(100vh - 24px); } .support-mapping-settings-popup-grid { grid-template-columns: 1fr; } }
   `;
   doc.head?.appendChild(style);
 }

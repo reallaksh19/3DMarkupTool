@@ -16,11 +16,11 @@ assert.equal(sampleModel.supportRecordCount, 5);
 assert.equal(sampleModel.canApply, true);
 assert.equal(sampleModel.supportFamilyHistogram.REST, 1);
 assert.equal(sampleModel.supportFamilyHistogram.GUIDE, 1);
-assert.equal(sampleModel.supportFamilyHistogram.LINESTOP, 1);
+assert.equal(sampleModel.supportFamilyHistogram.LINE_STOP, 1);
 assert.equal(sampleModel.supportFamilyHistogram.HOLDDOWN, 1);
 assert.equal(sampleModel.supportFamilyHistogram.SPRING_CAN, 1);
-assert.equal(sampleModel.previewRows.find((row) => row.family === 'LINESTOP')?.sourceAxis, '-X');
-assert.equal(sampleModel.previewRows.find((row) => row.family === 'GUIDE')?.gapMm, 10);
+assert.equal(sampleModel.previewRows.find((row) => row.family === 'LINE_STOP')?.sourceAxis, '-X');
+assert.equal(sampleModel.previewRows.find((row) => row.family === 'GUIDE')?.gapMm, '10mm');
 assert.equal(buildIsonoteWorkflowSummary(sampleModel), 'Ready: 3 row(s), 5 support record(s), 0 issue(s).');
 
 const emptyModel = buildManagedStageIsonoteTextWorkflowModel('');

@@ -6,6 +6,7 @@ const CANVAS_TOOL_MODE_GUARD_MODULE_URL = `./canvas-tool-mode-guard.js?v=${APP_L
 const MANAGED_STAGE_JSON_UI_MODULE_URL = `./managed-stage-json-ui-controller.js?v=${APP_LOADER_VERSION}`;
 const MANAGED_STAGE_JSON_SAMPLE_MODULE_URL = `./managed-stage-bm-cii-json-sample-controller.js?v=${APP_LOADER_VERSION}`;
 const MANAGED_STAGE_VISIBLE_FALLBACK_MODULE_URL = `./managed-stage-visible-fallback-patch.js?v=${APP_LOADER_VERSION}`;
+const MANAGED_STAGE_COMPONENT_PRIMITIVE_SYMBOLS_MODULE_URL = `./managed-stage-component-primitive-symbols.js?v=${APP_LOADER_VERSION}`;
 const MANAGED_STAGE_INPUTXML_CLASSIFICATION_GUARD_MODULE_URL = `./managed-stage-inputxml-preview-classification-guard.js?v=${APP_LOADER_VERSION}`;
 const MANAGED_STAGE_GEOMETRY_LEDGER_MODULE_URL = `./managed-stage-geometry-ledger.js?v=${APP_LOADER_VERSION}`;
 const MANAGED_STAGE_SUPPORT_SOURCE_UI_MODULE_URL = `./managed-stage-support-source-ui-controller.js?v=${APP_LOADER_VERSION}`;
@@ -128,6 +129,7 @@ function loadManagedStageJsonUiController() {
   import(MANAGED_STAGE_JSON_UI_MODULE_URL)
     .then(() => import(MANAGED_STAGE_JSON_SAMPLE_MODULE_URL))
     .then(() => import(MANAGED_STAGE_VISIBLE_FALLBACK_MODULE_URL))
+    .then(() => import(MANAGED_STAGE_COMPONENT_PRIMITIVE_SYMBOLS_MODULE_URL))
     .then(() => import(MANAGED_STAGE_INPUTXML_CLASSIFICATION_GUARD_MODULE_URL))
     .then(() => import(MANAGED_STAGE_GEOMETRY_LEDGER_MODULE_URL))
     .then(() => import(MANAGED_STAGE_SUPPORT_SOURCE_UI_MODULE_URL))

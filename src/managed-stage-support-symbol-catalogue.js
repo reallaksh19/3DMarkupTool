@@ -3,10 +3,12 @@ export const MANAGED_STAGE_SUPPORT_SYMBOL_CATALOGUE_SCHEMA = 'ManagedStageSuppor
 const AXIAL_FAMILIES = new Set(['LINE_STOP', 'LIMIT_STOP']);
 const PRINCIPAL_AXES = new Set(['X', 'Y', 'Z']);
 const SIMPLE_SYMBOL_PRIMITIVE_BUDGET_MAX = 4;
+const OD_TWO_THIRDS_FACTOR = 2 / 3;
 
 export const MANAGED_STAGE_SUPPORT_SYMBOL_CATALOGUE_POLICY = Object.freeze({
   schema: MANAGED_STAGE_SUPPORT_SYMBOL_CATALOGUE_SCHEMA,
   primitiveBudgetMax: SIMPLE_SYMBOL_PRIMITIVE_BUDGET_MAX,
+  odTwoThirdsFactor: OD_TWO_THIRDS_FACTOR,
   rules: Object.freeze([
     'REST = one +Y upward arrow primitive',
     'HOLDDOWN = two vertical arrow primitives on +Y and -Y',
@@ -26,6 +28,7 @@ export function resolveManagedStageSupportSymbolCatalogue(mapperRecord = {}, opt
   const pipeAxis = axisLetter(pipeAxisSigned);
   const explicitAxisInfo = resolveExplicitAxisInfo(mapperRecord, attrs);
   const gapMm = parseMm(options.gapMm ?? mapperRecord.gap?.value ?? attrs.SUPPORT_GAP_MM ?? attrs.GAP_MM ?? attrs.GAP) || 0;
+  const pipeOdMm = parseMm(options.pipeOdMm ?? mapperRecord.pipeOdMm ?? attrs.PIPE_OD_MM ?? attrs.DIAMETER ?? attrs.BORE) || 0;
   const gapVisualSeparationMm = AXIAL_FAMILIES.has(family) && gapMm > 0
     ? round(gapMm * 10)
     : 0;
@@ -40,6 +43,7 @@ export function resolveManagedStageSupportSymbolCatalogue(mapperRecord = {}, opt
       warnings: ['single-axis restraint is missing explicit +/- sign'],
       gapMm,
       gapVisualSeparationMm: 0,
+      pipeOdMm,
       odTwoThirdsEligible: false
     });
   }
@@ -52,6 +56,7 @@ export function resolveManagedStageSupportSymbolCatalogue(mapperRecord = {}, opt
       primitives: [arrowPrimitive('+Y', 'rest-upward-arrow', { pointsTowardCenter: false })],
       gapMm,
       gapVisualSeparationMm: 0,
+      pipeOdMm,
       odTwoThirdsEligible: false
     });
   }
@@ -67,6 +72,7 @@ export function resolveManagedStageSupportSymbolCatalogue(mapperRecord = {}, opt
       ],
       gapMm,
       gapVisualSeparationMm: 0,
+      pipeOdMm,
       odTwoThirdsEligible: false
     });
   }
@@ -81,6 +87,7 @@ export function resolveManagedStageSupportSymbolCatalogue(mapperRecord = {}, opt
       pipeAxis,
       gapMm,
       gapVisualSeparationMm: 0,
+      pipeOdMm,
       odTwoThirdsEligible: false
     });
   }
@@ -96,11 +103,13 @@ export function resolveManagedStageSupportSymbolCatalogue(mapperRecord = {}, opt
         pointsTowardCenter: true,
         axialPipeParallel: true,
         explicitSingle: Boolean(explicitSignedAxis),
-        tipSeparationMm: explicitSignedAxis ? gapVisualSeparationMm : gapVisualSeparationMm / 2
+        tipSeparationMm: explicitSignedAxis ? gapVisualSeparationMm : gapVisualSeparationMm / 2,
+        odTwoThirdsEligible: true
       })),
       pipeAxis,
       gapMm,
       gapVisualSeparationMm,
+      pipeOdMm,
       axialNoOdHalfRadialContact: true,
       axialTipsTouchUnlessGap: true,
       odTwoThirdsEligible: true
@@ -117,6 +126,7 @@ export function resolveManagedStageSupportSymbolCatalogue(mapperRecord = {}, opt
       warnings: ['spring can requires engineering resolution; warning coil below pipe only'],
       gapMm,
       gapVisualSeparationMm: 0,
+      pipeOdMm,
       odTwoThirdsEligible: false
     });
   }
@@ -130,12 +140,16 @@ export function resolveManagedStageSupportSymbolCatalogue(mapperRecord = {}, opt
     warnings: ['unknown support kind; rendered as warning marker'],
     gapMm,
     gapVisualSeparationMm: 0,
+    pipeOdMm,
     odTwoThirdsEligible: false
   });
 }
 
-function symbolResult({ mapperRecord, family, graphicsRule, primitives, pipeAxis = '', popupRequired = false, warnings = [], gapMm = 0, gapVisualSeparationMm = 0, axialNoOdHalfRadialContact = false, axialTipsTouchUnlessGap = false, odTwoThirdsEligible = false }) {
+function symbolResult({ mapperRecord, family, graphicsRule, primitives, pipeAxis = '', popupRequired = false, warnings = [], gapMm = 0, gapVisualSeparationMm = 0, pipeOdMm = 0, axialNoOdHalfRadialContact = false, axialTipsTouchUnlessGap = false, odTwoThirdsEligible = false }) {
   const primitiveCount = primitives.length;
+  const odTwoThirdsSymbolLengthMm = odTwoThirdsEligible && pipeOdMm > 0
+    ? round(pipeOdMm * OD_TWO_THIRDS_FACTOR)
+    : 0;
   return {
     schema: MANAGED_STAGE_SUPPORT_SYMBOL_CATALOGUE_SCHEMA,
     sourceMode: mapperRecord.sourceMode || mapperRecord.attrs?.SUPPORT_SOURCE_MODE || 'stagedJson',
@@ -153,9 +167,14 @@ function symbolResult({ mapperRecord, family, graphicsRule, primitives, pipeAxis
     gapRecordScoped: true,
     gapCarryForward: false,
     gapVisualSeparationMm: round(gapVisualSeparationMm),
+    gapVisualRule: gapMm > 0 && gapVisualSeparationMm > 0
+      ? 'positive gap uses 10x record-local gap separation for axial symbols'
+      : 'no visual gap separation for this symbol',
+    pipeOdMm: round(pipeOdMm),
     axialNoOdHalfRadialContact: Boolean(axialNoOdHalfRadialContact),
     axialTipsTouchUnlessGap: Boolean(axialTipsTouchUnlessGap),
     odTwoThirdsResolverApplied: Boolean(odTwoThirdsEligible),
+    odTwoThirdsSymbolLengthMm,
     odTwoThirdsRule: odTwoThirdsEligible
       ? 'ODx2/3 may apply only to this final axial/pipe-parallel symbol'
       : 'ODx2/3 is not applied to this non-axial or unresolved symbol'
@@ -171,7 +190,8 @@ function arrowPrimitive(axis, role, extra = {}) {
     pointsTowardCenter: extra.pointsTowardCenter !== false,
     axialPipeParallel: Boolean(extra.axialPipeParallel),
     explicitSingle: Boolean(extra.explicitSingle),
-    tipSeparationMm: round(extra.tipSeparationMm || 0)
+    tipSeparationMm: round(extra.tipSeparationMm || 0),
+    odTwoThirdsEligible: Boolean(extra.odTwoThirdsEligible)
   };
 }
 

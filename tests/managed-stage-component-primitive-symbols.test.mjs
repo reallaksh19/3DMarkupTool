@@ -26,7 +26,7 @@ const fixture = {
     attributes: { NAME: 'ROOT' },
     children: [
       lineRecord('WN-FLANGE-001', 'FLAN', 'FLANGE', 'N1', 'N2', { x: 0, y: 0, z: 0 }, { x: 220, y: 0, z: 0 }),
-      lineRecord('BALL-VALVE-001', 'VALV', 'VALVE', 'N2', 'N3', { x: 260, y: 0, z: 0 }, { x: 620, y: 0, z: 0 })
+      lineRecord('BALL-VALVE-001', 'VALV', 'VALVE', 'N2', 'N3', { x: 260, y: 0, z: 0 }, { x: 260, y: 0, z: 360 })
     ]
   }]
 };
@@ -38,15 +38,20 @@ const result = applyManagedStageComponentPrimitiveSymbols(scene, { sourceName: '
 assert.equal(result.schema, 'ManagedStageComponentPrimitiveSymbols.v1');
 assert.equal(result.flangeSymbolCount, 1);
 assert.equal(result.valveSymbolCount, 1);
+assert.equal(result.rows.length, 2);
 
 const flange = findCue(scene, 'WELDNECK_FLANGE');
 assert.ok(flange, 'expected WeldNeck flange primitive symbol');
 assert.equal(flange.userData.cueKind, 'flange-weldneck-primitive-symbol');
 assert.equal(flange.userData.primitiveCount, 2);
 assert.equal(flange.userData.primitiveBudgetLimit, 2);
+assert.equal(flange.userData.sourceAxis, '+X');
+assert.equal(flange.userData.sourceLengthMm, 220);
+assert.equal(flange.userData.pipeRadiusMm, 50);
 assert.equal(flange.children.length, 2);
 assert.deepEqual(flange.children.map((child) => child.userData.componentPrimitivePart), ['raised-face-disk', 'weld-neck-hub']);
 assert.ok(flange.children.every((child) => child.userData.componentPrimitiveBudgetCounted === true));
+assert.ok(flange.children.every((child) => child.userData.sourceAxis === '+X'));
 
 const valve = findCue(scene, 'BALL_VALVE');
 assert.ok(valve, 'expected ball valve primitive symbol');
@@ -54,6 +59,9 @@ assert.ok(valve, 'expected ball valve primitive symbol');
 assert.equal(valve.userData.cueKind, 'valve-opposed-cone-pair');
 assert.equal(valve.userData.primitiveCount, 5);
 assert.equal(valve.userData.primitiveBudgetLimit, 6);
+assert.equal(valve.userData.sourceAxis, '+Z');
+assert.equal(valve.userData.sourceLengthMm, 360);
+assert.equal(valve.userData.pipeRadiusMm, 50);
 assert.equal(valve.children.length, 5);
 assert.deepEqual(valve.children.map((child) => child.userData.componentPrimitivePart), [
   'central-ball-body',
@@ -63,7 +71,11 @@ assert.deepEqual(valve.children.map((child) => child.userData.componentPrimitive
   'right-end-flange'
 ]);
 assert.ok(valve.children.every((child) => child.userData.componentPrimitiveBudgetCounted === true));
+assert.ok(valve.children.every((child) => child.userData.sourceAxis === '+Z'));
 assert.ok(valve.children.every((child) => !/stem|handwheel|wheel/i.test(child.name)), 'ball valve preview must not add stem/handwheel geometry');
+
+const valveBody = valve.children.find((child) => child.userData.componentPrimitivePart === 'central-ball-body');
+assert.ok(Math.abs(valveBody.geometry.parameters.height - 108) < 1e-6, 'ball valve body length uses source APOS/LPOS length');
 
 const valveSource = findSource(scene, 'BALL-VALVE-001');
 assert.equal(valveSource.userData.managedStageValvePrimitiveSymbolApplied, true);

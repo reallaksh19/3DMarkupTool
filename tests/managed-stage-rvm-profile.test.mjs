@@ -10,9 +10,9 @@ const expectations = {
   supportRvmPrimitiveCount: 42,
   code1: 0,
   code4: 0,
-  code8: 133,
+  code8: 157,
   cntbCount: 56,
-  primCount: 133,
+  primCount: 157,
   supportMaxGlyphExtentMm: 100,
   supportMaxClusterOffsetMm: 30,
   supportMaxPrimitiveSpanMm: 60,
@@ -40,13 +40,13 @@ assert.deepEqual(result.audit.supportRvmExportAudit.supportAllowedPrimitiveCodes
 assert.deepEqual(result.audit.supportRvmExportAudit.supportForbiddenPrimitiveCodesPresent, []);
 assert.equal(result.audit.primitiveHistogram[1] || 0, 0);
 assert.equal(result.audit.primitiveHistogram[4] || 0, 0);
-assert.equal(result.audit.primitiveHistogram[8], 133);
+assert.equal(result.audit.primitiveHistogram[8], 157);
 assert.equal(result.audit.chunkHierarchy.cntbCount, 56);
-assert.equal(result.audit.chunkHierarchy.primCount, 133);
-assert.equal(result.audit.stitchManifest.geometryPrimitiveCount, 91);
+assert.equal(result.audit.chunkHierarchy.primCount, 157);
+assert.equal(result.audit.stitchManifest.geometryPrimitiveCount, 115);
 assert.equal(result.audit.stitchManifest.supportOverlayPrimitiveCount, 42);
-assert.equal(result.audit.stitchManifest.primitiveCount, 133);
-assert.equal(result.audit.stitchManifest.decodedPrimitiveCount, 133);
+assert.equal(result.audit.stitchManifest.primitiveCount, 157);
+assert.equal(result.audit.stitchManifest.decodedPrimitiveCount, 157);
 assert.equal(sumValues(result.audit.supportRvmExportAudit.supportFamilies), 12);
 assert.ok(result.audit.supportRvmExportAudit.supportMaxGlyphExtentMm <= 100);
 assert.ok(result.audit.supportRvmExportAudit.supportMaxClusterOffsetMm <= 30);
@@ -54,6 +54,21 @@ assert.ok(result.audit.supportRvmExportAudit.supportMaxPrimitiveSpanMm <= 60);
 assert.ok(result.audit.supportRvmExportAudit.supportMaxBarRadiusMm <= 3);
 assert.ok(result.att.includes('NEW /BM_CII-CU-PI-SUPPORTS'));
 assert.ok(result.att.includes('NEW INPUTXML-35-LINESTOP'));
+
+const componentAudit = result.exportModel.audit.componentPrimitiveSymbolExportAudit;
+assert.equal(componentAudit.schema, 'ManagedStageComponentPrimitiveRvmExport.v1');
+assert.equal(componentAudit.flangeNodeCount, 8);
+assert.equal(componentAudit.valveNodeCount, 6);
+assert.equal(componentAudit.supportNodeCount, 12);
+assert.equal(componentAudit.supportPrimitiveCount, 42);
+assert.equal(componentAudit.weldNeckFlangePrimitiveCount, 12);
+assert.equal(componentAudit.ballValvePrimitiveCount, 30);
+assert.equal(componentAudit.recipeHistogram['weldneck-flange-contiguous-2part'], 6);
+assert.equal(componentAudit.recipeHistogram['flanged-ball-valve-contiguous-5part'], 3);
+assert.equal(componentAudit.recipeHistogram['ball-valve-contiguous-5part'], 3);
+assert.ok(result.att.includes('RVM_COMPONENT_SYMBOL_EXPORTED\tYES'));
+assert.ok(result.att.includes('RVM_COMPONENT_PRIMITIVE_RECIPE\tweldneck-flange-contiguous-2part'));
+assert.ok(result.att.includes('RVM_COMPONENT_PRIMITIVE_RECIPE\tflanged-ball-valve-contiguous-5part'));
 
 const supportNodes = result.exportModel.audit.supportRvmExportAudit.nodes;
 const supportPrimitives = supportNodes.flatMap((node) => node.primitives.map((primitive) => ({ node, primitive })));
@@ -79,7 +94,7 @@ for (const { node, primitive } of supportPrimitives) {
   }
 }
 
-console.log('Managed-stage BM_CII support RVM compact code-8 bar export gate passed');
+console.log('Managed-stage BM_CII support, flange, and valve RVM export gate passed');
 
 function maxEndpointDistance(primitive, center) {
   return Math.max(distance(primitive.startMm, center), distance(primitive.endMm, center));
@@ -90,5 +105,5 @@ function distance(a, b) {
 }
 
 function sumValues(values = {}) {
-  return Object.values(values).reduce((sum, value) => sum + Number(value || 0), 0);
+  return Object.values(values).reduce((sum, value) => value + Number(value || 0), 0);
 }

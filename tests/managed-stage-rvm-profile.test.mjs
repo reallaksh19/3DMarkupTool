@@ -105,5 +105,5 @@ function distance(a, b) {
 }
 
 function sumValues(values = {}) {
-  return Object.values(values).reduce((sum, value) => value + Number(value || 0), 0);
+  return Object.values(values).reduce((sum, value) => sum + Number(value || 0), 0);
 }

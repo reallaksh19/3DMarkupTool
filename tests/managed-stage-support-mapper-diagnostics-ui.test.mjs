@@ -19,6 +19,10 @@ const diagnostics = {
   isonoteSymbolCount: 3,
   supportVisualPartCount: 9,
   axisBasisAppliedCount: 2,
+  mapperPreflightIssueCount: 1,
+  mapperPreflightWarningCount: 1,
+  mapperPreflightErrorCount: 0,
+  mapperPreflightPopupRequiredCount: 1,
   popupRequiredCount: 1,
   warningCount: 1,
   gapRecordScopedCount: 2,
@@ -36,6 +40,8 @@ assert.equal(MANAGED_STAGE_SUPPORT_MAPPER_DIAGNOSTICS_UI_SCHEMA, 'ManagedStageSu
 const rows = buildManagedStageSupportMapperDiagnosticsRows(diagnostics);
 assert.equal(rows.some((row) => row.key === 'sourceMode' && row.value === 'isonote'), true);
 assert.equal(rows.some((row) => row.key === 'supportSymbolCount' && row.value === '3'), true);
+assert.equal(rows.some((row) => row.key === 'mapperPreflightIssueCount' && row.value === '1'), true);
+assert.equal(rows.some((row) => row.key === 'mapperPreflightPopupRequiredCount' && row.value === '1'), true);
 assert.equal(rows.some((row) => row.key === 'gapCarryForwardViolationCount' && row.value === '0'), true);
 assert.equal(rows.some((row) => row.key === 'supportFamilyHistogram' && row.value.includes('GUIDE:1')), true);
 assert.equal(rows.some((row) => row.key === 'supportCanvasAxisHistogram' && row.value.includes('+Z:2')), true);
@@ -43,16 +49,19 @@ assert.equal(rows.some((row) => row.key === 'supportCanvasAxisHistogram' && row.
 const summary = supportMapperDiagnosticsSummary(diagnostics);
 assert.equal(summary.includes('isonote'), true);
 assert.equal(summary.includes('symbols 3'), true);
+assert.equal(summary.includes('preflight 0E/1W'), true);
 assert.equal(summary.includes('gap carry-forward 0'), true);
 assert.equal(summary.endsWith('PASS.'), true);
 
 const html = renderManagedStageSupportMapperDiagnostics(diagnostics);
 assert.equal(html.includes('Support mapper diagnostics'), true);
+assert.equal(html.includes('Mapper preflight issues'), true);
 assert.equal(html.includes('Family histogram'), true);
 assert.equal(html.includes('REST:1'), true);
 assert.equal(html.includes('+Z:2'), true);
 
-const failingSummary = supportMapperDiagnosticsSummary({ ...diagnostics, pass: false, gapCarryForwardViolationCount: 1 });
+const failingSummary = supportMapperDiagnosticsSummary({ ...diagnostics, pass: false, mapperPreflightErrorCount: 1, gapCarryForwardViolationCount: 1 });
+assert.equal(failingSummary.includes('preflight 1E/1W'), true);
 assert.equal(failingSummary.includes('gap carry-forward 1'), true);
 assert.equal(failingSummary.endsWith('CHECK.'), true);
 

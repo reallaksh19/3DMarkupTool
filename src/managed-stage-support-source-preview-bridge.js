@@ -5,7 +5,7 @@ import { MANAGED_STAGE_SUPPORT_SOURCE_MODES, normalizeManagedStageSupportMapperR
 
 export const MANAGED_STAGE_SUPPORT_SOURCE_PREVIEW_BRIDGE_SCHEMA = 'ManagedStageSupportSourcePreviewBridge.v1';
 export const MANAGED_STAGE_SUPPORT_SOURCE_PREVIEW_DIAGNOSTICS_SCHEMA = 'ManagedStageSupportSourcePreviewDiagnostics.v1';
-export const MANAGED_STAGE_SUPPORT_SOURCE_PREVIEW_BRIDGE_CACHE_KEY = '20260623-staged-json-support-source-preview-5-axis-basis';
+export const MANAGED_STAGE_SUPPORT_SOURCE_PREVIEW_BRIDGE_CACHE_KEY = '20260623-staged-json-support-source-preview-6-preflight';
 export const ISONOTE_SUPPORT_SOURCE_OVERLAY_ROOT = 'MANAGED_STAGE_SUPPORT_SOURCE_OVERLAY_ISONOTE';
 export const STAGED_JSON_SUPPORT_SOURCE_OVERLAY_ROOT = 'MANAGED_STAGE_SUPPORT_SOURCE_OVERLAY_STAGED_JSON';
 
@@ -98,7 +98,7 @@ export function buildIsonoteSupportPreviewRecords(isonoteText = '', pipeRecords 
 }
 
 export function collectManagedStageSupportSourcePreviewDiagnostics(modelRoot, result = {}) {
-  const diagnostics = { schema: MANAGED_STAGE_SUPPORT_SOURCE_PREVIEW_DIAGNOSTICS_SCHEMA, sourceMode: result.sourceMode || '', status: result.status || '', removed: Number(result.removed || 0), mapperConfigApplied: Boolean(result.mapperConfigApplied), pipeRecordCount: Number(result.pipeRecordCount || 0), stagedJsonSupportRecordCount: Number(result.stagedJsonSupportRecordCount || 0), isonoteSupportRecordCount: Number(result.isonoteSupportRecordCount || 0), overlayPrimitiveGroupCount: Number(result.overlayPrimitiveGroupCount || 0), stagedJsonOverlayRootCount: 0, isonoteOverlayRootCount: 0, supportSymbolCount: 0, stagedJsonSymbolCount: 0, isonoteSymbolCount: 0, supportVisualPartCount: 0, supportFamilyHistogram: {}, supportCanvasAxisHistogram: {}, axisBasisAppliedCount: 0, popupRequiredCount: 0, warningCount: 0, gapRecordScopedCount: 0, gapCarryForwardViolationCount: 0, maxGlyphLengthMm: 0, maxClusterOffsetMm: 0, maxGapVisualSeparationMm: 0, activeSourceExclusive: true, pass: true };
+  const diagnostics = { schema: MANAGED_STAGE_SUPPORT_SOURCE_PREVIEW_DIAGNOSTICS_SCHEMA, sourceMode: result.sourceMode || '', status: result.status || '', removed: Number(result.removed || 0), mapperConfigApplied: Boolean(result.mapperConfigApplied), pipeRecordCount: Number(result.pipeRecordCount || 0), stagedJsonSupportRecordCount: Number(result.stagedJsonSupportRecordCount || 0), isonoteSupportRecordCount: Number(result.isonoteSupportRecordCount || 0), overlayPrimitiveGroupCount: Number(result.overlayPrimitiveGroupCount || 0), stagedJsonOverlayRootCount: 0, isonoteOverlayRootCount: 0, supportSymbolCount: 0, stagedJsonSymbolCount: 0, isonoteSymbolCount: 0, supportVisualPartCount: 0, supportFamilyHistogram: {}, supportCanvasAxisHistogram: {}, axisBasisAppliedCount: 0, popupRequiredCount: 0, warningCount: 0, gapRecordScopedCount: 0, gapCarryForwardViolationCount: 0, mapperPreflightIssueCount: 0, mapperPreflightWarningCount: 0, mapperPreflightErrorCount: 0, mapperPreflightPopupRequiredCount: 0, maxGlyphLengthMm: 0, maxClusterOffsetMm: 0, maxGapVisualSeparationMm: 0, activeSourceExclusive: true, pass: true };
   modelRoot?.traverse?.((object) => {
     const data = object?.userData || {};
     if (object?.name === STAGED_JSON_SUPPORT_SOURCE_OVERLAY_ROOT) diagnostics.stagedJsonOverlayRootCount += 1;
@@ -121,7 +121,15 @@ export function collectManagedStageSupportSourcePreviewDiagnostics(modelRoot, re
     diagnostics.supportFamilyHistogram[family] = (diagnostics.supportFamilyHistogram[family] || 0) + 1;
     if (canvasAxis) diagnostics.supportCanvasAxisHistogram[canvasAxis] = (diagnostics.supportCanvasAxisHistogram[canvasAxis] || 0) + 1;
     if (mapperRecord?.attrs?.SUPPORT_AXIS_CANVAS_APPLIED === 'TRUE') diagnostics.axisBasisAppliedCount += 1;
-    if (data.popupRequired || visual.popupRequired) diagnostics.popupRequiredCount += 1;
+    const preflight = mapperRecord?.preflight || null;
+    if (preflight) {
+      diagnostics.mapperPreflightIssueCount += Number(preflight.issueCount || 0);
+      diagnostics.mapperPreflightWarningCount += Number(preflight.warningCount || 0);
+      diagnostics.mapperPreflightErrorCount += Number(preflight.errorCount || 0);
+      if (preflight.popupRequired) diagnostics.mapperPreflightPopupRequiredCount += 1;
+      diagnostics.warningCount += Number(preflight.warningCount || 0);
+    }
+    if (data.popupRequired || visual.popupRequired || preflight?.popupRequired) diagnostics.popupRequiredCount += 1;
     if (visual.popupRequired || visual.fallbackCrossRods || /WARNING|UNKNOWN/.test(family)) diagnostics.warningCount += 1;
     if (visual.gapRecordScoped) diagnostics.gapRecordScopedCount += 1;
     if (visual.gapCarryForward) diagnostics.gapCarryForwardViolationCount += 1;
@@ -129,7 +137,7 @@ export function collectManagedStageSupportSourcePreviewDiagnostics(modelRoot, re
     diagnostics.maxGapVisualSeparationMm = Math.max(diagnostics.maxGapVisualSeparationMm, numeric(visual.gapVisualSeparationMm));
   });
   diagnostics.activeSourceExclusive = !(diagnostics.stagedJsonSymbolCount > 0 && diagnostics.isonoteSymbolCount > 0);
-  diagnostics.pass = diagnostics.activeSourceExclusive && diagnostics.gapCarryForwardViolationCount === 0 && (diagnostics.sourceMode !== MANAGED_STAGE_SUPPORT_SOURCE_MODES.OFF || diagnostics.supportSymbolCount === 0);
+  diagnostics.pass = diagnostics.activeSourceExclusive && diagnostics.gapCarryForwardViolationCount === 0 && diagnostics.mapperPreflightErrorCount === 0 && (diagnostics.sourceMode !== MANAGED_STAGE_SUPPORT_SOURCE_MODES.OFF || diagnostics.supportSymbolCount === 0);
   diagnostics.maxGlyphLengthMm = round(diagnostics.maxGlyphLengthMm);
   diagnostics.maxClusterOffsetMm = round(diagnostics.maxClusterOffsetMm);
   diagnostics.maxGapVisualSeparationMm = round(diagnostics.maxGapVisualSeparationMm);

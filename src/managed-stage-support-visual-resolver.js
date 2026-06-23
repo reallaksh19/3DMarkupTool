@@ -24,13 +24,15 @@ const SUPPORT_PREVIEW_SCALE_POLICY = Object.freeze({
   barRadiusMinMm: 1,
   barRadiusMaxMm: 3,
   clusterOffsetMaxMm: 28,
-  gapVisualSeparationMaxMm: 28
+  gapVisualSeparationMaxMm: 28,
+  maxPrimitiveBudgetPerSupportKind: 4
 });
 
 export const MANAGED_STAGE_SUPPORT_VISUAL_POLICY = Object.freeze({
   schema: 'ManagedStageSupportVisualResolver.v2',
   rules: [
-    'REST/GUIDE/LINESTOP/HOLDDOWN preview uses compact cylinder stem+tick bars, not solid cones',
+    'REST/GUIDE/LINESTOP/HOLDDOWN preview uses compact cylinder bars, not solid cones',
+    'vertical-pipe GUIDE uses four stem-only lateral bars to stay under the compact primitive budget',
     'RVM export and raw preview share a compact glyph envelope: support bars stay near the source POS/SUPPORTCOORD',
     'single-axis restraints without +/- are warning markers with popupRequired=true',
     'Can Spring / Spring Can = warning coil below pipe',
@@ -41,7 +43,8 @@ export const MANAGED_STAGE_SUPPORT_VISUAL_POLICY = Object.freeze({
     'unknown support fallback = translucent crossed X rods, never solid cube/block/cone fallback'
   ],
   previewGeometry: 'compact-code8-equivalent-cylinder-bars-no-cones',
-  blockedPreviewGeometry: ['ConeGeometry', 'solid-pyramid', 'cone-fan']
+  blockedPreviewGeometry: ['ConeGeometry', 'solid-pyramid', 'cone-fan'],
+  maxPrimitiveBudgetPerSupportKind: SUPPORT_PREVIEW_SCALE_POLICY.maxPrimitiveBudgetPerSupportKind
 });
 
 export function createManagedStageSupportPreviewObject(record, options = {}) {
@@ -80,7 +83,9 @@ export function createManagedStageSupportPreviewObject(record, options = {}) {
       role: 'warningCoilBelowPipe',
       popupRequired: true,
       visualCenterMm: vecToPoint(visualCenter),
-      supportPreviewNoCone: true
+      supportPreviewNoCone: true,
+      supportPrimitiveBudgetCounted: true,
+      supportPrimitiveBudgetUnitCount: 1
     });
     group.add(coil);
   } else if (visual.fallbackCrossRods) {
@@ -101,7 +106,9 @@ export function createManagedStageSupportPreviewObject(record, options = {}) {
       role: 'popupRequired',
       popupRequired: true,
       visualCenterMm: vecToPoint(visualCenter),
-      supportPreviewNoCone: true
+      supportPreviewNoCone: true,
+      supportPrimitiveBudgetCounted: true,
+      supportPrimitiveBudgetUnitCount: 1
     });
     group.add(warning);
   } else {
@@ -138,6 +145,9 @@ export function createManagedStageSupportPreviewObject(record, options = {}) {
     primitiveKind: 'managed-stage-support-symbol',
     supportVisualPolicy: MANAGED_STAGE_SUPPORT_VISUAL_POLICY.schema,
     supportVisualGeometry: 'compact-cylinder-bars-no-cones',
+    supportPreviewPrimitiveBudgetCount: visual.previewPrimitiveBudgetCount,
+    supportPreviewPrimitiveBudgetLimit: visual.previewPrimitiveBudgetLimit,
+    supportPreviewPrimitiveBudgetPass: visual.previewPrimitiveBudgetPass,
     managedStageSupportVisual: true,
     supportVisual: visual,
     supportCluster: visual.cluster,
@@ -189,7 +199,13 @@ export function resolveManagedStageSupportVisual(record, records = [], options =
       { role: 'holddown-top-support-bar', axis: '-Y', pointsTowardCenter: false }
     ];
   } else if (family === 'GUIDE') {
-    coneSides = guideAxesForPipeAxis(pipeAxis).map((axis) => ({ role: 'guide-lateral-support-bar', axis, pointsTowardCenter: true }));
+    const stemOnly = pipeAxis === 'Y';
+    coneSides = guideAxesForPipeAxis(pipeAxis).map((axis) => ({
+      role: stemOnly ? 'guide-vertical-pipe-lateral-stem' : 'guide-lateral-support-bar',
+      axis,
+      pointsTowardCenter: true,
+      compactStemOnly: stemOnly
+    }));
   } else if (family === 'LINE_STOP' || family === 'LIMIT_STOP') {
     const explicitSingle = Boolean(explicitAxis?.hasSign);
     const axialSides = explicitSingle
@@ -213,6 +229,9 @@ export function resolveManagedStageSupportVisual(record, records = [], options =
     popupReason = 'unknown staged support restraint mapping; rendered as translucent crossed X rods fallback';
   }
 
+  const previewPrimitiveBudgetCount = previewPrimitiveBudgetFor({ family, coneSides, popupRequired, fallbackCrossRods });
+  const previewPrimitiveBudgetLimit = SUPPORT_PREVIEW_SCALE_POLICY.maxPrimitiveBudgetPerSupportKind;
+
   return {
     schema: MANAGED_STAGE_SUPPORT_VISUAL_POLICY.schema,
     rawKind,
@@ -229,6 +248,9 @@ export function resolveManagedStageSupportVisual(record, records = [], options =
     directionalGlyphSides: coneSides,
     directionalGlyphCount: coneSides.length,
     previewGlyphGeometry: 'compact-cylinder-bars-no-cones',
+    previewPrimitiveBudgetCount,
+    previewPrimitiveBudgetLimit,
+    previewPrimitiveBudgetPass: previewPrimitiveBudgetCount <= previewPrimitiveBudgetLimit,
     explicitAxis: explicitAxis ? { ...explicitAxis } : null,
     explicitSignApplied: Boolean(explicitAxis?.hasSign && AXIAL_FAMILIES.has(family)),
     popupRequired,
@@ -258,6 +280,7 @@ function createDirectionalGlyphBars({ tip, directionToTip, length, tickLength, b
     axis: side.axis,
     axialPipeParallel: Boolean(side.axialPipeParallel),
     explicitSingle: Boolean(side.explicitSingle),
+    compactStemOnly: Boolean(side.compactStemOnly),
     tipMm: vecToPoint(tip),
     sourceTipMm: vecToPoint(sourceCenter),
     visualCenterMm: vecToPoint(visualCenter),
@@ -270,12 +293,16 @@ function createDirectionalGlyphBars({ tip, directionToTip, length, tickLength, b
     supportPyramidSubstituteBlocked: true,
     supportGapVisualSeparationRawMm: round(rawTipSeparation),
     supportGapVisualSeparationExportMm: round(tipSeparation),
-    supportGlyphLengthMm: round(length)
+    supportGlyphLengthMm: round(length),
+    supportPrimitiveBudgetCounted: true,
+    supportPrimitiveBudgetLimit: visual.previewPrimitiveBudgetLimit,
+    supportPrimitiveBudgetCount: visual.previewPrimitiveBudgetCount
   };
   const stem = cylinderBetween(base, tip, barRadius, material, 10, `${name}_STEM_BAR`);
-  stampPart(stem, visual, { ...common, role: `${side.role}-preview-stem-bar`, supportGlyphStemBar: true });
+  stampPart(stem, visual, { ...common, role: `${side.role}-preview-stem-bar`, supportGlyphStemBar: true, supportPrimitiveBudgetUnitCount: 1 });
+  if (side.compactStemOnly) return [stem];
   const tick = cylinderBetween(tickStart, tickEnd, clamp(barRadius * 0.72, 1, 2.25), material, 10, `${name}_TIP_TICK`);
-  stampPart(tick, visual, { ...common, role: `${side.role}-preview-tip-tick`, supportGlyphTipTick: true, supportGlyphTickStartMm: vecToPoint(tickStart), supportGlyphTickEndMm: vecToPoint(tickEnd) });
+  stampPart(tick, visual, { ...common, role: `${side.role}-preview-tip-tick`, supportGlyphTipTick: true, supportGlyphTickStartMm: vecToPoint(tickStart), supportGlyphTickEndMm: vecToPoint(tickEnd), supportPrimitiveBudgetUnitCount: 1 });
   return [stem, tick];
 }
 
@@ -294,7 +321,9 @@ function createClusterConnector(sourceCenter, visualCenter, odMm, visual, name) 
     sourceTipMm: vecToPoint(sourceCenter),
     visualCenterMm: vecToPoint(visualCenter),
     clusterOffsetConnector: true,
-    supportPreviewNoCone: true
+    supportPreviewNoCone: true,
+    supportPrimitiveBudgetCounted: false,
+    supportPrimitiveBudgetUnitCount: 0
   });
   return rod;
 }
@@ -311,7 +340,9 @@ function createFallbackCrossRods(center, length, radius, material, name, visual)
       role: 'fallbackCrossRod',
       fallbackCrossRod: true,
       visualCenterMm: vecToPoint(center),
-      supportPreviewNoCone: true
+      supportPreviewNoCone: true,
+      supportPrimitiveBudgetCounted: true,
+      supportPrimitiveBudgetUnitCount: 1
     });
     return rod;
   });
@@ -336,6 +367,13 @@ function stampPart(object, visual, extra = {}) {
     gapCarryForward: false,
     ...extra
   };
+}
+
+function previewPrimitiveBudgetFor({ family, coneSides, popupRequired, fallbackCrossRods }) {
+  if (family === 'SPRING_CAN') return 1;
+  if (fallbackCrossRods) return 2;
+  if (popupRequired) return 1;
+  return (coneSides || []).reduce((sum, side) => sum + (side.compactStemOnly ? 1 : 2), 0);
 }
 
 function resolvePipeContext(record, records) {

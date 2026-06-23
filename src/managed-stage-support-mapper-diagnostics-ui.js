@@ -1,5 +1,5 @@
 export const MANAGED_STAGE_SUPPORT_MAPPER_DIAGNOSTICS_UI_SCHEMA = 'ManagedStageSupportMapperDiagnosticsUi.v1';
-export const MANAGED_STAGE_SUPPORT_MAPPER_DIAGNOSTICS_UI_CACHE_KEY = '20260623-staged-json-support-mapper-diagnostics-ui-1';
+export const MANAGED_STAGE_SUPPORT_MAPPER_DIAGNOSTICS_UI_CACHE_KEY = '20260623-staged-json-support-mapper-diagnostics-ui-2-preflight';
 
 const DIAGNOSTIC_ROW_KEYS = Object.freeze([
   ['sourceMode', 'Source mode'],
@@ -13,6 +13,10 @@ const DIAGNOSTIC_ROW_KEYS = Object.freeze([
   ['isonoteSymbolCount', 'ISONOTE symbols'],
   ['supportVisualPartCount', 'Symbol parts'],
   ['axisBasisAppliedCount', 'Axis-basis applied'],
+  ['mapperPreflightIssueCount', 'Mapper preflight issues'],
+  ['mapperPreflightWarningCount', 'Mapper preflight warnings'],
+  ['mapperPreflightErrorCount', 'Mapper preflight errors'],
+  ['mapperPreflightPopupRequiredCount', 'Mapper preflight popup required'],
   ['popupRequiredCount', 'Popup required'],
   ['warningCount', 'Warnings'],
   ['gapRecordScopedCount', 'Record-scoped gaps'],
@@ -36,8 +40,10 @@ export function supportMapperDiagnosticsSummary(diagnostics = {}) {
   const warningCount = Number(diagnostics.warningCount || 0);
   const popupCount = Number(diagnostics.popupRequiredCount || 0);
   const gapViolations = Number(diagnostics.gapCarryForwardViolationCount || 0);
+  const preflightErrors = Number(diagnostics.mapperPreflightErrorCount || 0);
+  const preflightWarnings = Number(diagnostics.mapperPreflightWarningCount || 0);
   const pass = diagnostics.pass === true || diagnostics.pass === 'true';
-  return `Support mapper diagnostics: ${sourceMode}; symbols ${supportCount}; warnings ${warningCount}; popup ${popupCount}; gap carry-forward ${gapViolations}; ${pass ? 'PASS' : 'CHECK'}.`;
+  return `Support mapper diagnostics: ${sourceMode}; symbols ${supportCount}; warnings ${warningCount}; popup ${popupCount}; preflight ${preflightErrors}E/${preflightWarnings}W; gap carry-forward ${gapViolations}; ${pass ? 'PASS' : 'CHECK'}.`;
 }
 
 export function renderManagedStageSupportMapperDiagnostics(diagnostics = {}) {

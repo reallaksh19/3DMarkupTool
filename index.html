@@ -7,18 +7,18 @@
   <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
   <link rel="shortcut icon" href="./favicon.ico" />
   <link rel="preconnect" href="https://unpkg.com" crossorigin />
-  <link rel="stylesheet" href="./src/styles.css?v=support-ui-render-export-fix-20260623" />
-  <link rel="stylesheet" href="./src/static-shell-performance.css?v=support-ui-render-export-fix-20260623" />
-  <link rel="preload" href="./src/clip-adjuster.css?v=support-ui-render-export-fix-20260623" as="style" onload="this.onload=null;this.rel='stylesheet'" />
-  <noscript><link rel="stylesheet" href="./src/clip-adjuster.css?v=support-ui-render-export-fix-20260623" /></noscript>
-  <link rel="preload" href="./src/clip-visual-overlays.css?v=support-ui-render-export-fix-20260623" as="style" onload="this.onload=null;this.rel='stylesheet'" />
-  <noscript><link rel="stylesheet" href="./src/clip-visual-overlays.css?v=support-ui-render-export-fix-20260623" /></noscript>
+  <link rel="stylesheet" href="./src/styles.css?v=app-boot-dialog-conversion-hotfix-20260623" />
+  <link rel="stylesheet" href="./src/static-shell-performance.css?v=app-boot-dialog-conversion-hotfix-20260623" />
+  <link rel="preload" href="./src/clip-adjuster.css?v=app-boot-dialog-conversion-hotfix-20260623" as="style" onload="this.onload=null;this.rel='stylesheet'" />
+  <noscript><link rel="stylesheet" href="./src/clip-adjuster.css?v=app-boot-dialog-conversion-hotfix-20260623" /></noscript>
+  <link rel="preload" href="./src/clip-visual-overlays.css?v=app-boot-dialog-conversion-hotfix-20260623" as="style" onload="this.onload=null;this.rel='stylesheet'" />
+  <noscript><link rel="stylesheet" href="./src/clip-visual-overlays.css?v=app-boot-dialog-conversion-hotfix-20260623" /></noscript>
   <script type="importmap">
     {
       "imports": {
         "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
         "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/",
-        "lucide": "./src/lucide-safe.js?v=support-ui-render-export-fix-20260623"
+        "lucide": "./src/lucide-safe.js?v=app-boot-dialog-conversion-hotfix-20260623"
       }
     }
   </script>
@@ -259,8 +259,23 @@
     </aside>
   </main>
 
-  <script type="module" src="./src/render-context-prebridge.js?v=support-ui-render-export-fix-20260623"></script>
-  <script type="module" src="./src/safe-ui-bootstrap.js?v=support-ui-render-export-fix-20260623"></script>
-  <script type="module" src="./src/app-loader.js?v=support-ui-render-export-fix-20260623"></script>
+  <dialog id="rulesDialog" class="rules-dialog" aria-labelledby="rulesDialogTitle">
+    <form method="dialog" class="rules-dialog-card">
+      <div class="rules-dialog-head">
+        <h2 id="rulesDialogTitle">Mapping Rules</h2>
+        <button id="closeRulesBtn" type="button" class="icon-btn" aria-label="Close mapping rules">×</button>
+      </div>
+      <p>Use the Support mapping / ISONOTE popup for source mode, mapper presets, axis basis, and ISONOTE side-load controls.</p>
+      <ul>
+        <li>stagedJson mode reads mapped support fields from the uploaded stagedJson.</li>
+        <li>ISONOTE mode reads support rules from the ISONOTE side-load text.</li>
+        <li>Off disables generated support preview overlays.</li>
+      </ul>
+    </form>
+  </dialog>
+
+  <script type="module" src="./src/render-context-prebridge.js?v=app-boot-dialog-conversion-hotfix-20260623"></script>
+  <script type="module" src="./src/safe-ui-bootstrap.js?v=app-boot-dialog-conversion-hotfix-20260623"></script>
+  <script type="module" src="./src/app-loader.js?v=app-boot-dialog-conversion-hotfix-20260623"></script>
 </body>
 </html>

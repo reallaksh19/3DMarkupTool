@@ -17,7 +17,7 @@ const pkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url),
 const moduleScriptCount = (index.match(/<script\s+type="module"/g) || []).length;
 const staticShellImports = (bootstrap.match(/\.js\?v=\$\{SAFE_UI_VERSION\}/g) || []).length;
 const startupScriptBlock = index.slice(index.indexOf('<script type="module"'));
-const rootCacheKeyPattern = /support-ui-render-export-fix-20260623|tool-fixes-v2-20260620|perf-tdz-fix-20260620|perf-static-drawer-bundle-20260620|perf-idle-diagnostics-20260620|perf-static-shell-20260620/;
+const rootCacheKeyPattern = /app-boot-dialog-conversion-hotfix-20260623|support-ui-render-export-fix-20260623|tool-fixes-v2-20260620|perf-tdz-fix-20260620|perf-static-drawer-bundle-20260620|perf-idle-diagnostics-20260620|perf-static-shell-20260620/;
 
 assert.ok(moduleScriptCount <= 3, `index.html should keep top-level module scripts bounded; found ${moduleScriptCount}.`);
 assert.match(index, new RegExp(`static-shell-performance\\.css\\?v=(${rootCacheKeyPattern.source})`), 'Index must load static performance CSS before JS bootstrap.');

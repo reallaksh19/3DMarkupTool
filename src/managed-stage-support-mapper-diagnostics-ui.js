@@ -1,5 +1,5 @@
 export const MANAGED_STAGE_SUPPORT_MAPPER_DIAGNOSTICS_UI_SCHEMA = 'ManagedStageSupportMapperDiagnosticsUi.v1';
-export const MANAGED_STAGE_SUPPORT_MAPPER_DIAGNOSTICS_UI_CACHE_KEY = '20260623-staged-json-support-mapper-diagnostics-ui-3-preflight-issues';
+export const MANAGED_STAGE_SUPPORT_MAPPER_DIAGNOSTICS_UI_CACHE_KEY = '20260623-staged-json-support-mapper-diagnostics-ui-4-rule-preview-table';
 
 const DIAGNOSTIC_ROW_KEYS = Object.freeze([
   ['sourceMode', 'Source mode'],
@@ -32,6 +32,7 @@ export function buildManagedStageSupportMapperDiagnosticsRows(diagnostics = {}) 
   rows.push({ key: 'supportFamilyHistogram', label: 'Family histogram', value: histogramText(diagnostics.supportFamilyHistogram) });
   rows.push({ key: 'supportCanvasAxisHistogram', label: 'Canvas axis histogram', value: histogramText(diagnostics.supportCanvasAxisHistogram) });
   rows.push({ key: 'mapperPreflightIssues', label: 'Preflight issue list', value: issueListText(diagnostics.mapperPreflightIssues) });
+  rows.push({ key: 'supportRulePreviewRows', label: 'Support rule preview rows', value: supportRulePreviewText(diagnostics.supportRulePreviewRows) });
   return rows;
 }
 
@@ -44,15 +45,16 @@ export function supportMapperDiagnosticsSummary(diagnostics = {}) {
   const preflightErrors = Number(diagnostics.mapperPreflightErrorCount || 0);
   const preflightWarnings = Number(diagnostics.mapperPreflightWarningCount || 0);
   const issueListCount = Array.isArray(diagnostics.mapperPreflightIssues) ? diagnostics.mapperPreflightIssues.length : 0;
+  const ruleRowCount = Array.isArray(diagnostics.supportRulePreviewRows) ? diagnostics.supportRulePreviewRows.length : 0;
   const pass = diagnostics.pass === true || diagnostics.pass === 'true';
-  return `Support mapper diagnostics: ${sourceMode}; symbols ${supportCount}; warnings ${warningCount}; popup ${popupCount}; preflight ${preflightErrors}E/${preflightWarnings}W; listed issues ${issueListCount}; gap carry-forward ${gapViolations}; ${pass ? 'PASS' : 'CHECK'}.`;
+  return `Support mapper diagnostics: ${sourceMode}; symbols ${supportCount}; rule rows ${ruleRowCount}; warnings ${warningCount}; popup ${popupCount}; preflight ${preflightErrors}E/${preflightWarnings}W; listed issues ${issueListCount}; gap carry-forward ${gapViolations}; ${pass ? 'PASS' : 'CHECK'}.`;
 }
 
 export function renderManagedStageSupportMapperDiagnostics(diagnostics = {}) {
   const rows = buildManagedStageSupportMapperDiagnosticsRows(diagnostics)
     .map((row) => `<tr><td>${escapeHtml(row.label)}</td><td>${escapeHtml(row.value)}</td></tr>`)
     .join('');
-  return `<summary>Support mapper diagnostics</summary><p>${escapeHtml(supportMapperDiagnosticsSummary(diagnostics))}</p><table><thead><tr><th>Metric</th><th>Value</th></tr></thead><tbody>${rows}</tbody></table>${renderPreflightIssueList(diagnostics.mapperPreflightIssues)}`;
+  return `<summary>Support mapper diagnostics</summary><p>${escapeHtml(supportMapperDiagnosticsSummary(diagnostics))}</p><table><thead><tr><th>Metric</th><th>Value</th></tr></thead><tbody>${rows}</tbody></table>${renderPreflightIssueList(diagnostics.mapperPreflightIssues)}${renderSupportRulePreviewTable(diagnostics.supportRulePreviewRows)}`;
 }
 
 export function installManagedStageSupportMapperDiagnosticsUi({ win = globalThis.window, doc = globalThis.document } = {}) {
@@ -82,6 +84,7 @@ function updateDiagnosticsDetails(doc, diagnostics = {}) {
   details.dataset.supportMapperDiagnosticsPass = String(diagnostics.pass === true || diagnostics.pass === 'true');
   details.dataset.supportMapperDiagnosticsSourceMode = String(diagnostics.sourceMode || '');
   details.dataset.supportMapperPreflightIssueCount = String(diagnostics.mapperPreflightIssueCount || 0);
+  details.dataset.supportRulePreviewRowCount = String(Array.isArray(diagnostics.supportRulePreviewRows) ? diagnostics.supportRulePreviewRows.length : 0);
   return diagnostics;
 }
 
@@ -125,6 +128,11 @@ function issueListText(issues = []) {
   return issues.map((issue) => `${issue.severity || 'warning'}:${issue.code || 'issue'}:${issue.supportTag || issue.node || 'support'}`).join('; ');
 }
 
+function supportRulePreviewText(rows = []) {
+  if (!Array.isArray(rows) || !rows.length) return '—';
+  return rows.map((row) => `${row.supportTag || row.node || 'support'}:${row.family || 'UNKNOWN'}:${row.canvasAxis || 'auto'}:${row.graphicsRule || 'rule'}:${row.emittedSymbolCount ?? 0}`).join('; ');
+}
+
 function renderPreflightIssueList(issues = []) {
   if (!Array.isArray(issues) || !issues.length) return '<p class="support-mapper-preflight-issues-empty">No mapper preflight issue details.</p>';
   const items = issues.map((issue) => {
@@ -133,6 +141,12 @@ function renderPreflightIssueList(issues = []) {
     return `<li><strong>${escapeHtml(title)}</strong><br><span>${escapeHtml(context || 'support')}</span><br><small>${escapeHtml(issue.message || '')}</small></li>`;
   }).join('');
   return `<div class="support-mapper-preflight-issues"><h4>Preflight issue details</h4><ol>${items}</ol></div>`;
+}
+
+function renderSupportRulePreviewTable(rows = []) {
+  if (!Array.isArray(rows) || !rows.length) return '<p class="support-rule-preview-empty">No support rule preview rows.</p>';
+  const body = rows.map((row) => `<tr><td>${escapeHtml(row.sourceMode || '')}</td><td>${escapeHtml(row.supportTag || row.node || '')}</td><td>${escapeHtml(row.family || '')}</td><td>${escapeHtml(row.sourceAxis || '')}</td><td>${escapeHtml(row.canvasAxis || '')}</td><td>${escapeHtml(row.sign || '')}</td><td>${escapeHtml(row.gapMm ?? '')}</td><td>${escapeHtml(row.graphicsRule || '')}</td><td>${escapeHtml(row.emittedSymbolCount ?? '')}</td></tr>`).join('');
+  return `<div class="support-rule-preview"><h4>Support rule preview</h4><table><thead><tr><th>Source</th><th>Tag</th><th>Family</th><th>Source axis</th><th>Canvas axis</th><th>Sign</th><th>Gap mm</th><th>Graphics rule</th><th>Symbols</th></tr></thead><tbody>${body}</tbody></table></div>`;
 }
 
 function escapeHtml(value) {

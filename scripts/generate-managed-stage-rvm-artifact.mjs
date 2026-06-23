@@ -35,6 +35,7 @@ console.log(`Primitive histogram: ${JSON.stringify(result.audit.primitiveHistogr
 console.log(`Processing mode: ${result.audit.processingConfig?.mode || 'unknown'}`);
 console.log(`InputXML bends excluded: ${result.audit.inputXmlBendExclusionAudit?.code4BendsExcluded || 0}`);
 console.log(`InputXML branch fittings inferred: ${result.audit.inputXmlBranchFittingInferenceAudit?.genericBranchFittingCount || 0}`);
+console.log(`Component symbol export: ${JSON.stringify(result.audit.componentPrimitiveSymbolExportAudit || result.exportModel?.audit?.componentPrimitiveSymbolExportAudit || {})}`);
 console.log(`Support records emitted to RVM: ${result.audit.supportRvmExportAudit?.supportRecordCount || 0}`);
 console.log(`Support RVM primitives: ${result.audit.supportRvmExportAudit?.supportPrimitiveCount || 0}`);
 console.log(`Support code histogram: ${JSON.stringify(result.audit.supportRvmExportAudit?.supportPrimitiveCodeHistogram || {})}`);
@@ -69,9 +70,9 @@ function bmCiiExpectations() {
     supportRvmPrimitiveCount: 42,
     code1: 0,
     code4: 0,
-    code8: 133,
+    code8: 157,
     cntbCount: 56,
-    primCount: 133,
+    primCount: 157,
     supportMaxGlyphExtentMm: 100,
     supportMaxClusterOffsetMm: 30,
     supportMaxPrimitiveSpanMm: 60,

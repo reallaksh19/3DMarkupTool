@@ -42,6 +42,7 @@ export function convertManagedStageJsonToRvmAtt(sourceText, options = {}) {
   const stitchManifest = buildManagedStageRvmStitchManifest(profile, exportModel, primitivePayloads);
   const stitchManifestGate = warningOnlyGate('ManagedStageRvmStitchManifest', () => assertManagedStageRvmStitchManifest(stitchManifest), writerOptions);
   const supportRvmExportAudit = exportModel.audit?.supportRvmExportAudit || null;
+  const componentPrimitiveSymbolExportAudit = exportModel.audit?.componentPrimitiveSymbolExportAudit || null;
   const audit = {
     schema: 'ManagedStageRvmConverterAudit.v1',
     source: profile.source,
@@ -65,6 +66,7 @@ export function convertManagedStageJsonToRvmAtt(sourceText, options = {}) {
     inputXmlNodeLocalElbowAudit: exportModel.audit?.inputXmlNodeLocalElbowAudit || null,
     inputXmlBranchFittingInferenceAudit: exportModel.audit?.inputXmlBranchFittingInferenceAudit || null,
     supportRvmExportAudit,
+    componentPrimitiveSymbolExportAudit,
     primitiveHistogram: primitivePayloadContract.codeCounts,
     primitiveBodyLengths: primitivePayloads.map((primitive) => ({ code: primitive.code, bodyLength: primitive.bodyLength })),
     torusOrientationAssumptions: collectTorusAssumptions(exportModel.root),

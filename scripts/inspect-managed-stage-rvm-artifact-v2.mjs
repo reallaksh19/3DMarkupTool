@@ -15,6 +15,7 @@ const audit = JSON.parse(readFileSync(join(dir, `${base}.audit.json`), 'utf8'));
 const cntbRecords = scanCntbRecords(rvm);
 const primitives = scanRvmPrimitivePayloads(rvm);
 const gate = assertManagedStageRvmAuditGate(audit, args['expect-bm-cii'] ? bmCiiExpectations() : {});
+const componentAudit = audit.componentPrimitiveSymbolExportAudit || null;
 
 const rows = primitives.map((primitive, index) => ({
   primIndex: index + 1,
@@ -24,10 +25,10 @@ const rows = primitives.map((primitive, index) => ({
   supportOverlay: index >= (audit.stitchManifest?.geometryPrimitiveCount || 0)
 }));
 mkdirSync(outDir, { recursive: true });
-writeFileSync(join(outDir, `${base}.inspection.json`), `${JSON.stringify({ schema: 'ManagedStageRvmArtifactInspection.v2', base, gate, cntbCount: cntbRecords.length, primitiveCount: primitives.length, supportRvmExportAudit: audit.supportRvmExportAudit || null, issues: [] }, null, 2)}\n`);
+writeFileSync(join(outDir, `${base}.inspection.json`), `${JSON.stringify({ schema: 'ManagedStageRvmArtifactInspection.v2', base, gate, cntbCount: cntbRecords.length, primitiveCount: primitives.length, componentPrimitiveSymbolExportAudit: componentAudit, supportRvmExportAudit: audit.supportRvmExportAudit || null, issues: [] }, null, 2)}\n`);
 writeFileSync(join(outDir, `${base}.primitives.csv`), renderCsv(rows));
 writeFileSync(join(outDir, `${base}.elements.csv`), renderCsv((audit.stitchManifest?.elements || []).map((element) => ({ elementIndex: element.index, reviewName: element.reviewName, primitiveCount: element.primitiveCount }))));
-writeFileSync(join(outDir, `${base}.inspection.md`), `# Managed-stage RVM inspection\n\nBase: ${base}\nCNTB: ${cntbRecords.length}\nPRIM: ${primitives.length}\nSupport RVM primitives: ${audit.supportRvmExportAudit?.supportPrimitiveCount || 0}\nSupport code histogram: ${JSON.stringify(audit.supportRvmExportAudit?.supportPrimitiveCodeHistogram || {})}\nSupport cones: ${audit.supportRvmExportAudit?.supportConePrimitiveCount || 0}\nSupport bars: ${audit.supportRvmExportAudit?.supportBarPrimitiveCount || 0}\nSupport max glyph extent mm: ${audit.supportRvmExportAudit?.supportMaxGlyphExtentMm || 0}\nSupport max cluster offset mm: ${audit.supportRvmExportAudit?.supportMaxClusterOffsetMm || 0}\n`);
+writeFileSync(join(outDir, `${base}.inspection.md`), `# Managed-stage RVM inspection\n\nBase: ${base}\nCNTB: ${cntbRecords.length}\nPRIM: ${primitives.length}\nFlange nodes: ${componentAudit?.flangeNodeCount || 0}\nValve nodes: ${componentAudit?.valveNodeCount || 0}\nWeldNeck flange primitives: ${componentAudit?.weldNeckFlangePrimitiveCount || 0}\nBall valve primitives: ${componentAudit?.ballValvePrimitiveCount || 0}\nSupport RVM primitives: ${audit.supportRvmExportAudit?.supportPrimitiveCount || 0}\nSupport code histogram: ${JSON.stringify(audit.supportRvmExportAudit?.supportPrimitiveCodeHistogram || {})}\nSupport cones: ${audit.supportRvmExportAudit?.supportConePrimitiveCount || 0}\nSupport bars: ${audit.supportRvmExportAudit?.supportBarPrimitiveCount || 0}\nSupport max glyph extent mm: ${audit.supportRvmExportAudit?.supportMaxGlyphExtentMm || 0}\nSupport max cluster offset mm: ${audit.supportRvmExportAudit?.supportMaxClusterOffsetMm || 0}\n`);
 
 console.log(JSON.stringify({
   schema: 'ManagedStageRvmArtifactInspection.v2',
@@ -36,6 +37,7 @@ console.log(JSON.stringify({
   cntbCount: cntbRecords.length,
   primitiveCount: primitives.length,
   primitiveHistogram: audit.primitiveHistogram,
+  componentPrimitiveSymbolExportAudit: componentAudit,
   supportRvmPrimitives: audit.supportRvmExportAudit?.supportPrimitiveCount || 0,
   supportPrimitiveCodeHistogram: audit.supportRvmExportAudit?.supportPrimitiveCodeHistogram || {},
   supportCones: audit.supportRvmExportAudit?.supportConePrimitiveCount || 0,
@@ -54,7 +56,7 @@ function parseArgs(values) {
   return out;
 }
 function bmCiiExpectations() {
-  return { geometryComponents: 40, supportRecordsSkippedFromGeometry: 12, supportRecordsEmittedToRvm: 12, supportRvmPrimitiveCount: 42, code1: 0, code4: 0, code8: 133, cntbCount: 56, primCount: 133, supportMaxGlyphExtentMm: 100, supportMaxClusterOffsetMm: 30, supportMaxPrimitiveSpanMm: 60, supportMaxBarRadiusMm: 3 };
+  return { geometryComponents: 40, supportRecordsSkippedFromGeometry: 12, supportRecordsEmittedToRvm: 12, supportRvmPrimitiveCount: 42, code1: 0, code4: 0, code8: 157, cntbCount: 56, primCount: 157, supportMaxGlyphExtentMm: 100, supportMaxClusterOffsetMm: 30, supportMaxPrimitiveSpanMm: 60, supportMaxBarRadiusMm: 3 };
 }
 function renderCsv(rows) {
   if (!rows.length) return '';

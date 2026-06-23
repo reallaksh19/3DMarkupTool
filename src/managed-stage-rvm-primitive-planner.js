@@ -1,4 +1,4 @@
-import { createManagedStageGeometryContract } from './managed-stage-geometry-contract.js';
+import { createManagedStageGeometryContract, normalizeManagedStageGeometryDtxr } from './managed-stage-geometry-contract.js';
 import { buildEndpointLockedCylinderPrimitive } from './rvm-cylinder-primitive-builder.js';
 import { solveCode4ElbowGeometry } from './rvm-code4-elbow-geometry-solver.js';
 import { planManagedStagePipingComponentRecipe } from './managed-stage-piping-component-recipes.js';
@@ -40,7 +40,7 @@ export function planManagedStagePrimitives(recordOrContract, options = {}) {
 }
 
 export function managedStageComponentClass(recordOrContract) {
-  const dtxr = recordOrContract?.dtxr || recordOrContract?.attributes?.DTXR || recordOrContract?.type || 'UNKNOWN';
+  const dtxr = normalizeManagedStageGeometryDtxr(recordOrContract?.dtxr || recordOrContract?.attributes?.DTXR || recordOrContract?.attributes?.RAW_TYPE || recordOrContract?.type || 'UNKNOWN');
   if (dtxr === 'PIPE') return 'PIPE';
   if (dtxr === 'UNSPECIFIED') return 'UNKNOWN_PIPELIKE';
   if (dtxr === 'BEND') return 'BEND';

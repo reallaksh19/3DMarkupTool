@@ -2,6 +2,26 @@ import { distance, point3 } from './managed-stage-topology-audit.js';
 
 const EPS_MM = 0.001;
 const SUPPORTED_DTXR = new Set(['PIPE', 'UNSPECIFIED', 'BEND', 'FLANGE', 'FLANGE_PAIR', 'VALVE', 'FLANGED_VALVE']);
+const DTXR_ALIASES = new Map([
+  ['FLAN', 'FLANGE'],
+  ['FLG', 'FLANGE'],
+  ['FLNG', 'FLANGE'],
+  ['WN', 'FLANGE'],
+  ['WNF', 'FLANGE'],
+  ['WELDNECK', 'FLANGE'],
+  ['WELD_NECK', 'FLANGE'],
+  ['WELDNECK_FLANGE', 'FLANGE'],
+  ['WELD_NECK_FLANGE', 'FLANGE'],
+  ['VALV', 'VALVE'],
+  ['BV', 'VALVE'],
+  ['BALL', 'VALVE'],
+  ['BALLVALVE', 'VALVE'],
+  ['BALL_VALVE', 'VALVE'],
+  ['FLANGEDVALVE', 'FLANGED_VALVE'],
+  ['FLANGED_VALVE', 'FLANGED_VALVE'],
+  ['FLANGEDBALLVALVE', 'FLANGED_VALVE'],
+  ['FLANGED_BALL_VALVE', 'FLANGED_VALVE']
+]);
 
 export function buildManagedStageGeometryContractSet(profileOrRecords, options = {}) {
   const geometryRecords = Array.isArray(profileOrRecords) ? profileOrRecords : profileOrRecords.geometryRecords || [];
@@ -44,11 +64,12 @@ export function createManagedStageGeometryContract(record, elementIndex = 0, opt
   if (record.type === 'ATTA' || a.TYPE === 'ATTA') {
     throw new Error(`Support/restraint record is not a geometry contract: ${record.name || a.NAME || 'UNNAMED'}`);
   }
-  let dtxr = a.DTXR || a.RAW_TYPE || record.type || 'UNKNOWN';
+  const sourceDtxr = a.DTXR || a.RAW_TYPE || record.type || 'UNKNOWN';
+  let dtxr = normalizeManagedStageGeometryDtxr(sourceDtxr);
   const warnings = [];
   if (!SUPPORTED_DTXR.has(dtxr)) {
-    if (!warningOnly(options)) throw new Error(`Unsupported managed-stage geometry DTXR: ${dtxr}`);
-    warnings.push(geometryWarning('unsupported-dtxr-degraded', a.NAME || record.name || 'UNNAMED', `Unsupported managed-stage geometry DTXR ${dtxr}; emitted as UNSPECIFIED`));
+    if (!warningOnly(options)) throw new Error(`Unsupported managed-stage geometry DTXR: ${sourceDtxr}`);
+    warnings.push(geometryWarning('unsupported-dtxr-degraded', a.NAME || record.name || 'UNNAMED', `Unsupported managed-stage geometry DTXR ${sourceDtxr}; emitted as UNSPECIFIED`));
     dtxr = 'UNSPECIFIED';
   }
 
@@ -67,8 +88,10 @@ export function createManagedStageGeometryContract(record, elementIndex = 0, opt
     elementId: a.SOURCE_ELEMENT_ID || a.REF || a.NAME || record.name || `ELEMENT_${elementIndex + 1}`,
     name: a.NAME || record.name || `ELEMENT_${elementIndex + 1}`,
     type: record.type || a.TYPE || 'UNKNOWN',
-    rawType: a.RAW_TYPE || dtxr,
+    rawType: a.RAW_TYPE || sourceDtxr,
     dtxr,
+    sourceDtxr,
+    dtxrNormalizedFromAlias: dtxr !== normalizeDtxrToken(sourceDtxr),
     componentClass: componentClassForDtxr(dtxr),
     fromNode: String(a.FROM_NODE || ''),
     toNode: String(a.TO_NODE || ''),
@@ -182,15 +205,29 @@ export function assertManagedStageGeometryContractAudit(audit, expectations = {}
   return { ok: true, contractCount: audit.contractCount, dtxrHistogram: audit.dtxrHistogram };
 }
 
+export function normalizeManagedStageGeometryDtxr(value) {
+  const token = normalizeDtxrToken(value);
+  return DTXR_ALIASES.get(token) || token;
+}
+
 export function componentClassForDtxr(dtxr) {
-  if (dtxr === 'PIPE') return 'PIPE';
-  if (dtxr === 'UNSPECIFIED') return 'UNKNOWN_PIPELIKE';
-  if (dtxr === 'BEND') return 'BEND';
-  if (dtxr === 'FLANGE') return 'FLANGE';
-  if (dtxr === 'FLANGE_PAIR') return 'FLANGE_PAIR';
-  if (dtxr === 'VALVE') return 'VALVE';
-  if (dtxr === 'FLANGED_VALVE') return 'FLANGED_VALVE';
+  const normalized = normalizeManagedStageGeometryDtxr(dtxr);
+  if (normalized === 'PIPE') return 'PIPE';
+  if (normalized === 'UNSPECIFIED') return 'UNKNOWN_PIPELIKE';
+  if (normalized === 'BEND') return 'BEND';
+  if (normalized === 'FLANGE') return 'FLANGE';
+  if (normalized === 'FLANGE_PAIR') return 'FLANGE_PAIR';
+  if (normalized === 'VALVE') return 'VALVE';
+  if (normalized === 'FLANGED_VALVE') return 'FLANGED_VALVE';
   return 'UNKNOWN';
+}
+
+function normalizeDtxrToken(value) {
+  return String(value || 'UNKNOWN')
+    .trim()
+    .toUpperCase()
+    .replace(/[^A-Z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '') || 'UNKNOWN';
 }
 
 function warningOnly(options = {}) {

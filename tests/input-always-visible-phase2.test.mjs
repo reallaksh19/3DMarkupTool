@@ -12,24 +12,25 @@ const pkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url),
 const staticKeyPattern = /bm-cii-code8-support-export-20260622|tool-fixes-v2-20260620|perf-tdz-fix-20260620|perf-static-drawer-bundle-20260620|perf-idle-diagnostics-20260620|perf-static-shell-20260620|phase4a-static-input-panel-cleanup-20260619/;
 
 assert.match(index, /<div id="inputFileStatus" class="input-file-status" aria-live="polite">No file chosen<\/div>/, 'Input panel must statically show No file chosen.');
-assert.match(index, /<span>Choose InputXML<\/span>/, 'Input panel must show Choose InputXML.');
-assert.match(index, /id="loadSampleBtn"[\s\S]*Load BM_CII sample/, 'Input panel must expose the real Load BM_CII sample button.');
+assert.match(index, /<span>Choose stagedJson<\/span>/, 'Input panel must show Choose stagedJson.');
+assert.match(index, /id="loadSampleBtn"[\s\S]*Load stagedJson sample/, 'Input panel must expose the real Load stagedJson sample button.');
 assert.match(index, /id="clearBtn"[\s\S]*Clear All/, 'Input panel must expose the real Clear All button.');
 assert.match(index, /phase2-input-sticky-section/, 'Input section must use the Phase 2 visible block class.');
 assert.match(index, /phase4a-input-compact-section/, 'Input section must use the compact static block class.');
 assert.match(index, /data-phase4a-input="compact-static"/, 'Input section must statically declare the compact layout contract.');
 assert.match(index, staticKeyPattern, 'Index must use the active BM_CII cache key or a permitted static shell cache key.');
 assert.doesNotMatch(index, /core-safe-boot-20260619/, 'Index must not revert to the emergency core-safe startup shell.');
+assert.doesNotMatch(index, /Choose InputXML|Load InputXML|from InputXML/, 'Index must not expose retired InputXML file-selection wording.');
 
 assert.match(bootstrap, /static-input-always-visible-controller\.js\?v=\$\{SAFE_UI_VERSION\}/, 'Bootstrap must load the input always-visible controller.');
 assert.match(bootstrap, new RegExp(`SAFE_UI_VERSION = '(${staticKeyPattern.source})'`), 'Bootstrap must use the performance/static shell cache key or newer cleanup key.');
 
 assert.match(controller, /const VERSION = 'perf-static-shell-20260620'/, 'Controller must declare the performance static-shell version.');
 assert.match(controller, /No file chosen/, 'Controller must preserve No file chosen status.');
-assert.match(controller, /Choose InputXML/, 'Controller must preserve Choose InputXML label.');
-assert.match(controller, /Load BM_CII sample/, 'Controller must handle BM_CII sample action.');
+assert.match(controller, /Choose stagedJson/, 'Controller must preserve Choose stagedJson label.');
+assert.match(controller, /Load stagedJson sample/, 'Controller must handle stagedJson sample action.');
 assert.match(controller, /Clear All|clearBtn/, 'Controller must handle Clear All reset.');
-assert.match(controller, /sampleStateSeparateFromFileStatus: true/, 'BM_CII sample state must not replace the local file chooser status.');
+assert.match(controller, /sampleStateSeparateFromFileStatus: true/, 'sample state must not replace the local file chooser status.');
 assert.match(controller, /compactStaticInputBlock: Boolean/, 'Controller must expose compact input checklist state.');
 assert.match(controller, /layoutOwner: section\?\.dataset\.layoutOwner \|\| 'static-css'/, 'Controller diagnostics must report static CSS as layout owner.');
 assert.match(controller, /noRuntimeLayoutStyleInjection: true/, 'Controller must report that it does not inject runtime layout CSS.');
@@ -42,6 +43,7 @@ assert.doesNotMatch(controller, /setInterval\(/, 'Input visibility controller mu
 assert.doesNotMatch(controller, /appendChild\(style\)|createElement\('style'\)|createElement\("style"\)/, 'Input visibility controller must not inject layout styles after first paint.');
 assert.doesNotMatch(controller, /position:\s*sticky\s*!important/, 'Input visibility controller must not reintroduce sticky runtime layout overrides.');
 assert.doesNotMatch(controller, /\.traverse\(/, 'Input visibility controller must not traverse the model scene.');
+assert.doesNotMatch(controller, /Choose InputXML|Load InputXML|from InputXML/, 'Input visibility controller must not restore retired InputXML wording.');
 
 assert.match(perfCss, /flex-wrap:\s*nowrap/, 'Static CSS must keep input primary actions in one compact row.');
 assert.match(perfCss, /#inputFileStatus\.input-file-status/, 'Static CSS must own the input file status visual styling.');

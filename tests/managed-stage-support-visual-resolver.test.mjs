@@ -205,6 +205,6 @@ console.log(JSON.stringify({
   gappedLineStopSeparationMm: gapped.supportVisual.gapVisualSeparationMm,
   gappedLineStopTipXs: customAxialTips,
   singleAxisPopupRequired: missingSign.supportVisual.popupRequired,
-  springCanPopupRequired: springCan.popupRequired,
+  springCanPopupRequired: springCan.supportVisual.popupRequired,
   verticalGuidePrimitiveBudgetCount: verticalGuide.supportVisual.previewPrimitiveBudgetCount
 }, null, 2));

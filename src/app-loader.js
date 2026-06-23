@@ -13,6 +13,7 @@ const MANAGED_STAGE_SUPPORT_SOURCE_UI_MODULE_URL = `./managed-stage-support-sour
 const MANAGED_STAGE_SUPPORT_SOURCE_PREVIEW_MODULE_URL = `./managed-stage-support-source-preview-bridge.js?v=${APP_LOADER_VERSION}`;
 const MANAGED_STAGE_SUPPORT_MAPPER_DIAGNOSTICS_UI_MODULE_URL = `./managed-stage-support-mapper-diagnostics-ui.js?v=${APP_LOADER_VERSION}`;
 const MANAGED_STAGE_ISONOTE_WORKFLOW_UI_MODULE_URL = `./managed-stage-isonote-workflow-ui.js?v=${APP_LOADER_VERSION}`;
+const MANAGED_STAGE_SUPPORT_SETTINGS_POPUP_UI_MODULE_URL = `./managed-stage-support-settings-popup-ui.js?v=${APP_LOADER_VERSION}`;
 const BUNDLED_ASSETS = window.__3D_MARKUP_BUNDLED_ASSETS__ || {};
 // Resolve against document.baseURI: import() is module-relative but the
 // manifest URL (./assets/) is meant to be document-relative.
@@ -136,6 +137,7 @@ function loadManagedStageJsonUiController() {
     .then(() => import(MANAGED_STAGE_SUPPORT_SOURCE_PREVIEW_MODULE_URL))
     .then(() => import(MANAGED_STAGE_SUPPORT_MAPPER_DIAGNOSTICS_UI_MODULE_URL))
     .then(() => import(MANAGED_STAGE_ISONOTE_WORKFLOW_UI_MODULE_URL))
+    .then(() => import(MANAGED_STAGE_SUPPORT_SETTINGS_POPUP_UI_MODULE_URL))
     .catch((error) => {
       console.warn('[3DMarkupTool] Managed-stage JSON UI controller skipped.', error);
       window.dispatchEvent(new CustomEvent('viewer:managed-stage-json-ui-skipped', {
@@ -182,8 +184,5 @@ function scheduleIdle(callback, timeout) {
 
 function setRuntimeStatus(text) {
   const status = document.getElementById('runtimeStatus');
-  if (!status) return;
-  if (/^(ready|core ready)$/i.test((status.textContent || '').trim())) {
-    status.textContent = text;
-  }
+  if (status) status.textContent = text;
 }

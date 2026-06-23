@@ -5,7 +5,7 @@ import { MANAGED_STAGE_SUPPORT_SOURCE_MODES } from './managed-stage-support-mapp
 
 export const MANAGED_STAGE_SUPPORT_SOURCE_PREVIEW_BRIDGE_SCHEMA = 'ManagedStageSupportSourcePreviewBridge.v1';
 export const MANAGED_STAGE_SUPPORT_SOURCE_PREVIEW_DIAGNOSTICS_SCHEMA = 'ManagedStageSupportSourcePreviewDiagnostics.v1';
-export const MANAGED_STAGE_SUPPORT_SOURCE_PREVIEW_BRIDGE_CACHE_KEY = '20260623-staged-json-support-source-preview-2';
+export const MANAGED_STAGE_SUPPORT_SOURCE_PREVIEW_BRIDGE_CACHE_KEY = '20260623-staged-json-support-source-preview-3';
 export const ISONOTE_SUPPORT_SOURCE_OVERLAY_ROOT = 'MANAGED_STAGE_SUPPORT_SOURCE_OVERLAY_ISONOTE';
 
 export function installManagedStageSupportSourcePreviewBridge({ win = globalThis.window, doc = globalThis.document } = {}) {
@@ -23,6 +23,7 @@ export function installManagedStageSupportSourcePreviewBridge({ win = globalThis
     const ui = win.__3D_MARKUP_SUPPORT_SOURCE_UI__ || {};
     api.apply(root, {
       sourceMode: ui.sourceMode,
+      mapperConfig: ui.mapperConfig,
       isonoteText: readIsonoteText(doc)
     });
   });
@@ -34,18 +35,19 @@ export function applyManagedStageSupportSourcePreview(modelRoot, options = {}) {
     return bridgeResult('skipped', { reason: 'missing modelRoot' });
   }
   const sourceMode = normalizeSupportSourceMode(options.sourceMode);
+  const mapperConfigApplied = hasMapperConfig(options.mapperConfig);
   const removed = removeGeneratedSupportPreviewObjects(modelRoot, {
     removeStagedJsonSymbols: sourceMode !== MANAGED_STAGE_SUPPORT_SOURCE_MODES.STAGED_JSON,
     removeIsonoteOverlay: true
   });
 
   if (sourceMode === MANAGED_STAGE_SUPPORT_SOURCE_MODES.OFF) {
-    stampBridgeAudit(modelRoot, bridgeResult('off', { sourceMode, removed }));
+    stampBridgeAudit(modelRoot, bridgeResult('off', { sourceMode, removed, mapperConfigApplied }));
     return modelRoot.userData.managedStageSupportSourcePreview;
   }
 
   if (sourceMode === MANAGED_STAGE_SUPPORT_SOURCE_MODES.STAGED_JSON) {
-    stampBridgeAudit(modelRoot, bridgeResult('stagedJson', { sourceMode, removed }));
+    stampBridgeAudit(modelRoot, bridgeResult('stagedJson', { sourceMode, removed, mapperConfigApplied }));
     return modelRoot.userData.managedStageSupportSourcePreview;
   }
 
@@ -56,6 +58,7 @@ export function applyManagedStageSupportSourcePreview(modelRoot, options = {}) {
   stampBridgeAudit(modelRoot, bridgeResult('isonote', {
     sourceMode,
     removed,
+    mapperConfigApplied,
     pipeRecordCount: pipeRecords.length,
     isonoteSupportRecordCount: supportRecords.length,
     overlayPrimitiveGroupCount: overlay.children.length
@@ -142,6 +145,7 @@ export function collectManagedStageSupportSourcePreviewDiagnostics(modelRoot, re
     sourceMode: result.sourceMode || '',
     status: result.status || '',
     removed: Number(result.removed || 0),
+    mapperConfigApplied: Boolean(result.mapperConfigApplied),
     pipeRecordCount: Number(result.pipeRecordCount || 0),
     isonoteSupportRecordCount: Number(result.isonoteSupportRecordCount || 0),
     overlayPrimitiveGroupCount: Number(result.overlayPrimitiveGroupCount || 0),
@@ -210,7 +214,8 @@ function createIsonoteSupportOverlay(supportRecords, pipeRecords, options = {}) 
     sourceMode: MANAGED_STAGE_SUPPORT_SOURCE_MODES.ISONOTE,
     previewOnly: true,
     exportedRvmGeometry: false,
-    supportSourceModeExclusive: true
+    supportSourceModeExclusive: true,
+    mapperConfigApplied: hasMapperConfig(options.mapperConfig)
   };
   const allRecords = [...pipeRecords, ...supportRecords];
   for (const record of supportRecords) {
@@ -225,7 +230,8 @@ function createIsonoteSupportOverlay(supportRecords, pipeRecords, options = {}) 
       ...(preview.object.userData || {}),
       supportSourceMode: MANAGED_STAGE_SUPPORT_SOURCE_MODES.ISONOTE,
       isonoteSupportOverlay: true,
-      isonoteRawText: record.isonoteRawText || ''
+      isonoteRawText: record.isonoteRawText || '',
+      mapperConfigApplied: hasMapperConfig(options.mapperConfig)
     };
     overlay.add(preview.object);
   }
@@ -312,6 +318,10 @@ function numeric(value) {
 function round(value) {
   const n = Number(value);
   return Number.isFinite(n) ? Math.round(n * 1000) / 1000 : 0;
+}
+
+function hasMapperConfig(config) {
+  return Boolean(config && typeof config === 'object' && Object.keys(config).length > 0);
 }
 
 if (typeof window !== 'undefined') {

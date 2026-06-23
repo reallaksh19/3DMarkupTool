@@ -56,11 +56,22 @@ assert.equal(pipeRecords[0].fromNode, '10');
 assert.deepEqual(pipeRecords[0].source.apos, { x: 0, y: 0, z: 0 });
 
 const noteText = 'NODE,ISONOTE\n10,"/PS-001:ISONOTE GUIDE, LINE STOP GAP 4mm"';
-const isonoteRecords = buildIsonoteSupportPreviewRecords(noteText, pipeRecords);
+const customMapperConfig = {
+  fieldMapper: {
+    supportTagFields: ['SUPPORT_TAG'],
+    supportKindFields: ['ISONOTE_SEGMENT'],
+    graphicsRuleFields: ['ISONOTE_SEGMENT'],
+    axisFields: ['SUPPORT_AXIS'],
+    signFields: ['SUPPORT_SIGN'],
+    gapFields: ['SUPPORT_GAP_MM', '*GAP*']
+  }
+};
+const isonoteRecords = buildIsonoteSupportPreviewRecords(noteText, pipeRecords, { mapperConfig: customMapperConfig });
 assert.equal(isonoteRecords.length, 2);
 assert.equal(isonoteRecords[0].source.supportCoord.x, 0);
 assert.equal(isonoteRecords[0].source.supportCoord.y, 0);
 assert.equal(isonoteRecords[0].source.supportCoord.z, 0);
+assert.equal(isonoteRecords[0].isonoteMapperRecord.config.fieldMapper.supportKindFields[0], 'ISONOTE_SEGMENT');
 assert.equal(isonoteRecords[1].attrs.SUPPORT_GAP_MM, '4mm');
 assert.equal(isonoteRecords[1].attrs.SUPPORT_GAP_CARRY_FORWARD, 'FALSE');
 
@@ -73,11 +84,14 @@ assert.equal(preDiagnostics.pass, true);
 
 const isonoteResult = applyManagedStageSupportSourcePreview(scene, {
   sourceMode: 'isonote',
-  isonoteText: noteText
+  isonoteText: noteText,
+  mapperConfig: customMapperConfig
 });
 assert.equal(isonoteResult.status, 'isonote');
+assert.equal(isonoteResult.mapperConfigApplied, true);
 assert.equal(isonoteResult.isonoteSupportRecordCount, 2);
 assert.equal(isonoteResult.diagnostics.sourceMode, MANAGED_STAGE_SUPPORT_SOURCE_MODES.ISONOTE);
+assert.equal(isonoteResult.diagnostics.mapperConfigApplied, true);
 assert.equal(isonoteResult.diagnostics.supportSymbolCount, 2);
 assert.equal(isonoteResult.diagnostics.isonoteSymbolCount, 2);
 assert.equal(isonoteResult.diagnostics.stagedJsonSymbolCount, 0);
@@ -89,6 +103,7 @@ const overlay = scene.children.find((child) => child.name === ISONOTE_SUPPORT_SO
 assert.ok(overlay, 'ISONOTE mode should create a dedicated support source overlay root');
 assert.equal(overlay.children.length, 2);
 assert.equal(overlay.userData.sourceMode, MANAGED_STAGE_SUPPORT_SOURCE_MODES.ISONOTE);
+assert.equal(overlay.userData.mapperConfigApplied, true);
 
 const offResult = applyManagedStageSupportSourcePreview(scene, { sourceMode: 'off' });
 assert.equal(offResult.status, 'off');
@@ -100,8 +115,10 @@ const stagedScene = new THREE.Scene();
 stagedScene.add(pipe.clone());
 const stagedOnlySupport = stagedSupport.clone();
 stagedScene.add(stagedOnlySupport);
-const stagedResult = applyManagedStageSupportSourcePreview(stagedScene, { sourceMode: 'stagedJson' });
+const stagedResult = applyManagedStageSupportSourcePreview(stagedScene, { sourceMode: 'stagedJson', mapperConfig: customMapperConfig });
 assert.equal(stagedResult.status, 'stagedJson');
+assert.equal(stagedResult.mapperConfigApplied, true);
+assert.equal(stagedResult.diagnostics.mapperConfigApplied, true);
 assert.equal(stagedResult.diagnostics.stagedJsonSymbolCount, 1);
 assert.equal(stagedResult.diagnostics.isonoteSymbolCount, 0);
 assert.equal(stagedResult.diagnostics.supportFamilyHistogram.GUIDE, 1);

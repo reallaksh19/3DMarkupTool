@@ -9,7 +9,7 @@ const perfCss = readFileSync(new URL('../src/static-shell-performance.css', impo
 const checklist = readFileSync(new URL('../docs/post-pr133-recovery-checklist.md', import.meta.url), 'utf8');
 const pkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
 
-const staticKeyPattern = /bm-cii-code8-support-export-20260622|tool-fixes-v2-20260620|perf-tdz-fix-20260620|perf-static-drawer-bundle-20260620|perf-idle-diagnostics-20260620|perf-static-shell-20260620|phase4a-static-input-panel-cleanup-20260619/;
+const staticKeyPattern = /support-ui-render-export-fix-20260623|tool-fixes-v2-20260620|perf-tdz-fix-20260620|perf-static-drawer-bundle-20260620|perf-idle-diagnostics-20260620|perf-static-shell-20260620|phase4a-static-input-panel-cleanup-20260619/;
 
 assert.match(index, /<div id="inputFileStatus" class="input-file-status" aria-live="polite">No file chosen<\/div>/, 'Input panel must statically show No file chosen.');
 assert.match(index, /<span>Choose stagedJson<\/span>/, 'Input panel must show Choose stagedJson.');
@@ -18,7 +18,7 @@ assert.match(index, /id="clearBtn"[\s\S]*Clear All/, 'Input panel must expose th
 assert.match(index, /phase2-input-sticky-section/, 'Input section must use the Phase 2 visible block class.');
 assert.match(index, /phase4a-input-compact-section/, 'Input section must use the compact static block class.');
 assert.match(index, /data-phase4a-input="compact-static"/, 'Input section must statically declare the compact layout contract.');
-assert.match(index, staticKeyPattern, 'Index must use the active BM_CII cache key or a permitted static shell cache key.');
+assert.match(index, staticKeyPattern, 'Index must use the active support UI/render/export cache key or a permitted static shell cache key.');
 assert.doesNotMatch(index, /core-safe-boot-20260619/, 'Index must not revert to the emergency core-safe startup shell.');
 assert.doesNotMatch(index, /Choose InputXML|Load InputXML|from InputXML/, 'Index must not expose retired InputXML file-selection wording.');
 

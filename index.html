@@ -7,18 +7,18 @@
   <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
   <link rel="shortcut icon" href="./favicon.ico" />
   <link rel="preconnect" href="https://unpkg.com" crossorigin />
-  <link rel="stylesheet" href="./src/styles.css?v=bm-cii-code8-support-export-20260622" />
-  <link rel="stylesheet" href="./src/static-shell-performance.css?v=bm-cii-code8-support-export-20260622" />
-  <link rel="preload" href="./src/clip-adjuster.css?v=bm-cii-code8-support-export-20260622" as="style" onload="this.onload=null;this.rel='stylesheet'" />
-  <noscript><link rel="stylesheet" href="./src/clip-adjuster.css?v=bm-cii-code8-support-export-20260622" /></noscript>
-  <link rel="preload" href="./src/clip-visual-overlays.css?v=bm-cii-code8-support-export-20260622" as="style" onload="this.onload=null;this.rel='stylesheet'" />
-  <noscript><link rel="stylesheet" href="./src/clip-visual-overlays.css?v=bm-cii-code8-support-export-20260622" /></noscript>
+  <link rel="stylesheet" href="./src/styles.css?v=support-ui-render-export-fix-20260623" />
+  <link rel="stylesheet" href="./src/static-shell-performance.css?v=support-ui-render-export-fix-20260623" />
+  <link rel="preload" href="./src/clip-adjuster.css?v=support-ui-render-export-fix-20260623" as="style" onload="this.onload=null;this.rel='stylesheet'" />
+  <noscript><link rel="stylesheet" href="./src/clip-adjuster.css?v=support-ui-render-export-fix-20260623" /></noscript>
+  <link rel="preload" href="./src/clip-visual-overlays.css?v=support-ui-render-export-fix-20260623" as="style" onload="this.onload=null;this.rel='stylesheet'" />
+  <noscript><link rel="stylesheet" href="./src/clip-visual-overlays.css?v=support-ui-render-export-fix-20260623" /></noscript>
   <script type="importmap">
     {
       "imports": {
         "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
         "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/",
-        "lucide": "./src/lucide-safe.js?v=bm-cii-code8-support-export-20260622"
+        "lucide": "./src/lucide-safe.js?v=support-ui-render-export-fix-20260623"
       }
     }
   </script>
@@ -228,7 +228,7 @@
           <div class="clip-adjust-head"><span>Clip Adjust</span><button type="button" id="clipAdjustToggleBtn">Enable Clip</button></div>
           <div class="clip-adjust-row"><label for="clipAxisSelect">Axis</label><select id="clipAxisSelect"><option value="x">X</option><option value="y">Y</option><option value="z">Z</option></select></div>
           <div class="clip-adjust-row"><label for="clipSlider">Position</label><input id="clipSlider" type="range" min="0" max="100" value="50" step="1" /></div>
-          <div class="clip-adjust-row compact"><button type="button" id="clipStepDownBtn" title="Move clip plane backward">−</button><input id="clipOffsetInput" type="number" min="0" max="100" value="50" step="1" /><button type="button" id="clipStepUpBtn" title="Move clip plane forward">+</button></div>
+          <div class="clip-adjust-row compact"><button type="button" id="clipStepDownBtn" title="Move clip plane backward">−</button><input id="clipOffsetInput" type="number" min="0" max="100" value="50" step="1" /><button id="clipStepUpBtn" type="button" title="Move clip plane forward">+</button></div>
           <label class="clip-adjust-check"><input id="clipInvertCheck" type="checkbox" /><span>Invert side</span></label>
           <button type="button" id="clipCenterBtn" class="clip-center-btn">Center / Reset</button>
           <p id="clipAdjustHint" class="clip-adjust-hint">Legacy clip panel disabled. Use Fresh Clip.</p>
@@ -259,24 +259,8 @@
     </aside>
   </main>
 
-  <dialog id="rulesDialog">
-    <div class="dialog-head">
-      <h2>Support Mapping Rules</h2>
-      <button id="closeRulesBtn" type="button" class="icon-btn"><i data-lucide="x"></i></button>
-    </div>
-    <pre class="rules-text">REST = +Y upward arrow
-HOLDDOWN = +/-Y double vertical arrows
-GUIDE = lateral by pipe orientation: X pipe -> +/-Z; Z pipe -> +/-X; vertical pipe -> +/-X and +/-Z
-LINE STOP / LIMIT / LIM = axial +/- pair unless explicit sign exists
-SINGLE AXIS with missing +/- = warning marker / popupRequired
-Can Spring / Spring Can = warning coil below pipe
-Gap = record-scoped; no carry-forward
-Axial restraints: no OD/2 radial contact; tips touch unless gap; positive gap = 10xgap separation
-After engineering contact: visual resolver ODx2/3 applies only to final axial/pipe-parallel symbols</pre>
-  </dialog>
-
-  <script type="module" src="./src/render-context-prebridge.js?v=bm-cii-code8-support-export-20260622"></script>
-  <script type="module" src="./src/app-loader.js?v=bm-cii-code8-support-export-20260622"></script>
-  <script type="module" src="./src/safe-ui-bootstrap.js?v=bm-cii-code8-support-export-20260622"></script>
+  <script type="module" src="./src/render-context-prebridge.js?v=support-ui-render-export-fix-20260623"></script>
+  <script type="module" src="./src/safe-ui-bootstrap.js?v=support-ui-render-export-fix-20260623"></script>
+  <script type="module" src="./src/app-loader.js?v=support-ui-render-export-fix-20260623"></script>
 </body>
 </html>

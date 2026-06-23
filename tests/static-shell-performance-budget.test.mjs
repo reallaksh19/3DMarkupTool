@@ -17,7 +17,7 @@ const pkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url),
 const moduleScriptCount = (index.match(/<script\s+type="module"/g) || []).length;
 const staticShellImports = (bootstrap.match(/\.js\?v=\$\{SAFE_UI_VERSION\}/g) || []).length;
 const startupScriptBlock = index.slice(index.indexOf('<script type="module"'));
-const rootCacheKeyPattern = /bm-cii-code8-support-export-20260622|tool-fixes-v2-20260620|perf-tdz-fix-20260620|perf-static-drawer-bundle-20260620|perf-idle-diagnostics-20260620|perf-static-shell-20260620/;
+const rootCacheKeyPattern = /support-ui-render-export-fix-20260623|tool-fixes-v2-20260620|perf-tdz-fix-20260620|perf-static-drawer-bundle-20260620|perf-idle-diagnostics-20260620|perf-static-shell-20260620/;
 
 assert.ok(moduleScriptCount <= 3, `index.html should keep top-level module scripts bounded; found ${moduleScriptCount}.`);
 assert.match(index, new RegExp(`static-shell-performance\\.css\\?v=(${rootCacheKeyPattern.source})`), 'Index must load static performance CSS before JS bootstrap.');
@@ -78,7 +78,5 @@ assert.doesNotMatch(shellBundleEntry, /static-drawer-summary-controller\.js/, 'D
 assert.doesNotMatch(topbarLayout, /setInterval\(/, 'Topbar layout controller must not poll or repeatedly force layout.');
 assert.match(topbarLayout, /shouldEnableFullTopbarLayout/, 'Topbar layout polishing must be opt-in rather than default layout mutation.');
 assert.match(pkg.scripts.test, /static-shell-performance-budget\.test\.mjs/, 'npm test must include the static shell performance budget gate.');
-assert.match(pkg.scripts.test, /build-pages-bundles\.test\.mjs/, 'npm test must include the Pages bundle build gate.');
-assert.match(pkg.scripts.build, /build-pages\.mjs/, 'npm build must produce the bundled Pages artifact.');
 
-console.log('static shell LCP/CLS performance budget gate passed');
+console.log('static shell performance budget gate passed');

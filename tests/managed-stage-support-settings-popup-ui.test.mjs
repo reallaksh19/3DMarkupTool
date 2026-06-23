@@ -13,6 +13,8 @@ const stagedModel = buildManagedStageSupportSettingsPopupModel({
   }
 });
 assert.equal(stagedModel.schema, MANAGED_STAGE_SUPPORT_SETTINGS_POPUP_SCHEMA);
+assert.equal(stagedModel.modal, true);
+assert.equal(stagedModel.mainPanelMode, 'summary-only');
 assert.equal(stagedModel.summaryText, 'Support mapping: stagedJson • CAESAR default • North -X→-X');
 assert.deepEqual(stagedModel.retiredStageSettingIds, ['renderActualSupport', 'renderExpectedSupport']);
 

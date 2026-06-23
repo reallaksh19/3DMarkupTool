@@ -1,4 +1,4 @@
-const APP_LOADER_VERSION = 'bm-cii-code8-support-export-20260622';
+const APP_LOADER_VERSION = 'support-ui-render-export-fix-20260623';
 const APP_MODULE_URL = `./app.js?v=${APP_LOADER_VERSION}`;
 const CLIP_HOOK_MODULE_URL = `./clip-render-hook.js?v=${APP_LOADER_VERSION}`;
 const FRESH_CLIP_MODULE_URL = `./fresh-clip-controller.js?v=${APP_LOADER_VERSION}`;
@@ -164,25 +164,19 @@ function loadFreshClipController() {
 }
 
 function scheduleAfterFirstPaint(callback) {
-  const runIdle = () => scheduleIdle(callback, APP_BOOT_IDLE_TIMEOUT_MS);
-  if (typeof window.requestAnimationFrame !== 'function') {
-    runIdle();
-    return;
-  }
-  window.requestAnimationFrame(() => {
-    window.requestAnimationFrame(runIdle);
-  });
+  const raf = window.requestAnimationFrame || ((fn) => setTimeout(fn, 16));
+  raf(() => raf(() => scheduleIdle(callback, APP_BOOT_IDLE_TIMEOUT_MS)));
 }
 
 function scheduleIdle(callback, timeout) {
   if (typeof window.requestIdleCallback === 'function') {
     window.requestIdleCallback(callback, { timeout });
-    return;
+  } else {
+    setTimeout(callback, Math.min(timeout, 120));
   }
-  window.setTimeout(callback, 1);
 }
 
 function setRuntimeStatus(text) {
-  const status = document.getElementById('runtimeStatus');
-  if (status) status.textContent = text;
+  const node = document.getElementById('runtimeStatus');
+  if (node) node.textContent = text;
 }

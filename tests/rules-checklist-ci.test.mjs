@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
-const ACTIVE_CACHE_KEY = 'bm-cii-code8-support-export-20260622';
+const ACTIVE_CACHE_KEY = 'support-ui-render-export-fix-20260623';
 const LEGACY_FIRST_PAINT_CACHE_KEY = 'tool-fixes-v2-20260620';
 const dateStampedKey = /^[a-z0-9-]+-20\d{6}$/;
 
@@ -39,7 +39,7 @@ function extractActiveQueryKeys(html) {
 
 const htmlKeys = extractActiveQueryKeys(index);
 assert.ok(htmlKeys.length >= 4, 'index must expose versioned first-paint assets');
-assert.deepEqual([...new Set(htmlKeys)], [ACTIVE_CACHE_KEY], 'source index ?v= keys must use the active BM_CII support export cache key');
+assert.deepEqual([...new Set(htmlKeys)], [ACTIVE_CACHE_KEY], 'source index ?v= keys must use the active support UI/render/export fix cache key');
 assert.doesNotMatch(index, escaped(LEGACY_FIRST_PAINT_CACHE_KEY), 'source index must not keep stale root-serving cache keys');
 assert.match(ACTIVE_CACHE_KEY, dateStampedKey, 'active deployed cache key must be auditable/date-stamped');
 assert.match(LEGACY_FIRST_PAINT_CACHE_KEY, dateStampedKey, 'source first-paint cache key must be auditable/date-stamped');
@@ -48,7 +48,7 @@ for (const [name, source] of [
   ['build-pages.mjs', buildScript],
   ['app-loader.js', appLoader]
 ]) {
-  assert.match(source, escaped(ACTIVE_CACHE_KEY), `${name} must use the active BM_CII support export cache key`);
+  assert.match(source, escaped(ACTIVE_CACHE_KEY), `${name} must use the active support UI/render/export fix cache key`);
   assert.doesNotMatch(source, /perf-static-drawer-bundle-20260620/, `${name} must not keep the prior static-drawer bundle key active`);
 }
 

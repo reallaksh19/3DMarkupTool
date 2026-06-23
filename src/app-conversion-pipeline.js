@@ -3,7 +3,7 @@ import { convertInputXmlToRvmAtt as defaultConvertInputXmlToRvmAtt } from './rvm
 import { createRvmPreviewScene as defaultCreateRvmPreviewScene } from './rvm-preview.js?v=professional-viewer-3';
 import { convertInputXmlToGlbWithPipingShadow } from './converter-shadow-diagnostics.js';
 
-export const APP_CONVERSION_PIPELINE_SCHEMA = 'AppConversionPipeline.v2';
+export const APP_CONVERSION_PIPELINE_SCHEMA = 'AppConversionPipeline.v1';
 
 export async function runAppConversionPipeline(sourceText, options = {}, deps = {}) {
   const {

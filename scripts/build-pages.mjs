@@ -6,7 +6,7 @@ import { rollup } from 'rollup';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const SITE_DIR = path.join(ROOT, '_site');
 const ASSET_DIR = path.join(SITE_DIR, 'assets');
-const VERSION = 'support-ui-render-export-fix-20260623';
+const VERSION = 'app-boot-dialog-conversion-hotfix-20260623';
 const LEGACY_CACHE_KEY = 'tool-fixes-v2-20260620';
 
 await rm(SITE_DIR, { recursive: true, force: true });
@@ -76,6 +76,7 @@ async function injectBundleManifest() {
   const indexPath = path.join(SITE_DIR, 'index.html');
   let html = await readFile(indexPath, 'utf8');
   html = html.replaceAll(`?v=${LEGACY_CACHE_KEY}`, `?v=${VERSION}`);
+  html = html.replaceAll('?v=support-ui-render-export-fix-20260623', `?v=${VERSION}`);
   const manifest = [
     `<link rel="modulepreload" href="./assets/app.bundle.js?v=${VERSION}" />`,
     `<link rel="modulepreload" href="./assets/static-shell.bundle.js?v=${VERSION}" />`,

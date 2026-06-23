@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import {
   ISONOTE_SUPPORT_SOURCE_OVERLAY_ROOT,
+  STAGED_JSON_SUPPORT_SOURCE_OVERLAY_ROOT,
   applyManagedStageSupportSourcePreview,
   buildIsonoteSupportPreviewRecords,
   collectManagedStageSupportSourcePreviewDiagnostics,
@@ -14,40 +15,57 @@ assert.equal(normalizeSupportSourceMode('off'), MANAGED_STAGE_SUPPORT_SOURCE_MOD
 assert.equal(normalizeSupportSourceMode('ISONOTE'), MANAGED_STAGE_SUPPORT_SOURCE_MODES.ISONOTE);
 assert.equal(normalizeSupportSourceMode('stagedJson'), MANAGED_STAGE_SUPPORT_SOURCE_MODES.STAGED_JSON);
 
-const scene = new THREE.Scene();
-const pipe = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshBasicMaterial());
-pipe.name = 'PIPE_10_TO_20';
-pipe.userData = {
-  TYPE: 'MANAGED_STAGE_RAW_PREVIEW',
-  primitiveKind: 'raw-staged-source-line',
-  stagedType: 'PIPE',
-  dtxr: 'PIPE',
-  rawType: 'PIPE',
-  sourceName: 'PIPE_10_TO_20',
-  sourcePath: '/BRANCH/PIPE_10_TO_20',
-  fromNode: '10',
-  toNode: '20',
-  sourceAposMm: { x: 0, y: 0, z: 0 },
-  sourceLposMm: { x: 1000, y: 0, z: 0 }
-};
-scene.add(pipe);
+function makePipe() {
+  const pipe = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshBasicMaterial());
+  pipe.name = 'PIPE_10_TO_20';
+  pipe.userData = {
+    TYPE: 'MANAGED_STAGE_RAW_PREVIEW',
+    primitiveKind: 'raw-staged-source-line',
+    stagedType: 'PIPE',
+    dtxr: 'PIPE',
+    rawType: 'PIPE',
+    sourceName: 'PIPE_10_TO_20',
+    sourcePath: '/BRANCH/PIPE_10_TO_20',
+    fromNode: '10',
+    toNode: '20',
+    sourceAposMm: { x: 0, y: 0, z: 0 },
+    sourceLposMm: { x: 1000, y: 0, z: 0 }
+  };
+  return pipe;
+}
 
-const stagedSupport = new THREE.Group();
-stagedSupport.name = 'MANAGED_STAGE_SUPPORT_STAGED_JSON_GUIDE';
-stagedSupport.userData = {
-  TYPE: 'MANAGED_STAGE_SUPPORT_RESTRAINT_PREVIEW',
-  primitiveKind: 'managed-stage-support-symbol',
-  managedStageSupportVisual: true,
-  supportSourceMode: MANAGED_STAGE_SUPPORT_SOURCE_MODES.STAGED_JSON,
-  supportVisual: {
-    family: 'GUIDE',
-    popupRequired: false,
-    gapRecordScoped: true,
-    gapCarryForward: false,
-    cluster: { offsetMagnitudeMm: 0 },
-    gapVisualSeparationMm: 0
-  }
-};
+function makeStagedSupport() {
+  const stagedSupport = new THREE.Group();
+  stagedSupport.name = 'MANAGED_STAGE_SUPPORT_STAGED_JSON_GUIDE';
+  stagedSupport.userData = {
+    TYPE: 'MANAGED_STAGE_SUPPORT_RESTRAINT_PREVIEW',
+    primitiveKind: 'managed-stage-support-symbol',
+    managedStageSupportVisual: true,
+    supportSourceMode: MANAGED_STAGE_SUPPORT_SOURCE_MODES.STAGED_JSON,
+    sourceName: 'PS-001',
+    sourcePath: '/BRANCH/PS-001',
+    stagedType: 'SUPPORT',
+    dtxr: 'SUPPORT',
+    rawType: 'SUPPORT',
+    previewPosMm: { x: 0, y: 0, z: 0 },
+    supportVisual: {
+      rawKind: 'REST',
+      family: 'GUIDE',
+      node: '10',
+      popupRequired: false,
+      gapRecordScoped: true,
+      gapCarryForward: false,
+      cluster: { offsetMagnitudeMm: 0 },
+      gapVisualSeparationMm: 0
+    }
+  };
+  return stagedSupport;
+}
+
+const scene = new THREE.Scene();
+const pipe = makePipe();
+scene.add(pipe);
+const stagedSupport = makeStagedSupport();
 scene.add(stagedSupport);
 
 const pipeRecords = collectPreviewPipeRecordsFromScene(scene);
@@ -59,8 +77,8 @@ const noteText = 'NODE,ISONOTE\n10,"/PS-001:ISONOTE GUIDE, LINE STOP GAP 4mm"';
 const customMapperConfig = {
   fieldMapper: {
     supportTagFields: ['SUPPORT_TAG'],
-    supportKindFields: ['ISONOTE_SEGMENT'],
-    graphicsRuleFields: ['ISONOTE_SEGMENT'],
+    supportKindFields: ['SUPPORT_KIND'],
+    graphicsRuleFields: ['SUPPORT_GRAPHICS_RULE', 'SUPPORT_KIND'],
     axisFields: ['SUPPORT_AXIS'],
     signFields: ['SUPPORT_SIGN'],
     gapFields: ['SUPPORT_GAP_MM', '*GAP*']
@@ -71,7 +89,7 @@ assert.equal(isonoteRecords.length, 2);
 assert.equal(isonoteRecords[0].source.supportCoord.x, 0);
 assert.equal(isonoteRecords[0].source.supportCoord.y, 0);
 assert.equal(isonoteRecords[0].source.supportCoord.z, 0);
-assert.equal(isonoteRecords[0].isonoteMapperRecord.config.fieldMapper.supportKindFields[0], 'ISONOTE_SEGMENT');
+assert.equal(isonoteRecords[0].isonoteMapperRecord.config.fieldMapper.supportKindFields[0], 'SUPPORT_KIND');
 assert.equal(isonoteRecords[1].attrs.SUPPORT_GAP_MM, '4mm');
 assert.equal(isonoteRecords[1].attrs.SUPPORT_GAP_CARRY_FORWARD, 'FALSE');
 
@@ -112,16 +130,22 @@ assert.equal(offResult.diagnostics.pass, true);
 assert.equal(scene.children.some((child) => child.name === ISONOTE_SUPPORT_SOURCE_OVERLAY_ROOT), false, 'Off mode should remove ISONOTE support overlay');
 
 const stagedScene = new THREE.Scene();
-stagedScene.add(pipe.clone());
-const stagedOnlySupport = stagedSupport.clone();
+stagedScene.add(makePipe());
+const stagedOnlySupport = makeStagedSupport();
 stagedScene.add(stagedOnlySupport);
 const stagedResult = applyManagedStageSupportSourcePreview(stagedScene, { sourceMode: 'stagedJson', mapperConfig: customMapperConfig });
 assert.equal(stagedResult.status, 'stagedJson');
 assert.equal(stagedResult.mapperConfigApplied, true);
+assert.equal(stagedResult.stagedJsonSupportRecordCount, 1);
 assert.equal(stagedResult.diagnostics.mapperConfigApplied, true);
 assert.equal(stagedResult.diagnostics.stagedJsonSymbolCount, 1);
 assert.equal(stagedResult.diagnostics.isonoteSymbolCount, 0);
-assert.equal(stagedResult.diagnostics.supportFamilyHistogram.GUIDE, 1);
+assert.equal(stagedResult.diagnostics.supportFamilyHistogram.REST, 1, 'mapper rebuild should use SUPPORT_KIND/rawKind for stagedJson support family');
 assert.equal(stagedResult.diagnostics.pass, true);
-assert.equal(stagedScene.children.includes(stagedOnlySupport), true, 'stagedJson mode should keep stagedJson support symbols');
+assert.equal(stagedScene.children.includes(stagedOnlySupport), false, 'mapper-enabled stagedJson mode should rebuild stagedJson support symbols through the mapper contract');
+const stagedOverlay = stagedScene.children.find((child) => child.name === STAGED_JSON_SUPPORT_SOURCE_OVERLAY_ROOT);
+assert.ok(stagedOverlay, 'stagedJson mode should create a dedicated mapper-applied overlay when mapper config is active');
+assert.equal(stagedOverlay.children.length, 1);
+assert.equal(stagedOverlay.userData.sourceMode, MANAGED_STAGE_SUPPORT_SOURCE_MODES.STAGED_JSON);
+assert.equal(stagedOverlay.userData.mapperConfigApplied, true);
 console.log('managed-stage-support-source-preview-bridge tests passed');

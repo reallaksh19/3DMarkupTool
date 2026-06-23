@@ -2,11 +2,19 @@ import { normalizeManagedStageSupportGapAttributes } from './managed-stage-suppo
 
 export const MANAGED_STAGE_SUPPORT_MAPPER_CONFIG_SCHEMA = 'ManagedStageSupportMapperConfig.v1';
 export const MANAGED_STAGE_SUPPORT_MAPPER_PREFLIGHT_SCHEMA = 'ManagedStageSupportMapperPreflight.v1';
+export const MANAGED_STAGE_SUPPORT_MAPPER_PRESET_SCHEMA = 'ManagedStageSupportMapperPreset.v1';
 
 export const MANAGED_STAGE_SUPPORT_SOURCE_MODES = Object.freeze({
   OFF: 'off',
   STAGED_JSON: 'stagedJson',
   ISONOTE: 'isonote'
+});
+
+export const MANAGED_STAGE_SUPPORT_MAPPER_PRESET_IDS = Object.freeze({
+  CAESAR_DEFAULT: 'caesar-default',
+  STAGED_JSON_GENERIC: 'stagedjson-generic',
+  ISONOTE_GENERIC: 'isonote-generic',
+  CUSTOM: 'custom'
 });
 
 export const CAESAR_TO_CANVAS_AXIS_BASIS_PRESET = Object.freeze({
@@ -33,6 +41,26 @@ const DEFAULT_FIELD_MAPPER = Object.freeze({
   coordinateFields: Object.freeze(['SUPPORTCOORD', 'SUPPORT_COORD', 'POS', 'COORD', 'LOCATION'])
 });
 
+const STAGED_JSON_GENERIC_FIELD_MAPPER = Object.freeze({
+  supportTagFields: Object.freeze(['SUPPORT_TAG', 'SUPPORT_NO', 'SUPPORT_ID', 'TAG', 'NAME', 'REF']),
+  supportKindFields: Object.freeze(['SUPPORT_KIND', 'SUPPORT_TYPE', 'SUPPORT_TAG', 'DTXR', 'RAW_TYPE', 'TYPE', 'NAME']),
+  graphicsRuleFields: Object.freeze(['SUPPORT_GRAPHICS_RULE', 'SUPPORT_RULE', 'SUPPORT_KIND', 'SUPPORT_TYPE', 'SUPPORT_TAG', 'DTXR', 'NAME']),
+  axisFields: Object.freeze(['SUPPORT_AXIS', 'RESTRAINT_AXIS', 'CAESAR_AXIS', 'AXIS', 'DIRECTION']),
+  signFields: Object.freeze(['SUPPORT_SIGN', 'RESTRAINT_SIGN', 'PLUS_MINUS', 'SIGN', 'DIRECTION_SIGN']),
+  gapFields: Object.freeze(['SUPPORT_GAP_MM', 'SUPPORT_GAP', 'GAP_MM', 'GUIDE_GAP', 'LINESTOP_GAP', 'LIMIT_GAP', '*GAP*']),
+  coordinateFields: Object.freeze(['SUPPORTCOORD', 'SUPPORT_COORD', 'SUPPORT_LOCATION', 'POS', 'COORD', 'LOCATION'])
+});
+
+const ISONOTE_GENERIC_FIELD_MAPPER = Object.freeze({
+  supportTagFields: Object.freeze(['SUPPORT_TAG', 'TAG', 'NODE', 'SUPPORT_NO', 'RAW_TEXT']),
+  supportKindFields: Object.freeze(['SUPPORT_KIND', 'SUPPORT_TYPE', 'ISONOTE', 'NOTE', 'RAW_TEXT']),
+  graphicsRuleFields: Object.freeze(['SUPPORT_GRAPHICS_RULE', 'SUPPORT_RULE', 'SUPPORT_KIND', 'ISONOTE', 'NOTE', 'RAW_TEXT']),
+  axisFields: Object.freeze(['SUPPORT_AXIS', 'AXIS', 'CAESAR_AXIS', 'DIRECTION', 'RAW_TEXT']),
+  signFields: Object.freeze(['SUPPORT_SIGN', 'SIGN', 'PLUS_MINUS', 'DIRECTION_SIGN', 'RAW_TEXT']),
+  gapFields: Object.freeze(['SUPPORT_GAP_MM', 'GAP_MM', 'GAP', '*GAP*']),
+  coordinateFields: Object.freeze(['SUPPORTCOORD', 'POS', 'COORD', 'LOCATION'])
+});
+
 const DEFAULT_GRAPHICS_RULES = Object.freeze([
   Object.freeze({ match: Object.freeze(['SPRING CAN', 'CAN SPRING', 'SPRING_CAN']), family: 'SPRING_CAN', graphicsRule: 'warning-coil-below-pipe' }),
   Object.freeze({ match: Object.freeze(['HOLDDOWN', 'HOLD DOWN', '+/-Y']), family: 'HOLDDOWN', graphicsRule: 'double-vertical-y-arrows' }),
@@ -43,6 +71,7 @@ const DEFAULT_GRAPHICS_RULES = Object.freeze([
 
 export const DEFAULT_STAGED_JSON_SUPPORT_MAPPER_CONFIG = Object.freeze({
   schema: MANAGED_STAGE_SUPPORT_MAPPER_CONFIG_SCHEMA,
+  mapperPresetId: MANAGED_STAGE_SUPPORT_MAPPER_PRESET_IDS.CAESAR_DEFAULT,
   sourceModes: Object.freeze([MANAGED_STAGE_SUPPORT_SOURCE_MODES.OFF, MANAGED_STAGE_SUPPORT_SOURCE_MODES.STAGED_JSON, MANAGED_STAGE_SUPPORT_SOURCE_MODES.ISONOTE]),
   defaultSourceMode: MANAGED_STAGE_SUPPORT_SOURCE_MODES.STAGED_JSON,
   fieldMapper: DEFAULT_FIELD_MAPPER,
@@ -51,13 +80,72 @@ export const DEFAULT_STAGED_JSON_SUPPORT_MAPPER_CONFIG = Object.freeze({
   uiColumns: Object.freeze(['fieldPurpose', 'sourceFieldCandidates', 'normalizedOutput', 'axisBasis', 'graphicsRule'])
 });
 
+const PRESET_PROFILES = Object.freeze([
+  Object.freeze({
+    schema: MANAGED_STAGE_SUPPORT_MAPPER_PRESET_SCHEMA,
+    id: MANAGED_STAGE_SUPPORT_MAPPER_PRESET_IDS.CAESAR_DEFAULT,
+    label: 'CAESAR default',
+    description: '+Y is UP, -Y is DOWN, -X is NORTH by default; broad stagedJson / CAESAR field candidates.',
+    mapperConfig: Object.freeze({ fieldMapper: DEFAULT_FIELD_MAPPER, axisBasis: CAESAR_TO_CANVAS_AXIS_BASIS_PRESET, graphicsRules: DEFAULT_GRAPHICS_RULES })
+  }),
+  Object.freeze({
+    schema: MANAGED_STAGE_SUPPORT_MAPPER_PRESET_SCHEMA,
+    id: MANAGED_STAGE_SUPPORT_MAPPER_PRESET_IDS.STAGED_JSON_GENERIC,
+    label: 'stagedJson generic',
+    description: 'Prioritizes stagedJson SUPPORT_TAG / SUPPORT_KIND / DTXR fields and record-local gap fields.',
+    mapperConfig: Object.freeze({ fieldMapper: STAGED_JSON_GENERIC_FIELD_MAPPER, axisBasis: CAESAR_TO_CANVAS_AXIS_BASIS_PRESET, graphicsRules: DEFAULT_GRAPHICS_RULES })
+  }),
+  Object.freeze({
+    schema: MANAGED_STAGE_SUPPORT_MAPPER_PRESET_SCHEMA,
+    id: MANAGED_STAGE_SUPPORT_MAPPER_PRESET_IDS.ISONOTE_GENERIC,
+    label: 'ISONOTE generic',
+    description: 'Prioritizes side-loaded note text / RAW_TEXT fields while keeping the same normalized mapper contract.',
+    mapperConfig: Object.freeze({ fieldMapper: ISONOTE_GENERIC_FIELD_MAPPER, axisBasis: CAESAR_TO_CANVAS_AXIS_BASIS_PRESET, graphicsRules: DEFAULT_GRAPHICS_RULES })
+  }),
+  Object.freeze({
+    schema: MANAGED_STAGE_SUPPORT_MAPPER_PRESET_SCHEMA,
+    id: MANAGED_STAGE_SUPPORT_MAPPER_PRESET_IDS.CUSTOM,
+    label: 'Custom',
+    description: 'Uses the editable/persisted mapper field lists.',
+    mapperConfig: Object.freeze({ fieldMapper: DEFAULT_FIELD_MAPPER, axisBasis: CAESAR_TO_CANVAS_AXIS_BASIS_PRESET, graphicsRules: DEFAULT_GRAPHICS_RULES })
+  })
+]);
+
+export const MANAGED_STAGE_SUPPORT_MAPPER_PRESET_PROFILES = PRESET_PROFILES;
+
+export function buildManagedStageSupportMapperPresetOptions() {
+  return PRESET_PROFILES.map(({ id, label, description }) => ({ value: id, label, description }));
+}
+
+export function normalizeManagedStageSupportMapperPresetId(value) {
+  const text = String(value || '').trim().toLowerCase().replace(/[\s_]+/g, '-');
+  if (['caesar', 'caesar-default', 'default'].includes(text)) return MANAGED_STAGE_SUPPORT_MAPPER_PRESET_IDS.CAESAR_DEFAULT;
+  if (['stagedjson', 'staged-json', 'stagedjson-generic', 'json', 'generic-json'].includes(text)) return MANAGED_STAGE_SUPPORT_MAPPER_PRESET_IDS.STAGED_JSON_GENERIC;
+  if (['isonote', 'iso-note', 'iso-note-generic', 'isonote-generic', 'note'].includes(text)) return MANAGED_STAGE_SUPPORT_MAPPER_PRESET_IDS.ISONOTE_GENERIC;
+  if (text === 'custom') return MANAGED_STAGE_SUPPORT_MAPPER_PRESET_IDS.CUSTOM;
+  return MANAGED_STAGE_SUPPORT_MAPPER_PRESET_IDS.CAESAR_DEFAULT;
+}
+
+export function getManagedStageSupportMapperPresetProfile(presetId = MANAGED_STAGE_SUPPORT_MAPPER_PRESET_IDS.CAESAR_DEFAULT) {
+  const normalized = normalizeManagedStageSupportMapperPresetId(presetId);
+  return PRESET_PROFILES.find((profile) => profile.id === normalized) || PRESET_PROFILES[0];
+}
+
 export function resolveManagedStageSupportMapperConfig(config = {}) {
-  const fieldMapper = { ...DEFAULT_FIELD_MAPPER, ...(config.fieldMapper || {}) };
-  const axisBasis = mergeAxisBasis(CAESAR_TO_CANVAS_AXIS_BASIS_PRESET, config.axisBasis || {});
-  const graphicsRules = Array.isArray(config.graphicsRules) && config.graphicsRules.length ? config.graphicsRules : DEFAULT_GRAPHICS_RULES;
+  const explicitPreset = config.mapperPresetId || config.presetId || config.profileId;
+  const hasCustomFieldMapper = Boolean(config.fieldMapper && Object.keys(config.fieldMapper).length);
+  const mapperPresetId = normalizeManagedStageSupportMapperPresetId(explicitPreset || (hasCustomFieldMapper ? MANAGED_STAGE_SUPPORT_MAPPER_PRESET_IDS.CUSTOM : MANAGED_STAGE_SUPPORT_MAPPER_PRESET_IDS.CAESAR_DEFAULT));
+  const presetProfile = getManagedStageSupportMapperPresetProfile(mapperPresetId);
+  const presetConfig = mapperPresetId === MANAGED_STAGE_SUPPORT_MAPPER_PRESET_IDS.CUSTOM ? {} : (presetProfile.mapperConfig || {});
+  const fieldMapper = { ...DEFAULT_FIELD_MAPPER, ...(presetConfig.fieldMapper || {}), ...(config.fieldMapper || {}) };
+  const axisBasis = mergeAxisBasis(mergeAxisBasis(CAESAR_TO_CANVAS_AXIS_BASIS_PRESET, presetConfig.axisBasis || {}), config.axisBasis || {});
+  const graphicsRules = Array.isArray(config.graphicsRules) && config.graphicsRules.length
+    ? config.graphicsRules
+    : (Array.isArray(presetConfig.graphicsRules) && presetConfig.graphicsRules.length ? presetConfig.graphicsRules : DEFAULT_GRAPHICS_RULES);
   const sourceMode = normalizeSourceMode(config.sourceMode || config.defaultSourceMode || DEFAULT_STAGED_JSON_SUPPORT_MAPPER_CONFIG.defaultSourceMode);
   return {
     schema: MANAGED_STAGE_SUPPORT_MAPPER_CONFIG_SCHEMA,
+    mapperPresetId,
     sourceMode,
     sourceModes: [...DEFAULT_STAGED_JSON_SUPPORT_MAPPER_CONFIG.sourceModes],
     fieldMapper,
@@ -80,6 +168,7 @@ export function normalizeManagedStageSupportMapperRecord(record, config = {}) {
   const normalizedAttrs = {
     ...attrs,
     SUPPORT_MAPPER_SCHEMA: MANAGED_STAGE_SUPPORT_MAPPER_CONFIG_SCHEMA,
+    SUPPORT_MAPPER_PRESET_ID: resolvedConfig.mapperPresetId,
     SUPPORT_SOURCE_MODE: resolvedConfig.sourceMode,
     SUPPORT_TAG_MAPPED: tagMatch.value || '',
     SUPPORT_TAG_SOURCE_FIELD: tagMatch.key || '',
@@ -101,6 +190,7 @@ export function normalizeManagedStageSupportMapperRecord(record, config = {}) {
 
   const result = {
     schema: MANAGED_STAGE_SUPPORT_MAPPER_CONFIG_SCHEMA,
+    mapperPresetId: resolvedConfig.mapperPresetId,
     sourceMode: resolvedConfig.sourceMode,
     supportTag: normalizedAttrs.SUPPORT_TAG_MAPPED,
     rawKind: kindMatch.value || '',

@@ -1,3 +1,5 @@
+import { normalizeManagedStageSupportGapAttributes } from './managed-stage-support-gap-mapper.js';
+
 export const MANAGED_STAGE_PROFILE_SCHEMA = 'inputxml-managed-stage/v1';
 export const MANAGED_STAGE_RVM_PROFILE = 'AVEVA_JSON_FOR_3D_RVM_VIEWER';
 
@@ -47,17 +49,25 @@ export function parseManagedStageProfile(sourceText) {
       containerRecordTypesSkipped: [...CONTAINER_RECORD_TYPES],
       recordCount: records.length,
       geometryRecordCount: geometryRecords.length,
-      supportRecordCount: supportRecords.length
+      supportRecordCount: supportRecords.length,
+      supportGapMapperSchema: 'ManagedStageSupportGapMapper.v1',
+      supportGapRecordScoped: true,
+      supportGapCarryForward: false
     }
   };
 }
 
 function collectManagedStageRecord(node, context, records) {
   if (!node || typeof node !== 'object') return;
-  const attributes = node.attributes || {};
-  const rawName = node.name || attributes.NAME || 'UNNAMED';
-  const name = attributes.NAME || node.name || 'UNNAMED';
-  const type = node.type || attributes.TYPE || 'UNKNOWN';
+  const rawAttributes = node.attributes || {};
+  const rawName = node.name || rawAttributes.NAME || 'UNNAMED';
+  const name = rawAttributes.NAME || node.name || 'UNNAMED';
+  const type = node.type || rawAttributes.TYPE || 'UNKNOWN';
+  const attributes = SUPPORT_RECORD_TYPES.has(normalizeToken(type))
+    || SUPPORT_RECORD_TYPES.has(normalizeToken(rawAttributes.RAW_TYPE))
+    || SUPPORT_RECORD_TYPES.has(normalizeToken(rawAttributes.DTXR))
+    ? normalizeManagedStageSupportGapAttributes(rawAttributes)
+    : rawAttributes;
   const path = context.parentPath ? `${context.parentPath}/${rawName}` : rawName;
 
   if (!CONTAINER_RECORD_TYPES.has(normalizeToken(type))) {

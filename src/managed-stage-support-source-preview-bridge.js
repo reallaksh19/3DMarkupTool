@@ -4,7 +4,8 @@ import { parseManagedStageIsonoteSupportRecords } from './managed-stage-isonote-
 import { MANAGED_STAGE_SUPPORT_SOURCE_MODES } from './managed-stage-support-mapper-config.js';
 
 export const MANAGED_STAGE_SUPPORT_SOURCE_PREVIEW_BRIDGE_SCHEMA = 'ManagedStageSupportSourcePreviewBridge.v1';
-export const MANAGED_STAGE_SUPPORT_SOURCE_PREVIEW_BRIDGE_CACHE_KEY = '20260623-staged-json-support-source-preview-1';
+export const MANAGED_STAGE_SUPPORT_SOURCE_PREVIEW_DIAGNOSTICS_SCHEMA = 'ManagedStageSupportSourcePreviewDiagnostics.v1';
+export const MANAGED_STAGE_SUPPORT_SOURCE_PREVIEW_BRIDGE_CACHE_KEY = '20260623-staged-json-support-source-preview-2';
 export const ISONOTE_SUPPORT_SOURCE_OVERLAY_ROOT = 'MANAGED_STAGE_SUPPORT_SOURCE_OVERLAY_ISONOTE';
 
 export function installManagedStageSupportSourcePreviewBridge({ win = globalThis.window, doc = globalThis.document } = {}) {
@@ -135,6 +136,71 @@ export function buildIsonoteSupportPreviewRecords(isonoteText = '', pipeRecords 
   }).filter(Boolean);
 }
 
+export function collectManagedStageSupportSourcePreviewDiagnostics(modelRoot, result = {}) {
+  const diagnostics = {
+    schema: MANAGED_STAGE_SUPPORT_SOURCE_PREVIEW_DIAGNOSTICS_SCHEMA,
+    sourceMode: result.sourceMode || '',
+    status: result.status || '',
+    removed: Number(result.removed || 0),
+    pipeRecordCount: Number(result.pipeRecordCount || 0),
+    isonoteSupportRecordCount: Number(result.isonoteSupportRecordCount || 0),
+    overlayPrimitiveGroupCount: Number(result.overlayPrimitiveGroupCount || 0),
+    isonoteOverlayRootCount: 0,
+    supportSymbolCount: 0,
+    stagedJsonSymbolCount: 0,
+    isonoteSymbolCount: 0,
+    supportVisualPartCount: 0,
+    supportFamilyHistogram: {},
+    popupRequiredCount: 0,
+    warningCount: 0,
+    gapRecordScopedCount: 0,
+    gapCarryForwardViolationCount: 0,
+    maxGlyphLengthMm: 0,
+    maxClusterOffsetMm: 0,
+    maxGapVisualSeparationMm: 0,
+    activeSourceExclusive: true,
+    pass: true
+  };
+
+  modelRoot?.traverse?.((object) => {
+    const data = object?.userData || {};
+    if (object?.name === ISONOTE_SUPPORT_SOURCE_OVERLAY_ROOT) diagnostics.isonoteOverlayRootCount += 1;
+
+    if (data.managedStageSupportVisualPart) {
+      diagnostics.supportVisualPartCount += 1;
+      diagnostics.maxGlyphLengthMm = Math.max(diagnostics.maxGlyphLengthMm, numeric(data.supportGlyphLengthMm));
+      if (data.gapCarryForward === true || data.gapCarryForward === 'TRUE') diagnostics.gapCarryForwardViolationCount += 1;
+      return;
+    }
+
+    if (!(data.managedStageSupportVisual && data.primitiveKind === 'managed-stage-support-symbol')) return;
+
+    const visual = data.supportVisual || {};
+    const family = String(visual.family || data.supportFamily || 'UNKNOWN').trim() || 'UNKNOWN';
+    const sourceMode = data.supportSourceMode || (data.isonoteSupportOverlay ? MANAGED_STAGE_SUPPORT_SOURCE_MODES.ISONOTE : MANAGED_STAGE_SUPPORT_SOURCE_MODES.STAGED_JSON);
+    diagnostics.supportSymbolCount += 1;
+    if (sourceMode === MANAGED_STAGE_SUPPORT_SOURCE_MODES.ISONOTE) diagnostics.isonoteSymbolCount += 1;
+    else diagnostics.stagedJsonSymbolCount += 1;
+    diagnostics.supportFamilyHistogram[family] = (diagnostics.supportFamilyHistogram[family] || 0) + 1;
+
+    if (data.popupRequired || visual.popupRequired) diagnostics.popupRequiredCount += 1;
+    if (visual.popupRequired || visual.fallbackCrossRods || /WARNING|UNKNOWN/.test(family)) diagnostics.warningCount += 1;
+    if (visual.gapRecordScoped) diagnostics.gapRecordScopedCount += 1;
+    if (visual.gapCarryForward) diagnostics.gapCarryForwardViolationCount += 1;
+    diagnostics.maxClusterOffsetMm = Math.max(diagnostics.maxClusterOffsetMm, numeric(visual.cluster?.offsetMagnitudeMm));
+    diagnostics.maxGapVisualSeparationMm = Math.max(diagnostics.maxGapVisualSeparationMm, numeric(visual.gapVisualSeparationMm));
+  });
+
+  diagnostics.activeSourceExclusive = !(diagnostics.stagedJsonSymbolCount > 0 && diagnostics.isonoteSymbolCount > 0);
+  diagnostics.pass = diagnostics.activeSourceExclusive
+    && diagnostics.gapCarryForwardViolationCount === 0
+    && (diagnostics.sourceMode !== MANAGED_STAGE_SUPPORT_SOURCE_MODES.OFF || diagnostics.supportSymbolCount === 0);
+  diagnostics.maxGlyphLengthMm = round(diagnostics.maxGlyphLengthMm);
+  diagnostics.maxClusterOffsetMm = round(diagnostics.maxClusterOffsetMm);
+  diagnostics.maxGapVisualSeparationMm = round(diagnostics.maxGapVisualSeparationMm);
+  return diagnostics;
+}
+
 function createIsonoteSupportOverlay(supportRecords, pipeRecords, options = {}) {
   const overlay = new THREE.Group();
   overlay.name = ISONOTE_SUPPORT_SOURCE_OVERLAY_ROOT;
@@ -198,9 +264,13 @@ function buildNodePointMap(records = []) {
 }
 
 function stampBridgeAudit(modelRoot, result) {
+  const diagnostics = collectManagedStageSupportSourcePreviewDiagnostics(modelRoot, result);
   modelRoot.userData = {
     ...(modelRoot.userData || {}),
-    managedStageSupportSourcePreview: result
+    managedStageSupportSourcePreview: {
+      ...result,
+      diagnostics
+    }
   };
 }
 
@@ -232,6 +302,16 @@ function clonePoint(point) {
 
 function safeName(value) {
   return String(value || 'SUPPORT').replace(/[^A-Za-z0-9_.-]+/g, '_').replace(/^_+|_+$/g, '') || 'SUPPORT';
+}
+
+function numeric(value) {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : 0;
+}
+
+function round(value) {
+  const n = Number(value);
+  return Number.isFinite(n) ? Math.round(n * 1000) / 1000 : 0;
 }
 
 if (typeof window !== 'undefined') {

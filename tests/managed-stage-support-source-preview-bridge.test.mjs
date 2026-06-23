@@ -4,6 +4,7 @@ import {
   ISONOTE_SUPPORT_SOURCE_OVERLAY_ROOT,
   applyManagedStageSupportSourcePreview,
   buildIsonoteSupportPreviewRecords,
+  collectManagedStageSupportSourcePreviewDiagnostics,
   collectPreviewPipeRecordsFromScene,
   normalizeSupportSourceMode
 } from '../src/managed-stage-support-source-preview-bridge.js';
@@ -37,7 +38,15 @@ stagedSupport.userData = {
   TYPE: 'MANAGED_STAGE_SUPPORT_RESTRAINT_PREVIEW',
   primitiveKind: 'managed-stage-support-symbol',
   managedStageSupportVisual: true,
-  supportSourceMode: MANAGED_STAGE_SUPPORT_SOURCE_MODES.STAGED_JSON
+  supportSourceMode: MANAGED_STAGE_SUPPORT_SOURCE_MODES.STAGED_JSON,
+  supportVisual: {
+    family: 'GUIDE',
+    popupRequired: false,
+    gapRecordScoped: true,
+    gapCarryForward: false,
+    cluster: { offsetMagnitudeMm: 0 },
+    gapVisualSeparationMm: 0
+  }
 };
 scene.add(stagedSupport);
 
@@ -55,12 +64,26 @@ assert.equal(isonoteRecords[0].source.supportCoord.z, 0);
 assert.equal(isonoteRecords[1].attrs.SUPPORT_GAP_MM, '4mm');
 assert.equal(isonoteRecords[1].attrs.SUPPORT_GAP_CARRY_FORWARD, 'FALSE');
 
+const preDiagnostics = collectManagedStageSupportSourcePreviewDiagnostics(scene, { sourceMode: 'stagedJson', status: 'stagedJson' });
+assert.equal(preDiagnostics.stagedJsonSymbolCount, 1);
+assert.equal(preDiagnostics.isonoteSymbolCount, 0);
+assert.equal(preDiagnostics.supportFamilyHistogram.GUIDE, 1);
+assert.equal(preDiagnostics.activeSourceExclusive, true);
+assert.equal(preDiagnostics.pass, true);
+
 const isonoteResult = applyManagedStageSupportSourcePreview(scene, {
   sourceMode: 'isonote',
   isonoteText: noteText
 });
 assert.equal(isonoteResult.status, 'isonote');
 assert.equal(isonoteResult.isonoteSupportRecordCount, 2);
+assert.equal(isonoteResult.diagnostics.sourceMode, MANAGED_STAGE_SUPPORT_SOURCE_MODES.ISONOTE);
+assert.equal(isonoteResult.diagnostics.supportSymbolCount, 2);
+assert.equal(isonoteResult.diagnostics.isonoteSymbolCount, 2);
+assert.equal(isonoteResult.diagnostics.stagedJsonSymbolCount, 0);
+assert.equal(isonoteResult.diagnostics.activeSourceExclusive, true);
+assert.equal(isonoteResult.diagnostics.gapCarryForwardViolationCount, 0);
+assert.equal(isonoteResult.diagnostics.pass, true);
 assert.equal(scene.children.includes(stagedSupport), false, 'ISONOTE mode must remove stagedJson support symbols');
 const overlay = scene.children.find((child) => child.name === ISONOTE_SUPPORT_SOURCE_OVERLAY_ROOT);
 assert.ok(overlay, 'ISONOTE mode should create a dedicated support source overlay root');
@@ -69,6 +92,8 @@ assert.equal(overlay.userData.sourceMode, MANAGED_STAGE_SUPPORT_SOURCE_MODES.ISO
 
 const offResult = applyManagedStageSupportSourcePreview(scene, { sourceMode: 'off' });
 assert.equal(offResult.status, 'off');
+assert.equal(offResult.diagnostics.supportSymbolCount, 0);
+assert.equal(offResult.diagnostics.pass, true);
 assert.equal(scene.children.some((child) => child.name === ISONOTE_SUPPORT_SOURCE_OVERLAY_ROOT), false, 'Off mode should remove ISONOTE support overlay');
 
 const stagedScene = new THREE.Scene();
@@ -77,5 +102,9 @@ const stagedOnlySupport = stagedSupport.clone();
 stagedScene.add(stagedOnlySupport);
 const stagedResult = applyManagedStageSupportSourcePreview(stagedScene, { sourceMode: 'stagedJson' });
 assert.equal(stagedResult.status, 'stagedJson');
+assert.equal(stagedResult.diagnostics.stagedJsonSymbolCount, 1);
+assert.equal(stagedResult.diagnostics.isonoteSymbolCount, 0);
+assert.equal(stagedResult.diagnostics.supportFamilyHistogram.GUIDE, 1);
+assert.equal(stagedResult.diagnostics.pass, true);
 assert.equal(stagedScene.children.includes(stagedOnlySupport), true, 'stagedJson mode should keep stagedJson support symbols');
 console.log('managed-stage-support-source-preview-bridge tests passed');

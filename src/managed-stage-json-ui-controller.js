@@ -15,7 +15,7 @@ const NON_BLOCKING_MANAGED_STAGE_AUDIT_PATTERNS = Object.freeze([
   '^expected CNTB count:',
   '^expected PRIM count:'
 ]);
-const BM_CII_INPUTXML_JSON_EXPECTATIONS = Object.freeze({
+const BM_CII_STAGED_JSON_EXPECTATIONS = Object.freeze({
   geometryComponents: 40,
   supportRecordsSkippedFromGeometry: 12,
   supportRecordsEmittedToRvm: 12,
@@ -74,8 +74,8 @@ export function installManagedStageJsonUi() {
 function ensureUnifiedModelFileInput() {
   const input = document.getElementById('xmlFile');
   if (!input) throw new Error('Managed-stage JSON UI cannot find #xmlFile');
-  input.accept = '.xml,.txt,.json,application/xml,text/xml,application/json';
-  input.setAttribute('aria-label', 'Load InputXML or managed-stage JSON');
+  input.accept = '.json,.jscon,application/json';
+  input.setAttribute('aria-label', 'Load stagedJson');
   input.dataset.acceptsManagedStageJson = 'true';
   return input;
 }
@@ -83,19 +83,19 @@ function ensureUnifiedModelFileInput() {
 function ensureUnifiedDropZone(input) {
   const drop = input.closest('.file-drop');
   if (!drop) return;
-  drop.title = 'Choose InputXML or BM_CII_INPUT_managed_stage.json';
-  drop.setAttribute('aria-label', 'Choose InputXML or managed-stage JSON');
+  drop.title = 'Choose stagedJson or BM_CII_INPUT_managed_stage.json';
+  drop.setAttribute('aria-label', 'Choose stagedJson');
   const span = drop.querySelector('span');
-  if (span) span.textContent = 'Choose InputXML / Managed JSON';
+  if (span) span.textContent = 'Choose stagedJson';
 }
 
 function ensureUnifiedModelButton(host, modelFileInput) {
   const legacyManagedButton = document.getElementById('loadManagedStageJsonBtn');
   if (legacyManagedButton) {
     legacyManagedButton.id = 'loadUnifiedModelFileBtn';
-    legacyManagedButton.title = 'Load InputXML or BM_CII_INPUT_managed_stage.json';
-    legacyManagedButton.setAttribute('aria-label', 'Load InputXML or managed-stage JSON');
-    legacyManagedButton.innerHTML = '<span class="managed-stage-json-icon" aria-hidden="true">↥</span><span>Load XML / JSON</span>';
+    legacyManagedButton.title = 'Load stagedJson or BM_CII_INPUT_managed_stage.json';
+    legacyManagedButton.setAttribute('aria-label', 'Load stagedJson');
+    legacyManagedButton.innerHTML = '<span class="managed-stage-json-icon" aria-hidden="true">↥</span><span>Load stagedJson</span>';
     return legacyManagedButton;
   }
 
@@ -105,9 +105,9 @@ function ensureUnifiedModelButton(host, modelFileInput) {
   button.id = 'loadUnifiedModelFileBtn';
   button.type = 'button';
   button.className = 'ghost icon-text managed-stage-json-load-btn unified-model-load-btn';
-  button.title = 'Load InputXML or BM_CII_INPUT_managed_stage.json';
-  button.setAttribute('aria-label', 'Load InputXML or managed-stage JSON');
-  button.innerHTML = '<span class="managed-stage-json-icon" aria-hidden="true">↥</span><span>Load XML / JSON</span>';
+  button.title = 'Load stagedJson or BM_CII_INPUT_managed_stage.json';
+  button.setAttribute('aria-label', 'Load stagedJson');
+  button.innerHTML = '<span class="managed-stage-json-icon" aria-hidden="true">↥</span><span>Load stagedJson</span>';
   button.addEventListener('click', () => modelFileInput.click());
   const sampleButton = document.getElementById('loadSampleBtn');
   if (sampleButton && sampleButton.parentElement === host) host.insertBefore(button, sampleButton);
@@ -147,7 +147,7 @@ async function loadManagedStageText(sourceText, sourceName = 'BM_CII_INPUT_manag
   updateInputStatus(`${sourceName} — managed-stage JSON`);
   log(`Loaded managed-stage JSON ${sourceName} (${sourceText.length.toLocaleString()} chars)`);
 
-  const options = bmCiiLikeSourceName(sourceName) ? { strictAuditExpectations: BM_CII_INPUTXML_JSON_EXPECTATIONS } : {};
+  const options = bmCiiLikeSourceName(sourceName) ? { strictAuditExpectations: BM_CII_STAGED_JSON_EXPECTATIONS } : {};
   const result = convertManagedStageJsonToRvmAtt(sourceText, options);
   const previewScene = createManagedStagePreviewScene(sourceText, { sourceName, exportModel: result.exportModel });
   previewScene.name = `${managedStageUiState.basename}_RAW_STAGED_PREVIEW`;
@@ -321,7 +321,7 @@ function looksLikeManagedStageJson(text, name = '') {
 }
 
 function isJsonFileName(name = '') {
-  return /\.json$/i.test(String(name));
+  return /\.(json|jscon)$/i.test(String(name));
 }
 
 function bmCiiLikeSourceName(name = '') {

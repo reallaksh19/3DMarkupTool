@@ -1,5 +1,5 @@
 // Phase 2 / Phase 4A input always-visible controller.
-// Keeps the real InputXML controls visible without duplicating fake controls.
+// Keeps the real stagedJson controls visible without duplicating fake controls.
 // Layout is owned by static HTML/CSS so the first paint and post-JS state match.
 // No scene traversal, no polling, no review-tool activation.
 
@@ -67,15 +67,17 @@ function ensureInputBlock() {
   if (fileDrop) {
     fileDrop.classList.add('input-file-drop-visible');
     const label = fileDrop.querySelector('span');
-    if (label) label.textContent = 'Choose InputXML';
+    if (label) label.textContent = 'Choose stagedJson';
   }
 
   if (actions) actions.classList.add('input-primary-actions');
 
   const loadSampleBtn = document.getElementById('loadSampleBtn');
   if (loadSampleBtn) {
-    loadSampleBtn.title = 'Load BM_CII sample without replacing the file chooser status';
-    loadSampleBtn.setAttribute('aria-label', 'Load BM_CII sample');
+    loadSampleBtn.title = 'Load stagedJson sample without replacing the file chooser status';
+    loadSampleBtn.setAttribute('aria-label', 'Load stagedJson sample');
+    const label = loadSampleBtn.querySelector('span');
+    if (label) label.textContent = 'Load stagedJson sample';
   }
 
   const clearBtn = document.getElementById('clearBtn');

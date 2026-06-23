@@ -26,7 +26,9 @@ const fixture = {
     attributes: { NAME: 'ROOT' },
     children: [
       lineRecord('WN-FLANGE-001', 'FLAN', 'FLANGE', 'N1', 'N2', { x: 0, y: 0, z: 0 }, { x: 220, y: 0, z: 0 }),
-      lineRecord('BALL-VALVE-001', 'VALV', 'VALVE', 'N2', 'N3', { x: 260, y: 0, z: 0 }, { x: 260, y: 0, z: 360 })
+      lineRecord('BALL-VALVE-001', 'VALV', 'VALVE', 'N2', 'N3', { x: 260, y: 0, z: 0 }, { x: 260, y: 0, z: 360 }),
+      lineRecord('ITEM-1001', 'COMPONENT', 'Weld Neck Flange', 'N4', 'N5', { x: 0, y: 160, z: 0 }, { x: 180, y: 160, z: 0 }, { DIAMETER: '80mm' }),
+      lineRecord('ITEM-1002', 'BV', '', 'N5', 'N6', { x: 220, y: 160, z: 0 }, { x: 220, y: 160, z: 240 }, { DIAMETER: '120mm' })
     ]
   }]
 };
@@ -36,9 +38,11 @@ assertManagedStagePreviewCoordinatePreservation(scene.userData.managedStageCoord
 
 const result = applyManagedStageComponentPrimitiveSymbols(scene, { sourceName: 'flange-valve-primitive-symbol-fixture.json' });
 assert.equal(result.schema, 'ManagedStageComponentPrimitiveSymbols.v1');
-assert.equal(result.flangeSymbolCount, 1);
-assert.equal(result.valveSymbolCount, 1);
-assert.equal(result.rows.length, 2);
+assert.equal(result.flangeSymbolCount, 2);
+assert.equal(result.valveSymbolCount, 2);
+assert.equal(result.rows.length, 4);
+assert.equal(result.targetCount, 4);
+assert.match(result.policy, /classifier accepts common/i);
 
 const flange = findCue(scene, 'WELDNECK_FLANGE');
 assert.ok(flange, 'expected WeldNeck flange primitive symbol');
@@ -77,6 +81,21 @@ assert.ok(valve.children.every((child) => !/stem|handwheel|wheel/i.test(child.na
 const valveBody = valve.children.find((child) => child.userData.componentPrimitivePart === 'central-ball-body');
 assert.ok(Math.abs(valveBody.geometry.parameters.height - 108) < 1e-6, 'ball valve body length uses source APOS/LPOS length');
 
+const aliasFlange = findCueBySource(scene, 'ITEM-1001', 'WELDNECK_FLANGE');
+assert.ok(aliasFlange, 'DTXR="Weld Neck Flange" should classify as WeldNeck flange');
+assert.equal(aliasFlange.userData.sourceLengthMm, 180);
+assert.equal(aliasFlange.userData.pipeRadiusMm, 40);
+assert.equal(aliasFlange.userData.primitiveCount, 2);
+assert.deepEqual(aliasFlange.children.map((child) => child.userData.componentPrimitivePart), ['raised-face-disk', 'weld-neck-hub']);
+
+const aliasValve = findCueBySource(scene, 'ITEM-1002', 'BALL_VALVE');
+assert.ok(aliasValve, 'TYPE="BV" should classify as Ball valve');
+assert.equal(aliasValve.userData.sourceLengthMm, 240);
+assert.equal(aliasValve.userData.pipeRadiusMm, 60);
+assert.equal(aliasValve.userData.primitiveCount, 5);
+assert.equal(aliasValve.userData.primitiveBudgetLimit, 6);
+assert.ok(aliasValve.children.every((child) => !/stem|handwheel|wheel/i.test(child.name)), 'BV alias must not add stem/handwheel geometry');
+
 const valveSource = findSource(scene, 'BALL-VALVE-001');
 assert.equal(valveSource.userData.managedStageValvePrimitiveSymbolApplied, true);
 assert.equal(valveSource.userData.inputXmlValveConePairApplied, true, 'new ball-valve symbol suppresses obsolete cone-pair overlay');
@@ -89,7 +108,7 @@ assert.equal(countPrimitiveSymbolGroups(scene), cueCountBefore, 'component primi
 
 assertManagedStagePreviewCoordinatePreservation(scene.userData.managedStageCoordinateAudit);
 
-function lineRecord(name, type, dtxr, fromNode, toNode, apos, lpos) {
+function lineRecord(name, type, dtxr, fromNode, toNode, apos, lpos, extraAttrs = {}) {
   return {
     name,
     type,
@@ -101,7 +120,8 @@ function lineRecord(name, type, dtxr, fromNode, toNode, apos, lpos) {
       TO_NODE: toNode,
       APOS: apos,
       LPOS: lpos,
-      DIAMETER: '100mm'
+      DIAMETER: '100mm',
+      ...extraAttrs
     }
   };
 }
@@ -110,6 +130,14 @@ function findCue(root, componentSymbol) {
   let found = null;
   root.traverse((object) => {
     if (!found && object.userData?.componentSymbol === componentSymbol) found = object;
+  });
+  return found;
+}
+
+function findCueBySource(root, sourceName, componentSymbol) {
+  let found = null;
+  root.traverse((object) => {
+    if (!found && object.userData?.componentSymbol === componentSymbol && object.userData?.sourceName === sourceName) found = object;
   });
   return found;
 }

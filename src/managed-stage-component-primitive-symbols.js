@@ -1,12 +1,67 @@
 import * as THREE from 'three';
 import { cylinderBetween, mat } from './geometry.js?v=professional-viewer-3';
 
-const VERSION = 'managed-stage-component-primitive-symbols-20260623b';
+const VERSION = 'managed-stage-component-primitive-symbols-20260623c';
 const FLANGE_COLOR = 0xb7b7b7;
 const VALVE_COLOR = 0xcc2222;
 const EPS_MM = 0.001;
-const FLANGE_LIKE = new Set(['FLAN', 'FLANGE', 'FLANGE_PAIR']);
-const VALVE_LIKE = new Set(['VALV', 'VALVE', 'FLANGED_VALVE']);
+const FLANGE_LIKE = new Set([
+  'FLAN',
+  'FLANGE',
+  'FLANGE_PAIR',
+  'FLANGEPAIR',
+  'FLG',
+  'FLNG',
+  'WN',
+  'WNF',
+  'WELDNECK',
+  'WELD_NECK',
+  'WELD_NECK_FLANGE',
+  'WELDNECK_FLANGE',
+  'WELDNECKFLANGE',
+  'WN_FLANGE',
+  'WNFLANGE',
+  'WNRF',
+  'WELD_NECK_RF',
+  'WELDNECKRF'
+]);
+const VALVE_LIKE = new Set([
+  'VALV',
+  'VALVE',
+  'FLANGED_VALVE',
+  'FLANGEDVALVE',
+  'BALL',
+  'BALL_VALVE',
+  'BALLVALVE',
+  'BALL_VALV',
+  'BALLVALV',
+  'BV',
+  'BVALVE',
+  'VALVE_BALL',
+  'VALVEBALL',
+  'FLANGED_BALL_VALVE',
+  'FLANGEDBALLVALVE'
+]);
+const CLASSIFICATION_FIELDS = [
+  'DTXR',
+  'RAW_TYPE',
+  'TYPE',
+  'STYPE',
+  'SKEY',
+  'COMPONENT_TYPE',
+  'COMPONENTTYPE',
+  'COMP_TYPE',
+  'COMPTYPE',
+  'ITEM_TYPE',
+  'ITEMTYPE',
+  'PART_TYPE',
+  'PARTTYPE',
+  'GENERIC_TYPE',
+  'GENERIC',
+  'CATEGORY',
+  'CATREF',
+  'NAME'
+];
 const DIAMETER_FIELDS = ['DIAMETER', 'BORE', 'ABORE', 'LBORE', 'HBOR', 'TBOR', 'NOMINAL_DIAMETER', 'NOMINALDIAMETER', 'DN'];
 
 if (typeof window !== 'undefined') installManagedStageComponentPrimitiveSymbols();
@@ -86,7 +141,7 @@ export function applyManagedStageComponentPrimitiveSymbols(modelRoot, detail = {
     version: VERSION,
     schema: 'ManagedStageComponentPrimitiveSymbols.v1',
     sourceName: detail.sourceName || modelRoot.userData?.sourceName || modelRoot.userData?.source || 'managed-stage-preview',
-    policy: 'stagedJson FLANGE and VALVE source lines use source APOS/LPOS length/axis and source diameter hints for compact additive primitive symbols; flange=2 primitives, ball valve=5 primitives; no boxes, no handwheels, no valve stems',
+    policy: 'stagedJson FLANGE and VALVE source lines use source APOS/LPOS length/axis and source diameter hints for compact additive primitive symbols; flange=2 primitives, ball valve=5 primitives; classifier accepts common FLAN/FLANGE/WN/WELDNECK and VALV/VALVE/BV/BALL aliases; no boxes, no handwheels, no valve stems',
     targetCount: targets.length,
     flangeSymbolCount,
     valveSymbolCount,
@@ -338,12 +393,67 @@ function isRawSourceLine(data) {
 }
 
 function componentFamily(data) {
-  const tokens = [data.dtxr, data.rawType, data.stagedType, data.sourceName]
-    .map(normalize)
-    .filter(Boolean);
-  if (tokens.some((token) => VALVE_LIKE.has(token))) return 'VALVE';
-  if (tokens.some((token) => FLANGE_LIKE.has(token))) return 'FLANGE';
+  const tokens = componentClassifierTokens(data);
+  if (tokens.some(isValveToken)) return 'VALVE';
+  if (tokens.some(isFlangeToken)) return 'FLANGE';
   return 'OTHER';
+}
+
+function isValveToken(token) {
+  return VALVE_LIKE.has(token)
+    || token.includes('BALL_VALVE')
+    || token.includes('BALLVALVE')
+    || token.endsWith('_VALVE')
+    || token.includes('_VALV_')
+    || token.startsWith('VALV_')
+    || token === 'VALV';
+}
+
+function isFlangeToken(token) {
+  return FLANGE_LIKE.has(token)
+    || token.includes('WELD_NECK')
+    || token.includes('WELDNECK')
+    || token.includes('WN_FLANGE')
+    || token.includes('WNFLANGE')
+    || token.includes('FLANGE')
+    || token.startsWith('FLAN_')
+    || token === 'FLAN'
+    || token === 'FLG'
+    || token === 'FLNG';
+}
+
+function componentClassifierTokens(data = {}) {
+  const values = [
+    data.dtxr,
+    data.rawType,
+    data.stagedType,
+    data.componentType,
+    data.componentClass,
+    data.componentFamily,
+    data.componentCode,
+    data.sourceName,
+    data.sourcePath
+  ];
+  const attrs = data.sourceRawAttributes || data.rawAttributes || {};
+  for (const field of CLASSIFICATION_FIELDS) {
+    values.push(attrs[field]);
+    values.push(attrs[field.toLowerCase?.()]);
+  }
+
+  const out = new Set();
+  for (const value of values) {
+    for (const token of tokenVariants(value)) out.add(token);
+  }
+  return [...out].filter(Boolean);
+}
+
+function tokenVariants(value) {
+  const raw = normalize(value);
+  if (!raw) return [];
+  const underscored = raw.replace(/[^A-Z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+  const squashed = raw.replace(/[^A-Z0-9]+/g, '');
+  const spacedWords = underscored.split('_').filter(Boolean);
+  return [raw, underscored, squashed, ...spacedWords].filter(Boolean);
 }
 
 function inferObjectRadius(object, length, sourceDiameterMm = null) {

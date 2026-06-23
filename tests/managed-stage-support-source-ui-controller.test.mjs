@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
 import {
   buildManagedStageSupportSourceUiModel,
+  buildManagedStageSupportMapperUiRows,
+  buildManagedStageSupportAxisBasisRows,
   applyManagedStageSupportSourceModeToLegacyFlags,
   normalizeManagedStageSupportSourceMode
 } from '../src/managed-stage-support-source-ui-controller.js';
@@ -35,14 +37,37 @@ assert.equal(defaultModel.axisBasis.up, '+Y');
 assert.equal(defaultModel.axisBasis.down, '-Y');
 assert.equal(defaultModel.axisBasis.northSourceAxis, '-X');
 assert.equal(defaultModel.axisBasis.northEngineeringDirection, 'NORTH');
-assert.equal(defaultModel.mapperColumns.includes('supportTag'), true);
-assert.equal(defaultModel.mapperColumns.includes('graphicsRule'), true);
-assert.equal(defaultModel.mapperColumns.includes('gap'), true);
+assert.deepEqual(defaultModel.mapperColumns, ['fieldPurpose', 'sourceFieldCandidates', 'normalizedOutput', 'graphicsRule', 'axisBasis']);
+assert.equal(defaultModel.mapperRows.some((row) => row.fieldPurpose === 'supportTag' && row.normalizedOutput === 'supportTag'), true);
+assert.equal(defaultModel.mapperRows.some((row) => row.fieldPurpose === 'supportKind' && row.graphicsRule.includes('REST')), true);
+assert.equal(defaultModel.mapperRows.some((row) => row.fieldPurpose === 'graphicsRule' && row.normalizedOutput === 'graphicsRule'), true);
+assert.equal(defaultModel.mapperRows.some((row) => row.fieldPurpose === 'gap' && row.sourceFieldCandidates.includes('*GAP*')), true);
+assert.equal(defaultModel.axisBasisRows.find((row) => row.sourceAxis === '+Y')?.engineeringDirection, 'UP');
+assert.equal(defaultModel.axisBasisRows.find((row) => row.sourceAxis === '-Y')?.engineeringDirection, 'DOWN');
+assert.equal(defaultModel.axisBasisRows.find((row) => row.sourceAxis === '-X')?.engineeringDirection, 'NORTH');
+
+const explicitRows = buildManagedStageSupportMapperUiRows({
+  fieldMapper: {
+    supportTagFields: ['PS_NO'],
+    supportKindFields: ['SUPPORT_TAG'],
+    graphicsRuleFields: ['RULE'],
+    gapFields: ['SUPPORT_GAP_MM', '*GAP*']
+  }
+});
+assert.deepEqual(explicitRows.find((row) => row.fieldPurpose === 'supportTag')?.sourceFieldCandidates, ['PS_NO']);
+assert.deepEqual(explicitRows.find((row) => row.fieldPurpose === 'supportKind')?.sourceFieldCandidates, ['SUPPORT_TAG']);
+assert.deepEqual(explicitRows.find((row) => row.fieldPurpose === 'graphicsRule')?.sourceFieldCandidates, ['RULE']);
+
+const axisRows = buildManagedStageSupportAxisBasisRows(defaultModel.axisBasis.basis);
+assert.equal(axisRows.length, 6);
+assert.equal(axisRows.find((row) => row.sourceAxis === '-X')?.canvasAxis, '-X');
 
 const customNorth = buildManagedStageSupportSourceUiModel({ sourceMode: 'isonote', northSourceAxis: '+Z' });
 assert.equal(customNorth.sourceMode, MANAGED_STAGE_SUPPORT_SOURCE_MODES.ISONOTE);
 assert.equal(customNorth.axisBasis.northSourceAxis, '+Z');
 assert.equal(customNorth.axisBasis.northCanvasAxis, '+Z');
+assert.equal(customNorth.axisBasis.northEngineeringDirection, 'NORTH');
+assert.equal(customNorth.axisBasisRows.find((row) => row.sourceAxis === '+Z')?.engineeringDirection, 'NORTH');
 assert.equal(customNorth.legacyFlags.renderExpectedSupport, true);
 assert.equal(customNorth.legacyFlags.renderActualSupport, false);
 

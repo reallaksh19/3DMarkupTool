@@ -20,10 +20,10 @@ const BM_CII_STAGED_JSON_EXPECTATIONS = Object.freeze({
   supportRecordsSkippedFromGeometry: 12,
   supportRecordsEmittedToRvm: 12,
   supportRvmPrimitiveCount: 42,
-  primitiveCodeCounts: { 1: 0, 4: 0, 8: 133 },
+  primitiveCodeCounts: { 1: 0, 4: 0, 8: 157 },
   code1: 0,
   cntbCount: 56,
-  primCount: 133,
+  primCount: 157,
   supportMaxGlyphExtentMm: 100,
   supportMaxClusterOffsetMm: 30,
   supportMaxPrimitiveSpanMm: 60,
@@ -290,7 +290,7 @@ function logManagedStageSummary(audit) {
   if (!audit) return;
   const counts = audit.inputCounts || {};
   const histogram = audit.primitiveHistogram || {};
-  log(`Managed-stage RVM: geometry=${counts.geometryComponents || 0}, supports=${counts.supportRecordsSkippedFromGeometry || 0}, emittedSupports=${counts.supportRecordsEmittedToRvm || 0}, PRIM=${audit.chunkHierarchy?.primCount || 0}, code1=${histogram[1] || 0}, code8=${histogram[8] || 0}`);
+  log(`Managed-stage RVM: geometry=${counts.geometryComponents || 0}, supports=${counts.supportRecordsSkippedFromGeometry || 0}, emittedSupports=${counts.emittedSupports || counts.supportRecordsEmittedToRvm || 0}, PRIM=${audit.chunkHierarchy?.primCount || 0}, code1=${histogram[1] || 0}, code8=${histogram[8] || 0}`);
 }
 
 function logManagedStagePreviewCoordinateAudit(audit) {

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
-const ACTIVE_CACHE_KEY = 'support-debug-log-20260623';
+const ACTIVE_CACHE_KEY = 'support-profile-source-bridge-20260624';
 const SOURCE_INDEX_CACHE_KEY = 'app-boot-dialog-conversion-hotfix-20260623';
 
 const buildScript = readFileSync(new URL('../scripts/build-pages.mjs', import.meta.url), 'utf8');
@@ -19,11 +19,14 @@ assert.match(buildScript, /assets\/app\.bundle\.js/, 'Pages build must write the
 assert.match(buildScript, /assets\/static-shell\.bundle\.js/, 'Pages build must write the shell bundle.');
 assert.match(buildScript, /stripVersionQueryPlugin/, 'Pages build must strip cache query suffixes from local source imports.');
 assert.match(buildScript, /id === 'three' \|\| id === 'lucide' \|\| id\.startsWith\('three\/'\)/, 'Rollup build must keep CDN/importmap vendor modules external.');
-assert.match(buildScript, new RegExp(`const VERSION = '${ACTIVE_CACHE_KEY}'`), 'Pages bundle cache key must expose the active support debug log release.');
+assert.match(buildScript, new RegExp(`const VERSION = '${ACTIVE_CACHE_KEY}'`), 'Pages bundle cache key must expose the active profile support source bridge release.');
 assert.match(buildScript, /LEGACY_CACHE_KEYS = Object\.freeze\(\[/, 'Pages build must keep an explicit list of cache keys rewritten from source index.');
 assert.match(buildScript, new RegExp(SOURCE_INDEX_CACHE_KEY), 'Pages build must rewrite the current source index cache key.');
-assert.match(appLoader, new RegExp(`APP_LOADER_VERSION = '${ACTIVE_CACHE_KEY}'`), 'App loader cache key must expose the active support debug log release.');
+assert.match(buildScript, /support-debug-log-20260623/, 'Pages build must rewrite the prior support debug log cache key.');
+assert.match(appLoader, new RegExp(`APP_LOADER_VERSION = '${ACTIVE_CACHE_KEY}'`), 'App loader cache key must expose the active profile support source bridge release.');
 assert.match(appLoader, /MANAGED_STAGE_JSON_UI_MODULE_URL = `\.\/managed-stage-json-ui-controller\.js\?v=\$\{APP_LOADER_VERSION\}`/, 'Managed-stage JSON UI controller must be cache-busted through the active app loader key.');
+assert.match(appLoader, /MANAGED_STAGE_SUPPORT_SOURCE_PREVIEW_MODULE_URL/, 'App loader must load the support source preview bridge.');
+assert.match(appLoader, /MANAGED_STAGE_PROFILE_SUPPORT_SOURCE_BRIDGE_MODULE_URL/, 'App loader must load the profile support source bridge before auto-apply.');
 assert.match(appLoader, /MANAGED_STAGE_SUPPORT_PREVIEW_AUTO_APPLY_MODULE_URL/, 'App loader must load the support preview auto-apply bridge.');
 assert.match(appLoader, /MANAGED_STAGE_SUPPORT_DEBUG_LOG_MODULE_URL/, 'App loader must load the support debug log dumper.');
 

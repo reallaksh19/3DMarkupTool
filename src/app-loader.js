@@ -1,4 +1,4 @@
-const APP_LOADER_VERSION = 'support-debug-log-20260623';
+const APP_LOADER_VERSION = 'support-profile-source-bridge-20260624';
 const APP_MODULE_URL = `./app.js?v=${APP_LOADER_VERSION}`;
 const CLIP_HOOK_MODULE_URL = `./clip-render-hook.js?v=${APP_LOADER_VERSION}`;
 const FRESH_CLIP_MODULE_URL = `./fresh-clip-controller.js?v=${APP_LOADER_VERSION}`;
@@ -11,6 +11,7 @@ const MANAGED_STAGE_INPUTXML_CLASSIFICATION_GUARD_MODULE_URL = `./managed-stage-
 const MANAGED_STAGE_GEOMETRY_LEDGER_MODULE_URL = `./managed-stage-geometry-ledger.js?v=${APP_LOADER_VERSION}`;
 const MANAGED_STAGE_SUPPORT_SOURCE_UI_MODULE_URL = `./managed-stage-support-source-ui-controller.js?v=${APP_LOADER_VERSION}`;
 const MANAGED_STAGE_SUPPORT_SOURCE_PREVIEW_MODULE_URL = `./managed-stage-support-source-preview-bridge.js?v=${APP_LOADER_VERSION}`;
+const MANAGED_STAGE_PROFILE_SUPPORT_SOURCE_BRIDGE_MODULE_URL = `./managed-stage-profile-support-source-bridge.js?v=${APP_LOADER_VERSION}`;
 const MANAGED_STAGE_SUPPORT_PREVIEW_AUTO_APPLY_MODULE_URL = `./managed-stage-support-preview-auto-apply.js?v=${APP_LOADER_VERSION}`;
 const MANAGED_STAGE_SUPPORT_DEBUG_LOG_MODULE_URL = `./managed-stage-support-debug-log.js?v=${APP_LOADER_VERSION}`;
 const MANAGED_STAGE_SUPPORT_MAPPER_DIAGNOSTICS_UI_MODULE_URL = `./managed-stage-support-mapper-diagnostics-ui.js?v=${APP_LOADER_VERSION}`;
@@ -137,6 +138,7 @@ function loadManagedStageJsonUiController() {
     .then(() => import(MANAGED_STAGE_GEOMETRY_LEDGER_MODULE_URL))
     .then(() => import(MANAGED_STAGE_SUPPORT_SOURCE_UI_MODULE_URL))
     .then(() => import(MANAGED_STAGE_SUPPORT_SOURCE_PREVIEW_MODULE_URL))
+    .then(() => import(MANAGED_STAGE_PROFILE_SUPPORT_SOURCE_BRIDGE_MODULE_URL))
     .then(() => import(MANAGED_STAGE_SUPPORT_PREVIEW_AUTO_APPLY_MODULE_URL))
     .then(() => import(MANAGED_STAGE_SUPPORT_DEBUG_LOG_MODULE_URL))
     .then(() => import(MANAGED_STAGE_SUPPORT_MAPPER_DIAGNOSTICS_UI_MODULE_URL))

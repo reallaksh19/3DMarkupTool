@@ -192,7 +192,16 @@
   margin: 8px 10px 10px;
 }
 
-.conversion-options-compat-root { display: none !important; }
+/* Compatibility-only controls are retained for old controllers/tests but must
+ * never consume visible drawer space in the workflow-card layout.
+ */
+body:not(.conversion-expanded) #inputDrawer .conversion-options-compat-root .conversion-collapsible-content,
+body:not(.conversion-expanded) #inputDrawer .conversion-collapsible-content,
+body:not(.sideload-expanded) #inputDrawer .conversion-options-compat-root .sideload-collapsible-content,
+body:not(.sideload-expanded) #inputDrawer .sideload-collapsible-content,
+.conversion-options-compat-root {
+  display: none !important;
+}
 
 #closeInputBtn[hidden] { display: none; }
 

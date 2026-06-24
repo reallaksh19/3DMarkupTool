@@ -24,8 +24,9 @@ assert.match(index, new RegExp(`static-shell-performance\\.css\\?v=(${rootCacheK
 assert.match(index, /id="topReviewMenu"[\s\S]*review-top-menu-btn/, 'Top Review menu slot must be statically reserved before JS decorates it.');
 assert.match(index, /id="staticReviewRibbonGroup"/, 'Review ribbon group must be statically reserved before JS decorates it.');
 assert.match(index, /class="tool-group toolbar-group navis-tag-tools tag-lite-host static-markup-tools"/, 'Markup row host must be statically present before JS decorates it.');
-assert.match(index, /data-collapsible="conversion"/, 'Conversion section must be marked collapsible in raw HTML.');
-assert.match(index, /data-collapsible="sideload"/, 'Sideload section must be marked collapsible in raw HTML.');
+assert.match(index, /data-section="support-mapping"/, 'Support mapping workflow card must be statically present.');
+assert.match(index, /conversionOptionsCompatRoot/, 'Legacy controller compatibility controls must remain hidden in raw HTML.');
+assert.doesNotMatch(index, /data-collapsible="sideload"/, 'Visible sideload collapsible section must be removed from the workflow drawer.');
 assert.match(startupScriptBlock, /app-loader/, 'Index must use a lightweight post-paint app loader.');
 assert.doesNotMatch(startupScriptBlock, /src="\.\/src\/app\.js/, 'Index must not evaluate app.js directly during the LCP window.');
 assert.doesNotMatch(startupScriptBlock, /src="\.\/src\/fresh-clip-controller\.js/, 'Fresh clip controller must not run as a top-level pre-LCP module.');
@@ -35,6 +36,8 @@ assert.match(perfCss, /\.viewer-topbar \.markup-ribbon[\s\S]*min-height:\s*52px/
 assert.match(perfCss, /\.viewer-topbar \.markup-ribbon:has\(\.navis-tag-tools:empty\)[\s\S]*display:\s*flex/, 'Static performance CSS must override the base hidden-empty markup row rule.');
 assert.match(perfCss, /#staticReviewRibbonGroup:empty[\s\S]*min-width:\s*116px/, 'Review ribbon placeholder must reserve first-paint width.');
 assert.match(perfCss, /\.topbar-actions \.top-menu-wrap[\s\S]*min-width:\s*86px/, 'Top Review menu must reserve first-paint width.');
+assert.match(perfCss, /#inputDrawer \.workflow-card[\s\S]*display:\s*grid/, 'Workflow cards must reserve first-paint layout.');
+assert.match(perfCss, /conversion-options-compat-root\s*\{\s*display:\s*none\s*!important/, 'Compatibility controls must stay out of the visible drawer.');
 assert.doesNotMatch(perfCss, /\.markup-ribbon:has\(\.navis-tag-tools:empty\)\s*\{\s*display:\s*none/, 'Markup ribbon must not be hidden while waiting for JS.');
 
 assert.match(appLoader, /requestAnimationFrame/, 'App loader must yield paint frames before importing app.js.');
@@ -68,15 +71,12 @@ assert.ok(staticShellImports >= 25, `Bootstrap should still reference source-mod
 assert.doesNotMatch(drawerSummary, /new MutationObserver/, 'Drawer summary must not observe log DOM mutations.');
 assert.doesNotMatch(drawerSummary, /document\.createElement\(['"]section['"]\)/, 'Drawer summary must not create late summary cards.');
 assert.doesNotMatch(drawerSummary, /appendChild\(style\)|createElement\(['"]style['"]\)/, 'Drawer summary must not inject runtime CSS.');
-
 assert.match(appBundleEntry, /await import\('\.\/app\.js'\)/, 'App bundle entry must include app.js through Rollup dynamic inlining.');
 assert.match(appBundleEntry, /clip-render-hook\.js/, 'App bundle entry must include the clip hook before app boot.');
 assert.match(shellBundleEntry, /static-tree-core-controller\.js/, 'Static shell bundle entry must include tree core controller.');
 assert.doesNotMatch(shellBundleEntry, /static-browser-diagnostics-controller\.js/, 'Heavy browser diagnostics must stay outside the static shell bundle.');
 assert.doesNotMatch(shellBundleEntry, /static-drawer-summary-controller\.js/, 'Drawer summary must stay outside the default shell bundle.');
-
 assert.doesNotMatch(topbarLayout, /setInterval\(/, 'Topbar layout controller must not poll or repeatedly force layout.');
 assert.match(topbarLayout, /shouldEnableFullTopbarLayout/, 'Topbar layout polishing must be opt-in rather than default layout mutation.');
 assert.match(pkg.scripts.test, /static-shell-performance-budget\.test\.mjs/, 'npm test must include the static shell performance budget gate.');
-
 console.log('static shell performance budget gate passed');

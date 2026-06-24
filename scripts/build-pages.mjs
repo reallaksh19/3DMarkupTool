@@ -6,7 +6,7 @@ import { rollup } from 'rollup';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const SITE_DIR = path.join(ROOT, '_site');
 const ASSET_DIR = path.join(SITE_DIR, 'assets');
-const VERSION = 'support-od-offset-human-scale-20260624';
+const VERSION = 'support-cone-can-catalogue-20260624';
 const LEGACY_CACHE_KEYS = Object.freeze([
   'tool-fixes-v2-20260620',
   'support-ui-render-export-fix-20260623',
@@ -15,7 +15,8 @@ const LEGACY_CACHE_KEYS = Object.freeze([
   'support-debug-log-20260623',
   'support-profile-source-bridge-20260624',
   'support-visibility-boost-20260624',
-  'support-human-visible-scale-20260624'
+  'support-human-visible-scale-20260624',
+  'support-od-offset-human-scale-20260624'
 ]);
 
 await rm(SITE_DIR, { recursive: true, force: true });

@@ -4,95 +4,25 @@ import { readFileSync } from 'node:fs';
 const collapseController = readFileSync('src/static-input-conversion-collapse-controller.js', 'utf8');
 const staticShellCss = readFileSync('src/static-shell-performance.css', 'utf8');
 const bootstrap = readFileSync('src/safe-ui-bootstrap.js', 'utf8');
+const index = readFileSync('index.html', 'utf8');
 
-assert.match(
-  collapseController,
-  /ensureInputAlwaysExpanded\(\)/,
-  'Input drawer collapse controller must explicitly keep the Input section expanded.'
-);
+assert.match(collapseController, /ensureInputAlwaysExpanded\(\)/, 'Input drawer collapse controller must explicitly keep the Input section expanded.');
+assert.match(collapseController, /section\.dataset\.section\s*=\s*['"]input['"]/, 'Input section must be tagged as data-section="input" for non-positional CSS overrides.');
+assert.match(collapseController, /layoutOwner:\s*['"]static-css['"]|section\.dataset\.layoutOwner\s*=\s*['"]static-css['"]/, 'Collapse controller must declare static CSS as the layout owner.');
+assert.doesNotMatch(collapseController, /sections\s*\[\s*1\s*\]/, 'Collapse logic must not use positional section fallback; summary cards can change section indexes.');
+assert.doesNotMatch(collapseController, /document\.createElement\(['"]style['"]\)|style\.textContent|appendChild\(style\)/, 'Collapse controller must not inject layout CSS at runtime; layout belongs to static CSS.');
 
-assert.match(
-  collapseController,
-  /section\.dataset\.section\s*=\s*['"]input['"]/, 
-  'Input section must be tagged as data-section="input" for non-positional CSS overrides.'
-);
+assert.match(index, /data-section="input"/, 'Workflow drawer must keep an explicit input section.');
+assert.match(index, /data-section="support-mapping"/, 'Workflow drawer must expose a support mapping card.');
+assert.match(index, /data-section="conversion"/, 'Workflow drawer must expose a convert card.');
+assert.match(index, /data-section="export"/, 'Workflow drawer must expose an export card.');
+assert.match(index, /conversionOptionsCompatRoot[\s\S]*hidden/, 'Legacy conversion and sideload controls must remain hidden for controller compatibility.');
+assert.doesNotMatch(index, /data-collapsible="sideload"/, 'Visible sideload collapsible section must not return to the drawer.');
 
-assert.match(
-  collapseController,
-  /layoutOwner:\s*['"]static-css['"]|section\.dataset\.layoutOwner\s*=\s*['"]static-css['"]/,
-  'Collapse controller must declare static CSS as the layout owner.'
-);
+assert.match(staticShellCss, /workflow-card\[data-section="input"\]\s*>\s*\.file-drop[\s\S]*display:\s*grid\s*!important/, 'Input file drop must override older cached positional collapse CSS through workflow-card marker CSS.');
+assert.match(staticShellCss, /workflow-card\[data-section="input"\]\s*>\s*\.input-primary-actions[\s\S]*display:\s*flex\s*!important/, 'Input action row must remain visible and one-row through static workflow CSS.');
+assert.match(staticShellCss, /conversion-options-compat-root\s*\{\s*display:\s*none\s*!important/, 'Hidden compatibility controls must not consume visible drawer space.');
+assert.match(staticShellCss, /#inputDrawer \.workflow-card[\s\S]*display:\s*grid/, 'Workflow cards must reserve stable first-paint layout.');
 
-assert.match(
-  collapseController,
-  /bindCollapsibleSection\(section, 'conversion'/,
-  'Conversion section must be tagged explicitly as a collapsible drawer section.'
-);
-
-assert.match(
-  collapseController,
-  /setSectionExpanded\('conversion', false\)/,
-  'Conversion settings must initialize collapsed.'
-);
-
-assert.match(
-  collapseController,
-  /initSideloadSection/,
-  'Sideload section must have an explicit collapse initializer.'
-);
-
-assert.match(
-  collapseController,
-  /bindCollapsibleSection\(section, 'sideload'/,
-  'Sideload section must be tagged explicitly as a collapsible drawer section.'
-);
-
-assert.match(
-  collapseController,
-  /setSectionExpanded\('sideload', false\)/,
-  'Sideload Data must initialize collapsed so it does not consume the input drawer.'
-);
-
-assert.doesNotMatch(
-  collapseController,
-  /sections\s*\[\s*1\s*\]/,
-  'Collapse logic must not use positional section fallback; summary cards can change section indexes.'
-);
-
-assert.doesNotMatch(
-  collapseController,
-  /document\.createElement\(['"]style['"]\)|style\.textContent|appendChild\(style\)/,
-  'Collapse controller must not inject layout CSS at runtime; layout belongs to static CSS.'
-);
-
-assert.match(
-  staticShellCss,
-  /panel-section\[data-section="input"\]\s*>\s*\.file-drop[\s\S]*display:\s*grid\s*!important/,
-  'Input file drop must override older cached positional collapse CSS through static marker CSS.'
-);
-
-assert.match(
-  staticShellCss,
-  /panel-section\[data-section="input"\]\s*>\s*\.input-primary-actions[\s\S]*display:\s*flex\s*!important/,
-  'Input action row must remain visible and one-row through static marker CSS.'
-);
-
-assert.match(
-  staticShellCss,
-  /data-collapsible="conversion"\]\s*>\s*\.conversion-collapsible-content[\s\S]*display:\s*none\s*!important/,
-  'Conversion settings must be hidden through explicit conversion marker while collapsed.'
-);
-
-assert.match(
-  staticShellCss,
-  /data-collapsible="sideload"\]\s*>\s*\.sideload-collapsible-content[\s\S]*display:\s*none\s*!important/,
-  'Sideload fields must be hidden through explicit sideload marker while collapsed.'
-);
-
-assert.match(
-  bootstrap,
-  /phase4a-static-input-panel-cleanup-20260619|phase4-global-esc-lifecycle-20260619|esc-tools-export-icons-20260619|perf-static-shell-20260620/,
-  'Safe UI bootstrap version must remain cache-busted so browsers fetch fixed drawer, view-pad, ESC, export, icon, and static-shell controllers.'
-);
-
-console.log('input drawer collapse contract passed');
+assert.match(bootstrap, /phase4a-static-input-panel-cleanup-20260619|phase4-global-esc-lifecycle-20260619|esc-tools-export-icons-20260619|perf-static-shell-20260620/, 'Safe UI bootstrap version must remain cache-busted so browsers fetch fixed drawer, view-pad, ESC, export, icon, and static-shell controllers.');
+console.log('input drawer workflow-card contract passed');

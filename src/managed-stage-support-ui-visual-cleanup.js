@@ -1,13 +1,13 @@
 import * as THREE from 'three';
 
-export const MANAGED_STAGE_SUPPORT_UI_VISUAL_CLEANUP_SCHEMA = 'ManagedStageSupportUiVisualCleanup.v2';
-export const MANAGED_STAGE_SUPPORT_UI_VISUAL_CLEANUP_CACHE_KEY = '20260624-support-preview-disc-source-fix-1';
+export const MANAGED_STAGE_SUPPORT_UI_VISUAL_CLEANUP_SCHEMA = 'ManagedStageSupportUiVisualCleanup.v3';
+export const MANAGED_STAGE_SUPPORT_UI_VISUAL_CLEANUP_CACHE_KEY = '20260624-support-ringless-input-panel-1';
 
 export const SUPPORT_MAPPING_POPUP_POLISH_CSS = `
   .support-mapping-settings-popup {
-    width: min(1480px, calc(100vw - 28px)) !important;
+    width: min(1560px, calc(100vw - 28px)) !important;
     max-width: calc(100vw - 28px) !important;
-    max-height: min(90vh, 940px) !important;
+    max-height: min(92vh, 980px) !important;
     padding: 18px !important;
   }
   .support-mapping-settings-popup-header {
@@ -19,19 +19,19 @@ export const SUPPORT_MAPPING_POPUP_POLISH_CSS = `
   }
   .support-mapping-settings-popup-header small {
     display: block !important;
-    max-width: 1220px !important;
+    max-width: 1320px !important;
     line-height: 1.45 !important;
     color: #dbeafe !important;
   }
   .support-mapping-settings-popup-grid {
-    grid-template-columns: minmax(260px, .72fr) minmax(420px, 1.22fr) minmax(520px, 1.55fr) !important;
+    grid-template-columns: minmax(280px, .72fr) minmax(460px, 1.25fr) minmax(560px, 1.6fr) !important;
     gap: 16px !important;
   }
   .support-mapping-settings-popup-grid > section {
     padding: 14px !important;
   }
   .support-mapping-settings-popup-grid textarea {
-    min-height: 132px !important;
+    min-height: 150px !important;
   }
   [data-support-settings-mapper-host] details,
   [data-support-settings-mapper-host] pre,
@@ -93,8 +93,8 @@ export function cleanupManagedStageSupportPreview(modelRoot, options = {}) {
   let supportRootCount = 0;
   let supportPartCount = 0;
   let raycastDisabledCount = 0;
-  let coneOpenEndedReplacedCount = 0;
-  let cappedCylinderOpenEndedReplacedCount = 0;
+  let coneFacetedOpenReplacedCount = 0;
+  let cylinderBoxPrismReplacedCount = 0;
   let canCapPickDisabledCount = 0;
 
   modelRoot.traverse((object) => {
@@ -109,11 +109,11 @@ export function cleanupManagedStageSupportPreview(modelRoot, options = {}) {
     if (disableSupportPicking(object)) raycastDisabledCount += 1;
 
     if (isSupportPart && object?.isMesh && isSupportConeMesh(object)) {
-      if (replaceClosedConeWithOpenCone(object)) coneOpenEndedReplacedCount += 1;
+      if (replaceSupportConeWithFacetedOpenCone(object)) coneFacetedOpenReplacedCount += 1;
     }
 
-    if (isSupportPart && object?.isMesh && isSupportCappedCylinderMesh(object)) {
-      if (replaceCappedCylinderWithOpenCylinder(object)) cappedCylinderOpenEndedReplacedCount += 1;
+    if (isSupportPart && object?.isMesh && isSupportRoundCylinderMesh(object)) {
+      if (replaceSupportCylinderWithBoxPrism(object)) cylinderBoxPrismReplacedCount += 1;
     }
 
     if (isSupportPart && data.supportSpringCanCylinder === true && disableSupportPicking(object)) {
@@ -126,11 +126,15 @@ export function cleanupManagedStageSupportPreview(modelRoot, options = {}) {
     supportRootCount,
     supportPartCount,
     raycastDisabledCount,
-    coneOpenEndedReplacedCount,
-    cappedCylinderOpenEndedReplacedCount,
-    discCapRemovedCount: coneOpenEndedReplacedCount + cappedCylinderOpenEndedReplacedCount,
+    coneFacetedOpenReplacedCount,
+    cylinderBoxPrismReplacedCount,
+    coneOpenEndedReplacedCount: coneFacetedOpenReplacedCount,
+    cappedCylinderOpenEndedReplacedCount: cylinderBoxPrismReplacedCount,
+    discCapRemovedCount: coneFacetedOpenReplacedCount + cylinderBoxPrismReplacedCount,
+    ringArtifactRemovedCount: coneFacetedOpenReplacedCount + cylinderBoxPrismReplacedCount,
     canCapPickDisabledCount,
-    whiteDiscCapPolicy: 'support preview cones and support preview cylinders are converted to open-ended geometry; circular end-cap discs are not rendered',
+    whiteDiscCapPolicy: 'support preview cones are converted to faceted open cones and support preview round cylinders are converted to box prisms; circular disc and annular ring artifacts are not rendered',
+    ringArtifactPolicy: 'normal REST/GUIDE/HOLDDOWN/LINE_STOP support glyphs must not use circular cap/rim geometry; spring coils are allowed only for SPRING_CAN below pipe',
     pickingPolicy: 'preview-only support overlays have raycast disabled so pipe/canvas clicks pass through'
   });
 
@@ -162,57 +166,67 @@ function cleanupAndPublish({ win, doc, modelRoot = null, reason = 'manual' } = {
   return result;
 }
 
-function replaceClosedConeWithOpenCone(mesh) {
+function replaceSupportConeWithFacetedOpenCone(mesh) {
   const geometry = mesh.geometry;
   const params = geometry?.parameters || {};
   if (geometry?.type !== 'ConeGeometry') return false;
-  if (params.openEnded === true || mesh.userData?.supportConeBaseCapRemoved === true) return false;
+  const alreadyRingless = mesh.userData?.supportConeAnnularRimRemoved === true
+    && params.openEnded === true
+    && Number(params.radialSegments || 0) <= 6;
+  if (alreadyRingless) return false;
 
   const next = new THREE.ConeGeometry(
     Number(params.radius || mesh.userData?.supportConeRadiusMm || 1),
     Number(params.height || mesh.userData?.supportConeLengthMm || 1),
-    Number(params.radialSegments || 24),
+    6,
     Number(params.heightSegments || 1),
     true,
     Number(params.thetaStart || 0),
     Number(params.thetaLength || Math.PI * 2)
   );
-  next.name = geometry.name || `${mesh.name || 'support-cone'}_OPEN_ENDED_GEOMETRY`;
+  next.name = geometry.name || `${mesh.name || 'support-cone'}_FACETED_OPEN_GEOMETRY`;
   geometry.dispose?.();
   mesh.geometry = next;
   mesh.userData = {
     ...(mesh.userData || {}),
     supportConeOpenEnded: true,
     supportConeBaseCapRemoved: true,
-    supportWhiteDiscCapRemoved: true
+    supportConeAnnularRimRemoved: true,
+    supportWhiteDiscCapRemoved: true,
+    supportRingArtifactRemoved: true,
+    supportConeRadialSegments: 6,
+    supportNoCircularConeRim: true
   };
   return true;
 }
 
-function replaceCappedCylinderWithOpenCylinder(mesh) {
+function replaceSupportCylinderWithBoxPrism(mesh) {
   const geometry = mesh.geometry;
   const params = geometry?.parameters || {};
   if (geometry?.type !== 'CylinderGeometry') return false;
-  if (params.openEnded === true || mesh.userData?.supportCylinderCapRemoved === true) return false;
+  if (mesh.userData?.supportCylinderReplacedByBoxPrism === true) return false;
+  if (mesh.userData?.supportSpringCanCoil === true) return false;
 
-  const next = new THREE.CylinderGeometry(
-    Number(params.radiusTop || 1),
-    Number(params.radiusBottom || params.radiusTop || 1),
-    Number(params.height || 1),
-    Number(params.radialSegments || 12),
-    Number(params.heightSegments || 1),
-    true,
-    Number(params.thetaStart || 0),
-    Number(params.thetaLength || Math.PI * 2)
+  const radius = Math.max(
+    Number(params.radiusTop || 0),
+    Number(params.radiusBottom || 0),
+    Number(mesh.userData?.supportCanRadiusMm || 0),
+    1
   );
-  next.name = geometry.name || `${mesh.name || 'support-cylinder'}_OPEN_ENDED_GEOMETRY`;
+  const height = Number(params.height || mesh.userData?.supportCanLengthMm || mesh.userData?.supportConeLengthMm || 1);
+  const side = Math.max(radius * 1.55, 1);
+  const next = new THREE.BoxGeometry(side, Math.max(height, 0.001), side);
+  next.name = geometry.name || `${mesh.name || 'support-cylinder'}_BOX_PRISM_GEOMETRY`;
   geometry.dispose?.();
   mesh.geometry = next;
   mesh.userData = {
     ...(mesh.userData || {}),
     supportCylinderOpenEnded: true,
     supportCylinderCapRemoved: true,
-    supportWhiteDiscCapRemoved: true
+    supportCylinderReplacedByBoxPrism: true,
+    supportWhiteDiscCapRemoved: true,
+    supportRingArtifactRemoved: true,
+    supportNoCircularCylinderRim: true
   };
   return true;
 }
@@ -237,11 +251,12 @@ function isSupportConeMesh(mesh) {
     && (data.supportDirectionalCone === true || data.supportWarningCone === true || data.supportConeCatalogue === true || data.supportVisualGeometry === 'cone-and-can-support-glyphs');
 }
 
-function isSupportCappedCylinderMesh(mesh) {
+function isSupportRoundCylinderMesh(mesh) {
   const data = mesh?.userData || {};
   return mesh?.geometry?.type === 'CylinderGeometry'
     && data.managedStageSupportVisualPart === true
-    && (data.supportSpringCanCylinder === true || data.clusterOffsetConnector === true || data.fallbackCrossRod === true || data.supportVisualGeometry === 'cone-and-can-support-glyphs');
+    && !data.supportSpringCanCoil
+    && (data.supportSpringCanCylinder === true || data.supportCanCylinder === true || data.supportHangerRod === true || data.clusterOffsetConnector === true || data.fallbackCrossRod === true || data.supportVisualGeometry === 'cone-and-can-support-glyphs');
 }
 
 function resolveModelRoot(win) {
@@ -252,7 +267,7 @@ function resolveModelRoot(win) {
 function appendCleanupLog(doc, result) {
   const log = doc?.getElementById?.('log');
   if (!log || result?.status !== 'applied') return;
-  const line = `[${new Date().toLocaleTimeString()}] Support cleanup: discCapsRemoved=${Number(result.discCapRemovedCount || 0)}, coneCapsRemoved=${Number(result.coneOpenEndedReplacedCount || 0)}, cylinderCapsRemoved=${Number(result.cappedCylinderOpenEndedReplacedCount || 0)}, pickingDisabled=${Number(result.raycastDisabledCount || 0)}, popup=wide`;
+  const line = `[${new Date().toLocaleTimeString()}] Support cleanup: discCapsRemoved=${Number(result.discCapRemovedCount || 0)}, ringArtifactsRemoved=${Number(result.ringArtifactRemovedCount || 0)}, facetedCones=${Number(result.coneFacetedOpenReplacedCount || 0)}, boxPrisms=${Number(result.cylinderBoxPrismReplacedCount || 0)}, pickingDisabled=${Number(result.raycastDisabledCount || 0)}, popup=wide`;
   log.textContent = `${log.textContent || ''}${log.textContent ? '\n' : ''}${line}`;
   log.scrollTop = log.scrollHeight;
 }

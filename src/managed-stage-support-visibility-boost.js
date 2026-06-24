@@ -1,15 +1,16 @@
-export const MANAGED_STAGE_SUPPORT_VISIBILITY_BOOST_SCHEMA = 'ManagedStageSupportVisibilityBoost.v1';
-export const MANAGED_STAGE_SUPPORT_VISIBILITY_BOOST_CACHE_KEY = '20260624-support-visibility-boost-1';
+export const MANAGED_STAGE_SUPPORT_VISIBILITY_BOOST_SCHEMA = 'ManagedStageSupportVisibilityBoost.v2';
+export const MANAGED_STAGE_SUPPORT_VISIBILITY_BOOST_CACHE_KEY = '20260624-support-human-visible-scale-1';
 
 const DEFAULT_BOOST_POLICY = Object.freeze({
-  minRadialScale: 2.8,
-  maxRadialScale: 4.5,
-  supportRenderOrder: 850,
-  supportRootRenderOrder: 840,
+  minRadialScale: 10,
+  maxRadialScale: 14,
+  supportRenderOrder: 1250,
+  supportRootRenderOrder: 1240,
   opacity: 1,
-  emissiveIntensity: 0.28,
+  emissiveIntensity: 0.42,
   depthTest: false,
-  depthWrite: false
+  depthWrite: false,
+  humanReadableScaleFactor: 10
 });
 
 export function boostManagedStageSupportVisibility(modelRoot, options = {}) {
@@ -32,12 +33,14 @@ export function boostManagedStageSupportVisibility(modelRoot, options = {}) {
       ...(root.userData || {}),
       supportVisibilityBoostApplied: true,
       supportVisibilityBoostSchema: MANAGED_STAGE_SUPPORT_VISIBILITY_BOOST_SCHEMA,
-      supportVisibilityBoostCacheKey: MANAGED_STAGE_SUPPORT_VISIBILITY_BOOST_CACHE_KEY
+      supportVisibilityBoostCacheKey: MANAGED_STAGE_SUPPORT_VISIBILITY_BOOST_CACHE_KEY,
+      supportVisibilityHumanScaleFactor: policy.humanReadableScaleFactor
     };
   }
 
   let materialBoostedCount = 0;
   let radialScaleBoostedCount = 0;
+  let maxAppliedRadialScale = 1;
   for (const part of parts) {
     part.visible = true;
     part.frustumCulled = false;
@@ -48,14 +51,22 @@ export function boostManagedStageSupportVisibility(modelRoot, options = {}) {
     }
     if (shouldThickenSupportPart(part)) {
       const before = { x: Number(part.scale?.x || 1), z: Number(part.scale?.z || 1) };
-      const nextScale = clampScale(Math.max(policy.minRadialScale, before.x, before.z), policy.maxRadialScale);
+      const targetScale = Math.max(
+        Number(policy.humanReadableScaleFactor || 10),
+        Number(policy.minRadialScale || 10),
+        before.x,
+        before.z
+      );
+      const nextScale = clampScale(targetScale, policy.maxRadialScale);
       part.scale.x = Math.max(part.scale.x || 1, nextScale);
       part.scale.z = Math.max(part.scale.z || 1, nextScale);
+      maxAppliedRadialScale = Math.max(maxAppliedRadialScale, nextScale);
       radialScaleBoostedCount += 1;
       part.userData = {
         ...(part.userData || {}),
         supportVisibilityRadialScaleBefore: before,
-        supportVisibilityRadialScaleApplied: nextScale
+        supportVisibilityRadialScaleApplied: nextScale,
+        supportVisibilityHumanScaleFactor: policy.humanReadableScaleFactor
       };
     }
     part.userData = {
@@ -63,7 +74,7 @@ export function boostManagedStageSupportVisibility(modelRoot, options = {}) {
       supportVisibilityBoostApplied: true,
       supportVisibilityBoostSchema: MANAGED_STAGE_SUPPORT_VISIBILITY_BOOST_SCHEMA,
       supportVisibilityBoostCacheKey: MANAGED_STAGE_SUPPORT_VISIBILITY_BOOST_CACHE_KEY,
-      supportVisibilityBoostPolicy: 'render-order + depth-safe material + radial thickening; no added primitives'
+      supportVisibilityBoostPolicy: 'render-order + depth-safe material + >=10x radial thickening; no added primitives'
     };
   }
 
@@ -74,7 +85,9 @@ export function boostManagedStageSupportVisibility(modelRoot, options = {}) {
     radialScaleBoostedCount,
     renderOrder: policy.supportRenderOrder,
     minRadialScale: policy.minRadialScale,
-    maxRadialScale: policy.maxRadialScale
+    maxRadialScale: policy.maxRadialScale,
+    humanReadableScaleFactor: policy.humanReadableScaleFactor,
+    maxAppliedRadialScale
   });
   modelRoot.userData = {
     ...(modelRoot.userData || {}),
@@ -109,7 +122,7 @@ function shouldThickenSupportPart(object) {
 }
 
 function clampScale(value, max) {
-  return Math.max(1, Math.min(Number(value) || 1, Number(max) || 4.5));
+  return Math.max(1, Math.min(Number(value) || 1, Number(max) || 14));
 }
 
 function visibilityResult(status, details = {}) {

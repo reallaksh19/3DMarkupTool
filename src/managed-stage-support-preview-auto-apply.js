@@ -1,7 +1,7 @@
-import { boostManagedStageSupportVisibility } from './managed-stage-support-visibility-boost.js?v=support-visibility-boost-20260624';
+import { boostManagedStageSupportVisibility } from './managed-stage-support-visibility-boost.js?v=support-human-visible-scale-20260624';
 
-export const MANAGED_STAGE_SUPPORT_PREVIEW_AUTO_APPLY_SCHEMA = 'ManagedStageSupportPreviewAutoApply.v3';
-export const MANAGED_STAGE_SUPPORT_PREVIEW_AUTO_APPLY_CACHE_KEY = '20260624-support-preview-auto-apply-3-visibility-boost';
+export const MANAGED_STAGE_SUPPORT_PREVIEW_AUTO_APPLY_SCHEMA = 'ManagedStageSupportPreviewAutoApply.v4';
+export const MANAGED_STAGE_SUPPORT_PREVIEW_AUTO_APPLY_CACHE_KEY = '20260624-support-preview-auto-apply-4-human-visible-scale';
 
 installManagedStageSupportPreviewAutoApply();
 
@@ -63,7 +63,9 @@ function applySupportPreviewNow({ win, doc, modelRoot = null, reason = 'manual' 
     visibilityBoostStatus: visibilityBoost?.status || '',
     visibilityBoostRootCount: Number(visibilityBoost?.rootCount || 0),
     visibilityBoostPartCount: Number(visibilityBoost?.partCount || 0),
-    visibilityBoostRadialScaleCount: Number(visibilityBoost?.radialScaleBoostedCount || 0)
+    visibilityBoostRadialScaleCount: Number(visibilityBoost?.radialScaleBoostedCount || 0),
+    visibilityBoostHumanScaleFactor: Number(visibilityBoost?.humanReadableScaleFactor || 0),
+    visibilityBoostMaxAppliedRadialScale: Number(visibilityBoost?.maxAppliedRadialScale || 0)
   });
   root.userData = {
     ...(root.userData || {}),

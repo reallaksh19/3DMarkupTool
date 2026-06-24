@@ -1,5 +1,7 @@
-export const MANAGED_STAGE_SUPPORT_PREVIEW_AUTO_APPLY_SCHEMA = 'ManagedStageSupportPreviewAutoApply.v2';
-export const MANAGED_STAGE_SUPPORT_PREVIEW_AUTO_APPLY_CACHE_KEY = '20260623-support-preview-auto-apply-2-debug-events';
+import { boostManagedStageSupportVisibility } from './managed-stage-support-visibility-boost.js?v=support-visibility-boost-20260624';
+
+export const MANAGED_STAGE_SUPPORT_PREVIEW_AUTO_APPLY_SCHEMA = 'ManagedStageSupportPreviewAutoApply.v3';
+export const MANAGED_STAGE_SUPPORT_PREVIEW_AUTO_APPLY_CACHE_KEY = '20260624-support-preview-auto-apply-3-visibility-boost';
 
 installManagedStageSupportPreviewAutoApply();
 
@@ -51,28 +53,35 @@ function applySupportPreviewNow({ win, doc, modelRoot = null, reason = 'manual' 
     mapperConfig: ui.mapperConfig,
     isonoteText
   });
+  const visibilityBoost = boostManagedStageSupportVisibility(root, { sourceMode, requestedBy: reason });
   const result = autoApplyResult('applied', {
     requestedBy: reason,
     sourceMode,
     supportSymbolCount: Number(bridgeResult?.diagnostics?.supportSymbolCount || bridgeResult?.supportSymbolCount || 0),
-    bridgeStatus: bridgeResult?.status || ''
+    supportVisualPartCount: Number(bridgeResult?.diagnostics?.supportVisualPartCount || 0),
+    bridgeStatus: bridgeResult?.status || '',
+    visibilityBoostStatus: visibilityBoost?.status || '',
+    visibilityBoostRootCount: Number(visibilityBoost?.rootCount || 0),
+    visibilityBoostPartCount: Number(visibilityBoost?.partCount || 0),
+    visibilityBoostRadialScaleCount: Number(visibilityBoost?.radialScaleBoostedCount || 0)
   });
   root.userData = {
     ...(root.userData || {}),
     managedStageSupportPreviewAutoApply: result
   };
   win?.__3D_MARKUP_VIEWER_RUNTIME__?.renderOnce?.(`support-preview-auto-apply:${reason}`);
-  return publishAutoApplyResult(win, root, result, bridgeResult);
+  return publishAutoApplyResult(win, root, result, bridgeResult, visibilityBoost);
 }
 
-function publishAutoApplyResult(win, modelRoot, result, bridgeResult = null) {
+function publishAutoApplyResult(win, modelRoot, result, bridgeResult = null, visibilityBoost = null) {
   if (win) {
     win.__3D_MARKUP_SUPPORT_PREVIEW_AUTO_APPLY_LAST_RESULT__ = result;
     win.dispatchEvent?.(new CustomEvent('managed-stage:support-preview-auto-apply-result', {
       detail: {
         ...result,
         modelRoot,
-        diagnostics: bridgeResult?.diagnostics || modelRoot?.userData?.managedStageSupportSourcePreview?.diagnostics || null
+        diagnostics: bridgeResult?.diagnostics || modelRoot?.userData?.managedStageSupportSourcePreview?.diagnostics || null,
+        visibilityBoost: visibilityBoost || modelRoot?.userData?.managedStageSupportVisibilityBoost || null
       }
     }));
   }

@@ -1,10 +1,11 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
-const ACTIVE_CACHE_KEY = 'support-profile-source-bridge-20260624';
+const ACTIVE_CACHE_KEY = 'support-visibility-boost-20260624';
 const SOURCE_INDEX_CACHE_KEY = 'app-boot-dialog-conversion-hotfix-20260623';
 const LEGACY_FIRST_PAINT_CACHE_KEY = 'tool-fixes-v2-20260620';
 const PRIOR_SUPPORT_DEBUG_CACHE_KEY = 'support-debug-log-20260623';
+const PRIOR_PROFILE_SUPPORT_CACHE_KEY = 'support-profile-source-bridge-20260624';
 const dateStampedKey = /^[a-z0-9-]+-20\d{6}$/;
 
 const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
@@ -51,7 +52,7 @@ for (const [name, source] of [
   ['build-pages.mjs', buildScript],
   ['app-loader.js', appLoader]
 ]) {
-  assert.match(source, escaped(ACTIVE_CACHE_KEY), `${name} must use the active profile support source bridge cache key`);
+  assert.match(source, escaped(ACTIVE_CACHE_KEY), `${name} must use the active support visibility boost cache key`);
   assert.doesNotMatch(source, /perf-static-drawer-bundle-20260620/, `${name} must not keep the prior static-drawer bundle key active`);
 }
 
@@ -64,6 +65,7 @@ for (const [name, source] of [
 assert.match(buildScript, /LEGACY_CACHE_KEYS = Object\.freeze\(\[/, 'Pages build must list source/deployed cache keys it rewrites');
 assert.match(buildScript, escaped(SOURCE_INDEX_CACHE_KEY), 'Pages build must rewrite the current source index cache key');
 assert.match(buildScript, escaped(PRIOR_SUPPORT_DEBUG_CACHE_KEY), 'Pages build must rewrite the previous deployed support debug cache key');
+assert.match(buildScript, escaped(PRIOR_PROFILE_SUPPORT_CACHE_KEY), 'Pages build must rewrite the previous profile support bridge cache key');
 assert.match(buildScript, escaped(ACTIVE_CACHE_KEY), 'Pages build must stamp the active deployed cache key');
 assert.match(diagnostics, /STALE_SHELL_VERSION = 'perf-static-drawer-bundle-20260620'/, 'diagnostics may retain the prior key only as stale-asset detection data');
 

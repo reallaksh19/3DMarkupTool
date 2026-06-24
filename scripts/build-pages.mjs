@@ -32,6 +32,8 @@ await buildBundle('src/app-bundle-entry.js', 'assets/app.bundle.js');
 await buildBundle('src/static-shell-bundle-entry.js', 'assets/static-shell.bundle.js');
 await injectBundleManifest();
 await assertFile(path.join(SITE_DIR, 'index.html'), 'Pages index artifact');
+await assertFile(path.join(ASSET_DIR, 'app.bundle.js'), 'Pages app bundle artifact');
+await assertFile(path.join(ASSET_DIR, 'static-shell.bundle.js'), 'Pages static shell bundle artifact');
 
 console.log('Built GitHub Pages artifact with bundled app/static shell assets.');
 
@@ -113,7 +115,6 @@ async function injectBundleManifest() {
   for (const key of LEGACY_CACHE_KEYS) html = html.replaceAll(`?v=${key}`, `?v=${VERSION}`);
   const scriptOpen = '<' + 'script>';
   const scriptClose = '<' + '/script>';
-  const moduleScriptAnchor = '  <' + 'script type="module" src="./src/render-context-prebridge.js';
   const manifest = [
     `<link rel="modulepreload" href="./assets/app.bundle.js?v=${VERSION}" />`,
     `<link rel="modulepreload" href="./assets/static-shell.bundle.js?v=${VERSION}" />`,
@@ -127,7 +128,20 @@ async function injectBundleManifest() {
   ].join('\n');
 
   if (!html.includes('__3D_MARKUP_BUNDLED_ASSETS__')) {
-    html = html.replace(moduleScriptAnchor, `${manifest}\n${moduleScriptAnchor}`);
+    const moduleScriptAnchors = [
+      '  <' + 'script type="module" src="./src/render-context-prebridge.js',
+      '  <' + 'script type="module" src="./src/safe-ui-bootstrap.js',
+      '  <' + 'script type="module" src="./src/app-loader.js'
+    ];
+    const anchor = moduleScriptAnchors.find((candidate) => html.includes(candidate));
+    if (!anchor) {
+      throw new Error('Pages bundle manifest injection anchor missing from index.html');
+    }
+    html = html.replace(anchor, `${manifest}\n${anchor}`);
+  }
+
+  if (!html.includes('__3D_MARKUP_BUNDLED_ASSETS__')) {
+    throw new Error('Pages bundle manifest marker missing after injection');
   }
 
   await writeFile(indexPath, html, 'utf8');

@@ -6,7 +6,7 @@ import { rollup } from 'rollup';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const SITE_DIR = path.join(ROOT, '_site');
 const ASSET_DIR = path.join(SITE_DIR, 'assets');
-const VERSION = 'support-preview-disc-source-fix-20260624';
+const VERSION = 'support-axis-transform-generalized-20260624';
 const LEGACY_CACHE_KEYS = Object.freeze([
   'tool-fixes-v2-20260620',
   'support-ui-render-export-fix-20260623',
@@ -18,7 +18,8 @@ const LEGACY_CACHE_KEYS = Object.freeze([
   'support-human-visible-scale-20260624',
   'support-od-offset-human-scale-20260624',
   'support-cone-can-catalogue-20260624',
-  'support-disc-click-popup-cleanup-20260624'
+  'support-disc-click-popup-cleanup-20260624',
+  'support-preview-disc-source-fix-20260624'
 ]);
 
 await rm(SITE_DIR, { recursive: true, force: true });
@@ -39,7 +40,7 @@ async function copyStaticSite(from, to) {
   for (const entry of entries) {
     const src = path.join(from, entry.name);
     const dest = path.join(to, entry.name);
-    const rel = path.relative(ROOT, src).replace(/\\/g, '/');
+    const rel = path.relative(ROOT, src).replace(/\/g, '/');
     if (
       rel === '.git' || rel.startsWith('.git/') ||
       rel === '.github' || rel.startsWith('.github/') ||

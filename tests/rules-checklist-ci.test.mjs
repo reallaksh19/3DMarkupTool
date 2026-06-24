@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
-const ACTIVE_CACHE_KEY = 'support-disc-click-popup-cleanup-20260624';
+const ACTIVE_CACHE_KEY = 'support-preview-disc-source-fix-20260624';
 const SOURCE_INDEX_CACHE_KEY = 'app-boot-dialog-conversion-hotfix-20260623';
 const LEGACY_FIRST_PAINT_CACHE_KEY = 'tool-fixes-v2-20260620';
 
@@ -40,7 +40,7 @@ for (const key of [ACTIVE_CACHE_KEY, SOURCE_INDEX_CACHE_KEY, LEGACY_FIRST_PAINT_
 }
 
 for (const [name, source] of [['build-pages.mjs', buildScript], ['app-loader.js', appLoader]]) {
-  assert.ok(source.includes(ACTIVE_CACHE_KEY), name + ' must use the active support disc/click/popup cleanup cache key');
+  assert.ok(source.includes(ACTIVE_CACHE_KEY), name + ' must use the active support preview disc source fix cache key');
   assert.ok(!source.includes('perf-static-drawer-bundle-20260620'), name + ' must not keep the prior static-drawer bundle key active');
 }
 
@@ -56,6 +56,7 @@ for (const key of [
   'support-human-visible-scale-20260624',
   'support-od-offset-human-scale-20260624',
   'support-cone-can-catalogue-20260624',
+  'support-disc-click-popup-cleanup-20260624',
   ACTIVE_CACHE_KEY
 ]) assert.ok(buildScript.includes(key), 'Pages build must include cache key ' + key);
 assert.ok(diagnostics.includes("STALE_SHELL_VERSION = 'perf-static-drawer-bundle-20260620'"), 'diagnostics may retain the prior key only as stale-asset detection data');

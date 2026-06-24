@@ -51,37 +51,31 @@ function collectMeshes(object) {
   return meshes;
 }
 
-function assertNoConeGeometry(object) {
-  for (const mesh of collectMeshes(object)) {
-    assert.notEqual(mesh.geometry?.type, 'ConeGeometry', `${mesh.name} must not use ConeGeometry`);
-    assert.notEqual(mesh.userData?.supportDirectionalCone, true, `${mesh.name} must not be stamped as a cone`);
-  }
+function coneMeshes(object) {
+  return collectMeshes(object).filter((mesh) => mesh.geometry?.type === 'ConeGeometry');
 }
 
-function assertCompact(object, maxDimensionMm) {
-  object.updateMatrixWorld(true);
-  const box = new THREE.Box3().setFromObject(object);
-  const size = box.getSize(new THREE.Vector3());
-  assert.ok(size.x <= maxDimensionMm, `x extent ${size.x} should be compact`);
-  assert.ok(size.y <= maxDimensionMm, `y extent ${size.y} should be compact`);
-  assert.ok(size.z <= maxDimensionMm, `z extent ${size.z} should be compact`);
-}
-
-assert.equal(MANAGED_STAGE_SUPPORT_VISUAL_POLICY.previewGeometry, 'compact-code8-equivalent-cylinder-bars-no-cones');
-assert.ok(MANAGED_STAGE_SUPPORT_VISUAL_POLICY.blockedPreviewGeometry.includes('ConeGeometry'));
+assert.equal(MANAGED_STAGE_SUPPORT_VISUAL_POLICY.previewGeometry, 'cone-and-can-support-glyphs');
+assert.equal(MANAGED_STAGE_SUPPORT_VISUAL_POLICY.supportConeCatalogue, true);
+assert.ok(!MANAGED_STAGE_SUPPORT_VISUAL_POLICY.blockedPreviewGeometry.includes('ConeGeometry'));
 
 const restPreview = createManagedStageSupportPreviewObject(rest, { records: [pipe, rest], pointRadius: 10 });
 assert.ok(restPreview?.object, 'REST support preview should create an object');
-assert.equal(restPreview.object.userData.supportPreviewNoCone, true);
-assert.equal(restPreview.object.userData.supportVisualGeometry, 'compact-cylinder-bars-no-cones');
-assertNoConeGeometry(restPreview.object);
-assert.ok(collectMeshes(restPreview.object).some((mesh) => mesh.geometry?.type === 'CylinderGeometry'), 'REST preview should use cylinder bars');
-assertCompact(restPreview.object, 80);
+assert.equal(restPreview.object.userData.supportPreviewNoCone, false);
+assert.equal(restPreview.object.userData.supportPreviewUsesConeCatalogue, true);
+assert.equal(restPreview.object.userData.supportVisualGeometry, 'cone-and-can-support-glyphs');
+assert.equal(coneMeshes(restPreview.object).length, 1, 'REST preview should use one upward cone');
+const restCone = coneMeshes(restPreview.object)[0];
+assert.equal(restCone.userData.supportDirectionalCone, true);
+assert.equal(restCone.userData.axis, '+Y');
+assert.equal(restCone.userData.supportPrimitiveBudgetUnitCount, 1);
+assert.ok(restCone.userData.tipMm.y < 0, 'REST cone tip should be shifted to pipe underside by OD/2');
 
 const lineStopPreview = createManagedStageSupportPreviewObject(lineStop, { records: [pipe, lineStop], pointRadius: 10 });
 assert.ok(lineStopPreview?.object, 'LINESTOP support preview should create an object');
-assertNoConeGeometry(lineStopPreview.object);
-assert.ok(collectMeshes(lineStopPreview.object).length >= 4, 'LINESTOP pair should produce compact stem/tick bar meshes');
-assertCompact(lineStopPreview.object, 120);
+assert.equal(coneMeshes(lineStopPreview.object).length, 2, 'LINESTOP pair should produce two axial cones');
+assert.ok(coneMeshes(lineStopPreview.object).every((mesh) => mesh.userData.axialPipeParallel === true));
+assert.ok(coneMeshes(lineStopPreview.object).every((mesh) => mesh.userData.odTwoThirdsResolverApplied === true));
+assert.ok(coneMeshes(lineStopPreview.object).every((mesh) => Math.abs(mesh.userData.tipMm.x) <= 0.001), 'ungapped axial tips remain centered along pipe axis');
 
-console.log('managed-stage support preview bars: ok');
+console.log('managed-stage support preview cone/can catalogue: ok');

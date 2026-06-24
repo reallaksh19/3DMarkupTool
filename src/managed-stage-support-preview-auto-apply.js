@@ -1,7 +1,7 @@
-import { boostManagedStageSupportVisibility } from './managed-stage-support-visibility-boost.js?v=support-human-visible-scale-20260624';
+import { boostManagedStageSupportVisibility } from './managed-stage-support-visibility-boost.js?v=support-od-offset-human-scale-20260624';
 
-export const MANAGED_STAGE_SUPPORT_PREVIEW_AUTO_APPLY_SCHEMA = 'ManagedStageSupportPreviewAutoApply.v4';
-export const MANAGED_STAGE_SUPPORT_PREVIEW_AUTO_APPLY_CACHE_KEY = '20260624-support-preview-auto-apply-4-human-visible-scale';
+export const MANAGED_STAGE_SUPPORT_PREVIEW_AUTO_APPLY_SCHEMA = 'ManagedStageSupportPreviewAutoApply.v5';
+export const MANAGED_STAGE_SUPPORT_PREVIEW_AUTO_APPLY_CACHE_KEY = '20260624-support-preview-auto-apply-5-od-offset-human-scale';
 
 installManagedStageSupportPreviewAutoApply();
 
@@ -65,7 +65,10 @@ function applySupportPreviewNow({ win, doc, modelRoot = null, reason = 'manual' 
     visibilityBoostPartCount: Number(visibilityBoost?.partCount || 0),
     visibilityBoostRadialScaleCount: Number(visibilityBoost?.radialScaleBoostedCount || 0),
     visibilityBoostHumanScaleFactor: Number(visibilityBoost?.humanReadableScaleFactor || 0),
-    visibilityBoostMaxAppliedRadialScale: Number(visibilityBoost?.maxAppliedRadialScale || 0)
+    visibilityBoostMaxAppliedRadialScale: Number(visibilityBoost?.maxAppliedRadialScale || 0),
+    visibilityBoostOdHalfContactOffsetCount: Number(visibilityBoost?.odHalfContactOffsetCount || 0),
+    visibilityBoostOdTwoThirdsAxialOffsetCount: Number(visibilityBoost?.odTwoThirdsAxialOffsetCount || 0),
+    visibilityBoostMaxAppliedOdOffsetMm: Number(visibilityBoost?.maxAppliedOdOffsetMm || 0)
   });
   root.userData = {
     ...(root.userData || {}),

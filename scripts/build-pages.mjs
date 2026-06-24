@@ -6,7 +6,7 @@ import { rollup } from 'rollup';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const SITE_DIR = path.join(ROOT, '_site');
 const ASSET_DIR = path.join(SITE_DIR, 'assets');
-const VERSION = 'support-human-visible-scale-20260624';
+const VERSION = 'support-od-offset-human-scale-20260624';
 const LEGACY_CACHE_KEYS = Object.freeze([
   'tool-fixes-v2-20260620',
   'support-ui-render-export-fix-20260623',
@@ -14,7 +14,8 @@ const LEGACY_CACHE_KEYS = Object.freeze([
   'support-native-dialog-render-fix-20260623',
   'support-debug-log-20260623',
   'support-profile-source-bridge-20260624',
-  'support-visibility-boost-20260624'
+  'support-visibility-boost-20260624',
+  'support-human-visible-scale-20260624'
 ]);
 
 await rm(SITE_DIR, { recursive: true, force: true });
@@ -84,22 +85,25 @@ async function injectBundleManifest() {
   const indexPath = path.join(SITE_DIR, 'index.html');
   let html = await readFile(indexPath, 'utf8');
   for (const key of LEGACY_CACHE_KEYS) html = html.replaceAll(`?v=${key}`, `?v=${VERSION}`);
+  const scriptOpen = '<' + 'script>';
+  const scriptClose = '<' + '/script>';
+  const moduleScriptAnchor = '  <' + 'script type="module" src="./src/render-context-prebridge.js';
   const manifest = [
     `<link rel="modulepreload" href="./assets/app.bundle.js?v=${VERSION}" />`,
     `<link rel="modulepreload" href="./assets/static-shell.bundle.js?v=${VERSION}" />`,
-    '<script>',
+    scriptOpen,
     `  window.__3D_MARKUP_BUNDLED_ASSETS__ = {`,
     `    version: ${JSON.stringify(VERSION)},`,
     `    app: './assets/app.bundle.js?v=${VERSION}',`,
     `    shell: './assets/static-shell.bundle.js?v=${VERSION}'`,
     '  };',
-    '</script>'
+    scriptClose
   ].join('\n');
 
   if (!html.includes('__3D_MARKUP_BUNDLED_ASSETS__')) {
     html = html.replace(
-      '  <script type="module" src="./src/render-context-prebridge.js',
-      `${manifest}\n  <script type="module" src="./src/render-context-prebridge.js`
+      moduleScriptAnchor,
+      `${manifest}\n${moduleScriptAnchor}`
     );
   }
 

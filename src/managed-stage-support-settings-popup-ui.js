@@ -1,5 +1,5 @@
-export const MANAGED_STAGE_SUPPORT_SETTINGS_POPUP_SCHEMA = 'ManagedStageSupportSettingsPopup.v3';
-export const MANAGED_STAGE_SUPPORT_SETTINGS_POPUP_CACHE_KEY = '20260623-support-settings-native-dialog-1';
+export const MANAGED_STAGE_SUPPORT_SETTINGS_POPUP_SCHEMA = 'ManagedStageSupportSettingsPopup.v4';
+export const MANAGED_STAGE_SUPPORT_SETTINGS_POPUP_CACHE_KEY = '20260624-support-settings-workflow-card-1';
 
 export function buildManagedStageSupportSettingsPopupModel({ supportUi = {}, isonoteWorkflow = {} } = {}) {
   const sourceMode = String(supportUi.sourceMode || 'stagedJson');
@@ -11,45 +11,23 @@ export function buildManagedStageSupportSettingsPopupModel({ supportUi = {}, iso
   const issueCount = Number(isonoteWorkflow.issueCount || 0);
   const isonoteStatus = isonoteWorkflow.statusLabel || 'Not parsed';
   const disabled = sourceMode === 'off';
-  const summaryText = disabled
-    ? `Support mapping: Off • ${mapperPresetLabel}`
-    : `Support mapping: ${sourceLabel} • ${mapperPresetLabel} • North ${northSourceAxis}→${northCanvasAxis}`;
+  const summaryText = disabled ? `Support mapping: Off • ${mapperPresetLabel}` : `Support mapping: ${sourceLabel} • ${mapperPresetLabel} • North ${northSourceAxis}→${northCanvasAxis}`;
   const isonoteSummaryText = `ISONOTE: ${isonoteStatus} • ${recordCount} support record(s) • ${issueCount} issue(s)`;
-  return {
-    schema: MANAGED_STAGE_SUPPORT_SETTINGS_POPUP_SCHEMA,
-    cacheKey: MANAGED_STAGE_SUPPORT_SETTINGS_POPUP_CACHE_KEY,
-    sourceMode,
-    sourceLabel,
-    mapperPresetLabel,
-    northSourceAxis,
-    northCanvasAxis,
-    disabled,
-    modal: true,
-    nativeDialog: true,
-    mainPanelMode: 'summary-only',
-    summaryText,
-    isonoteSummaryText,
-    isonoteSupportRecordCount: recordCount,
-    isonoteIssueCount: issueCount,
-    retiredStageSettingIds: ['renderActualSupport', 'renderExpectedSupport']
-  };
+  return { schema: MANAGED_STAGE_SUPPORT_SETTINGS_POPUP_SCHEMA, cacheKey: MANAGED_STAGE_SUPPORT_SETTINGS_POPUP_CACHE_KEY, sourceMode, sourceLabel, mapperPresetLabel, northSourceAxis, northCanvasAxis, disabled, modal: true, nativeDialog: true, mainPanelMode: 'workflow-card-summary-only', summaryText, isonoteSummaryText, isonoteSupportRecordCount: recordCount, isonoteIssueCount: issueCount, retiredStageSettingIds: ['renderActualSupport', 'renderExpectedSupport'] };
 }
 
 export function installManagedStageSupportSettingsPopupUi({ doc = globalThis.document, win = globalThis.window } = {}) {
   if (!doc || typeof doc.getElementById !== 'function') return null;
   installSupportSettingsModalStyles(doc);
-  const conversionSection = doc.querySelector?.('[data-section="conversion"]') || doc.getElementById('conversion-options-body')?.parentElement || doc.body;
-  if (!conversionSection) return null;
-  const shell = ensureSupportSettingsLauncherShell(doc, conversionSection);
+  const hostSection = doc.querySelector?.('[data-section="support-mapping"]') || doc.querySelector?.('[data-section="conversion"]') || doc.getElementById('conversion-options-body')?.parentElement || doc.body;
+  if (!hostSection) return null;
+  const shell = ensureSupportSettingsLauncherShell(doc, hostSection);
   const dialog = ensureSupportSettingsDialog(doc);
   adoptSupportSettingControls(doc, dialog);
   hideRetiredStageSettings(doc);
   hideEmptySideloadSection(doc);
   const refresh = () => {
-    const model = buildManagedStageSupportSettingsPopupModel({
-      supportUi: win?.__3D_MARKUP_SUPPORT_SOURCE_UI__ || {},
-      isonoteWorkflow: win?.__3D_MARKUP_ISONOTE_TEXT_WORKFLOW__ || {}
-    });
+    const model = buildManagedStageSupportSettingsPopupModel({ supportUi: win?.__3D_MARKUP_SUPPORT_SOURCE_UI__ || {}, isonoteWorkflow: win?.__3D_MARKUP_ISONOTE_TEXT_WORKFLOW__ || {} });
     renderSupportSettingsShell(shell, dialog, model);
     win.__3D_MARKUP_SUPPORT_SETTINGS_POPUP__ = model;
     return model;
@@ -101,12 +79,7 @@ function ensureSupportSettingsLauncherShell(doc, parent) {
     parent.insertBefore?.(shell, parent.firstChild || null) || parent.appendChild(shell);
   }
   shell.className = 'support-mapping-settings-shell';
-  shell.innerHTML = [
-    '<div class="support-mapping-settings-launcher">',
-    '<button type="button" class="support-mapping-settings-open" data-support-settings-action="open" aria-haspopup="dialog" aria-controls="supportMappingSettingsDialog">Support mapping / ISONOTE…</button>',
-    '<small data-support-settings-launcher-summary aria-live="polite"></small>',
-    '</div>'
-  ].join('');
+  shell.innerHTML = ['<div class="support-mapping-settings-launcher">', '<button type="button" class="support-mapping-settings-open" data-support-settings-action="open" aria-haspopup="dialog" aria-controls="supportMappingSettingsDialog">Open Support Mapping / ISONOTE</button>', '<small data-support-settings-launcher-summary aria-live="polite"></small>', '</div>'].join('');
   shell.querySelector?.('#supportMappingSettingsPopup')?.remove?.();
   shell.querySelector?.('#supportMappingSettingsBackdrop')?.remove?.();
   return shell;
@@ -119,17 +92,7 @@ function ensureSupportSettingsDialog(doc) {
     dialog.id = 'supportMappingSettingsDialog';
     dialog.className = 'support-mapping-settings-popup support-mapping-settings-dialog';
     dialog.setAttribute('aria-label', 'Support mapping settings');
-    dialog.innerHTML = [
-      '<div class="support-mapping-settings-popup-header">',
-      '<div><h3>Support mapping / ISONOTE</h3><small data-support-settings-popup-status aria-live="polite"></small></div>',
-      '<button type="button" data-support-settings-action="close" aria-label="Close support mapping settings">×</button>',
-      '</div>',
-      '<div class="support-mapping-settings-popup-grid">',
-      '<section data-support-settings-controls><h4>Source, preset and axis</h4></section>',
-      '<section data-support-settings-isonote-host><h4>ISONOTE side-load</h4></section>',
-      '<section data-support-settings-mapper-host><h4>Mapper fields and import/export</h4></section>',
-      '</div>'
-    ].join('');
+    dialog.innerHTML = ['<div class="support-mapping-settings-popup-header">', '<div><h3>Support mapping / ISONOTE</h3><small data-support-settings-popup-status aria-live="polite"></small></div>', '<button type="button" data-support-settings-action="close" aria-label="Close support mapping settings">×</button>', '</div>', '<div class="support-mapping-settings-popup-grid">', '<section data-support-settings-controls><h4>Source, preset and axis</h4></section>', '<section data-support-settings-isonote-host><h4>ISONOTE side-load</h4></section>', '<section data-support-settings-mapper-host><h4>Mapper fields and import/export</h4></section>', '</div>'].join('');
     doc.body?.appendChild?.(dialog);
   }
   dialog.querySelector?.('#supportMappingSettingsPopup')?.remove?.();
@@ -229,8 +192,7 @@ function hideEmptySideloadSection(doc) {
   const section = doc.querySelector?.('[data-section="sideload"]');
   const body = doc.getElementById('sideload-options-body');
   if (!section || !body) return;
-  const hasVisibleControls = [...body.querySelectorAll?.('input, textarea, select, button') || []]
-    .some((node) => !node.closest('[hidden]') && node.offsetParent !== null);
+  const hasVisibleControls = [...body.querySelectorAll?.('input, textarea, select, button') || []].some((node) => !node.closest('[hidden]') && node.offsetParent !== null);
   if (!hasVisibleControls) {
     section.hidden = true;
     section.setAttribute('aria-hidden', 'true');
@@ -256,9 +218,7 @@ function setPopupOpen(dialog, isOpen, doc) {
   doc?.body?.classList?.remove?.('support-settings-modal-open');
 }
 
-function isDialogOpen(dialog) {
-  return Boolean(dialog?.open || dialog?.hasAttribute?.('open'));
-}
+function isDialogOpen(dialog) { return Boolean(dialog?.open || dialog?.hasAttribute?.('open')); }
 
 function installSupportSettingsModalStyles(doc) {
   if (doc.getElementById('supportSettingsModalStyle')) return;

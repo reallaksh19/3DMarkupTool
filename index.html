@@ -125,7 +125,7 @@
         </label>
         <div class="button-row input-primary-actions">
           <button id="loadSampleBtn" type="button" class="primary icon-text" title="Load bundled stagedJson sample without replacing the file chooser status" aria-label="Load stagedJson sample"><i data-lucide="folder-open"></i><span>Load BM_CII stagedJson</span></button>
-          <button id="clearBtn" type="button" class="ghost icon-text" aria-label="Clear all input and sample data"><i data-lucide="folder-x"></i><span>Clear</span></button>
+          <button id="clearBtn" type="button" class="ghost icon-text" aria-label="Clear all input and sample data"><i data-lucide="folder-x"></i><span>Clear All</span></button>
         </div>
       </section>
 
@@ -190,79 +190,40 @@
     </aside>
 
     <section class="viewer-shell" aria-label="3D viewer">
-      <div id="viewer" class="viewer-canvas">
-        <div class="canvas-help" id="hint">
-          <strong>Canvas</strong>
-          <span>LMB: select/orbit · Wheel: zoom · RMB: pan</span>
-          <span>Shortcuts: S/O/P/M/H/F/C/Esc</span>
-        </div>
-        <div class="canvas-help secondary-help" id="canvasHelp" hidden></div>
-        <button id="treeToggleBtn" type="button" class="tree-toggle" title="Show model tree"><i data-lucide="list-tree"></i><span>Tree</span></button>
-
-        <div class="view-pad" aria-label="View shortcuts">
-          <button type="button" data-view="top">TOP</button>
-          <button type="button" data-view="iso">ISO</button>
-          <button type="button" data-view="side">RIGHT</button>
-          <button type="button" data-view="front">FRONT</button>
-          <button type="button" data-view="fit">FIT</button>
-          <button type="button" data-view="fitSelection">SEL</button>
-          <button type="button" data-view="zoom">ZOOM</button>
-          <button type="button" data-view="clip">CLIP</button>
-          <button type="button" data-view="msr">MSR</button>
-        </div>
-
-        <div class="measure-readout" id="measureReadout" hidden></div>
-        <div class="clip-adjust-panel" id="clipAdjustPanel" aria-live="polite" hidden aria-hidden="true">
-          <div class="clip-adjust-head"><span>Clip Adjust</span><button type="button" id="clipAdjustToggleBtn">Enable Clip</button></div>
-          <div class="clip-adjust-row"><label for="clipAxisSelect">Axis</label><select id="clipAxisSelect"><option value="x">X</option><option value="y">Y</option><option value="z">Z</option></select></div>
-          <div class="clip-adjust-row"><label for="clipSlider">Position</label><input id="clipSlider" type="range" min="0" max="100" value="50" step="1" /></div>
-          <div class="clip-adjust-row compact"><button type="button" id="clipStepDownBtn" title="Move clip plane backward">−</button><input id="clipOffsetInput" type="number" min="0" max="100" value="50" step="1" /><button id="clipStepUpBtn" type="button" title="Move clip plane forward">+</button></div>
-          <label class="clip-adjust-check"><input id="clipInvertCheck" type="checkbox" /><span>Invert side</span></label>
-          <button type="button" id="clipCenterBtn" class="clip-center-btn">Center / Reset</button>
-          <p id="clipAdjustHint" class="clip-adjust-hint">Legacy clip panel disabled. Use Fresh Clip.</p>
-        </div>
+      <div id="viewport" tabindex="0" aria-label="3D model viewport"></div>
+      <canvas id="measureOverlay" aria-hidden="true"></canvas>
+      <div id="viewCube" class="view-cube" aria-label="View cube">
+        <button data-view="front">FRONT</button>
+        <button data-view="top">TOP</button>
+        <button data-view="right">RIGHT</button>
       </div>
-      <footer class="viewer-statusbar">
-        <span id="selectedStatus">Selected: none</span>
-        <span id="componentStatus">Objects: 0</span>
-        <span id="coordStatus">XYZ: -</span>
-      </footer>
+      <div id="hud" class="hud">No model loaded</div>
     </section>
 
-    <aside class="property-drawer" id="propertiesPanel" aria-label="Component properties">
-      <div class="property-head">
+    <aside class="property-drawer" id="propertyDrawer" aria-label="Selection properties">
+      <div class="drawer-head">
         <div>
-          <h2><i data-lucide="panel-right"></i> Component Properties</h2>
-          <p>Selection metadata is displayed as parsed by the existing conversion pipeline.</p>
+          <h2><i data-lucide="list-tree"></i> Selection</h2>
+          <p>Click an item in the model to inspect component data.</p>
         </div>
         <button id="closePropsBtn" type="button" class="icon-btn" title="Close properties"><i data-lucide="chevrons-right"></i></button>
       </div>
-      <div id="propertiesBody" class="properties-body empty-state">
-        <div class="empty-card">
-          <i data-lucide="box-select"></i>
-          <h3>No selection</h3>
-          <p>Use the selection tools and choose an object to view details here.</p>
-        </div>
+      <div id="propertiesContent" class="properties-body empty-state">
+        <p>No selection yet.</p>
       </div>
     </aside>
   </main>
 
-  <dialog id="rulesDialog" class="rules-dialog" aria-labelledby="rulesDialogTitle">
-    <form method="dialog" class="rules-dialog-card">
+  <dialog id="rulesDialog" class="rules-dialog" aria-label="Mapping rules">
+    <div class="rules-dialog-card">
       <div class="rules-dialog-head">
-        <h2 id="rulesDialogTitle">Mapping Rules</h2>
-        <button id="closeRulesBtn" type="button" class="icon-btn" aria-label="Close mapping rules">×</button>
+        <h3>Mapping Rules</h3>
+        <button id="closeRulesBtn" type="button" aria-label="Close mapping rules">×</button>
       </div>
-      <p>Use the Support mapping / ISONOTE popup for source mode, mapper presets, axis basis, and ISONOTE side-load controls.</p>
-      <ul>
-        <li>stagedJson mode reads mapped support fields from the uploaded stagedJson.</li>
-        <li>ISONOTE mode reads support rules from the ISONOTE side-load text.</li>
-        <li>Off disables generated support preview overlays.</li>
-      </ul>
-    </form>
+      <div id="rulesContent"></div>
+    </div>
   </dialog>
 
-  <script type="module" src="./src/render-context-prebridge.js?v=app-boot-dialog-conversion-hotfix-20260623"></script>
   <script type="module" src="./src/safe-ui-bootstrap.js?v=app-boot-dialog-conversion-hotfix-20260623"></script>
   <script type="module" src="./src/app-loader.js?v=app-boot-dialog-conversion-hotfix-20260623"></script>
 </body>

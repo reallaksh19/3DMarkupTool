@@ -43,6 +43,50 @@ const lineStop = record('INPUTXML-10-LINESTOP', 'ATTA', {
   supportCoord: { x: 0, y: 0, z: 0 }
 });
 
+const mappedZLineStop = record('INPUTXML-10-LINESTOP-Z', 'ATTA', {
+  NODE: '10',
+  SUPPORT_KIND: 'LINESTOP',
+  SUPPORT_AXIS_SOURCE_ORIGINAL: 'Z',
+  SUPPORT_AXIS_CANVAS: '+Z',
+  SUPPORT_AXIS_CANVAS_APPLIED: 'TRUE',
+  AXIS: '+Z',
+  DIAMETER: '114.3mm'
+}, {
+  supportCoord: { x: 0, y: 0, z: 0 }
+});
+
+const mappedMinusXLineStop = record('INPUTXML-10-LINESTOP-MINUS-X', 'ATTA', {
+  NODE: '10',
+  SUPPORT_KIND: 'LINESTOP',
+  SUPPORT_AXIS_SOURCE_ORIGINAL: '-X',
+  SUPPORT_AXIS_CANVAS: '-X',
+  SUPPORT_AXIS_CANVAS_APPLIED: 'TRUE',
+  AXIS: '-X',
+  DIAMETER: '114.3mm'
+}, {
+  supportCoord: { x: 0, y: 0, z: 0 }
+});
+
+const guideWithMappedX = record('INPUTXML-10-GUIDE-X', 'ATTA', {
+  NODE: '10',
+  SUPPORT_KIND: 'GUIDE',
+  SUPPORT_AXIS_SOURCE_ORIGINAL: 'X',
+  SUPPORT_AXIS_CANVAS: '+X',
+  SUPPORT_AXIS_CANVAS_APPLIED: 'TRUE',
+  AXIS: '+X',
+  DIAMETER: '114.3mm'
+}, {
+  supportCoord: { x: 0, y: 0, z: 0 }
+});
+
+const springCan = record('INPUTXML-10-SPRING-CAN', 'ATTA', {
+  NODE: '10',
+  SUPPORT_KIND: 'SPRING CAN',
+  DIAMETER: '114.3mm'
+}, {
+  supportCoord: { x: 0, y: 0, z: 0 }
+});
+
 function collectMeshes(object) {
   const meshes = [];
   object.traverse((child) => {
@@ -55,8 +99,13 @@ function coneMeshes(object) {
   return collectMeshes(object).filter((mesh) => mesh.geometry?.type === 'ConeGeometry');
 }
 
+function torusMeshes(object) {
+  return collectMeshes(object).filter((mesh) => mesh.geometry?.type === 'TorusGeometry');
+}
+
 assert.equal(MANAGED_STAGE_SUPPORT_VISUAL_POLICY.previewGeometry, 'cone-and-can-support-glyphs');
 assert.equal(MANAGED_STAGE_SUPPORT_VISUAL_POLICY.supportConeCatalogue, true);
+assert.equal(MANAGED_STAGE_SUPPORT_VISUAL_POLICY.generalizedAxisTransform, true);
 assert.ok(!MANAGED_STAGE_SUPPORT_VISUAL_POLICY.blockedPreviewGeometry.includes('ConeGeometry'));
 
 const restPreview = createManagedStageSupportPreviewObject(rest, { records: [pipe, rest], pointRadius: 10 });
@@ -73,9 +122,31 @@ assert.ok(restCone.userData.tipMm.y < 0, 'REST cone tip should be shifted to pip
 
 const lineStopPreview = createManagedStageSupportPreviewObject(lineStop, { records: [pipe, lineStop], pointRadius: 10 });
 assert.ok(lineStopPreview?.object, 'LINESTOP support preview should create an object');
-assert.equal(coneMeshes(lineStopPreview.object).length, 2, 'LINESTOP pair should produce two axial cones');
+assert.equal(coneMeshes(lineStopPreview.object).length, 2, 'LINESTOP without an explicit axis should produce an unsigned axial cone pair');
 assert.ok(coneMeshes(lineStopPreview.object).every((mesh) => mesh.userData.axialPipeParallel === true));
 assert.ok(coneMeshes(lineStopPreview.object).every((mesh) => mesh.userData.odTwoThirdsResolverApplied === true));
 assert.ok(coneMeshes(lineStopPreview.object).every((mesh) => Math.abs(mesh.userData.tipMm.x) <= 0.001), 'ungapped axial tips remain centered along pipe axis');
+
+const zPreview = createManagedStageSupportPreviewObject(mappedZLineStop, { records: [pipe, mappedZLineStop], pointRadius: 10 });
+assert.equal(zPreview.supportVisual.family, 'LINE_STOP');
+assert.equal(zPreview.supportVisual.canvasAxis, '+Z');
+assert.equal(zPreview.supportVisual.axisTransformApplied, true);
+assert.equal(coneMeshes(zPreview.object).length, 1, 'mapped +Z LINESTOP should render one transformed-axis cone, not GUIDE pair');
+assert.equal(coneMeshes(zPreview.object)[0].userData.axis, '+Z');
+assert.equal(coneMeshes(zPreview.object)[0].userData.axisTransformApplied, true);
+
+const minusXPreview = createManagedStageSupportPreviewObject(mappedMinusXLineStop, { records: [pipe, mappedMinusXLineStop], pointRadius: 10 });
+assert.equal(coneMeshes(minusXPreview.object).length, 1, 'mapped -X LINESTOP should render one transformed-axis cone');
+assert.equal(coneMeshes(minusXPreview.object)[0].userData.axis, '-X');
+
+const guidePreview = createManagedStageSupportPreviewObject(guideWithMappedX, { records: [pipe, guideWithMappedX], pointRadius: 10 });
+assert.equal(guidePreview.supportVisual.family, 'GUIDE');
+assert.equal(guidePreview.supportVisual.canvasAxis, '+X');
+assert.equal(coneMeshes(guidePreview.object).length, 1, 'GUIDE with an explicit transformed +X axis should render that axis, not a Z-only special case');
+assert.equal(coneMeshes(guidePreview.object)[0].userData.axis, '+X');
+
+const springPreview = createManagedStageSupportPreviewObject(springCan, { records: [pipe, springCan], pointRadius: 10 });
+assert.equal(springPreview.supportVisual.previewGlyphGeometry, 'five-coil-spring-can');
+assert.equal(torusMeshes(springPreview.object).length, 5, 'SPRING CAN should render as five stacked coils');
 
 console.log('managed-stage support preview cone/can catalogue: ok');

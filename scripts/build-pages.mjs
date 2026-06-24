@@ -40,7 +40,7 @@ async function copyStaticSite(from, to) {
   for (const entry of entries) {
     const src = path.join(from, entry.name);
     const dest = path.join(to, entry.name);
-    const rel = path.relative(ROOT, src).replace(/\/g, '/');
+    const rel = path.relative(ROOT, src).replace(/\\/g, '/');
     if (
       rel === '.git' || rel.startsWith('.git/') ||
       rel === '.github' || rel.startsWith('.github/') ||

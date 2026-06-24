@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 
-export const MANAGED_STAGE_SUPPORT_UI_VISUAL_CLEANUP_SCHEMA = 'ManagedStageSupportUiVisualCleanup.v1';
-export const MANAGED_STAGE_SUPPORT_UI_VISUAL_CLEANUP_CACHE_KEY = '20260624-support-disc-click-popup-cleanup-1';
+export const MANAGED_STAGE_SUPPORT_UI_VISUAL_CLEANUP_SCHEMA = 'ManagedStageSupportUiVisualCleanup.v2';
+export const MANAGED_STAGE_SUPPORT_UI_VISUAL_CLEANUP_CACHE_KEY = '20260624-support-preview-disc-source-fix-1';
 
 export const SUPPORT_MAPPING_POPUP_POLISH_CSS = `
   .support-mapping-settings-popup {
@@ -94,6 +94,7 @@ export function cleanupManagedStageSupportPreview(modelRoot, options = {}) {
   let supportPartCount = 0;
   let raycastDisabledCount = 0;
   let coneOpenEndedReplacedCount = 0;
+  let cappedCylinderOpenEndedReplacedCount = 0;
   let canCapPickDisabledCount = 0;
 
   modelRoot.traverse((object) => {
@@ -111,6 +112,10 @@ export function cleanupManagedStageSupportPreview(modelRoot, options = {}) {
       if (replaceClosedConeWithOpenCone(object)) coneOpenEndedReplacedCount += 1;
     }
 
+    if (isSupportPart && object?.isMesh && isSupportCappedCylinderMesh(object)) {
+      if (replaceCappedCylinderWithOpenCylinder(object)) cappedCylinderOpenEndedReplacedCount += 1;
+    }
+
     if (isSupportPart && data.supportSpringCanCylinder === true && disableSupportPicking(object)) {
       canCapPickDisabledCount += 1;
     }
@@ -122,8 +127,10 @@ export function cleanupManagedStageSupportPreview(modelRoot, options = {}) {
     supportPartCount,
     raycastDisabledCount,
     coneOpenEndedReplacedCount,
+    cappedCylinderOpenEndedReplacedCount,
+    discCapRemovedCount: coneOpenEndedReplacedCount + cappedCylinderOpenEndedReplacedCount,
     canCapPickDisabledCount,
-    whiteDiscCapPolicy: 'directional and warning support cones are converted to open-ended ConeGeometry so base discs are not rendered',
+    whiteDiscCapPolicy: 'support preview cones and support preview cylinders are converted to open-ended geometry; circular end-cap discs are not rendered',
     pickingPolicy: 'preview-only support overlays have raycast disabled so pipe/canvas clicks pass through'
   });
 
@@ -182,6 +189,34 @@ function replaceClosedConeWithOpenCone(mesh) {
   return true;
 }
 
+function replaceCappedCylinderWithOpenCylinder(mesh) {
+  const geometry = mesh.geometry;
+  const params = geometry?.parameters || {};
+  if (geometry?.type !== 'CylinderGeometry') return false;
+  if (params.openEnded === true || mesh.userData?.supportCylinderCapRemoved === true) return false;
+
+  const next = new THREE.CylinderGeometry(
+    Number(params.radiusTop || 1),
+    Number(params.radiusBottom || params.radiusTop || 1),
+    Number(params.height || 1),
+    Number(params.radialSegments || 12),
+    Number(params.heightSegments || 1),
+    true,
+    Number(params.thetaStart || 0),
+    Number(params.thetaLength || Math.PI * 2)
+  );
+  next.name = geometry.name || `${mesh.name || 'support-cylinder'}_OPEN_ENDED_GEOMETRY`;
+  geometry.dispose?.();
+  mesh.geometry = next;
+  mesh.userData = {
+    ...(mesh.userData || {}),
+    supportCylinderOpenEnded: true,
+    supportCylinderCapRemoved: true,
+    supportWhiteDiscCapRemoved: true
+  };
+  return true;
+}
+
 function disableSupportPicking(object) {
   if (!object) return false;
   const alreadyDisabled = object.userData?.supportPreviewPickingDisabled === true;
@@ -198,7 +233,15 @@ function disableSupportPicking(object) {
 function isSupportConeMesh(mesh) {
   const data = mesh?.userData || {};
   return mesh?.geometry?.type === 'ConeGeometry'
+    && data.managedStageSupportVisualPart === true
     && (data.supportDirectionalCone === true || data.supportWarningCone === true || data.supportConeCatalogue === true || data.supportVisualGeometry === 'cone-and-can-support-glyphs');
+}
+
+function isSupportCappedCylinderMesh(mesh) {
+  const data = mesh?.userData || {};
+  return mesh?.geometry?.type === 'CylinderGeometry'
+    && data.managedStageSupportVisualPart === true
+    && (data.supportSpringCanCylinder === true || data.clusterOffsetConnector === true || data.fallbackCrossRod === true || data.supportVisualGeometry === 'cone-and-can-support-glyphs');
 }
 
 function resolveModelRoot(win) {
@@ -209,7 +252,7 @@ function resolveModelRoot(win) {
 function appendCleanupLog(doc, result) {
   const log = doc?.getElementById?.('log');
   if (!log || result?.status !== 'applied') return;
-  const line = `[${new Date().toLocaleTimeString()}] Support cleanup: coneCapsRemoved=${Number(result.coneOpenEndedReplacedCount || 0)}, pickingDisabled=${Number(result.raycastDisabledCount || 0)}, popup=wide`;
+  const line = `[${new Date().toLocaleTimeString()}] Support cleanup: discCapsRemoved=${Number(result.discCapRemovedCount || 0)}, coneCapsRemoved=${Number(result.coneOpenEndedReplacedCount || 0)}, cylinderCapsRemoved=${Number(result.cappedCylinderOpenEndedReplacedCount || 0)}, pickingDisabled=${Number(result.raycastDisabledCount || 0)}, popup=wide`;
   log.textContent = `${log.textContent || ''}${log.textContent ? '\n' : ''}${line}`;
   log.scrollTop = log.scrollHeight;
 }

@@ -1,4 +1,4 @@
-const APP_LOADER_VERSION = 'support-axis-transform-generalized-20260624';
+const APP_LOADER_VERSION = 'support-ringless-input-panel-revamp-20260624';
 const APP_MODULE_URL = `./app.js?v=${APP_LOADER_VERSION}`;
 const CLIP_HOOK_MODULE_URL = `./clip-render-hook.js?v=${APP_LOADER_VERSION}`;
 const FRESH_CLIP_MODULE_URL = `./fresh-clip-controller.js?v=${APP_LOADER_VERSION}`;
@@ -104,10 +104,7 @@ function loadClipRenderHook() {
     .catch((error) => {
       console.warn('[3DMarkupTool] Clip render hook skipped before app boot.', error);
       window.dispatchEvent(new CustomEvent('viewer:clip-render-hook-skipped', {
-        detail: {
-          version: APP_LOADER_VERSION,
-          reason: error && (error.message || String(error))
-        }
+        detail: { version: APP_LOADER_VERSION, reason: error && (error.message || String(error)) }
       }));
       return false;
     });
@@ -141,38 +138,37 @@ function loadManagedStageJsonUiController() {
     .then(() => import(MANAGED_STAGE_SUPPORT_SOURCE_UI_MODULE_URL))
     .then(() => import(MANAGED_STAGE_SUPPORT_SOURCE_PREVIEW_MODULE_URL))
     .then(() => import(MANAGED_STAGE_PROFILE_SUPPORT_SOURCE_BRIDGE_MODULE_URL))
-    .then(() => import(MANAGED_STAGE_SUPPORT_MAPPER_DIAGNOSTICS_UI_MODULE_URL))
-    .then(() => import(MANAGED_STAGE_ISONOTE_WORKFLOW_UI_MODULE_URL))
-    .then(() => import(MANAGED_STAGE_SUPPORT_SETTINGS_POPUP_UI_MODULE_URL))
     .then(() => import(MANAGED_STAGE_SUPPORT_PREVIEW_AUTO_APPLY_MODULE_URL))
     .then(() => import(MANAGED_STAGE_SUPPORT_UI_VISUAL_CLEANUP_MODULE_URL))
     .then(() => import(MANAGED_STAGE_SUPPORT_DEBUG_LOG_MODULE_URL))
-    .then(() => import(MANAGED_STAGE_JSON_SAMPLE_MODULE_URL))
+    .then(() => import(MANAGED_STAGE_SUPPORT_MAPPER_DIAGNOSTICS_UI_MODULE_URL))
+    .then(() => import(MANAGED_STAGE_ISONOTE_WORKFLOW_UI_MODULE_URL))
+    .then(() => import(MANAGED_STAGE_SUPPORT_SETTINGS_POPUP_UI_MODULE_URL))
     .then(() => import(MANAGED_STAGE_JSON_UI_MODULE_URL))
+    .then(() => import(MANAGED_STAGE_JSON_SAMPLE_MODULE_URL))
     .catch((error) => {
       console.warn('[3DMarkupTool] Managed-stage JSON UI skipped.', error);
-      window.dispatchEvent(new CustomEvent('managed-stage:json-ui-skipped', {
-        detail: {
-          version: APP_LOADER_VERSION,
-          reason: error && (error.message || String(error))
-        }
-      }));
     });
 }
 
+function scheduleAfterFirstPaint(callback) {
+  const run = () => {
+    if (typeof requestIdleCallback === 'function') {
+      requestIdleCallback(callback, { timeout: APP_BOOT_IDLE_TIMEOUT_MS });
+    } else {
+      setTimeout(callback, 80);
+    }
+  };
+  if (typeof requestAnimationFrame === 'function') requestAnimationFrame(() => requestAnimationFrame(run));
+  else setTimeout(run, 0);
+}
+
+function scheduleIdle(callback, timeout) {
+  if (typeof requestIdleCallback === 'function') requestIdleCallback(callback, { timeout });
+  else setTimeout(callback, Math.min(timeout, 250));
+}
+
 function setRuntimeStatus(text) {
-  const status = document.getElementById('runtimeStatus');
-  if (status) status.textContent = text;
-}
-
-function scheduleAfterFirstPaint(fn) {
-  requestAnimationFrame(() => requestAnimationFrame(fn));
-}
-
-function scheduleIdle(fn, timeout = 1000) {
-  if ('requestIdleCallback' in window) {
-    window.requestIdleCallback(fn, { timeout });
-  } else {
-    setTimeout(fn, Math.min(timeout, 250));
-  }
+  const el = document.getElementById('runtimeStatus');
+  if (el) el.textContent = text;
 }

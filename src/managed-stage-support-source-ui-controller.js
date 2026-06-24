@@ -123,15 +123,8 @@ export function buildManagedStageSupportAxisBasisRows(axisBasis = CAESAR_TO_CANV
 }
 
 export function normalizeManagedStageMapperFieldCandidates(value) {
-  if (Array.isArray(value)) {
-    return value
-      .map((entry) => String(entry || '').trim())
-      .filter(Boolean);
-  }
-  return String(value || '')
-    .split(',')
-    .map((entry) => entry.trim())
-    .filter(Boolean);
+  if (Array.isArray(value)) return value.map((entry) => String(entry || '').trim()).filter(Boolean);
+  return String(value || '').split(',').map((entry) => entry.trim()).filter(Boolean);
 }
 
 export function buildManagedStageSupportMapperConfigFromUiFields(fields = {}) {
@@ -190,17 +183,11 @@ export function parseManagedStageSupportMapperExportPayload(text) {
 }
 
 export function readStoredMapperConfig(storage = globalThis.localStorage) {
-  try {
-    return parseManagedStageSupportMapperConfig(storage?.getItem?.(MANAGED_STAGE_SUPPORT_MAPPER_STORAGE_KEY) || '');
-  } catch (_) {
-    return {};
-  }
+  try { return parseManagedStageSupportMapperConfig(storage?.getItem?.(MANAGED_STAGE_SUPPORT_MAPPER_STORAGE_KEY) || ''); } catch (_) { return {}; }
 }
 
 export function writeStoredMapperConfig(config = {}, storage = globalThis.localStorage) {
-  try {
-    storage?.setItem?.(MANAGED_STAGE_SUPPORT_MAPPER_STORAGE_KEY, serializeManagedStageSupportMapperConfig(config));
-  } catch (_) {}
+  try { storage?.setItem?.(MANAGED_STAGE_SUPPORT_MAPPER_STORAGE_KEY, serializeManagedStageSupportMapperConfig(config)); } catch (_) {}
 }
 
 export function resetStoredMapperConfig(storage = globalThis.localStorage, mapperPresetId = MANAGED_STAGE_SUPPORT_MAPPER_PRESET_IDS.CAESAR_DEFAULT) {
@@ -230,7 +217,8 @@ export function installManagedStageSupportSourceUi({ doc = globalThis.document }
     mapperPresetId: readStoredMapperPresetId(),
     mapperConfig: readStoredMapperConfig()
   });
-  const conversionSection = doc.querySelector?.('[data-section="conversion"]') || doc.getElementById('conversion-options-body')?.parentElement;
+  const supportSection = doc.querySelector?.('[data-section="support-mapping"]');
+  const conversionSection = supportSection || doc.querySelector?.('[data-section="conversion"]') || doc.getElementById('conversion-options-body')?.parentElement;
   if (!conversionSection) return model;
 
   const sourceSelect = ensureSupportSourceSelect(doc, conversionSection, model);
@@ -243,12 +231,7 @@ export function installManagedStageSupportSourceUi({ doc = globalThis.document }
     const mapperConfig = selectedPresetId === MANAGED_STAGE_SUPPORT_MAPPER_PRESET_IDS.CUSTOM
       ? (readMapperConfigFromDetails(doc) || readStoredMapperConfig())
       : { ...(getManagedStageSupportMapperPresetProfile(selectedPresetId).mapperConfig || {}), mapperPresetId: selectedPresetId };
-    const nextModel = buildManagedStageSupportSourceUiModel({
-      sourceMode: sourceSelect.value,
-      northSourceAxis: axisSelect.value,
-      mapperPresetId: selectedPresetId,
-      mapperConfig
-    });
+    const nextModel = buildManagedStageSupportSourceUiModel({ sourceMode: sourceSelect.value, northSourceAxis: axisSelect.value, mapperPresetId: selectedPresetId, mapperConfig });
     syncLegacySupportCheckboxes(doc, nextModel.legacyFlags);
     summary.textContent = supportSourceSummary(nextModel);
     details.innerHTML = renderMapperDetails(nextModel);
@@ -368,8 +351,8 @@ function ensureMapperDetails(doc, parent) {
 }
 
 function insertBeforeSingleAxis(parent, element) {
-  const anchor = parent.querySelector?.('#singleAxisDecision')?.closest?.('label') || parent.querySelector?.('#conversion-options-body');
-  if (anchor?.parentNode) anchor.parentNode.insertBefore(element, anchor);
+  const anchor = parent.querySelector?.('#singleAxisDecision')?.closest?.('label') || parent.querySelector?.('#supportMappingSettingsShell') || parent.querySelector?.('#conversion-options-body');
+  if (anchor?.parentNode) anchor.parentNode.insertBefore(element, anchor.nextSibling || null);
   else parent.appendChild(element);
 }
 
@@ -432,11 +415,7 @@ function buildUiAxisBasis({ northSourceAxis = '-X', axisBasis = {} } = {}) {
     name: `${base.name || 'CAESAR default axis basis'} with configurable project north`,
     axes: {
       ...(base.axes || {}),
-      [normalizedNorth]: {
-        ...(base.axes?.[normalizedNorth] || {}),
-        engineeringDirection: 'NORTH',
-        canvasAxis: normalizedNorth
-      },
+      [normalizedNorth]: { ...(base.axes?.[normalizedNorth] || {}), engineeringDirection: 'NORTH', canvasAxis: normalizedNorth },
       '+Y': { ...(base.axes?.['+Y'] || {}), engineeringDirection: 'UP', canvasAxis: '+Y' },
       '-Y': { ...(base.axes?.['-Y'] || {}), engineeringDirection: 'DOWN', canvasAxis: '-Y' }
     }
@@ -444,14 +423,7 @@ function buildUiAxisBasis({ northSourceAxis = '-X', axisBasis = {} } = {}) {
 }
 
 function mapperRow(fieldPurpose, label, sourceFieldCandidates = [], normalizedOutput, graphicsRule) {
-  return {
-    fieldPurpose,
-    label,
-    sourceFieldCandidates: [...(sourceFieldCandidates || [])],
-    normalizedOutput,
-    graphicsRule,
-    editable: true
-  };
+  return { fieldPurpose, label, sourceFieldCandidates: [...(sourceFieldCandidates || [])], normalizedOutput, graphicsRule, editable: true };
 }
 
 function resolveUiMapperPresetId(options = {}) {
@@ -461,27 +433,11 @@ function resolveUiMapperPresetId(options = {}) {
   return MANAGED_STAGE_SUPPORT_MAPPER_PRESET_IDS.CAESAR_DEFAULT;
 }
 
-function readStoredSourceMode() {
-  try { return globalThis.localStorage?.getItem?.('managedStage.supportSourceMode') || ''; } catch (_) { return ''; }
-}
-
-function readStoredNorthAxis() {
-  try { return globalThis.localStorage?.getItem?.('managedStage.supportNorthAxis') || '-X'; } catch (_) { return '-X'; }
-}
-
-function normalizeSignedAxis(axisToken) {
-  const match = String(axisToken || '').toUpperCase().trim().match(/([+-]?)(X|Y|Z)/);
-  if (!match) return '';
-  return `${match[1] || '+'}${match[2]}`;
-}
-
-function escapeHtml(value) {
-  return String(value ?? '').replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
-}
-
-function escapeAttribute(value) {
-  return escapeHtml(value);
-}
+function readStoredSourceMode() { try { return globalThis.localStorage?.getItem?.('managedStage.supportSourceMode') || ''; } catch (_) { return ''; } }
+function readStoredNorthAxis() { try { return globalThis.localStorage?.getItem?.('managedStage.supportNorthAxis') || '-X'; } catch (_) { return '-X'; } }
+function normalizeSignedAxis(axisToken) { const match = String(axisToken || '').toUpperCase().trim().match(/([+-]?)(X|Y|Z)/); if (!match) return ''; return `${match[1] || '+'}${match[2]}`; }
+function escapeHtml(value) { return String(value ?? '').replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char])); }
+function escapeAttribute(value) { return escapeHtml(value); }
 
 if (typeof window !== 'undefined') {
   const start = () => installManagedStageSupportSourceUi();

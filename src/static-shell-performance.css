@@ -5,14 +5,10 @@
  * UI does not push the LCP text or workspace around.
  */
 
-.viewer-topbar {
-  grid-template-rows: auto auto auto;
-}
+.viewer-topbar { grid-template-rows: auto auto auto; }
 
 .main-ribbon .tool-group,
-.main-ribbon .toolbar-group {
-  min-height: 68px;
-}
+.main-ribbon .toolbar-group { min-height: 68px; }
 
 .main-ribbon #staticReviewRibbonGroup:empty,
 .main-ribbon .shell-reserved-group:empty {
@@ -35,9 +31,7 @@
   min-width: 86px;
 }
 
-.topbar-actions .top-menu-btn {
-  min-width: 86px;
-}
+.topbar-actions .top-menu-btn { min-width: 86px; }
 
 .viewer-topbar .markup-ribbon,
 .viewer-topbar .markup-ribbon:has(.navis-tag-tools:empty) {
@@ -61,53 +55,52 @@
   padding: 0 6px;
 }
 
-#inputDrawer {
-  scroll-padding-top: 8px;
+#inputDrawer { scroll-padding-top: 8px; }
+
+#inputDrawer > #drawerSummaryCard.drawer-summary-card { display: none !important; }
+
+.workflow-drawer {
+  display: grid;
+  align-content: start;
+  gap: 10px;
 }
 
-/* The workflow summary is retained in HTML for optional future use but hidden
- * in the default compact drawer. It must not appear above "1 INPUT".
- */
-#inputDrawer > #drawerSummaryCard.drawer-summary-card {
-  display: none !important;
-}
+.workflow-drawer-head { margin-bottom: 2px !important; }
 
-#inputDrawer .phase2-input-sticky-section,
-#inputDrawer .phase4a-input-compact-section,
-#inputDrawer .panel-section[data-section="input"],
-#inputDrawer .panel-section[data-phase2-input="always-visible"] {
+#inputDrawer .workflow-card {
   position: static;
   display: grid;
-  gap: 6px;
-  padding: 8px 0 10px;
+  gap: 9px;
   margin: 0;
-  border-top: 1px solid rgba(83, 125, 176, .18);
-  border-radius: 0;
-  background: transparent;
-  box-shadow: none;
+  padding: 12px;
+  border: 1px solid rgba(83, 125, 176, .26);
+  border-radius: 12px;
+  background: linear-gradient(180deg, rgba(12, 30, 54, .86), rgba(5, 15, 29, .78));
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.04);
 }
 
-#inputDrawer .panel-section[data-section="input"] > h3,
-#inputDrawer .phase2-input-sticky-section h3,
-#inputDrawer .phase4a-input-compact-section h3 {
+#inputDrawer .workflow-card > h3 {
   margin: 0;
   min-height: 22px;
   line-height: 1.1;
   cursor: default;
 }
 
-#inputDrawer .panel-section[data-section="input"] > h3::after {
-  content: none;
-  display: none;
+#inputDrawer .workflow-card > h3::after { content: none; display: none; }
+
+.workflow-card-hint {
+  color: #aebfd4;
+  font-size: 11px;
+  line-height: 1.35;
 }
 
 #inputFileStatus.input-file-status,
-#inputDrawer .panel-section[data-section="input"] > .input-file-status {
+#inputDrawer .workflow-card[data-section="input"] > .input-file-status {
   display: flex !important;
   align-items: center;
-  min-height: 22px;
+  min-height: 24px;
   margin: 0;
-  padding: 2px 8px;
+  padding: 3px 8px;
   border: 1px solid rgba(83, 125, 176, .34);
   border-radius: 8px;
   color: #f8fbff;
@@ -119,34 +112,27 @@
   white-space: nowrap;
 }
 
-#inputDrawer .phase2-input-sticky-section > .file-drop,
-#inputDrawer .phase4a-input-compact-section > .file-drop,
-#inputDrawer .panel-section[data-phase2-input="always-visible"] > .file-drop,
-#inputDrawer .panel-section[data-section="input"] > .file-drop {
+#inputDrawer .workflow-card[data-section="input"] > .file-drop {
   display: grid !important;
   grid-auto-flow: column;
   place-items: center;
   justify-content: center;
   gap: 8px;
-  min-height: 32px;
+  min-height: 34px;
   margin: 0;
-  padding: 5px 10px;
+  padding: 6px 10px;
   line-height: 1;
   border-radius: 9px;
 }
 
-#inputDrawer .panel-section[data-section="input"] > .file-drop .lucide,
-#inputDrawer .panel-section[data-section="input"] > .file-drop i,
-#inputDrawer .phase2-input-sticky-section > .file-drop .lucide,
-#inputDrawer .phase2-input-sticky-section > .file-drop i {
+#inputDrawer .workflow-card[data-section="input"] > .file-drop .lucide,
+#inputDrawer .workflow-card[data-section="input"] > .file-drop i {
   width: 15px;
   height: 15px;
 }
 
-#inputDrawer .phase2-input-sticky-section > .input-primary-actions,
-#inputDrawer .phase4a-input-compact-section > .input-primary-actions,
-#inputDrawer .panel-section[data-phase2-input="always-visible"] > .input-primary-actions,
-#inputDrawer .panel-section[data-section="input"] > .input-primary-actions {
+#inputDrawer .workflow-card[data-section="input"] > .input-primary-actions,
+.workflow-primary-row {
   display: flex !important;
   align-items: center;
   gap: 8px;
@@ -154,86 +140,77 @@
   margin: 0;
 }
 
-#inputDrawer .phase2-input-sticky-section #loadSampleBtn,
-#inputDrawer .phase2-input-sticky-section #clearBtn,
-#inputDrawer .phase4a-input-compact-section #loadSampleBtn,
-#inputDrawer .phase4a-input-compact-section #clearBtn,
-#inputDrawer .panel-section[data-section="input"] #loadSampleBtn,
-#inputDrawer .panel-section[data-section="input"] #clearBtn {
+#inputDrawer .workflow-card[data-section="input"] #loadSampleBtn,
+#inputDrawer .workflow-card[data-section="input"] #clearBtn,
+.workflow-primary-row > button {
   flex: 1 1 0;
   min-width: 0;
-  min-height: 30px;
-  padding: 6px 6px;
+  min-height: 32px;
+  padding: 6px 8px;
   white-space: nowrap;
   font-size: 11px;
 }
 
-#inputDrawer .phase2-input-sticky-section #loadSampleBtn span,
-#inputDrawer .phase2-input-sticky-section #clearBtn span,
-#inputDrawer .phase4a-input-compact-section #loadSampleBtn span,
-#inputDrawer .phase4a-input-compact-section #clearBtn span,
-#inputDrawer .panel-section[data-section="input"] #loadSampleBtn span,
-#inputDrawer .panel-section[data-section="input"] #clearBtn span {
+#inputDrawer .workflow-card[data-section="input"] #loadSampleBtn span,
+#inputDrawer .workflow-card[data-section="input"] #clearBtn span,
+.workflow-primary-row > button span {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-#closeInputBtn[hidden] {
-  display: none;
+.support-workflow-card .support-mapping-settings-shell {
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  background: transparent !important;
 }
 
-#inputDrawer .panel-section[data-collapsible] > h3 {
+.support-workflow-card .support-mapping-settings-launcher {
+  gap: 6px !important;
+}
+
+.support-workflow-card .support-mapping-settings-open {
+  min-height: 36px !important;
+}
+
+.workflow-advanced-options {
+  border: 1px solid rgba(83, 125, 176, .22);
+  border-radius: 10px;
+  background: rgba(4, 14, 28, .44);
+}
+
+.workflow-advanced-options summary {
+  padding: 8px 10px;
   cursor: pointer;
-  user-select: none;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-height: 26px;
-  margin-bottom: 0;
+  color: #dcecff;
+  font-weight: 850;
 }
 
-#inputDrawer .panel-section[data-collapsible] > h3::after {
-  content: '▸';
-  margin-left: auto;
-  color: rgba(159, 179, 204, .9);
-  font-size: 12px;
+.workflow-advanced-options .field {
+  margin: 8px 10px 10px;
 }
 
-body.conversion-expanded #inputDrawer .panel-section[data-collapsible="conversion"] > h3::after,
-body.sideload-expanded #inputDrawer .panel-section[data-collapsible="sideload"] > h3::after {
-  content: '▾';
-}
-
-body:not(.conversion-expanded) #inputDrawer .panel-section[data-collapsible="conversion"] > .conversion-collapsible-content,
-body:not(.sideload-expanded) #inputDrawer .panel-section[data-collapsible="sideload"] > .sideload-collapsible-content {
-  display: none;
-}
-
-body:not(.conversion-expanded) #inputDrawer .panel-section[data-collapsible="conversion"] > .conversion-collapsible-content {
+/* Compatibility-only controls are retained for old controllers/tests but must
+ * never consume visible drawer space in the workflow-card layout.
+ */
+body:not(.conversion-expanded) #inputDrawer .conversion-options-compat-root .conversion-collapsible-content,
+body:not(.conversion-expanded) #inputDrawer .conversion-collapsible-content,
+body:not(.sideload-expanded) #inputDrawer .conversion-options-compat-root .sideload-collapsible-content,
+body:not(.sideload-expanded) #inputDrawer .sideload-collapsible-content,
+.conversion-options-compat-root {
   display: none !important;
 }
 
-body:not(.sideload-expanded) #inputDrawer .panel-section[data-collapsible="sideload"] > .sideload-collapsible-content {
-  display: none !important;
-}
-
-#inputDrawer .panel-section[data-collapsible="sideload"] {
-  padding-top: 12px;
-  padding-bottom: 12px;
-}
+#closeInputBtn[hidden] { display: none; }
 
 .property-drawer,
 .input-drawer,
 .viewer-shell,
-.app-workspace {
-  min-height: 0;
-}
+.app-workspace { min-height: 0; }
 
-.properties-body.empty-state {
-  min-height: 65%;
-}
+.properties-body.empty-state { min-height: 65%; }
 
 /* Layout containment: scope layout/style recalculation to decorated UI regions
  * without clipping overflow or allocating permanent compositor layers.
@@ -244,20 +221,12 @@ body:not(.sideload-expanded) #inputDrawer .panel-section[data-collapsible="sidel
 }
 
 .main-ribbon .tool-group,
-.main-ribbon .toolbar-group {
-  contain: layout style;
-}
+.main-ribbon .toolbar-group { contain: layout style; }
 
-.panel-section {
-  contain: layout style;
-}
+.panel-section { contain: layout style; }
 
-.markup-ribbon {
-  contain: layout style;
-}
+.markup-ribbon { contain: layout style; }
 
 .markup-ribbon .tool-group,
 .markup-ribbon .toolbar-group,
-.static-markup-tools {
-  contain: layout style;
-}
+.static-markup-tools { contain: layout style; }

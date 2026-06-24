@@ -7,18 +7,18 @@
   <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
   <link rel="shortcut icon" href="./favicon.ico" />
   <link rel="preconnect" href="https://unpkg.com" crossorigin />
-  <link rel="stylesheet" href="./src/styles.css?v=app-boot-dialog-conversion-hotfix-20260623" />
-  <link rel="stylesheet" href="./src/static-shell-performance.css?v=app-boot-dialog-conversion-hotfix-20260623" />
-  <link rel="preload" href="./src/clip-adjuster.css?v=app-boot-dialog-conversion-hotfix-20260623" as="style" onload="this.onload=null;this.rel='stylesheet'" />
-  <noscript><link rel="stylesheet" href="./src/clip-adjuster.css?v=app-boot-dialog-conversion-hotfix-20260623" /></noscript>
-  <link rel="preload" href="./src/clip-visual-overlays.css?v=app-boot-dialog-conversion-hotfix-20260623" as="style" onload="this.onload=null;this.rel='stylesheet'" />
-  <noscript><link rel="stylesheet" href="./src/clip-visual-overlays.css?v=app-boot-dialog-conversion-hotfix-20260623" /></noscript>
+  <link rel="stylesheet" href="./src/styles.css?v=support-visibility-boost-20260624" />
+  <link rel="stylesheet" href="./src/static-shell-performance.css?v=support-visibility-boost-20260624" />
+  <link rel="preload" href="./src/clip-adjuster.css?v=support-visibility-boost-20260624" as="style" onload="this.onload=null;this.rel='stylesheet'" />
+  <noscript><link rel="stylesheet" href="./src/clip-adjuster.css?v=support-visibility-boost-20260624" /></noscript>
+  <link rel="preload" href="./src/clip-visual-overlays.css?v=support-visibility-boost-20260624" as="style" onload="this.onload=null;this.rel='stylesheet'" />
+  <noscript><link rel="stylesheet" href="./src/clip-visual-overlays.css?v=support-visibility-boost-20260624" /></noscript>
   <script type="importmap">
     {
       "imports": {
         "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
         "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/",
-        "lucide": "./src/lucide-safe.js?v=app-boot-dialog-conversion-hotfix-20260623"
+        "lucide": "./src/lucide-safe.js?v=support-visibility-boost-20260624"
       }
     }
   </script>
@@ -118,125 +118,37 @@
         <div class="drawer-summary-grid" aria-label="Workflow status">
           <div id="drawerSummary_input" class="drawer-summary-step" data-state="idle">
             <strong>Input</strong>
-            <span>Waiting</span>
+            <span>Load stagedJson or BM_CII sample to begin.</span>
           </div>
-          <div id="drawerSummary_model" class="drawer-summary-step" data-state="idle">
-            <strong>Model</strong>
-            <span>Not converted</span>
+          <div id="drawerSummary_convert" class="drawer-summary-step" data-state="idle">
+            <strong>Convert</strong>
+            <span>Conversion has not run yet.</span>
+          </div>
+          <div id="drawerSummary_select" class="drawer-summary-step" data-state="idle">
+            <strong>Select</strong>
+            <span>Select geometry to inspect properties.</span>
           </div>
           <div id="drawerSummary_export" class="drawer-summary-step" data-state="idle">
             <strong>Export</strong>
-            <span>Locked</span>
+            <span>Run conversion to enable downloads.</span>
           </div>
         </div>
-
-        <p id="drawerSummaryHint" class="drawer-summary-hint">
-          Load stagedJson or bundled sample to begin.
-        </p>
       </section>
 
-      <section class="panel-section phase2-input-sticky-section phase4a-input-compact-section" data-section="input" data-phase2-input="always-visible" data-phase4a-input="compact-static">
-        <h3><span class="section-no">1</span> Input</h3>
-        <div id="inputFileStatus" class="input-file-status" aria-live="polite">No file chosen</div>
-        <label class="file-drop input-file-drop-visible">
-          <input type="file" id="xmlFile" accept=".json,.jscon,application/json" />
-          <i data-lucide="upload"></i>
-          <span>Choose stagedJson</span>
-        </label>
-        <div class="button-row input-primary-actions">
-          <button id="loadSampleBtn" type="button" class="primary icon-text" title="Load bundled stagedJson sample without replacing the file chooser status" aria-label="Load stagedJson sample"><i data-lucide="folder-open"></i><span>Load stagedJson sample</span></button>
-          <button id="clearBtn" type="button" class="ghost icon-text" aria-label="Clear all input and sample data"><i data-lucide="folder-x"></i><span>Clear All</span></button>
-        </div>
-      </section>
-
-      <section class="panel-section" data-section="conversion" data-collapsible="conversion">
-        <h3 role="button" tabindex="0" aria-controls="conversion-options-body" aria-expanded="false"><span class="section-no">2</span> Conversion</h3>
-        <label class="field conversion-collapsible-content"><span>RVM / GLB scale</span><input id="scaleInput" type="number" value="0.001" step="0.0001" /></label>
-        <label class="field conversion-collapsible-content"><span>Support visual scale</span><input id="supportScaleInput" type="number" value="1" step="0.1" min="0.1" /></label>
-        <label class="field conversion-collapsible-content"><span>Board width</span><input id="boardWidthInput" type="number" value="2.8" step="0.1" min="0.5" /></label>
-        <label class="field conversion-collapsible-content"><span>RVM version</span><input id="rvmVersion" type="text" value="3.0" /></label>
-        <label class="field checkbox-field conversion-collapsible-content"><input id="renderExpectedSupport" type="checkbox" checked /><span>Render expected supports from ISONOTE</span></label>
-        <label class="field checkbox-field conversion-collapsible-content"><input id="renderActualSupport" type="checkbox" checked /><span>Render actual supports from stagedJson</span></label>
-        <label class="field checkbox-field conversion-collapsible-content"><input id="showSupportLabel" type="checkbox" /><span>Show support labels</span></label>
-        <label class="field conversion-collapsible-content"><span>Single-axis unresolved decision</span><select id="singleAxisDecision"><option value="warning" selected>Warning marker only</option><option value="+">Use + axis</option><option value="-">Use - axis</option></select></label>
-
-        <details class="options-expander conversion-collapsible-content" id="conversion-options-body">
-          <summary>Options</summary>
-          <div class="check-grid">
-            <label><input type="checkbox" id="nodeLabels" checked /> Node labels</label>
-            <label><input type="checkbox" id="isonoteBoards" checked /> ISONOTE boards</label>
-            <label><input type="checkbox" id="supportLabels" /> Support labels</label>
-            <label><input type="checkbox" id="componentText" /> Component text labels</label>
-            <label><input type="checkbox" id="compareColors" checked /> Compare colors</label>
-            <label><input type="checkbox" id="compactMode" checked /> Compact geometry</label>
-          </div>
-        </details>
-      </section>
-
-      <section class="panel-section sideload-section" data-section="sideload" data-collapsible="sideload">
-        <h3 role="button" tabindex="0" aria-controls="sideload-options-body" aria-expanded="false"><span class="section-no">3</span> Sideload Data</h3>
-        <div id="sideload-options-body" class="sideload-collapsible-content">
-          <label class="field"><span>Line No sideload CSV</span><textarea id="lineNoText" spellcheck="false" rows="3"></textarea></label>
-          <label class="field"><span>ISONOTE sideload CSV / text</span><textarea id="isonoteText" spellcheck="false" rows="5"></textarea></label>
-        </div>
-      </section>
-
-      <section class="panel-section">
-        <h3><span class="section-no">4</span> Run / Download</h3>
-        <div class="button-row">
-          <button id="convertBtn" type="button" class="primary icon-text"><i data-lucide="refresh-cw"></i><span>Run Conversion</span></button>
-          <button id="viewRulesBtn" type="button" class="ghost">Mapping Rules</button>
-        </div>
-        <div class="download-grid">
-          <button id="downloadGlbBtn" type="button" disabled><i data-lucide="box"></i><span>GLB</span></button>
-          <button id="downloadRvmBtn" type="button" disabled><i data-lucide="file-down"></i><span>RVM</span></button>
-          <button id="downloadAttBtn" type="button" disabled><i data-lucide="file-text"></i><span>ATT</span></button>
-          <button id="downloadAuditBtn" type="button" disabled><i data-lucide="download"></i><span>Audit</span></button>
-        </div>
-      </section>
-
-      <section class="panel-section log-section">
-        <h3><span class="section-no">5</span> Log</h3>
-        <pre id="log"></pre>
-      </section>
+      <div id="inputControls" class="input-controls-panel"></div>
     </aside>
 
-    <section class="viewer-shell" aria-label="3D viewer">
-      <div id="viewer" class="viewer-canvas">
-        <div class="canvas-help" id="hint">
-          <strong>Canvas</strong>
-          <span>LMB: select/orbit · Wheel: zoom · RMB: pan</span>
-          <span>Shortcuts: S/O/P/M/H/F/C/Esc</span>
-        </div>
-        <div class="canvas-help secondary-help" id="canvasHelp" hidden></div>
-        <button id="treeToggleBtn" type="button" class="tree-toggle" title="Show model tree"><i data-lucide="list-tree"></i><span>Tree</span></button>
-
-        <div class="view-pad" aria-label="View shortcuts">
-          <button type="button" data-view="top">TOP</button>
-          <button type="button" data-view="iso">ISO</button>
-          <button type="button" data-view="side">RIGHT</button>
-          <button type="button" data-view="front">FRONT</button>
-          <button type="button" data-view="fit">FIT</button>
-          <button type="button" data-view="fitSelection">SEL</button>
-          <button type="button" data-view="zoom">ZOOM</button>
-          <button type="button" data-view="clip">CLIP</button>
-          <button type="button" data-view="msr">MSR</button>
-        </div>
-
-        <div class="measure-readout" id="measureReadout" hidden></div>
-        <div class="clip-adjust-panel" id="clipAdjustPanel" aria-live="polite" hidden aria-hidden="true">
-          <div class="clip-adjust-head"><span>Clip Adjust</span><button type="button" id="clipAdjustToggleBtn">Enable Clip</button></div>
-          <div class="clip-adjust-row"><label for="clipAxisSelect">Axis</label><select id="clipAxisSelect"><option value="x">X</option><option value="y">Y</option><option value="z">Z</option></select></div>
-          <div class="clip-adjust-row"><label for="clipSlider">Position</label><input id="clipSlider" type="range" min="0" max="100" value="50" step="1" /></div>
-          <div class="clip-adjust-row compact"><button type="button" id="clipStepDownBtn" title="Move clip plane backward">−</button><input id="clipOffsetInput" type="number" min="0" max="100" value="50" step="1" /><button id="clipStepUpBtn" type="button" title="Move clip plane forward">+</button></div>
-          <label class="clip-adjust-check"><input id="clipInvertCheck" type="checkbox" /><span>Invert side</span></label>
-          <button type="button" id="clipCenterBtn" class="clip-center-btn">Center / Reset</button>
-          <p id="clipAdjustHint" class="clip-adjust-hint">Legacy clip panel disabled. Use Fresh Clip.</p>
-        </div>
+    <section class="viewer-shell" aria-label="3D model viewer">
+      <div class="viewer-content" id="viewerContent">
+        <canvas id="viewerCanvas" aria-label="3D model canvas"></canvas>
+        <div id="overlay" class="overlay"></div>
+        <div id="treePanel" class="tree-panel"></div>
+        <div id="canvasHud" class="canvas-hud"></div>
       </div>
-      <footer class="viewer-statusbar">
-        <span id="selectedStatus">Selected: none</span>
-        <span id="componentStatus">Objects: 0</span>
+
+      <footer class="viewer-statusbar" aria-label="Viewer status">
+        <span id="statusText">Ready</span>
+        <span id="selectionStatus">No selection</span>
         <span id="coordStatus">XYZ: -</span>
       </footer>
     </section>
@@ -274,8 +186,8 @@
     </form>
   </dialog>
 
-  <script type="module" src="./src/render-context-prebridge.js?v=app-boot-dialog-conversion-hotfix-20260623"></script>
-  <script type="module" src="./src/safe-ui-bootstrap.js?v=app-boot-dialog-conversion-hotfix-20260623"></script>
-  <script type="module" src="./src/app-loader.js?v=app-boot-dialog-conversion-hotfix-20260623"></script>
+  <script type="module" src="./src/render-context-prebridge.js?v=support-visibility-boost-20260624"></script>
+  <script type="module" src="./src/safe-ui-bootstrap.js?v=support-visibility-boost-20260624"></script>
+  <script type="module" src="./src/app-loader.js?v=support-visibility-boost-20260624"></script>
 </body>
 </html>

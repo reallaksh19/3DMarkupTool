@@ -6,6 +6,10 @@ import {
   STAGED_JSON_SUPPORT_SOURCE_OVERLAY_ROOT,
   applyManagedStageSupportSourcePreview
 } from '../src/managed-stage-support-source-preview-bridge.js';
+import {
+  PROFILE_SUPPORT_SOURCE_RECORD_ROOT,
+  ensureProfileSupportSourceRecords
+} from '../src/managed-stage-profile-support-source-bridge.js';
 
 const profile = parseManagedStageProfile({
   schema: 'inputxml-managed-stage/v1',
@@ -79,5 +83,30 @@ const overlay = scene.children.find((child) => child.name === STAGED_JSON_SUPPOR
 assert.ok(overlay, 'stagedJson support overlay root must be created from raw source records');
 assert.equal(overlay.children.length, 1);
 assert.equal(overlay.children[0].userData.stagedJsonMapperRecord.supportTag, 'PS-GUIDE-LINE');
+
+const profileScene = new THREE.Scene();
+profileScene.userData.managedStageProfileSupportRecords = profile.supportRecords;
+const injectionAudit = ensureProfileSupportSourceRecords(profileScene, { requestedBy: 'test' });
+assert.equal(injectionAudit.status, 'injected');
+assert.equal(injectionAudit.profileSupportRecordCount, 2);
+assert.equal(injectionAudit.injectedCount, 2);
+assert.equal(injectionAudit.skippedNoPositionCount, 0);
+assert.equal(injectionAudit.skippedNoTokenCount, 0);
+const profileSourceRoot = profileScene.children.find((child) => child.name === PROFILE_SUPPORT_SOURCE_RECORD_ROOT);
+assert.ok(profileSourceRoot, 'profile support source records should be injected into a non-rendered bridge root');
+assert.equal(profileSourceRoot.visible, false);
+assert.equal(profileSourceRoot.children.length, 2);
+assert.equal(profileSourceRoot.children[0].userData.primitiveKind, 'raw-staged-source-point');
+assert.deepEqual(profileSourceRoot.children[0].userData.previewPosMm, { x: 10, y: 20, z: 30 });
+
+const profileOverlayResult = applyManagedStageSupportSourcePreview(profileScene, { sourceMode: 'stagedJson', mapperConfig: { fieldMapper: { supportTagFields: ['SUPPORT_TAG', 'NAME'], supportKindFields: ['SUPPORT_KIND', 'DTXR'], gapFields: ['SUPPORT_GAP_MM', '*GAP*'] } } });
+assert.equal(profileOverlayResult.status, 'stagedJson');
+assert.equal(profileOverlayResult.stagedJsonSupportRecordCount, 2, 'profile parser support records must feed stagedJson Canvas support overlay');
+assert.equal(profileOverlayResult.diagnostics.stagedJsonSymbolCount, 2);
+assert.equal(profileOverlayResult.diagnostics.supportFamilyHistogram.GUIDE, 1);
+assert.equal(profileOverlayResult.diagnostics.supportFamilyHistogram.REST, 1);
+const profileOverlay = profileScene.children.find((child) => child.name === STAGED_JSON_SUPPORT_SOURCE_OVERLAY_ROOT);
+assert.ok(profileOverlay, 'stagedJson overlay should be built from profile support source records');
+assert.equal(profileOverlay.children.length, 2);
 
 console.log('managed-stage support source record discovery tests passed');

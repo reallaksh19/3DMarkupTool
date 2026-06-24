@@ -1,4 +1,4 @@
-import { copyFile, mkdir, readFile, readdir, rm, writeFile } from 'node:fs/promises';
+import { copyFile, mkdir, readFile, readdir, rm, stat, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { rollup } from 'rollup';
@@ -25,11 +25,13 @@ const LEGACY_CACHE_KEYS = Object.freeze([
 
 await rm(SITE_DIR, { recursive: true, force: true });
 await copyStaticSite(ROOT, SITE_DIR);
+await ensurePagesIndexArtifact();
 await mkdir(ASSET_DIR, { recursive: true });
 
 await buildBundle('src/app-bundle-entry.js', 'assets/app.bundle.js');
 await buildBundle('src/static-shell-bundle-entry.js', 'assets/static-shell.bundle.js');
 await injectBundleManifest();
+await assertFile(path.join(SITE_DIR, 'index.html'), 'Pages index artifact');
 
 console.log('Built GitHub Pages artifact with bundled app/static shell assets.');
 
@@ -54,6 +56,25 @@ async function copyStaticSite(from, to) {
     } else {
       await copyFile(src, dest);
     }
+  }
+}
+
+async function ensurePagesIndexArtifact() {
+  // Keep the Pages entry point explicit.  The recursive copier normally copies
+  // root/index.html, but the deploy workflow validates this exact path and a
+  // missing index should fail inside the build step with a useful message.
+  const sourceIndex = path.join(ROOT, 'index.html');
+  const siteIndex = path.join(SITE_DIR, 'index.html');
+  await assertFile(sourceIndex, 'source index.html');
+  await mkdir(path.dirname(siteIndex), { recursive: true });
+  await copyFile(sourceIndex, siteIndex);
+  await assertFile(siteIndex, 'Pages index artifact after explicit copy');
+}
+
+async function assertFile(filePath, label) {
+  const info = await stat(filePath).catch(() => null);
+  if (!info?.isFile()) {
+    throw new Error(`${label} missing at ${filePath}`);
   }
 }
 

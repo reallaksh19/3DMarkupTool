@@ -1,5 +1,9 @@
 import { parseInputXml } from './parser.js?v=professional-viewer-3';
 import { isUxmlDocument, parseUxmlText, unwrapUxmlDocument } from './uxml-parser.js?v=20260618-uxml-source-1';
+import {
+  looksLikeStagedJsonSource,
+  parseStagedJsonSourceContract
+} from './stagedjson-source-contract.js';
 
 export function detectSourceType(text, filename = '') {
   const name = String(filename || '').toLowerCase();
@@ -14,6 +18,7 @@ export function detectSourceType(text, filename = '') {
     try {
       const json = JSON.parse(body);
       if (isUxmlDocument(unwrapUxmlDocument(json))) return { kind: 'uxml', label: 'UXML' };
+      if (looksLikeStagedJsonSource(json)) return { kind: 'stagedjson', label: 'stagedJson' };
       return { kind: 'json', label: 'JSON' };
     } catch {
       return { kind: 'json-invalid', label: 'Invalid JSON' };
@@ -26,6 +31,11 @@ export function detectSourceType(text, filename = '') {
 
 export function parseMarkupSource(text, options = {}) {
   const detected = detectSourceType(text, options.filename || '');
+  if (detected.kind === 'stagedjson') {
+    const model = parseStagedJsonSourceContract(text, options);
+    model.detectedSource = detected;
+    return model;
+  }
   if (detected.kind === 'uxml') {
     const model = parseUxmlText(text, options);
     model.detectedSource = detected;
@@ -38,7 +48,7 @@ export function parseMarkupSource(text, options = {}) {
     model.detectedSource = detected;
     return model;
   }
-  throw new Error(`Unsupported model source: ${detected.label}. Choose InputXML or UXML.`);
+  throw new Error(`Unsupported model source: ${detected.label}. Choose InputXML, UXML, or stagedJson.`);
 }
 
 function normalizeUxmlModelForExistingExporters(model) {

@@ -145,7 +145,9 @@ assert.equal(torusMeshes(lineStopPreview.object).length, 0, 'LINESTOP preview mu
 assert.ok(coneMeshes(lineStopPreview.object).every((mesh) => mesh.geometry.parameters.openEnded === true));
 assert.ok(coneMeshes(lineStopPreview.object).every((mesh) => mesh.userData.axialPipeParallel === true));
 assert.ok(coneMeshes(lineStopPreview.object).every((mesh) => mesh.userData.odTwoThirdsResolverApplied === true));
-assert.ok(coneMeshes(lineStopPreview.object).every((mesh) => Math.abs(mesh.userData.tipMm.x) <= 0.001), 'ungapped axial tips remain centered along pipe axis');
+const lineStopTips = coneMeshes(lineStopPreview.object).map((mesh) => mesh.userData.tipMm);
+assert.ok(lineStopTips.every((tip) => Math.abs(tip.z) <= 0.001), 'ungapped axial tips stay at the support node along the pipe axis');
+assert.ok(lineStopTips.every((tip) => Math.abs(tip.x) > 1), 'ungapped axial tips use the ODx2/3 display offset instead of being hidden on the pipe centerline');
 
 const zPreview = createManagedStageSupportPreviewObject(mappedZLineStop, { records: [pipe, mappedZLineStop], pointRadius: 10 });
 assert.equal(zPreview.supportVisual.family, 'LINE_STOP');

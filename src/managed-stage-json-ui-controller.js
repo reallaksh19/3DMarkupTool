@@ -55,7 +55,7 @@ export function installManagedStageJsonUi() {
   const modelFileInput = ensureUnifiedModelFileInput();
   ensureUnifiedDropZone(modelFileInput);
   const button = ensureUnifiedModelButton(inputActions, modelFileInput);
-  button.addEventListener('click', () => modelFileInput.click());
+  if (button) button.addEventListener('click', () => modelFileInput.click());
   modelFileInput.addEventListener('change', onUnifiedModelFileChange, true);
 
   installManagedStageButtonInterceptors(modelFileInput);
@@ -85,6 +85,7 @@ function ensureUnifiedDropZone(input) {
   if (!drop) return;
   drop.title = 'Choose stagedJson or BM_CII_INPUT_managed_stage.json';
   drop.setAttribute('aria-label', 'Choose stagedJson');
+  drop.dataset.unifiedModelFileHost = 'true';
   const span = drop.querySelector('span');
   if (span) span.textContent = 'Choose stagedJson';
 }
@@ -101,6 +102,18 @@ function ensureUnifiedModelButton(host, modelFileInput) {
 
   const existing = document.getElementById('loadUnifiedModelFileBtn');
   if (existing) return existing;
+
+  // Current workflow HTML already owns the file chooser through the visible
+  // .file-drop label. Do not inject a duplicate runtime button after first
+  // paint; that causes the INPUT row to flicker/reflow and can be hidden by
+  // later shell icon refreshes. The label's native file input behavior is the
+  // stable load control.
+  const stableDrop = modelFileInput.closest('.file-drop');
+  if (stableDrop) {
+    stableDrop.dataset.unifiedModelFileHost = 'true';
+    return null;
+  }
+
   const button = document.createElement('button');
   button.id = 'loadUnifiedModelFileBtn';
   button.type = 'button';

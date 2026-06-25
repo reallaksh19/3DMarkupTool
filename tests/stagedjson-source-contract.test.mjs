@@ -9,8 +9,8 @@ import {
 
 const sourceText = createBmCiiManagedStageSampleJson();
 const isonoteText = `NODE,ISONOTE
-35,:/PS-35 :ISONOTE 'GUIDE, LINE STOP GAP 5mm'
-205,:/PS-205 :ISONOTE 'REST, LINE STOP'`;
+35,:ISONOTE 'GUIDE, LINE STOP GAP 5mm'
+205,:ISONOTE 'REST, LINE STOP'`;
 
 const detected = detectSourceType(sourceText, 'BM_CII_INPUT_managed_stage.json');
 assert.equal(detected.kind, 'stagedjson');

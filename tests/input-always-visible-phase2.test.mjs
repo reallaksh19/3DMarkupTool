@@ -7,7 +7,7 @@ const controller = readFileSync(new URL('../src/static-input-always-visible-cont
 const collapseController = readFileSync(new URL('../src/static-input-conversion-collapse-controller.js', import.meta.url), 'utf8');
 const perfCss = readFileSync(new URL('../src/static-shell-performance.css', import.meta.url), 'utf8');
 const checklist = readFileSync(new URL('../docs/post-pr133-recovery-checklist.md', import.meta.url), 'utf8');
-const pkg = JSON.parse(readFileSync(new URL('../package.json'), 'utf8'));
+const pkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
 
 const staticKeyPattern = /workflow-input-expanded-load-controls-20260625|staged-json-review-ui-rvm-fix-20260625|app-boot-dialog-conversion-hotfix-20260623|support-ui-render-export-fix-20260623|tool-fixes-v2-20260620|perf-tdz-fix-20260620|perf-static-drawer-bundle-20260620|perf-idle-diagnostics-20260620|perf-static-shell-20260620|phase4a-static-input-panel-cleanup-20260619/;
 

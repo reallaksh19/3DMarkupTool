@@ -43,7 +43,8 @@ const exportModel = buildManagedStageRvmExportModel(profile);
 assert.equal(exportModel.audit.elbowTangentHintAudit.bendCount, 7);
 assert.equal(exportModel.audit.elbowTangentHintAudit.allBendsHavePlaneHint, true);
 assert.equal(exportModel.audit.elbowTangentHintAudit.stateHistogram['adjacent-start-end'], 7);
-assert.equal(exportModel.audit.inputXmlBendExclusionAudit.excludedBendCount, 7);
+assert.equal(exportModel.audit.inputXmlBendExclusionAudit.code4BendsExcluded, 7);
+assert.equal(exportModel.audit.inputXmlBendExclusionAudit.sourceRouteBendCount, 7);
 
 const subgroup = exportModel.root.children[0].children[0];
 const bendNodes = subgroup.children.filter((node) => node.attributes.DTXR === 'BEND');

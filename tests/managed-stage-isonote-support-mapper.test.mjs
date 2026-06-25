@@ -19,9 +19,12 @@ assert.ok(families.includes('SPRING_CAN'));
 const warning = records.find((record) => record.nodeId === '130');
 assert.equal(warning.mapperRecord.family, 'UNKNOWN');
 assert.equal(warning.mapperRecord.axis.sourceAxis, '+Z');
+assert.equal(warning.mapperRecord.preflight.popupRequired, true);
+assert.equal(warning.mapperRecord.preflight.issues.some((issue) => issue.code === 'unknown-support-family'), true);
 const warningSymbol = resolveManagedStageSupportSymbolCatalogue(warning.mapperRecord, { pipeAxisSigned: '+X' });
-assert.equal(warningSymbol.family, 'SINGLE_AXIS_WARNING');
+assert.equal(warningSymbol.family, 'UNKNOWN');
 assert.equal(warningSymbol.popupRequired, true);
+assert.match(warningSymbol.graphicsRule, /unknown/);
 
 const gapRows = parseManagedStageIsonoteSupportRecords('NODE,ISONOTE\n10,GUIDE GAP=5mm\n20,LINE STOP\n');
 assert.equal(gapRows[0].mapperRecord.gap.value, '5mm');

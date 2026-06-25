@@ -1,4 +1,4 @@
-const APP_LOADER_VERSION = 'support-ringless-input-panel-revamp-20260624';
+const APP_LOADER_VERSION = 'staged-json-review-ui-rvm-fix-20260625';
 const APP_MODULE_URL = `./app.js?v=${APP_LOADER_VERSION}`;
 const CLIP_HOOK_MODULE_URL = `./clip-render-hook.js?v=${APP_LOADER_VERSION}`;
 const FRESH_CLIP_MODULE_URL = `./fresh-clip-controller.js?v=${APP_LOADER_VERSION}`;
@@ -148,6 +148,7 @@ function loadManagedStageJsonUiController() {
     .then(() => import(MANAGED_STAGE_JSON_SAMPLE_MODULE_URL))
     .catch((error) => {
       console.warn('[3DMarkupTool] Managed-stage JSON UI skipped.', error);
+      setRuntimeStatus('Managed-stage UI limited');
     });
 }
 

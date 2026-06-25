@@ -87,6 +87,37 @@
   line-height: 1.35;
 }
 
+#inputDrawer .workflow-card[data-section="input"],
+#inputDrawer .workflow-card[data-phase2-input="always-visible"] {
+  display: grid !important;
+  grid-template-rows: auto auto auto auto !important;
+  min-height: 168px;
+  max-height: none !important;
+  overflow: visible !important;
+}
+
+#inputDrawer .workflow-card[data-section="input"] > .workflow-card-hint,
+#inputDrawer .workflow-card[data-section="input"] > #inputFileStatus,
+#inputDrawer .workflow-card[data-section="input"] > .input-file-status,
+#inputDrawer .workflow-card[data-section="input"] > .file-drop,
+#inputDrawer .workflow-card[data-section="input"] > .input-primary-actions,
+#inputDrawer .workflow-card[data-phase2-input="always-visible"] > .workflow-card-hint,
+#inputDrawer .workflow-card[data-phase2-input="always-visible"] > #inputFileStatus,
+#inputDrawer .workflow-card[data-phase2-input="always-visible"] > .input-file-status,
+#inputDrawer .workflow-card[data-phase2-input="always-visible"] > .file-drop,
+#inputDrawer .workflow-card[data-phase2-input="always-visible"] > .input-primary-actions {
+  visibility: visible !important;
+  opacity: 1 !important;
+  max-height: none !important;
+  transform: none !important;
+  pointer-events: auto !important;
+}
+
+#inputDrawer .workflow-card[data-section="input"] > .workflow-card-hint,
+#inputDrawer .workflow-card[data-phase2-input="always-visible"] > .workflow-card-hint {
+  display: block !important;
+}
+
 #inputFileStatus.input-file-status,
 #inputDrawer .workflow-card[data-section="input"] > .input-file-status {
   display: flex !important;

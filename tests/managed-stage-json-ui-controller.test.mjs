@@ -109,7 +109,7 @@ assert.match(supportVisualResolver, /REST = one upward cone below pipe/);
 assert.match(supportVisualResolver, /HOLDDOWN = opposed vertical cones/);
 assert.match(supportVisualResolver, /GUIDE = lateral cones/);
 assert.match(supportVisualResolver, /LINE_STOP\/LIMIT = transformed Canvas axis/);
-assert.match(supportVisualResolver, /X\/Y\/Z\/+X\/-X\/+Y\/-Y\/+Z\/-Z/);
+assert.ok(supportVisualResolver.includes('X/Y/Z/+X/-X/+Y/-Y/+Z/-Z'));
 assert.match(supportVisualResolver, /gap is record-scoped|gapRecordScoped/);
 assert.match(supportVisualResolver, /ODx2\/3 applies only to final axial/);
 assert.match(supportVisualResolver, /clustered support local offset|support-cluster resolver/);

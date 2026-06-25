@@ -181,6 +181,7 @@ export function normalizeManagedStageSupportMapperRecord(record, config = {}) {
     SUPPORT_AXIS_CANVAS: canvasAxis.canvasAxis || '',
     SUPPORT_AXIS_ENGINEERING: canvasAxis.engineeringDirection || '',
     SUPPORT_AXIS_CANVAS_VECTOR: canvasAxis.canvasVectorText || '',
+    SUPPORT_AXIS_CANVAS_APPLIED: signedSourceAxis && canvasAxis.canvasAxis && signedSourceAxis !== canvasAxis.canvasAxis ? 'TRUE' : 'FALSE',
     SUPPORT_SIGN_MAPPED: signMatch.value || canvasAxis.sign || '',
     SUPPORT_SIGN_SOURCE_FIELD: signMatch.key || '',
     SUPPORT_FIELD_MAPPER_CONFIGURED: 'TRUE',

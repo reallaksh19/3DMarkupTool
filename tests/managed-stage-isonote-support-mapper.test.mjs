@@ -28,7 +28,7 @@ assert.match(warningSymbol.graphicsRule, /unknown/);
 
 const gapRows = parseManagedStageIsonoteSupportRecords('NODE,ISONOTE\n10,GUIDE GAP=5mm\n20,LINE STOP\n');
 assert.equal(gapRows[0].mapperRecord.gap.value, '5mm');
-assert.equal(gapRows[0].mapperRecord.gap.sourceField, 'ISONOTE_SEGMENT');
+assert.equal(gapRows[0].mapperRecord.gap.sourceField, 'SUPPORT_GAP_MM');
 assert.equal(gapRows[1].mapperRecord.gap.value, '');
 
 console.log('managed-stage ISONOTE support mapper: ok');

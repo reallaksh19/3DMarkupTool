@@ -17,10 +17,9 @@ const pkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url),
 const moduleScriptCount = (index.match(/<script\s+type="module"/g) || []).length;
 const staticShellImports = (bootstrap.match(/\.js\?v=\$\{SAFE_UI_VERSION\}/g) || []).length;
 const startupScriptBlock = index.slice(index.indexOf('<script type="module"'));
-const rootCacheKeyPattern = /staged-json-review-ui-rvm-fix-20260625|app-boot-dialog-conversion-hotfix-20260623|support-ui-render-export-fix-20260623|tool-fixes-v2-20260620|perf-tdz-fix-20260620|perf-static-drawer-bundle-20260620|perf-idle-diagnostics-20260620|perf-static-shell-20260620/;
 
 assert.ok(moduleScriptCount <= 3, `index.html should keep top-level module scripts bounded; found ${moduleScriptCount}.`);
-assert.match(index, new RegExp(`static-shell-performance\.css\?v=(${rootCacheKeyPattern.source})`), 'Index must load static performance CSS before JS bootstrap.');
+assert.match(index, /static-shell-performance\.css\?v=(staged-json-review-ui-rvm-fix-20260625|app-boot-dialog-conversion-hotfix-20260623|support-ui-render-export-fix-20260623|tool-fixes-v2-20260620|perf-tdz-fix-20260620|perf-static-drawer-bundle-20260620|perf-idle-diagnostics-20260620|perf-static-shell-20260620)/, 'Index must load static performance CSS before JS bootstrap.');
 assert.match(index, /id="topReviewMenu"[\s\S]*review-top-menu-btn/, 'Top Review menu slot must be statically reserved before JS decorates it.');
 assert.match(index, /id="staticReviewRibbonGroup"/, 'Review ribbon group must be statically reserved before JS decorates it.');
 assert.match(index, /id="workflowStatusInline"/, 'Workflow status must be statically integrated into the topbar row.');

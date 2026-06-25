@@ -3,7 +3,7 @@
 // Layout is owned by static HTML/CSS so the first paint and post-JS state match.
 // No scene traversal, no polling, no review-tool activation.
 
-const VERSION = 'workflow-input-expanded-load-controls-20260625';
+const VERSION = 'workflow-input-stable-controls-20260625';
 const INPUT_CONTENT_SELECTORS = [
   '.workflow-card-hint',
   '#inputFileStatus',
@@ -12,7 +12,17 @@ const INPUT_CONTENT_SELECTORS = [
   '.file-drop',
   '.input-primary-actions',
   '#loadSampleBtn',
+  '#loadUnifiedModelFileBtn',
+  '.unified-model-load-btn',
   '#clearBtn'
+];
+const INPUT_REASSERT_EVENTS = [
+  'viewer:static-shell-bundle-ready',
+  'viewer:static-shell-bundle-loaded',
+  'viewer:svg-icons-refreshed',
+  'viewer:managed-stage-json-ui-ready',
+  'viewer:app-module-loaded',
+  'markup:safe-ui-status'
 ];
 
 runWhenReady(initInputAlwaysVisible);
@@ -30,6 +40,7 @@ function initInputAlwaysVisible() {
   if (!section) return;
 
   bindFileStatus();
+  bindPostBootstrapReassertions();
   ensureDrawerOpen();
 
   window.__3D_MARKUP_INPUT_ALWAYS_VISIBLE__ = {
@@ -78,11 +89,15 @@ function ensureInputBlock() {
 
   if (fileDrop) {
     fileDrop.classList.add('input-file-drop-visible');
+    fileDrop.dataset.stableInputDrop = 'true';
     const label = fileDrop.querySelector('span');
     if (label) label.textContent = 'Choose stagedJson';
   }
 
-  if (actions) actions.classList.add('input-primary-actions');
+  if (actions) {
+    actions.classList.add('input-primary-actions');
+    actions.dataset.stableInputActions = 'true';
+  }
 
   const loadSampleBtn = document.getElementById('loadSampleBtn');
   if (loadSampleBtn) {
@@ -138,6 +153,26 @@ function forceInputControlsExpanded(section) {
       child.classList.remove('sideload-collapsible-content');
     }
   });
+}
+
+function bindPostBootstrapReassertions() {
+  if (window.__3D_MARKUP_INPUT_REASSERT_BOUND__ === VERSION) return;
+  window.__3D_MARKUP_INPUT_REASSERT_BOUND__ = VERSION;
+  INPUT_REASSERT_EVENTS.forEach((name) => {
+    window.addEventListener(name, () => scheduleInputReassert(name));
+  });
+}
+
+function scheduleInputReassert(source = 'event') {
+  const run = () => {
+    const section = ensureInputBlock();
+    if (section) forceInputControlsExpanded(section);
+    window.dispatchEvent(new CustomEvent('viewer:input-controls-reasserted', {
+      detail: { version: VERSION, source, checklist: checklist() }
+    }));
+  };
+  if (typeof requestAnimationFrame === 'function') requestAnimationFrame(run);
+  else window.setTimeout(run, 0);
 }
 
 function bindFileStatus() {
@@ -224,6 +259,7 @@ function checklist() {
     loadSampleVisible: Boolean(loadSampleBtn && loadSampleBtn.hidden === false),
     clearAllVisible: Boolean(document.getElementById('clearBtn')),
     actionRowVisible: Boolean(inputActions && inputActions.hidden === false),
+    postBootstrapReassertions: INPUT_REASSERT_EVENTS,
     sampleStateSeparateFromFileStatus: true,
     compactStaticInputBlock: Boolean(section?.dataset.phase4aInput === 'compact-static'),
     layoutOwner: section?.dataset.layoutOwner || 'static-css',

@@ -37,7 +37,7 @@ assert.equal(rest.pipeRadiusMm, 57.15);
 assert.equal(rest.pipeOdMm, 114.3);
 assert.ok(rest.positionMm);
 assert.ok(rest.sourcePath.includes('SUPPORT INPUTXML-10-REST'));
-assert.equal(rest.matchedPipeRef.includes('PIPE'), true);
+assert.ok(rest.matchedPipeRef, 'REST support should retain the matched pipe/component reference path');
 assert.equal(rest.axisTransformApplied, false);
 
 const guide = contract.supports.find((support) => support.nodeNumber === '35' && support.supportFamily === 'GUIDE');

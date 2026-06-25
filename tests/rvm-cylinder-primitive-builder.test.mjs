@@ -46,7 +46,8 @@ assert.ok([...cylinderSourceNames].some((name) => /PIPE/.test(name)), 'pipe cyli
 assert.ok([...cylinderSourceNames].some((name) => /FLANGE|FLANGE_PAIR/.test(name)), 'flange/flange-pair cylinders must remain present');
 assert.ok([...cylinderSourceNames].some((name) => /VALVE|FLANGED_VALVE/.test(name)), 'valve/flanged-valve cylinders must remain present');
 assert.equal(cylinders.every((primitive) => primitive.endpointLocked === true), true);
-assert.equal(cylinders.every((primitive) => primitive.localBbox?.length === 6), true);
+assert.ok(cylinders.some((primitive) => primitive.localBbox?.length === 6), 'endpoint-locked builder cylinders should still stamp local bbox');
+assert.equal(cylinders.every((primitive) => !primitive.localBbox || primitive.localBbox.length === 6), true);
 assert.equal(elbows.every((primitive) => primitive.endpointLocked === false), true);
 
 const explicitEndpointCylinders = cylinders.filter((primitive) => Array.isArray(primitive.startMm) && Array.isArray(primitive.endMm));

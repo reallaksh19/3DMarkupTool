@@ -39,8 +39,15 @@ assertEndpointLockedCylinderPrimitive(flangePrimitive, { contract: flangePairCon
 const planned = profile.geometryRecords.flatMap((record, index) => planManagedStagePrimitives(record, { elementIndex: index }));
 const cylinders = planned.filter((primitive) => primitive.kind === 'cylinder');
 const elbows = planned.filter((primitive) => primitive.kind === 'elbow');
-assert.equal(cylinders.length, 41);
+const cylindersByMaterial = cylinders.reduce((acc, primitive) => {
+  acc[primitive.material] = (acc[primitive.material] || 0) + 1;
+  return acc;
+}, {});
+assert.equal(cylinders.length, 65, 'current BM_CII managed-stage fixture must emit the full pipe/flange/valve cylinder recipe set');
 assert.equal(elbows.length, 7);
+assert.ok(cylindersByMaterial[4] >= 19, 'pipe cylinders must remain present');
+assert.ok(cylindersByMaterial[6] >= 8, 'flange/flange-pair cylinders must remain present');
+assert.ok(cylindersByMaterial[7] >= 6, 'valve/flanged-valve cylinders must remain present');
 assert.equal(cylinders.every((primitive) => primitive.endpointLocked === true), true);
 assert.equal(cylinders.every((primitive) => primitive.localBbox?.length === 6), true);
 assert.equal(elbows.every((primitive) => primitive.endpointLocked === false), true);

@@ -9,7 +9,7 @@ const perfCss = readFileSync(new URL('../src/static-shell-performance.css', impo
 const checklist = readFileSync(new URL('../docs/post-pr133-recovery-checklist.md', import.meta.url), 'utf8');
 const pkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
 
-const staticKeyPattern = /workflow-input-expanded-load-controls-20260625|staged-json-review-ui-rvm-fix-20260625|app-boot-dialog-conversion-hotfix-20260623|support-ui-render-export-fix-20260623|tool-fixes-v2-20260620|perf-tdz-fix-20260620|perf-static-drawer-bundle-20260620|perf-idle-diagnostics-20260620|perf-static-shell-20260620|phase4a-static-input-panel-cleanup-20260619/;
+const staticKeyPattern = /workflow-input-stable-controls-20260625|workflow-input-expanded-load-controls-20260625|staged-json-review-ui-rvm-fix-20260625|app-boot-dialog-conversion-hotfix-20260623|support-ui-render-export-fix-20260623|tool-fixes-v2-20260620|perf-tdz-fix-20260620|perf-static-drawer-bundle-20260620|perf-idle-diagnostics-20260620|perf-static-shell-20260620|phase4a-static-input-panel-cleanup-20260619/;
 
 assert.match(index, /id="inputFileStatus"[\s\S]*No file chosen/, 'Input panel must statically show No file chosen.');
 assert.match(index, /id="inputStatus"/, 'Input panel must expose a dedicated input status value for static and dynamic controllers.');
@@ -23,11 +23,15 @@ assert.match(index, staticKeyPattern, 'Index must use the active input-expanded 
 assert.doesNotMatch(index, /core-safe-boot-20260619/, 'Index must not revert to the emergency core-safe startup shell.');
 assert.doesNotMatch(index, /Choose InputXML|Load InputXML|from InputXML/, 'Index must not expose retired InputXML file-selection wording.');
 
-assert.match(bootstrap, /workflow-input-expanded-load-controls-20260625/, 'Bootstrap must carry the expanded INPUT load-controls cache key.');
+assert.match(bootstrap, /workflow-input-expanded-load-controls-20260625|workflow-input-stable-controls-20260625/, 'Bootstrap must carry the expanded/stable INPUT load-controls cache key.');
 assert.match(bootstrap, /static-input-always-visible-controller\.js\?v=\$\{SAFE_UI_VERSION\}/, 'Bootstrap must load the input always-visible controller.');
 assert.match(bootstrap, new RegExp(`SAFE_UI_VERSION = '(${staticKeyPattern.source})'`), 'Bootstrap must use the performance/static shell cache key or newer cleanup key.');
 
-assert.match(controller, /const VERSION = 'workflow-input-expanded-load-controls-20260625'/, 'Controller must declare the expanded INPUT load-controls version.');
+assert.match(controller, /const VERSION = 'workflow-input-stable-controls-20260625'/, 'Controller must declare the stable INPUT load-controls version.');
+assert.match(controller, /INPUT_REASSERT_EVENTS/, 'Controller must reassert after late shell events.');
+assert.match(controller, /viewer:svg-icons-refreshed/, 'Controller must reassert after SVG icon refresh.');
+assert.match(controller, /viewer:managed-stage-json-ui-ready/, 'Controller must reassert after managed-stage UI boot.');
+assert.match(controller, /#loadUnifiedModelFileBtn/, 'Controller must include any fallback unified load button in visibility checks.');
 assert.match(controller, /No file chosen/, 'Controller must preserve No file chosen status.');
 assert.match(controller, /Choose stagedJson/, 'Controller must preserve Choose stagedJson label.');
 assert.match(controller, /Load BM_CII stagedJson/, 'Controller must preserve BM_CII stagedJson sample action.');
@@ -73,4 +77,4 @@ assert.match(checklist, /\| ✅ \| C3 — Real browse\/sample controls hidden \|
 assert.match(checklist, /\| ✅ \| C4 — Compact static input panel cleanup \|/, 'Checklist must tick C4.');
 assert.match(pkg.scripts.test, /input-always-visible-phase2\.test\.mjs/, 'npm test must include the input visibility gate.');
 
-console.log('input always-visible Phase 2 / expanded load controls gate passed');
+console.log('input always-visible Phase 2 / stable load controls gate passed');

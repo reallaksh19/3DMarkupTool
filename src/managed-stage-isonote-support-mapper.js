@@ -24,7 +24,7 @@ export function parseManagedStageIsonoteSupportRecords(text = '', config = {}) {
           graphicsRuleFields: config.fieldMapper?.graphicsRuleFields || ['SUPPORT_KIND', 'SUPPORT_TAG', 'ISONOTE_SEGMENT'],
           axisFields: config.fieldMapper?.axisFields || ['SUPPORT_AXIS', 'AXIS'],
           signFields: config.fieldMapper?.signFields || ['SUPPORT_SIGN', 'SIGN'],
-          gapFields: config.fieldMapper?.gapFields || ['SUPPORT_GAP_MM', '*GAP*']
+          gapFields: config.fieldMapper?.gapFields || ['SUPPORT_GAP_MM', 'GAP_MM', 'GAP']
         }
       });
       records.push({
@@ -118,7 +118,7 @@ function splitIsonoteSegments(body) {
 
 function extractIsonoteBody(value) {
   const text = String(value || '').trim();
-  const quoted = text.match(/['\"]([^'\"]+)['\"]/);
+  const quoted = text.match(/['"]([^'"]+)['"]/);
   if (quoted) return quoted[1];
   return text.replace(/^:?\/?[A-Z0-9_\-/]+\s*:ISONOTE\s*/i, '').replace(/^:ISONOTE\s*/i, '').trim();
 }

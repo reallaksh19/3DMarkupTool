@@ -66,9 +66,10 @@ const explicitLineStop = resolveManagedStageSupportSymbolCatalogue(mapped({ SUPP
   fieldMapper: { axisFields: ['CAESAR_AXIS'] },
   axisBasis: { axes: { '-X': { engineeringDirection: 'NORTH', canvasAxis: '+Z' } } }
 }), { pipeAxisSigned: '+X' });
-assert.equal(explicitLineStop.family, 'LIMIT_STOP');
+assert.equal(explicitLineStop.family, 'LINE_STOP');
+assert.equal(explicitLineStop.graphicsRule, 'axial-pair-or-explicit-sign');
 assert.deepEqual(axes(explicitLineStop), ['+Z']);
-assert.equal(explicitLineStop.primitiveCount, 1, 'explicit signed axial restraint should emit one directional symbol');
+assert.equal(explicitLineStop.primitiveCount, 1, 'explicit signed LIMIT/LINE STOP restraint should emit one directional axial symbol');
 assert.equal(explicitLineStop.primitives[0].tipSeparationMm, 50, 'explicit signed axial restraint uses the full positive 10x gap separation');
 assert.equal(explicitLineStop.odTwoThirdsResolverApplied, true);
 assert.equal(explicitLineStop.odTwoThirdsSymbolLengthMm, 300);

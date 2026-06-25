@@ -244,13 +244,13 @@ function showManagedStagePreview(root) {
   if (!api?.setModelRoot) throw new Error('Viewer API unavailable for managed-stage preview');
   clearManagedStagePreview();
   managedStageUiState.modelRoot = root;
-  api.setModelRoot(root);
+  api.setModelRoot(root, { source: 'managed-stage-json', sourceName: managedStageUiState.sourceName || root?.name || '' });
 }
 
 function clearManagedStagePreview() {
   if (!managedStageUiState.modelRoot) return;
   const api = window.__THREED_MARKUP_VIEWER__ || window.__viewerApi;
-  if (api?.clearModelRoot) api.clearModelRoot(managedStageUiState.modelRoot);
+  if (api?.clearModelRoot) api.clearModelRoot({ source: 'managed-stage-json', sourceName: managedStageUiState.sourceName || '', previousModelRootName: managedStageUiState.modelRoot?.name || '' });
   managedStageUiState.modelRoot = null;
 }
 

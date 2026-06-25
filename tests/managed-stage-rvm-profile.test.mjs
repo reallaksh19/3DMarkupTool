@@ -66,9 +66,9 @@ assert.equal(componentAudit.ballValvePrimitiveCount, 30);
 assert.ok(componentAudit.recipeHistogram['weldneck-flange-contiguous-2part'] >= 6);
 assert.equal(componentAudit.recipeHistogram['flanged-ball-valve-contiguous-5part'], 3);
 assert.equal(componentAudit.recipeHistogram['ball-valve-contiguous-5part'], 3);
-assert.ok(result.att.includes('RVM_COMPONENT_SYMBOL_EXPORTED\tYES'));
-assert.ok(result.att.includes('RVM_COMPONENT_PRIMITIVE_RECIPE\tweldneck-flange-contiguous-2part'));
-assert.ok(result.att.includes('RVM_COMPONENT_PRIMITIVE_RECIPE\tflanged-ball-valve-contiguous-5part'));
+assert.ok(result.att.includes("RVM_COMPONENT_SYMBOL_EXPORTED := 'YES'"));
+assert.ok(result.att.includes("RVM_COMPONENT_PRIMITIVE_RECIPE := 'weldneck-flange-contiguous-2part'"));
+assert.ok(result.att.includes("RVM_COMPONENT_PRIMITIVE_RECIPE := 'flanged-ball-valve-contiguous-5part'"));
 
 const supportNodes = result.exportModel.audit.supportRvmExportAudit.nodes;
 const supportPrimitives = supportNodes.flatMap((node) => node.primitives.map((primitive) => ({ node, primitive })));

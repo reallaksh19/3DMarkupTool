@@ -118,56 +118,141 @@ function startBundledStaticShell() {
     })
     .catch((error) => {
       console.warn('[3DMarkupTool] Static shell bundle failed; falling back to source modules.', error);
-      coreShellStarted = false;
-      STATIC_SHELL_BUNDLE_URL && scheduleCoreShell();
-    });
-}
-
-function scheduleStart() {
-  scheduleAfterFirstPaint(startDeferredShell);
-}
-
-function scheduleAfterFirstPaint(callback) {
-  if (typeof requestAnimationFrame !== 'function') {
-    window.setTimeout(callback, 0);
-    return;
-  }
-  requestAnimationFrame(() => requestAnimationFrame(callback));
+      window.__3D_MARKUP_STATIC_SHELL_BUNDLED_IMPORT_FAILED__ = true;
+      emitBootstrapModuleFailure(STATIC_SHELL_BUNDLE_URL, error);
+      importModuleBatch(EARLY_MODULE_URLS, 'early static shell fallback')
+        .finally(() => importModuleQueue(DEFERRED_MODULE_URLS.concat(CLIP_MODULE_URLS), 'deferred static shell fallback'));
+    })
+    .finally(scheduleLateIdleShell);
 }
 
 function startDeferredShell() {
   if (deferredShellStarted) return;
   deferredShellStarted = true;
-  importModuleBatch(DEFERRED_MODULE_URLS, 'deferred static shell')
-    .finally(() => scheduleLateShell());
+  importModuleQueue(DEFERRED_MODULE_URLS.concat(CLIP_MODULE_URLS), 'deferred static shell');
+  scheduleLateIdleShell();
 }
 
-function scheduleLateShell() {
+function scheduleLateIdleShell() {
   if (lateShellStarted) return;
-  lateShellStarted = true;
-  const run = () => importModuleBatch(LATE_IDLE_MODULE_URLS, 'late idle static shell');
-  if (typeof requestIdleCallback === 'function') requestIdleCallback(run, { timeout: LATE_IDLE_TIMEOUT_MS });
-  else window.setTimeout(run, LATE_IDLE_TIMEOUT_MS);
+  const start = () => {
+    if (lateShellStarted) return;
+    lateShellStarted = true;
+    importModuleQueue(LATE_IDLE_MODULE_URLS, 'late idle diagnostics shell');
+  };
+
+  if (window.__3D_MARKUP_APP_BOOT_COMPLETE__) {
+    scheduleIdle(start, LATE_IDLE_TIMEOUT_MS);
+    return;
+  }
+
+  window.addEventListener('viewer:app-module-loaded', () => scheduleIdle(start, LATE_IDLE_TIMEOUT_MS), { once: true });
+  window.addEventListener('viewer:app-module-failed', () => scheduleIdle(start, LATE_IDLE_TIMEOUT_MS), { once: true });
+  window.addEventListener('load', () => scheduleIdle(start, LATE_IDLE_TIMEOUT_MS), { once: true });
+  scheduleIdle(start, LATE_IDLE_TIMEOUT_MS + 1800);
 }
 
-async function importModuleBatch(urls, label) {
-  attempts += 1;
-  const failures = [];
-  for (let i = 0; i < urls.length; i += DEFERRED_IMPORT_BATCH_SIZE) {
-    const batch = urls.slice(i, i + DEFERRED_IMPORT_BATCH_SIZE);
-    const results = await Promise.allSettled(batch.map((url) => import(url)));
-    results.forEach((result, index) => {
-      if (result.status === 'rejected') failures.push({ url: batch[index], error: result.reason });
-    });
+function scheduleStart() {
+  if (!shouldLoadOptionalUi()) {
+    window.__3D_MARKUP_SAFE_UI_IMPORT_STARTED__ = false;
+    window.__3D_MARKUP_SAFE_UI_SKIPPED__ = true;
+    window.__3D_MARKUP_SAFE_UI_VERSION__ = SAFE_UI_VERSION;
+    window.addEventListener('DOMContentLoaded', () => setBootstrapStatus('Core Ready'), { once: true });
+    return;
   }
 
-  if (failures.length) {
-    console.warn(`[3DMarkupTool] ${label} import failures`, failures);
-    if (attempts < MAX_ATTEMPTS) window.setTimeout(() => importModuleBatch(failures.map((f) => f.url), `${label} retry`), 400);
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', function () { startSoon(0); }, { once: true });
+    return;
   }
-  return failures;
+  startSoon(0);
+}
+
+function shouldLoadOptionalUi() {
+  return _searchParams.has('uiBehavior')
+    || _searchParams.has('uiAdvanced')
+    || _searchParams.has('uiAcceptance')
+    || _searchParams.has('safe')
+    || window.localStorage.getItem('3dmarkup.uiBehavior') === '1'
+    || window.localStorage.getItem('3dmarkup.uiAdvanced') === '1'
+    || window.localStorage.getItem('3dmarkup.uiAcceptance') === '1'
+    || window.localStorage.getItem('3dmarkup.safeUiMode') === 'core';
 }
 
 function shouldLoadClipTools() {
-  return _searchParams.has('clip') || _searchParams.get('tools') === 'clip';
+  return _searchParams.has('clipTools') || window.localStorage.getItem('3dmarkup.clipTools') === '1';
+}
+
+function scheduleAfterFirstPaint(fn) {
+  window.requestAnimationFrame(() => window.requestAnimationFrame(fn));
+}
+
+function scheduleIdle(fn, timeout) {
+  if ('requestIdleCallback' in window) {
+    window.requestIdleCallback(fn, { timeout });
+    return;
+  }
+  window.setTimeout(fn, Math.min(timeout, 1200));
+}
+
+function startSoon(delay) {
+  window.setTimeout(startSafeUi, delay);
+}
+
+async function startSafeUi() {
+  if (window.__3D_MARKUP_SAFE_UI_IMPORT_STARTED__) return;
+  window.__3D_MARKUP_SAFE_UI_IMPORT_STARTED__ = true;
+  window.__3D_MARKUP_SAFE_UI_VERSION__ = SAFE_UI_VERSION;
+  setBootstrapStatus('UI Loading');
+  try {
+    const mod = await import(SAFE_LOADER_URL);
+    if (typeof mod.loadSafeUi === 'function') await mod.loadSafeUi();
+    setBootstrapStatus('UI Ready');
+  } catch (error) {
+    console.warn('[3DMarkupTool] Safe UI bootstrap failed', error);
+    setBootstrapStatus('UI Limited');
+  }
+}
+
+async function importModuleBatch(urls, label) {
+  for (const url of urls) {
+    await importSingleModule(url, label);
+  }
+}
+
+async function importModuleQueue(urls, label) {
+  const queue = urls.slice();
+  while (queue.length) {
+    const batch = queue.splice(0, DEFERRED_IMPORT_BATCH_SIZE);
+    await Promise.all(batch.map((url) => importSingleModule(url, label)));
+    await new Promise((resolve) => scheduleIdle(resolve, 650));
+  }
+}
+
+async function importSingleModule(url, label) {
+  let lastError = null;
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt += 1) {
+    attempts += 1;
+    try {
+      await import(url);
+      return true;
+    } catch (error) {
+      lastError = error;
+      emitBootstrapModuleFailure(url, error, { label, attempt });
+      await new Promise((resolve) => window.setTimeout(resolve, 120 * attempt));
+    }
+  }
+  console.warn(`[3DMarkupTool] ${label} module failed after retries`, url, lastError);
+  return false;
+}
+
+function emitBootstrapModuleFailure(url, error, extra = {}) {
+  window.dispatchEvent(new CustomEvent('viewer:static-shell-module-failed', {
+    detail: { url, message: error?.message || String(error), attempts, ...extra }
+  }));
+}
+
+function setBootstrapStatus(text) {
+  const status = document.getElementById('runtimeStatus');
+  if (status) status.textContent = text;
 }

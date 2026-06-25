@@ -244,7 +244,7 @@ export function preflightManagedStageSupportMapperRecord(mapperRecord = {}) {
   const rawAxisValue = String(axisSourceField ? attrs[axisSourceField] : attrs.SUPPORT_AXIS_SOURCE || '').trim();
   const signSourceField = String(attrs.SUPPORT_SIGN_SOURCE_FIELD || '').trim();
   const hasBareAxis = /^[XYZ]$/i.test(rawAxisValue);
-  const hasExplicitSign = /^[+-]/.test(rawAxisValue) || Boolean(signSourceField && String(attrs[signSourceField] || '').trim()) || /^[+-]/.test(String(attrs.SUPPORT_SIGN_MAPPED || '').trim());
+  const hasExplicitSign = /^[+-]/.test(rawAxisValue) || Boolean(signSourceField && String(attrs[signSourceField] || '').trim());
   if (hasBareAxis && !hasExplicitSign && family === 'UNKNOWN') {
     issues.push(preflightIssue('single-axis-missing-sign', 'warning', 'Single-axis restraint has an axis but no explicit +/- sign; popupRequired is set.'));
   }

@@ -3,7 +3,17 @@
 // Layout is owned by static HTML/CSS so the first paint and post-JS state match.
 // No scene traversal, no polling, no review-tool activation.
 
-const VERSION = 'perf-static-shell-20260620';
+const VERSION = 'workflow-input-expanded-load-controls-20260625';
+const INPUT_CONTENT_SELECTORS = [
+  '.workflow-card-hint',
+  '#inputFileStatus',
+  '#inputStatus',
+  '.input-file-status',
+  '.file-drop',
+  '.input-primary-actions',
+  '#loadSampleBtn',
+  '#clearBtn'
+];
 
 runWhenReady(initInputAlwaysVisible);
 
@@ -44,8 +54,10 @@ function ensureInputBlock() {
   section.dataset.section = 'input';
   section.dataset.phase2Input = 'always-visible';
   section.dataset.phase4aInput = 'compact-static';
+  section.dataset.inputExpanded = 'true';
   section.dataset.layoutOwner = 'static-css';
   section.classList.add('phase2-input-sticky-section', 'phase4a-input-compact-section');
+  forceInputControlsExpanded(section);
 
   const heading = section.querySelector('h3');
   const fileDrop = section.querySelector('.file-drop');
@@ -56,7 +68,7 @@ function ensureInputBlock() {
     status.id = 'inputFileStatus';
     status.className = 'input-file-status';
     status.setAttribute('aria-live', 'polite');
-    status.textContent = 'No file chosen';
+    status.innerHTML = 'Status: <span id="inputStatus">No file chosen</span>';
     if (heading && heading.nextSibling) {
       section.insertBefore(status, heading.nextSibling);
     } else {
@@ -74,10 +86,10 @@ function ensureInputBlock() {
 
   const loadSampleBtn = document.getElementById('loadSampleBtn');
   if (loadSampleBtn) {
-    loadSampleBtn.title = 'Load stagedJson sample without replacing the file chooser status';
-    loadSampleBtn.setAttribute('aria-label', 'Load stagedJson sample');
+    loadSampleBtn.title = 'Load BM_CII stagedJson sample';
+    loadSampleBtn.setAttribute('aria-label', 'Load BM_CII stagedJson sample');
     const label = loadSampleBtn.querySelector('span');
-    if (label) label.textContent = 'Load stagedJson sample';
+    if (label && !/BM_CII/i.test(label.textContent || '')) label.textContent = 'Load BM_CII stagedJson';
   }
 
   const clearBtn = document.getElementById('clearBtn');
@@ -91,6 +103,41 @@ function ensureInputBlock() {
   }
 
   return section;
+}
+
+function forceInputControlsExpanded(section) {
+  if (!section) return;
+  section.hidden = false;
+  section.removeAttribute('hidden');
+  section.removeAttribute('aria-hidden');
+  section.removeAttribute('inert');
+  section.classList.remove('collapsed', 'is-collapsed', 'workflow-card-collapsed', 'conversion-collapsed', 'sideload-collapsed');
+  if (section.dataset.collapsible) delete section.dataset.collapsible;
+
+  const heading = section.querySelector('h3');
+  heading?.removeAttribute('role');
+  heading?.removeAttribute('tabindex');
+  heading?.removeAttribute('aria-controls');
+  heading?.removeAttribute('aria-expanded');
+  delete heading?.dataset.boundCollapseSection;
+  delete heading?.dataset.boundConversionCollapse;
+
+  for (const selector of INPUT_CONTENT_SELECTORS) {
+    for (const element of section.querySelectorAll(selector)) {
+      element.hidden = false;
+      element.removeAttribute('hidden');
+      element.removeAttribute('aria-hidden');
+      element.removeAttribute('inert');
+      element.classList.remove('conversion-collapsible-content', 'sideload-collapsible-content', 'collapsed', 'is-collapsed');
+    }
+  }
+
+  Array.from(section.children).forEach((child) => {
+    if (child !== heading) {
+      child.classList.remove('conversion-collapsible-content');
+      child.classList.remove('sideload-collapsible-content');
+    }
+  });
 }
 
 function bindFileStatus() {
@@ -109,9 +156,6 @@ function bindFileStatus() {
     loadSampleBtn.dataset.inputAlwaysVisibleBound = '1';
     loadSampleBtn.addEventListener('click', () => {
       loadSampleBtn.dataset.sampleSelected = '1';
-      // Keep this status strictly about the local file chooser.
-      // The sample button state is carried on the button to avoid replacing
-      // the always-visible "No file chosen" file status.
       window.setTimeout(updateStatusFromInput, 0);
     });
   }
@@ -137,7 +181,7 @@ function setStatus(text) {
 }
 
 function getStatusNode() {
-  return document.getElementById('inputFileStatus');
+  return document.getElementById('inputStatus') || document.getElementById('inputFileStatus');
 }
 
 function getInputSection() {
@@ -168,15 +212,19 @@ function ensureDrawerOpen() {
 function checklist() {
   const section = getInputSection();
   const loadSampleBtn = document.getElementById('loadSampleBtn');
+  const fileDrop = section?.querySelector('.file-drop');
+  const inputActions = section?.querySelector('.input-primary-actions');
   return {
     version: VERSION,
     drawerOpen: document.body.classList.contains('input-open'),
+    inputExpanded: section?.dataset.inputExpanded === 'true',
     statusVisible: Boolean(getStatusNode()),
     statusText: getStatusNode()?.textContent || '',
-    chooseInputVisible: Boolean(section?.querySelector('.file-drop')),
-    loadSampleVisible: Boolean(loadSampleBtn),
-    sampleStateSeparateFromFileStatus: true,
+    chooseInputVisible: Boolean(fileDrop && fileDrop.hidden === false),
+    loadSampleVisible: Boolean(loadSampleBtn && loadSampleBtn.hidden === false),
     clearAllVisible: Boolean(document.getElementById('clearBtn')),
+    actionRowVisible: Boolean(inputActions && inputActions.hidden === false),
+    sampleStateSeparateFromFileStatus: true,
     compactStaticInputBlock: Boolean(section?.dataset.phase4aInput === 'compact-static'),
     layoutOwner: section?.dataset.layoutOwner || 'static-css',
     noRuntimeLayoutStyleInjection: true,

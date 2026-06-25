@@ -1,19 +1,38 @@
-export const MANAGED_STAGE_SUPPORT_SETTINGS_POPUP_SCHEMA = 'ManagedStageSupportSettingsPopup.v4';
-export const MANAGED_STAGE_SUPPORT_SETTINGS_POPUP_CACHE_KEY = '20260624-support-settings-workflow-card-1';
+export const MANAGED_STAGE_SUPPORT_SETTINGS_POPUP_SCHEMA = 'ManagedStageSupportSettingsPopup.v5';
+export const MANAGED_STAGE_SUPPORT_SETTINGS_POPUP_CACHE_KEY = '20260625-support-settings-workflow-card-structured';
 
-export function buildManagedStageSupportSettingsPopupModel({ supportUi = {}, isonoteWorkflow = {} } = {}) {
+export function buildManagedStageSupportSettingsPopupModel({ supportUi = {}, isonoteWorkflow = {}, supportDebug = {} } = {}) {
   const sourceMode = String(supportUi.sourceMode || 'stagedJson');
   const sourceLabel = supportUi.legacyFlags?.sourceLabel || sourceLabelFromMode(sourceMode);
   const mapperPresetLabel = supportUi.mapperPresetLabel || supportUi.mapperPresetId || 'CAESAR default';
   const northSourceAxis = supportUi.axisBasis?.northSourceAxis || '-X';
   const northCanvasAxis = supportUi.axisBasis?.northCanvasAxis || northSourceAxis;
   const recordCount = Number(isonoteWorkflow.supportRecordCount || 0);
-  const issueCount = Number(isonoteWorkflow.issueCount || 0);
+  const issueCount = Number(isonoteWorkflow.issueCount || supportDebug?.diagnostics?.mapperPreflightIssueCount || 0);
+  const detectedSupportCount = Number(supportDebug?.diagnostics?.stagedJsonSupportRecordCount || supportDebug?.scene?.managedSupportSymbolCount || recordCount || 0);
   const isonoteStatus = isonoteWorkflow.statusLabel || 'Not parsed';
   const disabled = sourceMode === 'off';
   const summaryText = disabled ? `Support mapping: Off • ${mapperPresetLabel}` : `Support mapping: ${sourceLabel} • ${mapperPresetLabel} • North ${northSourceAxis}→${northCanvasAxis}`;
   const isonoteSummaryText = `ISONOTE: ${isonoteStatus} • ${recordCount} support record(s) • ${issueCount} issue(s)`;
-  return { schema: MANAGED_STAGE_SUPPORT_SETTINGS_POPUP_SCHEMA, cacheKey: MANAGED_STAGE_SUPPORT_SETTINGS_POPUP_CACHE_KEY, sourceMode, sourceLabel, mapperPresetLabel, northSourceAxis, northCanvasAxis, disabled, modal: true, nativeDialog: true, mainPanelMode: 'workflow-card-summary-only', summaryText, isonoteSummaryText, isonoteSupportRecordCount: recordCount, isonoteIssueCount: issueCount, retiredStageSettingIds: ['renderActualSupport', 'renderExpectedSupport'] };
+  return {
+    schema: MANAGED_STAGE_SUPPORT_SETTINGS_POPUP_SCHEMA,
+    cacheKey: MANAGED_STAGE_SUPPORT_SETTINGS_POPUP_CACHE_KEY,
+    sourceMode,
+    sourceLabel,
+    mapperPresetLabel,
+    northSourceAxis,
+    northCanvasAxis,
+    detectedSupportCount,
+    disabled,
+    modal: true,
+    nativeDialog: true,
+    mainPanelMode: 'workflow-card-summary-only',
+    summaryText,
+    isonoteSummaryText,
+    isonoteSupportRecordCount: recordCount,
+    isonoteIssueCount: issueCount,
+    retiredStageSettingIds: ['renderActualSupport', 'renderExpectedSupport']
+  };
 }
 
 export function installManagedStageSupportSettingsPopupUi({ doc = globalThis.document, win = globalThis.window } = {}) {
@@ -27,8 +46,13 @@ export function installManagedStageSupportSettingsPopupUi({ doc = globalThis.doc
   hideRetiredStageSettings(doc);
   hideEmptySideloadSection(doc);
   const refresh = () => {
-    const model = buildManagedStageSupportSettingsPopupModel({ supportUi: win?.__3D_MARKUP_SUPPORT_SOURCE_UI__ || {}, isonoteWorkflow: win?.__3D_MARKUP_ISONOTE_TEXT_WORKFLOW__ || {} });
-    renderSupportSettingsShell(shell, dialog, model);
+    const model = buildManagedStageSupportSettingsPopupModel({
+      supportUi: win?.__3D_MARKUP_SUPPORT_SOURCE_UI__ || {},
+      isonoteWorkflow: win?.__3D_MARKUP_ISONOTE_TEXT_WORKFLOW__ || {},
+      supportDebug: win?.__3D_MARKUP_SUPPORT_DEBUG_LAST_REPORT__ || {}
+    });
+    renderSupportSettingsShell(shell, dialog, model, win);
+    hydrateIcons(doc, win);
     win.__3D_MARKUP_SUPPORT_SETTINGS_POPUP__ = model;
     return model;
   };
@@ -38,7 +62,8 @@ export function installManagedStageSupportSettingsPopupUi({ doc = globalThis.doc
       const action = actionNode?.getAttribute?.('data-support-settings-action');
       if (!action) return;
       event.preventDefault?.();
-      setPopupOpen(dialog, action === 'open', doc);
+      if (action === 'open') setPopupOpen(dialog, true, doc);
+      if (action === 'debug') runSupportDebugDump(win, doc, shell);
     });
     shell.dataset.supportSettingsPopupInstalled = 'true';
   }
@@ -46,9 +71,13 @@ export function installManagedStageSupportSettingsPopupUi({ doc = globalThis.doc
     dialog.addEventListener?.('click', (event) => {
       const actionNode = event?.target?.closest?.('[data-support-settings-action]');
       const action = actionNode?.getAttribute?.('data-support-settings-action');
-      if (action === 'close' || event.target === dialog) {
+      if (action === 'apply-close' || action === 'close' || event.target === dialog) {
         event.preventDefault?.();
         setPopupOpen(dialog, false, doc);
+      }
+      if (action === 'debug') {
+        event.preventDefault?.();
+        runSupportDebugDump(win, doc, shell);
       }
     });
     dialog.addEventListener?.('close', () => {
@@ -61,7 +90,9 @@ export function installManagedStageSupportSettingsPopupUi({ doc = globalThis.doc
     doc.addEventListener?.('change', refresh, true);
     doc.addEventListener?.('input', refresh, true);
     win?.addEventListener?.('managed-stage:support-source-ui-ready', refresh);
+    doc?.addEventListener?.('managed-stage:support-source-ui-ready', refresh);
     win?.addEventListener?.('managed-stage:isonote-workflow-apply', refresh);
+    win?.addEventListener?.('managed-stage:support-debug-button-ready', refresh);
     dialog.dataset.supportSettingsPopupInstalled = 'true';
   }
   const installed = refresh();
@@ -79,7 +110,21 @@ function ensureSupportSettingsLauncherShell(doc, parent) {
     parent.insertBefore?.(shell, parent.firstChild || null) || parent.appendChild(shell);
   }
   shell.className = 'support-mapping-settings-shell';
-  shell.innerHTML = ['<div class="support-mapping-settings-launcher">', '<button type="button" class="support-mapping-settings-open" data-support-settings-action="open" aria-haspopup="dialog" aria-controls="supportMappingSettingsDialog">Open Support Mapping / ISONOTE</button>', '<small data-support-settings-launcher-summary aria-live="polite"></small>', '</div>'].join('');
+  shell.innerHTML = [
+    '<div class="support-mapping-settings-launcher">',
+    '<div class="support-mapping-summary-grid" aria-label="Support mapping summary">',
+    '<span>Mode</span><strong data-support-settings-mode>stagedJson</strong>',
+    '<span>Preset</span><strong data-support-settings-preset>CAESAR default</strong>',
+    '<span>North</span><strong data-support-settings-north>-X → -X</strong>',
+    '<span>Supports</span><strong data-support-settings-count>0 detected</strong>',
+    '</div>',
+    '<div class="support-mapping-settings-actions">',
+    '<button type="button" class="support-mapping-settings-open" data-support-settings-action="open" aria-haspopup="dialog" aria-controls="supportMappingSettingsDialog"><i data-lucide="settings-2"></i><span>Open Support Mapping / ISONOTE</span></button>',
+    '<button type="button" class="support-mapping-settings-debug" data-support-settings-action="debug" data-support-debug-log-action="dump"><i data-lucide="bug"></i><span>Dump Support Debug</span></button>',
+    '</div>',
+    '<small data-support-settings-launcher-summary aria-live="polite"></small>',
+    '</div>'
+  ].join('');
   shell.querySelector?.('#supportMappingSettingsPopup')?.remove?.();
   shell.querySelector?.('#supportMappingSettingsBackdrop')?.remove?.();
   return shell;
@@ -92,7 +137,22 @@ function ensureSupportSettingsDialog(doc) {
     dialog.id = 'supportMappingSettingsDialog';
     dialog.className = 'support-mapping-settings-popup support-mapping-settings-dialog';
     dialog.setAttribute('aria-label', 'Support mapping settings');
-    dialog.innerHTML = ['<div class="support-mapping-settings-popup-header">', '<div><h3>Support mapping / ISONOTE</h3><small data-support-settings-popup-status aria-live="polite"></small></div>', '<button type="button" data-support-settings-action="close" aria-label="Close support mapping settings">×</button>', '</div>', '<div class="support-mapping-settings-popup-grid">', '<section data-support-settings-controls><h4>Source, preset and axis</h4></section>', '<section data-support-settings-isonote-host><h4>ISONOTE side-load</h4></section>', '<section data-support-settings-mapper-host><h4>Mapper fields and import/export</h4></section>', '</div>'].join('');
+    dialog.innerHTML = [
+      '<div class="support-mapping-settings-popup-header">',
+      '<div><h3>Support Mapping / ISONOTE</h3><small data-support-settings-popup-status aria-live="polite"></small></div>',
+      '<button type="button" data-support-settings-action="close" aria-label="Close support mapping settings">×</button>',
+      '</div>',
+      '<div class="support-mapping-settings-popup-grid">',
+      '<section data-support-settings-controls><h4>SOURCE</h4></section>',
+      '<section data-support-settings-mapper-host><h4>AXIS / MAPPER</h4></section>',
+      '<section data-support-settings-isonote-host><h4>ISONOTE / DIAGNOSTICS</h4><div data-support-settings-diagnostics class="support-settings-diagnostics"></div></section>',
+      '</div>',
+      '<div class="support-mapping-settings-popup-footer">',
+      '<button type="button" class="primary" data-support-settings-action="apply-close">Apply & Close</button>',
+      '<button type="button" data-support-settings-action="close">Close</button>',
+      '<button type="button" data-support-settings-action="debug" data-support-debug-log-action="dump">Dump Support Debug</button>',
+      '</div>'
+    ].join('');
     doc.body?.appendChild?.(dialog);
   }
   dialog.querySelector?.('#supportMappingSettingsPopup')?.remove?.();
@@ -100,25 +160,35 @@ function ensureSupportSettingsDialog(doc) {
   return dialog;
 }
 
-function renderSupportSettingsShell(shell, dialog, model) {
+function renderSupportSettingsShell(shell, dialog, model, win) {
   const launcher = shell.querySelector?.('[data-support-settings-launcher-summary]');
   const status = dialog.querySelector?.('[data-support-settings-popup-status]');
+  const mode = shell.querySelector?.('[data-support-settings-mode]');
+  const preset = shell.querySelector?.('[data-support-settings-preset]');
+  const north = shell.querySelector?.('[data-support-settings-north]');
+  const count = shell.querySelector?.('[data-support-settings-count]');
+  const diagnostics = dialog.querySelector?.('[data-support-settings-diagnostics]');
+  if (mode) mode.textContent = model.sourceLabel;
+  if (preset) preset.textContent = model.mapperPresetLabel;
+  if (north) north.textContent = `${model.northSourceAxis} → ${model.northCanvasAxis}`;
+  if (count) count.textContent = `${model.detectedSupportCount || 0} detected`;
   if (launcher) launcher.textContent = model.summaryText;
   if (status) status.textContent = `${model.summaryText}. ${model.isonoteSummaryText}.`;
+  if (diagnostics) diagnostics.textContent = diagnosticsText(model, win?.__3D_MARKUP_SUPPORT_DEBUG_LAST_REPORT__ || {});
 }
 
 function adoptSupportSettingControls(doc, dialog) {
   const controlsHost = dialog.querySelector?.('[data-support-settings-controls]');
   const mapperHost = dialog.querySelector?.('[data-support-settings-mapper-host]');
   const isonoteHost = dialog.querySelector?.('[data-support-settings-isonote-host]');
-  adoptLabeledControl(doc, controlsHost, 'supportMode', 'Support source');
-  adoptLabeledControl(doc, controlsHost, 'supportMapperPreset', 'Mapper preset');
-  adoptLabeledControl(doc, controlsHost, 'supportNorthAxis', 'CAESAR North axis');
+  adoptLabeledControl(doc, controlsHost, 'supportMode', 'Mode');
   adoptLabeledControl(doc, controlsHost, 'singleAxisDecision', 'Single-axis unresolved decision');
+  adoptLabeledControl(doc, mapperHost, 'supportMapperPreset', 'Preset');
+  adoptLabeledControl(doc, mapperHost, 'supportNorthAxis', 'North axis selector');
   adoptNode(mapperHost, doc.getElementById('supportMapperSourceSummary'));
   adoptNode(mapperHost, doc.getElementById('supportMapperConfigDetails'));
   adoptTextarea(doc, isonoteHost, 'lineNoText', 'Line No sideload CSV');
-  adoptTextarea(doc, isonoteHost, 'isonoteText', 'ISONOTE sideload CSV / text');
+  adoptTextarea(doc, isonoteHost, 'isonoteText', 'ISONOTE text');
   adoptNode(isonoteHost, doc.getElementById('supportIsonoteWorkflowPanel'));
 }
 
@@ -136,8 +206,10 @@ function adoptLabeledControl(doc, host, id, labelText) {
     label.appendChild(control);
   }
   label.classList?.add('support-settings-popup-field');
+  label.classList?.remove('conversion-collapsible-content');
   label.hidden = false;
   label.style.display = '';
+  label.removeAttribute?.('aria-hidden');
   host.appendChild(label);
   return label;
 }
@@ -159,16 +231,20 @@ function adoptTextarea(doc, host, id, labelText) {
     label.appendChild(textarea);
   }
   textarea.rows = Math.max(Number(textarea.rows || 0), id === 'isonoteText' ? 8 : 4);
+  label.classList?.remove('conversion-collapsible-content', 'sideload-collapsible-content');
   label.hidden = false;
   label.style.display = '';
+  label.removeAttribute?.('aria-hidden');
   host.appendChild(label);
   return label;
 }
 
 function adoptNode(host, node) {
   if (!host || !node) return null;
+  node.classList?.remove?.('conversion-collapsible-content');
   node.hidden = false;
   node.style.display = '';
+  node.removeAttribute?.('aria-hidden');
   host.appendChild(node);
   return node;
 }
@@ -218,6 +294,33 @@ function setPopupOpen(dialog, isOpen, doc) {
   doc?.body?.classList?.remove?.('support-settings-modal-open');
 }
 
+function runSupportDebugDump(win, doc, shell) {
+  const api = win?.__3D_MARKUP_SUPPORT_DEBUG_LOG__;
+  const summary = shell?.querySelector?.('[data-support-settings-launcher-summary]');
+  if (typeof api?.dump === 'function') {
+    api.dump({ reason: 'support-settings-button', automatic: false });
+    if (summary) summary.textContent = 'Support debug dumped to Log.';
+    return true;
+  }
+  const text = 'Support debug logger is not ready yet.';
+  if (summary) summary.textContent = text;
+  const log = doc?.getElementById?.('log');
+  if (log) log.textContent += `[${new Date().toLocaleTimeString()}] ${text}\n`;
+  return false;
+}
+
+function diagnosticsText(model, report = {}) {
+  const diagnostics = report.diagnostics || {};
+  return [
+    `Mode: ${model.sourceLabel}`,
+    `Preset: ${model.mapperPresetLabel}`,
+    `North: ${model.northSourceAxis} → ${model.northCanvasAxis}`,
+    `Detected supports: ${model.detectedSupportCount || 0}`,
+    `Bridge: ${diagnostics.status || 'not run'}`,
+    `Issues: ${model.isonoteIssueCount || diagnostics.mapperPreflightIssueCount || 0}`
+  ].join('\n');
+}
+
 function isDialogOpen(dialog) { return Boolean(dialog?.open || dialog?.hasAttribute?.('open')); }
 
 function installSupportSettingsModalStyles(doc) {
@@ -226,27 +329,44 @@ function installSupportSettingsModalStyles(doc) {
   style.id = 'supportSettingsModalStyle';
   style.textContent = `
     .support-mapping-settings-shell { display: grid; gap: 6px; margin: 6px 0 10px; padding: 8px; border: 1px solid rgba(148,163,184,.28); border-radius: 10px; background: rgba(15,23,42,.52); }
-    .support-mapping-settings-launcher { display: grid; gap: 5px; }
-    .support-mapping-settings-open { width: 100%; min-height: 34px; border-radius: 8px; border: 1px solid rgba(96,165,250,.55); background: rgba(30,64,175,.45); color: #dbeafe; font-weight: 700; cursor: pointer; }
+    .support-mapping-settings-launcher { display: grid; gap: 7px; }
+    .support-mapping-summary-grid { display: grid; grid-template-columns: auto minmax(0,1fr); gap: 4px 8px; padding: 8px; border: 1px solid rgba(148,163,184,.22); border-radius: 10px; background: rgba(2,6,23,.38); font-size: 11px; }
+    .support-mapping-summary-grid span { color: #94a3b8; }
+    .support-mapping-summary-grid strong { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #e0f2fe; }
+    .support-mapping-settings-actions { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,.82fr); gap: 7px; }
+    .support-mapping-settings-open, .support-mapping-settings-debug { width: 100%; min-height: 34px; border-radius: 8px; font-weight: 800; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 7px; }
+    .support-mapping-settings-open { border: 1px solid rgba(96,165,250,.55); background: rgba(30,64,175,.45); color: #dbeafe; }
+    .support-mapping-settings-debug { border: 1px solid rgba(251,191,36,.55); background: rgba(120,53,15,.45); color: #fde68a; }
     .support-mapping-settings-launcher small { color: #bfdbfe; line-height: 1.35; }
     .support-mapping-settings-dialog:not([open]) { display: none !important; }
     .support-mapping-settings-dialog::backdrop { background: rgba(2,6,23,.68); backdrop-filter: blur(2px); }
-    .support-mapping-settings-popup { position: fixed; z-index: 9999; left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(1120px, calc(100vw - 36px)); max-height: min(84vh, 860px); overflow: auto; border: 1px solid rgba(148,163,184,.36); border-radius: 16px; background: #0f172a; color: #e5e7eb; box-shadow: 0 24px 80px rgba(0,0,0,.55); padding: 14px; margin: 0; }
+    .support-mapping-settings-popup { position: fixed; z-index: 9999; left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(1180px, calc(100vw - 36px)); max-width: none; max-height: min(86vh, 880px); overflow: auto; border: 1px solid rgba(148,163,184,.36); border-radius: 16px; background: #0f172a; color: #e5e7eb; box-shadow: 0 24px 80px rgba(0,0,0,.55); padding: 14px; margin: 0; }
     .support-mapping-settings-popup-header { position: sticky; top: -14px; z-index: 1; display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin: -14px -14px 12px; padding: 14px; background: rgba(15,23,42,.98); border-bottom: 1px solid rgba(148,163,184,.22); }
-    .support-mapping-settings-popup-header h3 { margin: 0 0 3px; font-size: 16px; }
+    .support-mapping-settings-popup-header h3 { margin: 0 0 3px; font-size: 16px; text-transform: uppercase; letter-spacing: .035em; }
     .support-mapping-settings-popup-header small { color: #cbd5e1; }
     .support-mapping-settings-popup-header button { width: 34px; height: 34px; border-radius: 999px; border: 1px solid rgba(148,163,184,.36); background: rgba(30,41,59,.95); color: #f8fafc; font-size: 22px; cursor: pointer; }
-    .support-mapping-settings-popup-grid { display: grid; grid-template-columns: minmax(220px, .72fr) minmax(260px, .95fr) minmax(360px, 1.35fr); gap: 12px; align-items: start; }
+    .support-mapping-settings-popup-grid { display: grid; grid-template-columns: minmax(220px, .72fr) minmax(320px, 1fr) minmax(360px, 1.25fr); gap: 12px; align-items: start; }
     .support-mapping-settings-popup-grid > section { min-width: 0; padding: 12px; border: 1px solid rgba(148,163,184,.22); border-radius: 12px; background: rgba(15,23,42,.72); }
     .support-mapping-settings-popup-grid h4 { margin: 0 0 10px; color: #dbeafe; }
     .support-settings-popup-field, .support-settings-textarea { display: grid !important; gap: 5px; margin: 0 0 10px; }
     .support-settings-popup-field span, .support-settings-textarea span { color: #cbd5e1; font-size: 12px; }
     .support-settings-popup-field select, .support-settings-popup-field input, .support-settings-textarea textarea { width: 100%; box-sizing: border-box; border-radius: 8px; border: 1px solid rgba(148,163,184,.35); background: rgba(2,6,23,.62); color: #e5e7eb; padding: 7px; }
     .support-settings-textarea textarea { min-height: 92px; resize: vertical; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px; }
+    .support-settings-diagnostics { white-space: pre-line; margin-bottom: 10px; padding: 8px; border: 1px solid rgba(148,163,184,.22); border-radius: 8px; background: rgba(2,6,23,.38); color: #bfdbfe; font-size: 11px; line-height: 1.45; }
+    .support-mapping-settings-popup-footer { display: flex; align-items: center; justify-content: flex-end; gap: 8px; margin-top: 12px; padding-top: 12px; border-top: 1px solid rgba(148,163,184,.22); }
     body.support-settings-modal-open { overflow: hidden; }
-    @media (max-width: 900px) { .support-mapping-settings-popup { width: calc(100vw - 24px); max-height: calc(100vh - 24px); } .support-mapping-settings-popup-grid { grid-template-columns: 1fr; } }
+    @media (max-width: 900px) { .support-mapping-settings-popup { width: calc(100vw - 24px); max-height: calc(100vh - 24px); } .support-mapping-settings-popup-grid, .support-mapping-settings-actions { grid-template-columns: 1fr; } }
   `;
   doc.head?.appendChild(style);
+}
+
+function hydrateIcons(doc, win) {
+  try {
+    const lucide = win?.lucide || globalThis.lucide;
+    if (lucide?.createIcons) lucide.createIcons();
+  } catch (_) {
+    /* lucide is optional in tests and fallback shells */
+  }
 }
 
 function sourceLabelFromMode(sourceMode) {

@@ -329,7 +329,7 @@ function buildSupportRulePreviewRow(object, data, visual, mapperRecord, context 
   const explicitAxis = visual.explicitAxis || null;
   const sourceAxis = mapperRecord?.axis?.sourceAxis || data?.SUPPORT_AXIS_SOURCE_ORIGINAL || explicitAxisText(explicitAxis) || '';
   const canvasAxis = context.canvasAxis || mapperRecord?.axis?.canvasAxis || explicitAxisText(explicitAxis) || '';
-  const sign = mapperRecord?.attrs?.SUPPORT_SIGN_MAPPED || explicitAxis?.sign || (visual.explicitSignApplied ? explicitAxis?.sign : '');
+  const sign = axisSign(canvasAxis) || mapperRecord?.attrs?.SUPPORT_SIGN_MAPPED || explicitAxis?.sign || (visual.explicitSignApplied ? explicitAxis?.sign : '');
   const emittedSymbolCount = countSupportVisualParts(object);
   return {
     sourceMode: context.itemMode || data.supportSourceMode || '',
@@ -392,6 +392,13 @@ function appendPreflightIssues(diagnostics, preflight, mapperRecord, context = {
 function explicitAxisText(axisInfo) {
   if (!axisInfo?.axis) return '';
   return `${axisInfo.sign || '+'}${axisInfo.axis}`;
+}
+
+function axisSign(axisToken) {
+  const text = String(axisToken || '').trim();
+  if (text.startsWith('-')) return '-';
+  if (text.startsWith('+')) return '+';
+  return '';
 }
 
 function firstText(...values) {

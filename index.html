@@ -7,18 +7,18 @@
   <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
   <link rel="shortcut icon" href="./favicon.ico" />
   <link rel="preconnect" href="https://unpkg.com" crossorigin />
-  <link rel="stylesheet" href="./src/styles.css?v=app-boot-dialog-conversion-hotfix-20260623" />
-  <link rel="stylesheet" href="./src/static-shell-performance.css?v=app-boot-dialog-conversion-hotfix-20260623" />
-  <link rel="preload" href="./src/clip-adjuster.css?v=app-boot-dialog-conversion-hotfix-20260623" as="style" onload="this.onload=null;this.rel='stylesheet'" />
-  <noscript><link rel="stylesheet" href="./src/clip-adjuster.css?v=app-boot-dialog-conversion-hotfix-20260623" /></noscript>
-  <link rel="preload" href="./src/clip-visual-overlays.css?v=app-boot-dialog-conversion-hotfix-20260623" as="style" onload="this.onload=null;this.rel='stylesheet'" />
-  <noscript><link rel="stylesheet" href="./src/clip-visual-overlays.css?v=app-boot-dialog-conversion-hotfix-20260623" /></noscript>
+  <link rel="stylesheet" href="./src/styles.css?v=staged-json-review-ui-rvm-fix-20260625" />
+  <link rel="stylesheet" href="./src/static-shell-performance.css?v=staged-json-review-ui-rvm-fix-20260625" />
+  <link rel="preload" href="./src/clip-adjuster.css?v=staged-json-review-ui-rvm-fix-20260625" as="style" onload="this.onload=null;this.rel='stylesheet'" />
+  <noscript><link rel="stylesheet" href="./src/clip-adjuster.css?v=staged-json-review-ui-rvm-fix-20260625" /></noscript>
+  <link rel="preload" href="./src/clip-visual-overlays.css?v=staged-json-review-ui-rvm-fix-20260625" as="style" onload="this.onload=null;this.rel='stylesheet'" />
+  <noscript><link rel="stylesheet" href="./src/clip-visual-overlays.css?v=staged-json-review-ui-rvm-fix-20260625" /></noscript>
   <script type="importmap">
     {
       "imports": {
         "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
         "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/",
-        "lucide": "./src/lucide-safe.js?v=app-boot-dialog-conversion-hotfix-20260623"
+        "lucide": "./src/lucide-safe.js?v=staged-json-review-ui-rvm-fix-20260625"
       }
     }
   </script>
@@ -35,7 +35,20 @@
         </div>
       </div>
 
-      <div class="topbar-actions" aria-label="Display and panel controls">
+      <div class="topbar-actions" aria-label="Panel controls and workflow status">
+        <button id="toggleInputBtn" type="button" class="panel-toggle active" title="Open or close the workflow input drawer"><span>Input</span></button>
+        <button id="togglePropsBtn" type="button" class="panel-toggle active" title="Open or close the selection properties drawer"><span>Props</span></button>
+        <div id="topReviewMenu" class="top-menu-wrap review-top-menu-wrap shell-reserved-top-menu">
+          <button type="button" class="top-menu-btn panel-toggle review-top-menu-btn" aria-expanded="false" title="Review tools"><span>Review</span></button>
+          <div class="top-menu-popover review-top-menu-popover" hidden role="menu" aria-label="Review tools"></div>
+        </div>
+        <div id="workflowStatusInline" class="workflow-status-inline" aria-label="Review workflow status"></div>
+        <div id="runtimeStatus" class="status-pill" role="status">Ready</div>
+      </div>
+    </div>
+
+    <nav class="toolbar main-ribbon" aria-label="Viewer controls">
+      <div class="tool-group toolbar-group color-toolbar-group" aria-label="Color controls">
         <label class="color-control">
           <span>Color By</span>
           <select id="colorBySelect" aria-label="Color model by">
@@ -46,17 +59,8 @@
             <option value="sourceMode">Source Mode</option>
           </select>
         </label>
-        <button id="toggleInputBtn" type="button" class="panel-toggle active"><span>Input</span></button>
-        <button id="togglePropsBtn" type="button" class="panel-toggle active"><span>Props</span></button>
-        <div id="topReviewMenu" class="top-menu-wrap review-top-menu-wrap shell-reserved-top-menu">
-          <button type="button" class="top-menu-btn panel-toggle review-top-menu-btn" aria-expanded="false" title="Review tools"><span>Review</span></button>
-          <div class="top-menu-popover review-top-menu-popover" hidden role="menu" aria-label="Review tools"></div>
-        </div>
-        <div id="runtimeStatus" class="status-pill" role="status">Ready</div>
       </div>
-    </div>
 
-    <nav class="toolbar main-ribbon" aria-label="Viewer controls">
       <div class="tool-group toolbar-group primary-tools" aria-label="Navigation tools">
         <button id="selectToolBtn" type="button" class="tool-btn active"><i data-lucide="mouse-pointer-2"></i><span>Select</span></button>
         <button id="orbitToolBtn" type="button" class="tool-btn"><i data-lucide="orbit"></i><span>Orbit</span></button>
@@ -84,8 +88,8 @@
       <div id="staticReviewRibbonGroup" class="tool-group toolbar-group review-ribbon-group shell-reserved-group" data-expanded-group="review" data-expanded-label="Review" aria-label="Review tools"></div>
 
       <div class="tool-group toolbar-group" aria-label="Preview mode">
-        <button id="previewGlbBtn" type="button" class="tool-btn mode active" disabled><i data-lucide="box"></i><span>GLB</span></button>
-        <button id="previewRvmBtn" type="button" class="tool-btn mode" disabled><i data-lucide="file-box"></i><span>RVM</span></button>
+        <button id="previewGlbBtn" type="button" class="tool-btn mode active" disabled title="Run conversion before previewing GLB"><i data-lucide="box"></i><span>GLB</span></button>
+        <button id="previewRvmBtn" type="button" class="tool-btn mode" disabled title="Load or convert stagedJson before previewing RVM"><i data-lucide="file-box"></i><span>RVM</span></button>
       </div>
     </nav>
 
@@ -117,14 +121,14 @@
       <section class="panel-section workflow-card phase2-input-sticky-section phase4a-input-compact-section" data-section="input" data-phase2-input="always-visible" data-phase4a-input="compact-static">
         <h3><span class="section-no">1</span> Input</h3>
         <p class="workflow-card-hint">Choose a stagedJson file or load the bundled BM_CII stagedJson sample.</p>
-        <div id="inputFileStatus" class="input-file-status" aria-live="polite">No file chosen</div>
+        <div id="inputFileStatus" class="input-file-status" aria-live="polite">Status: <span id="inputStatus">No file chosen</span></div>
         <label class="file-drop input-file-drop-visible">
           <input type="file" id="xmlFile" accept=".json,.jscon,application/json" />
           <i data-lucide="upload"></i>
           <span>Choose stagedJson</span>
         </label>
         <div class="button-row input-primary-actions">
-          <button id="loadSampleBtn" type="button" class="primary icon-text" title="Load bundled stagedJson sample without replacing the file chooser status" aria-label="Load stagedJson sample"><i data-lucide="folder-open"></i><span>Load BM_CII stagedJson</span></button>
+          <button id="loadSampleBtn" type="button" class="primary icon-text" title="Load bundled BM_CII_INPUT_managed_stage.json stagedJson sample" aria-label="Load BM_CII stagedJson sample"><i data-lucide="folder-open"></i><span>Load BM_CII stagedJson</span></button>
           <button id="clearBtn" type="button" class="ghost icon-text" aria-label="Clear all input and sample data"><i data-lucide="folder-x"></i><span>Clear All</span></button>
         </div>
       </section>
@@ -138,6 +142,7 @@
       <section class="panel-section workflow-card" data-section="conversion">
         <h3><span class="section-no">3</span> Convert</h3>
         <p class="workflow-card-hint">Run the managed-stage conversion after the input and support mapping are ready.</p>
+        <div id="conversionStatus" class="conversion-status" role="status" aria-live="polite">Idle — load stagedJson or BM_CII stagedJson sample.</div>
         <div class="button-row workflow-primary-row">
           <button id="convertBtn" type="button" class="primary icon-text"><i data-lucide="refresh-cw"></i><span>Run Conversion</span></button>
           <button id="viewRulesBtn" type="button" class="ghost">Mapping Rules</button>
@@ -155,10 +160,10 @@
         <h3><span class="section-no">4</span> Export</h3>
         <p class="workflow-card-hint">Download the converted review files and audit package.</p>
         <div class="download-grid">
-          <button id="downloadGlbBtn" type="button" disabled><i data-lucide="box"></i><span>GLB</span></button>
-          <button id="downloadRvmBtn" type="button" disabled><i data-lucide="file-down"></i><span>RVM</span></button>
-          <button id="downloadAttBtn" type="button" disabled><i data-lucide="file-text"></i><span>ATT</span></button>
-          <button id="downloadAuditBtn" type="button" disabled><i data-lucide="download"></i><span>Audit</span></button>
+          <button id="downloadGlbBtn" type="button" disabled title="Load or convert stagedJson before downloading GLB"><i data-lucide="box"></i><span>GLB</span></button>
+          <button id="downloadRvmBtn" type="button" disabled title="Load or convert stagedJson before downloading RVM"><i data-lucide="file-down"></i><span>RVM</span></button>
+          <button id="downloadAttBtn" type="button" disabled title="Load or convert stagedJson before downloading ATT"><i data-lucide="file-text"></i><span>ATT</span></button>
+          <button id="downloadAuditBtn" type="button" disabled title="Load or convert stagedJson before downloading audit JSON"><i data-lucide="download"></i><span>Audit</span></button>
         </div>
       </section>
 
@@ -190,14 +195,21 @@
     </aside>
 
     <section class="viewer-shell" aria-label="3D viewer">
-      <div id="viewport" tabindex="0" aria-label="3D model viewport"></div>
-      <canvas id="measureOverlay" aria-hidden="true"></canvas>
-      <div id="viewCube" class="view-cube" aria-label="View cube">
-        <button data-view="front">FRONT</button>
-        <button data-view="top">TOP</button>
-        <button data-view="right">RIGHT</button>
+      <div id="viewer" class="viewer-canvas" tabindex="0" aria-label="3D model viewport">
+        <canvas id="measureOverlay" aria-hidden="true"></canvas>
+        <div id="viewCube" class="view-cube" aria-label="View cube">
+          <button data-view="front">FRONT</button>
+          <button data-view="top">TOP</button>
+          <button data-view="side">RIGHT</button>
+        </div>
+        <div id="hint" class="canvas-help">Load stagedJson or BM_CII stagedJson sample to begin.</div>
+        <div id="measureReadout" class="measure-readout" hidden>Measure: -</div>
       </div>
-      <div id="hud" class="hud">No model loaded</div>
+      <div id="viewerStatusbar" class="viewer-statusbar" aria-label="Viewer status">
+        <span id="selectedStatus">Selected: none</span>
+        <span id="componentStatus">Objects: 0</span>
+        <span id="coordStatus">XYZ: -</span>
+      </div>
     </section>
 
     <aside class="property-drawer" id="propertyDrawer" aria-label="Selection properties">
@@ -208,7 +220,7 @@
         </div>
         <button id="closePropsBtn" type="button" class="icon-btn" title="Close properties"><i data-lucide="chevrons-right"></i></button>
       </div>
-      <div id="propertiesContent" class="properties-body empty-state">
+      <div id="propertiesBody" class="properties-body empty-state" data-legacy-id="propertiesContent">
         <p>No selection yet.</p>
       </div>
     </aside>
@@ -224,7 +236,7 @@
     </div>
   </dialog>
 
-  <script type="module" src="./src/safe-ui-bootstrap.js?v=app-boot-dialog-conversion-hotfix-20260623"></script>
-  <script type="module" src="./src/app-loader.js?v=app-boot-dialog-conversion-hotfix-20260623"></script>
+  <script type="module" src="./src/safe-ui-bootstrap.js?v=staged-json-review-ui-rvm-fix-20260625"></script>
+  <script type="module" src="./src/app-loader.js?v=staged-json-review-ui-rvm-fix-20260625"></script>
 </body>
 </html>

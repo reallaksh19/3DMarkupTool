@@ -20,10 +20,11 @@ for (const row of supportRows) {
 for (const [node, expectedCount] of [['35', 3], ['205', 3], ['255', 2]]) {
   const rows = byNode.get(node) || [];
   assert.equal(rows.length, expectedCount, `node ${node} support rows`);
-  assert.ok(rows.every((row) => row.supportVisual.cluster?.schema === 'ManagedStageSupportCluster.v1'));
+  assert.ok(rows.every((row) => row.supportVisual.cluster?.schema === 'ManagedStageSupportCluster.v2'));
   assert.ok(rows.every((row) => row.supportVisual.cluster.clustered === true));
   assert.ok(rows.every((row) => row.supportVisual.cluster.count === expectedCount));
   assert.ok(rows.every((row) => row.supportVisual.cluster.offsetMagnitudeMm > 0));
+  assert.ok(rows.every((row) => row.supportVisual.cluster.offsetMagnitudeMm <= 28));
   assert.equal(new Set(rows.map((row) => JSON.stringify(row.supportVisual.cluster.offsetMm))).size, expectedCount);
 }
 
@@ -36,7 +37,9 @@ scene.traverse((object) => {
 assert.equal(supportRoots.length, 12);
 assert.equal(supportRoots.filter((object) => object.userData.supportCluster?.clustered === true).length, 8);
 assert.equal(supportParts.filter((object) => object.userData.role === 'clusterOffsetConnector').length, 8);
+assert.ok(supportRoots.every((object) => object.userData.supportPreviewRaycastDisabled === true));
 assert.ok(supportParts.every((object) => object.userData.exportedRvmGeometry === false));
+assert.ok(supportParts.every((object) => object.userData.supportPreviewRaycastDisabled === true));
 
 const unknownFixture = {
   schema: 'inputxml-managed-stage/v1',

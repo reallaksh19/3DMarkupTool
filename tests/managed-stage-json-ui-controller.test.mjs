@@ -62,10 +62,11 @@ assert.match(controller, /viewer:managed-stage-json-loaded/);
 assert.match(controller, /Managed-stage preview audit/);
 assert.doesNotMatch(controller, /managedStageJsonFile/);
 
-assert.match(sampleController, /ManagedStageBmCiiJsonSampleController\.v1/);
+assert.match(sampleController, /ManagedStageBmCiiJsonSampleController\.v2/);
 assert.match(sampleController, /import '\.\/managed-stage-viewer-api-bridge\.js';/);
-assert.match(sampleController, /loadManagedStageJsonSampleBtn/);
-assert.match(sampleController, /Load BM_CII JSON sample/);
+assert.match(sampleController, /loadManagedStageJsonSampleBtn|loadSampleBtn/);
+assert.match(sampleController, /Load BM_CII stagedJson/);
+assert.match(sampleController, /stopImmediatePropagation/);
 assert.match(sampleController, /createBmCiiManagedStageSampleJson/);
 assert.match(sampleController, /managedStageApi\.loadText\(sourceText, SAMPLE_SOURCE_NAME\)/);
 assert.doesNotMatch(sampleController, /modelFileInput\.click/);
@@ -103,20 +104,21 @@ assert.match(rawPreview, /createManagedStageSupportPreviewObject/);
 assert.match(rawPreview, /supportVisualPolicy/);
 assert.match(rawPreview, /MANAGED_STAGE_SUPPORT_RESTRAINT_PREVIEW/);
 
-assert.match(supportVisualResolver, /ManagedStageSupportVisualResolver\.v1/);
-assert.match(supportVisualResolver, /REST = \+Y upward point cone/);
-assert.match(supportVisualResolver, /HOLDDOWN = \+\/\-Y double vertical point cones/);
-assert.match(supportVisualResolver, /X pipe -> \+\/\-Z/);
-assert.match(supportVisualResolver, /Z pipe -> \+\/\-X/);
-assert.match(supportVisualResolver, /single-axis restraints without \+\/\- are warning markers/);
-assert.match(supportVisualResolver, /gap is record-scoped/);
+assert.match(supportVisualResolver, /ManagedStageSupportVisualResolver\.v5/);
+assert.match(supportVisualResolver, /REST = one upward cone below pipe/);
+assert.match(supportVisualResolver, /HOLDDOWN = opposed vertical cones/);
+assert.match(supportVisualResolver, /GUIDE = lateral cones/);
+assert.match(supportVisualResolver, /LINE_STOP\/LIMIT = transformed Canvas axis/);
+assert.ok(supportVisualResolver.includes('X/Y/Z/+X/-X/+Y/-Y/+Z/-Z'));
+assert.match(supportVisualResolver, /gap is record-scoped|gapRecordScoped/);
 assert.match(supportVisualResolver, /ODx2\/3 applies only to final axial/);
-assert.match(supportVisualResolver, /support-cluster resolver/);
+assert.match(supportVisualResolver, /clustered support local offset|support-cluster resolver/);
 assert.match(supportVisualResolver, /translucent crossed X rods/);
+assert.match(supportVisualResolver, /open-ended low-segment cones/);
+assert.match(supportVisualResolver, /supportPreviewRaycastDisabled/);
+assert.match(supportVisualResolver, /torus geometry is allowed only for the five SPRING_CAN coils/);
 
 await import('./managed-stage-rvm-audit-gate-nonblocking.test.mjs');
 await import('./managed-stage-support-visual-resolver.test.mjs');
 await import('./managed-stage-support-cluster.test.mjs');
 await import('./managed-stage-viewer-api-bridge.test.mjs');
-
-console.log('stagedJson UI uses coordinate-preserving preview pipeline, support visual resolver, compact code-8 support-bar/component-symbol RVM contract, and non-blocking UI warnings');

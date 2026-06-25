@@ -1,7 +1,10 @@
 import * as THREE from 'three';
-import { cylinderBetween, mat } from './geometry.js?v=professional-viewer-3';
+import { mat } from './geometry.js?v=professional-viewer-3';
 
 const EPS_MM = 0.001;
+const SUPPORT_CONE_RADIAL_SEGMENTS = 8;
+const SUPPORT_OPEN_CYLINDER_SEGMENTS = 10;
+const RING_ARTIFACT_POLICY = 'REST/GUIDE/LINE_STOP/HOLDDOWN use open-ended low-segment cones with no cap discs, no torus rings, and no closed circular cylinder caps; torus geometry is allowed only for the five SPRING_CAN coils.';
 const COLORS = Object.freeze({
   REST: 0xf8c34a,
   GUIDE: 0x18d5c0,
@@ -16,7 +19,6 @@ const COLORS = Object.freeze({
 });
 const SUPPORT_TYPES = new Set(['ATTA', 'ANCI', 'SUPP', 'SUPPORT', 'PIPE_SUPPORT', 'PIPESUPPORT']);
 const AXIAL_FAMILIES = new Set(['LINE_STOP', 'LIMIT_STOP']);
-const NON_AXIAL_EXPLICIT_AXIS_FAMILIES = new Set(['GUIDE']);
 const POLICY = Object.freeze({
   coneLengthMinMm: 150,
   coneLengthMaxMm: 700,
@@ -37,21 +39,25 @@ const POLICY = Object.freeze({
 });
 
 export const MANAGED_STAGE_SUPPORT_VISUAL_POLICY = Object.freeze({
-  schema: 'ManagedStageSupportVisualResolver.v4',
+  schema: 'ManagedStageSupportVisualResolver.v5',
   rules: [
     'REST = one upward cone below pipe using OD/2 radial contact',
     'HOLDDOWN = opposed vertical cones',
     'GUIDE = lateral cones by transformed Canvas axis when supplied, otherwise by pipe axis',
     'LINE_STOP/LIMIT = transformed Canvas axis when supplied, otherwise unsigned axial cone pair along pipe axis',
     'X/Y/Z/+X/-X/+Y/-Y/+Z/-Z all pass through the same signed-axis transformation path',
-    'SPRING_CAN = five stacked coils below pipe; CAN below pipe; HANGER above pipe',
-    'gap is record-scoped and has no carry-forward'
+    'SPRING_CAN = exactly five stacked coils below pipe; CAN below pipe; HANGER above pipe',
+    'support preview objects are non-raycast overlays so Canvas click selection remains component-safe',
+    RING_ARTIFACT_POLICY
   ],
   previewGeometry: 'cone-and-can-support-glyphs',
-  blockedPreviewGeometry: ['solid-pyramid', 'cone-fan', 'box-substitute'],
+  blockedPreviewGeometry: ['solid-pyramid', 'cone-fan', 'box-substitute', 'closed-disc-cap', 'annular-restraint-ring'],
   maxPrimitiveBudgetPerSupportKind: POLICY.maxPrimitiveBudgetPerSupportKind,
   supportConeCatalogue: true,
-  generalizedAxisTransform: true
+  generalizedAxisTransform: true,
+  ringArtifactPolicy: RING_ARTIFACT_POLICY,
+  discCapsRemoved: true,
+  supportPreviewRaycastDisabled: true
 });
 
 export function createManagedStageSupportPreviewObject(record, options = {}) {
@@ -168,8 +174,16 @@ export function createManagedStageSupportPreviewObject(record, options = {}) {
     supportPreviewUsesConeCatalogue: true,
     supportPyramidSubstituteBlocked: true,
     supportConeFanBlocked: true,
+    supportPreviewRaycastDisabled: true,
+    coneCount: visual.coneCount,
+    springCoilCount: visual.springCoilCount,
+    canCount: visual.canCount,
+    hangerCount: visual.hangerCount,
+    discCapsRemoved: true,
+    ringArtifactPolicy: RING_ARTIFACT_POLICY,
     coordinatePolicy: 'record-scoped staged support visual resolver; transformed Canvas axis is authoritative for symbol geometry'
   };
+  disableSupportPreviewRaycast(group);
   return { object: group, supportVisual: visual };
 }
 
@@ -222,7 +236,7 @@ export function resolveManagedStageSupportVisual(record, records = [], options =
     popupReason = 'single-axis restraint is missing support family; transformed axis is shown in diagnostics';
   } else if (family === 'SPRING_CAN') {
     popupRequired = true;
-    popupReason = 'spring can rendered as five-coil can below pipe for engineering review';
+    popupReason = 'spring can rendered as exactly five coils below pipe for engineering review';
   } else if (family === 'CAN') {
     popupReason = 'can support rendered below pipe';
   } else if (family === 'HANGER') {
@@ -253,6 +267,11 @@ export function resolveManagedStageSupportVisual(record, records = [], options =
     axisTransformApplied: axisInfo.axisTransformApplied,
     coneSides,
     coneCount: coneSides.length,
+    springCoilCount: family === 'SPRING_CAN' ? POLICY.springCoilCount : 0,
+    canCount: family === 'CAN' ? 1 : 0,
+    hangerCount: family === 'HANGER' ? 1 : 0,
+    discCapsRemoved: true,
+    ringArtifactPolicy: RING_ARTIFACT_POLICY,
     directionalGlyphSides: coneSides,
     directionalGlyphCount: coneSides.length,
     previewGlyphGeometry: family === 'SPRING_CAN' ? 'five-coil-spring-can' : family === 'CAN' ? 'open-can-below-pipe' : family === 'HANGER' ? 'hanger-above-pipe' : popupRequired ? 'warning-cone' : fallbackCrossRods ? 'fallback-cross-rods' : 'directional-cones',
@@ -277,14 +296,16 @@ export function resolveManagedStageSupportVisual(record, records = [], options =
     axialTipsTouchUnlessGap: AXIAL_FAMILIES.has(family),
     axialPipeParallelResolver: AXIAL_FAMILIES.has(family) ? 'ODx2/3 applies only to final axial/pipe-parallel support symbols' : 'not-applicable',
     supportConeCatalogue: true,
-    generalizedAxisTransform: true
+    generalizedAxisTransform: true,
+    supportPreviewRaycastDisabled: true
   };
 }
 
 function createDirectionalSupportCone({ tip, directionToTip, length, radius, material, name, visual, side, sourceCenter, visualCenter, rawTipSeparation, tipSeparation }) {
   const direction = normalizedOr(directionToTip, new THREE.Vector3(0, 1, 0));
   const base = tip.clone().add(direction.clone().multiplyScalar(-length));
-  const cone = new THREE.Mesh(new THREE.ConeGeometry(radius, Math.max(length, EPS_MM), 24, 1, true), material);
+  const geometry = new THREE.ConeGeometry(radius, Math.max(length, EPS_MM), SUPPORT_CONE_RADIAL_SEGMENTS, 1, true);
+  const cone = new THREE.Mesh(geometry, material);
   cone.name = name;
   cone.position.copy(base).add(tip).multiplyScalar(0.5);
   cone.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), direction);
@@ -304,6 +325,9 @@ function createDirectionalSupportCone({ tip, directionToTip, length, radius, mat
     supportDirectionalCone: true,
     supportDirectionalGlyphBar: false,
     supportConeOpenEnded: true,
+    supportConeRadialSegments: SUPPORT_CONE_RADIAL_SEGMENTS,
+    supportConeDiscCapsRemoved: true,
+    supportRingArtifactPolicy: RING_ARTIFACT_POLICY,
     supportConeFanBlocked: true,
     supportPyramidSubstituteBlocked: true,
     supportGapVisualSeparationRawMm: round(rawTipSeparation),
@@ -323,11 +347,11 @@ function createWarningCone({ center, length, radius, material, name, visual }) {
   const direction = new THREE.Vector3(0, 1, 0);
   const tip = center.clone().add(new THREE.Vector3(0, length * 0.9, 0));
   const base = tip.clone().add(direction.clone().multiplyScalar(-length));
-  const cone = new THREE.Mesh(new THREE.ConeGeometry(radius, Math.max(length, EPS_MM), 24, 1, true), material);
+  const cone = new THREE.Mesh(new THREE.ConeGeometry(radius, Math.max(length, EPS_MM), SUPPORT_CONE_RADIAL_SEGMENTS, 1, true), material);
   cone.name = name;
   cone.position.copy(base).add(tip).multiplyScalar(0.5);
   cone.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), direction);
-  stampPart(cone, visual, { role: 'popupRequiredWarningCone', popupRequired: true, tipMm: vecToPoint(tip), baseMm: vecToPoint(base), visualCenterMm: vecToPoint(center), supportPreviewNoCone: false, supportDirectionalCone: true, supportConeOpenEnded: true, supportWarningCone: true, supportPrimitiveBudgetCounted: true, supportPrimitiveBudgetUnitCount: 1, supportConeLengthMm: round(length), supportConeRadiusMm: round(radius) });
+  stampPart(cone, visual, { role: 'popupRequiredWarningCone', popupRequired: true, tipMm: vecToPoint(tip), baseMm: vecToPoint(base), visualCenterMm: vecToPoint(center), supportPreviewNoCone: false, supportDirectionalCone: true, supportConeOpenEnded: true, supportConeDiscCapsRemoved: true, supportConeRadialSegments: SUPPORT_CONE_RADIAL_SEGMENTS, supportWarningCone: true, supportPrimitiveBudgetCounted: true, supportPrimitiveBudgetUnitCount: 1, supportConeLengthMm: round(length), supportConeRadiusMm: round(radius) });
   return cone;
 }
 
@@ -350,22 +374,22 @@ function createSpringCanSymbol({ center, length, radius, material, name, visual,
 function createCanSymbol({ center, length, radius, material, name, visual, sourceCenter, visualCenter }) {
   const bottom = center.clone().add(new THREE.Vector3(0, -length * 1.18, 0));
   const top = bottom.clone().add(new THREE.Vector3(0, length, 0));
-  const body = cylinderBetween(bottom, top, radius, material, 24, `${name}_OPEN_BODY`);
-  stampPart(body, visual, { role: 'canBodyBelowPipe', sourceTipMm: vecToPoint(sourceCenter), visualCenterMm: vecToPoint(visualCenter), supportPreviewNoCone: true, supportCanCylinder: true, supportCylinderOpenEnded: true, supportPrimitiveBudgetCounted: true, supportPrimitiveBudgetUnitCount: 1, supportCanLengthMm: round(length), supportCanRadiusMm: round(radius) });
+  const body = openCylinderBetween(bottom, top, radius, material, SUPPORT_OPEN_CYLINDER_SEGMENTS, `${name}_OPEN_BODY`);
+  stampPart(body, visual, { role: 'canBodyBelowPipe', sourceTipMm: vecToPoint(sourceCenter), visualCenterMm: vecToPoint(visualCenter), supportPreviewNoCone: true, supportCanCylinder: true, supportCylinderOpenEnded: true, supportCylinderDiscCapsRemoved: true, supportPrimitiveBudgetCounted: true, supportPrimitiveBudgetUnitCount: 1, supportCanLengthMm: round(length), supportCanRadiusMm: round(radius) });
   return [body];
 }
 
 function createHangerSymbol({ center, length, radius, material, name, visual, sourceCenter, visualCenter }) {
   const pipeTop = center.clone().add(new THREE.Vector3(0, length * 0.32, 0));
   const upper = pipeTop.clone().add(new THREE.Vector3(0, length, 0));
-  const rod = cylinderBetween(pipeTop, upper, radius, material, 16, `${name}_ROD_ABOVE_PIPE`);
-  stampPart(rod, visual, { role: 'hangerRodAbovePipe', sourceTipMm: vecToPoint(sourceCenter), visualCenterMm: vecToPoint(visualCenter), supportPreviewNoCone: true, supportHangerRod: true, supportPrimitiveBudgetCounted: true, supportPrimitiveBudgetUnitCount: 1, supportCanLengthMm: round(length), supportCanRadiusMm: round(radius) });
+  const rod = openCylinderBetween(pipeTop, upper, radius, material, SUPPORT_OPEN_CYLINDER_SEGMENTS, `${name}_ROD_ABOVE_PIPE`);
+  stampPart(rod, visual, { role: 'hangerRodAbovePipe', sourceTipMm: vecToPoint(sourceCenter), visualCenterMm: vecToPoint(visualCenter), supportPreviewNoCone: true, supportHangerRod: true, supportCylinderOpenEnded: true, supportCylinderDiscCapsRemoved: true, supportPrimitiveBudgetCounted: true, supportPrimitiveBudgetUnitCount: 1, supportCanLengthMm: round(length), supportCanRadiusMm: round(radius) });
   return [rod];
 }
 
 function createClusterConnector(sourceCenter, visualCenter, odMm, visual, name) {
   if (!sourceCenter || !visualCenter || sourceCenter.distanceTo(visualCenter) <= EPS_MM) return null;
-  const rod = cylinderBetween(sourceCenter, visualCenter, clamp(Number(odMm || 0) * 0.03, POLICY.connectorRadiusMinMm, POLICY.connectorRadiusMaxMm), mat(COLORS.FALLBACK, { transparent: true, opacity: 0.28 }), 10, name);
+  const rod = openCylinderBetween(sourceCenter, visualCenter, clamp(Number(odMm || 0) * 0.03, POLICY.connectorRadiusMinMm, POLICY.connectorRadiusMaxMm), mat(COLORS.FALLBACK, { transparent: true, opacity: 0.28 }), SUPPORT_OPEN_CYLINDER_SEGMENTS, name);
   stampPart(rod, visual, { role: 'clusterOffsetConnector', sourceTipMm: vecToPoint(sourceCenter), visualCenterMm: vecToPoint(visualCenter), clusterOffsetConnector: true, supportPreviewNoCone: true, supportPrimitiveBudgetCounted: false, supportPrimitiveBudgetUnitCount: 0 });
   return rod;
 }
@@ -376,10 +400,19 @@ function createFallbackCrossRods(center, length, radius, material, name, visual)
     [new THREE.Vector3(-half, 0, -half), new THREE.Vector3(half, 0, half)],
     [new THREE.Vector3(-half, 0, half), new THREE.Vector3(half, 0, -half)]
   ].map(([a, b], index) => {
-    const rod = cylinderBetween(center.clone().add(a), center.clone().add(b), radius, material, 12, `${name}_${index + 1}`);
+    const rod = openCylinderBetween(center.clone().add(a), center.clone().add(b), radius, material, SUPPORT_OPEN_CYLINDER_SEGMENTS, `${name}_${index + 1}`);
     stampPart(rod, visual, { role: 'fallbackCrossRod', fallbackCrossRod: true, visualCenterMm: vecToPoint(center), supportPreviewNoCone: true, supportPrimitiveBudgetCounted: true, supportPrimitiveBudgetUnitCount: 1 });
     return rod;
   });
+}
+
+function openCylinderBetween(a, b, radius, material, radialSegments = SUPPORT_OPEN_CYLINDER_SEGMENTS, name = 'open-cylinder') {
+  const delta = b.clone().sub(a);
+  const mesh = new THREE.Mesh(new THREE.CylinderGeometry(radius, radius, Math.max(delta.length(), EPS_MM), radialSegments, 1, true), material);
+  mesh.name = name;
+  mesh.position.copy(a).add(b).multiplyScalar(0.5);
+  mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), normalizedOr(delta, new THREE.Vector3(0, 1, 0)));
+  return mesh;
 }
 
 function supportContactOffsetForSide({ visual, side, sideVec, odMm }) {
@@ -404,8 +437,16 @@ function vectorFromPoint(value) {
 }
 
 function stampPart(object, visual, extra = {}) {
-  object.userData = { ...(object.userData || {}), TYPE: 'MANAGED_STAGE_SUPPORT_VISUAL_PART', supportVisualPolicy: MANAGED_STAGE_SUPPORT_VISUAL_POLICY.schema, supportVisualGeometry: 'cone-and-can-support-glyphs', managedStageSupportVisualPart: true, supportFamily: visual.family, supportRawKind: visual.rawKind, previewOnly: true, exportedRvmGeometry: false, popupRequired: Boolean(visual.popupRequired), fallbackCrossRods: Boolean(visual.fallbackCrossRods), supportCluster: visual.cluster, gapMm: visual.gapMm, gapRecordScoped: true, gapCarryForward: false, ...extra };
+  object.userData = { ...(object.userData || {}), TYPE: 'MANAGED_STAGE_SUPPORT_VISUAL_PART', supportVisualPolicy: MANAGED_STAGE_SUPPORT_VISUAL_POLICY.schema, supportVisualGeometry: 'cone-and-can-support-glyphs', managedStageSupportVisualPart: true, supportFamily: visual.family, supportRawKind: visual.rawKind, previewOnly: true, exportedRvmGeometry: false, popupRequired: Boolean(visual.popupRequired), fallbackCrossRods: Boolean(visual.fallbackCrossRods), supportCluster: visual.cluster, gapMm: visual.gapMm, gapRecordScoped: true, gapCarryForward: false, supportPreviewRaycastDisabled: true, supportDiscCapsRemoved: true, supportRingArtifactPolicy: RING_ARTIFACT_POLICY, ...extra };
 }
+
+function disableSupportPreviewRaycast(root) {
+  root.traverse?.((object) => {
+    object.raycast = noopRaycast;
+    object.userData = { ...(object.userData || {}), supportPreviewRaycastDisabled: true };
+  });
+}
+function noopRaycast() {}
 
 function previewPrimitiveBudgetFor({ family, coneSides, popupRequired, fallbackCrossRods }) {
   if (family === 'SPRING_CAN') return POLICY.springCoilCount;
@@ -451,79 +492,14 @@ function resolveSupportCluster(record, records, pipeDirection, pipeDiameterMm) {
   return { schema: 'ManagedStageSupportCluster.v2', node, sourceIndex: recordIndex, index, count, clustered: count > 1, spacingMm: round(spacingMm), rawSpacingMm: round(rawSpacingMm), offsetMm: vecToRoundedPoint(offset), offsetMagnitudeMm: round(offset.length()), policy: count > 1 ? 'clustered support local offset' : 'single support; no visual cluster offset' };
 }
 
-function supportPosition(record) {
-  return record?.source?.supportCoord || record?.source?.pos || record?.source?.bpos || record?.source?.apos || record?.source?.lpos;
-}
-
-function isSameSupportCluster(a, b, node, pos) {
-  if (!a || !b) return false;
-  const aNode = String(a?.attrs?.NODE || a?.fromNode || a?.toNode || '').trim();
-  const bNode = String(b?.attrs?.NODE || b?.fromNode || b?.toNode || '').trim();
-  if (node && aNode && bNode && aNode !== bNode) return false;
-  const aPos = supportPosition(a);
-  const bPos = supportPosition(b);
-  if (!aPos || !bPos || !pos) return false;
-  return pointDistance(aPos, bPos) <= 0.01;
-}
-
-function clusterBasis(direction) {
-  const pipe = normalizedOr(direction, new THREE.Vector3(1, 0, 0));
-  const seed = Math.abs(pipe.y) < 0.85 ? new THREE.Vector3(0, 1, 0) : new THREE.Vector3(1, 0, 0);
-  let u = new THREE.Vector3().crossVectors(pipe, seed);
-  if (u.lengthSq() <= EPS_MM) u = new THREE.Vector3(0, 0, 1);
-  u.normalize();
-  const v = new THREE.Vector3().crossVectors(pipe, u).normalize();
-  return { u, v };
-}
-
-function normalizeSupportFamily(rawKind, explicitAxis) {
-  const raw = String(rawKind || '').toUpperCase().replace(/[\s\-]+/g, '_');
-  if (/(CAN.*SPRING|SPRING.*CAN|SPRING_CAN)/.test(raw)) return 'SPRING_CAN';
-  if (raw.includes('HANGER')) return 'HANGER';
-  if (/^CAN$|_CAN$|^CAN_/.test(raw)) return 'CAN';
-  if (raw.includes('HOLD') && raw.includes('DOWN')) return 'HOLDDOWN';
-  if (raw.includes('HOLDDOWN')) return 'HOLDDOWN';
-  if (raw.includes('GUIDE')) return 'GUIDE';
-  if (raw.includes('LINE_STOP') || raw.includes('LINESTOP') || raw.includes('LIMIT') || /\bLIM\b/.test(raw)) return raw.includes('LIMIT') || /\bLIM\b/.test(raw) ? 'LIMIT_STOP' : 'LINE_STOP';
-  if (raw === 'REST' || raw.includes('REST')) return 'REST';
-  if (explicitAxis) return explicitAxis.hasSign ? 'LINE_STOP' : 'SINGLE_AXIS_WARNING';
-  return 'UNKNOWN_RESTRAINT';
-}
-
-function transformedGuideAxes(axisInfo, pipeAxis) {
-  const axis = axisInfo.canvasAxisInfo || axisInfo.sourceAxisInfo;
-  if (!axis) return guideAxesForPipeAxis(pipeAxis);
-  const signed = axisWithSign(axis);
-  if (axis.hasSign) return [signed];
-  return [signed, invertAxis(signed)];
-}
-
-function guideAxesForPipeAxis(axis) {
-  if (axis === 'X') return ['+Z', '-Z'];
-  if (axis === 'Z') return ['+X', '-X'];
-  return ['+X', '-X', '+Z', '-Z'];
-}
-
-function resolveSupportAxis(attrs = {}, rawKind = '') {
-  const sourceAxisInfo = explicitAxisFrom(attrs.SUPPORT_AXIS_SOURCE_ORIGINAL, attrs.SUPPORT_AXIS_SOURCE, attrs.CAESAR_AXIS, attrs.SUPPORT_AXIS, attrs.RESTRAINT_AXIS, attrs.AXIS, attrs.DIRECTION, rawKind);
-  const canvasAxisInfo = explicitAxisFrom(attrs.SUPPORT_AXIS_CANVAS, attrs.AXIS, attrs.DIRECTION, attrs.RESTRAINT_AXIS, attrs.SUPPORT_AXIS, attrs.CAESAR_AXIS, rawKind);
-  const sourceAxisText = sourceAxisInfo ? axisWithSign(sourceAxisInfo) : '';
-  const canvasAxisText = canvasAxisInfo ? axisWithSign(canvasAxisInfo) : '';
-  const axisTransformApplied = String(attrs.SUPPORT_AXIS_CANVAS_APPLIED || '').toUpperCase() === 'TRUE'
-    || Boolean(sourceAxisText && canvasAxisText && sourceAxisText !== canvasAxisText);
-  return { sourceAxisInfo, canvasAxisInfo, sourceAxisText, canvasAxisText, axisTransformApplied };
-}
-
-function explicitAxisFrom(...values) {
-  for (const value of values) {
-    const text = String(value || '').toUpperCase().trim();
-    if (!text) continue;
-    const match = text.match(/(^|[^A-Z0-9])([+-]?)(X|Y|Z)([^A-Z0-9]|$)/);
-    if (match) return { axis: match[3], sign: match[2] || '', hasSign: match[2] === '+' || match[2] === '-' };
-  }
-  return null;
-}
-
+function supportPosition(record) { return record?.source?.supportCoord || record?.source?.pos || record?.source?.bpos || record?.source?.apos || record?.source?.lpos; }
+function isSameSupportCluster(a, b, node, pos) { const aNode = String(a?.attrs?.NODE || a?.fromNode || a?.toNode || '').trim(); const bNode = String(b?.attrs?.NODE || b?.fromNode || b?.toNode || '').trim(); if (node && aNode && bNode && aNode !== bNode) return false; const aPos = supportPosition(a); const bPos = supportPosition(b); if (!aPos || !bPos || !pos) return false; return pointDistance(aPos, bPos) <= 0.01; }
+function clusterBasis(direction) { const pipe = normalizedOr(direction, new THREE.Vector3(1, 0, 0)); const seed = Math.abs(pipe.y) < 0.85 ? new THREE.Vector3(0, 1, 0) : new THREE.Vector3(1, 0, 0); let u = new THREE.Vector3().crossVectors(pipe, seed); if (u.lengthSq() <= EPS_MM) u = new THREE.Vector3(0, 0, 1); u.normalize(); const v = new THREE.Vector3().crossVectors(pipe, u).normalize(); return { u, v }; }
+function normalizeSupportFamily(rawKind, explicitAxis) { const raw = String(rawKind || '').toUpperCase().replace(/[\s\-]+/g, '_'); if (/(CAN.*SPRING|SPRING.*CAN|SPRING_CAN)/.test(raw)) return 'SPRING_CAN'; if (raw.includes('HANGER')) return 'HANGER'; if (/^CAN$|_CAN$|^CAN_/.test(raw)) return 'CAN'; if (raw.includes('HOLD') && raw.includes('DOWN')) return 'HOLDDOWN'; if (raw.includes('HOLDDOWN')) return 'HOLDDOWN'; if (raw.includes('GUIDE')) return 'GUIDE'; if (raw.includes('LINE_STOP') || raw.includes('LINESTOP') || raw.includes('LIMIT') || /\bLIM\b/.test(raw)) return raw.includes('LIMIT') || /\bLIM\b/.test(raw) ? 'LIMIT_STOP' : 'LINE_STOP'; if (raw === 'REST' || raw.includes('REST')) return 'REST'; if (explicitAxis) return explicitAxis.hasSign ? 'LINE_STOP' : 'SINGLE_AXIS_WARNING'; return 'UNKNOWN_RESTRAINT'; }
+function transformedGuideAxes(axisInfo, pipeAxis) { const axis = axisInfo.canvasAxisInfo || axisInfo.sourceAxisInfo; if (!axis) return guideAxesForPipeAxis(pipeAxis); const signed = axisWithSign(axis); if (axis.hasSign) return [signed]; return [signed, invertAxis(signed)]; }
+function guideAxesForPipeAxis(axis) { if (axis === 'X') return ['+Z', '-Z']; if (axis === 'Z') return ['+X', '-X']; return ['+X', '-X', '+Z', '-Z']; }
+function resolveSupportAxis(attrs = {}, rawKind = '') { const sourceAxisInfo = explicitAxisFrom(attrs.SUPPORT_AXIS_SOURCE_ORIGINAL, attrs.SUPPORT_AXIS_SOURCE, attrs.CAESAR_AXIS, attrs.SUPPORT_AXIS, attrs.RESTRAINT_AXIS, attrs.AXIS, attrs.DIRECTION, rawKind); const canvasAxisInfo = explicitAxisFrom(attrs.SUPPORT_AXIS_CANVAS, attrs.AXIS, attrs.DIRECTION, attrs.RESTRAINT_AXIS, attrs.SUPPORT_AXIS, attrs.CAESAR_AXIS, rawKind); const sourceAxisText = sourceAxisInfo ? axisWithSign(sourceAxisInfo) : ''; const canvasAxisText = canvasAxisInfo ? axisWithSign(canvasAxisInfo) : ''; const axisTransformApplied = String(attrs.SUPPORT_AXIS_CANVAS_APPLIED || '').toUpperCase() === 'TRUE' || Boolean(sourceAxisText && canvasAxisText && sourceAxisText !== canvasAxisText); return { sourceAxisInfo, canvasAxisInfo, sourceAxisText, canvasAxisText, axisTransformApplied }; }
+function explicitAxisFrom(...values) { for (const value of values) { const text = String(value || '').toUpperCase().trim(); if (!text) continue; const match = text.match(/(^|[^A-Z0-9])([+-]?)(X|Y|Z)([^A-Z0-9]|$)/); if (match) return { axis: match[3], sign: match[2] || '', hasSign: match[2] === '+' || match[2] === '-' }; } return null; }
 function axisWithSign(axisInfo) { return `${axisInfo.sign || '+'}${axisInfo.axis}`; }
 function signedDominantAxis(vec) { const axis = dominantAxis(vec); const value = axis === 'X' ? vec.x : axis === 'Y' ? vec.y : vec.z; return `${value < 0 ? '-' : '+'}${axis}`; }
 function invertAxis(axis) { return String(axis || '+X').startsWith('-') ? String(axis).replace('-', '+') : String(axis).replace('+', '-'); }

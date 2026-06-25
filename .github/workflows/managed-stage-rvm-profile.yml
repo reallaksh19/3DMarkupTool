@@ -24,7 +24,10 @@ jobs:
         run: npm install --no-audit --no-fund
 
       - name: Run managed-stage RVM profile test
-        run: npm run test:managed-stage-rvm 2>&1 | tee managed-stage-test.log
+        shell: bash
+        run: |
+          set -o pipefail
+          npm run test:managed-stage-rvm 2>&1 | tee managed-stage-test.log
 
       - name: Upload managed-stage test log
         if: always()
@@ -38,7 +41,10 @@ jobs:
         run: node -e "console.log('Managed-stage profile smoke completed; artifact gates verify generated RVM')"
 
       - name: Generate managed-stage fixture RVM artifact
-        run: npm run artifact:managed-stage-rvm 2>&1 | tee managed-stage-artifact.log
+        shell: bash
+        run: |
+          set -o pipefail
+          npm run artifact:managed-stage-rvm 2>&1 | tee managed-stage-artifact.log
 
       - name: Upload managed-stage artifact log
         if: always()
@@ -49,7 +55,10 @@ jobs:
           if-no-files-found: ignore
 
       - name: Verify managed-stage artifact round-trip
-        run: npm run verify:managed-stage-rvm-artifact 2>&1 | tee managed-stage-roundtrip.log
+        shell: bash
+        run: |
+          set -o pipefail
+          npm run verify:managed-stage-rvm-artifact 2>&1 | tee managed-stage-roundtrip.log
 
       - name: Upload managed-stage roundtrip log
         if: always()
@@ -60,7 +69,10 @@ jobs:
           if-no-files-found: ignore
 
       - name: Verify managed-stage RVM reference layout compatibility
-        run: npm run verify:managed-stage-rvm-reference 2>&1 | tee managed-stage-reference.log
+        shell: bash
+        run: |
+          set -o pipefail
+          npm run verify:managed-stage-rvm-reference 2>&1 | tee managed-stage-reference.log
 
       - name: Inspect managed-stage RVM artifact
         run: node -e "console.log('Managed-stage RVM artifact inspection covered by round-trip and reference gates')"

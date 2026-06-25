@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 
 import { convertManagedStageJsonToRvmAtt } from '../src/managed-stage-rvm-converter.js';
 import { buildManagedStageGeometryContractSet } from '../src/managed-stage-geometry-contract.js';
+import { parseManagedStageProfile } from '../src/managed-stage-profile-parser.js';
 import { createBmCiiManagedStageFixture } from './managed-stage-bm-cii-profile-fixture.mjs';
 
 const fixture = createBmCiiManagedStageFixture();
@@ -9,13 +10,17 @@ const bend = fixture.hierarchy[0].children.find((child) => child.attributes?.DTX
 assert.ok(bend, 'fixture has a bend record');
 bend.attributes.BEND_ANGLE = '0.000000';
 
+function parsedFixture() {
+  return parseManagedStageProfile(JSON.stringify(fixture));
+}
+
 assert.throws(
-  () => buildManagedStageGeometryContractSet(fixture),
+  () => buildManagedStageGeometryContractSet(parsedFixture()),
   /Missing\/invalid bend angle/,
   'strict contract construction still fails invalid bend metadata'
 );
 
-const contractSet = buildManagedStageGeometryContractSet(fixture, {
+const contractSet = buildManagedStageGeometryContractSet(parsedFixture(), {
   nonBlockingGeometryGates: true,
   warningOnlyManagedStageGates: true
 });

@@ -48,7 +48,7 @@ const fixture = {
 };
 
 const result = convertManagedStageJsonToRvmAtt(JSON.stringify(fixture));
-assert.equal(result.profile.recordDiscovery.schema, 'ManagedStageRecordDiscovery.v2');
+assert.equal(result.profile.recordDiscovery.schema, 'ManagedStageRecordDiscovery.v3');
 assert.equal(result.profile.recordDiscovery.traversal, 'recursive-branch-children');
 assert.equal(result.profile.recordDiscovery.supportGapMapperSchema, 'ManagedStageSupportGapMapper.v1');
 assert.equal(result.profile.recordDiscovery.supportGapRecordScoped, true);
@@ -65,7 +65,7 @@ assert.deepEqual(result.audit.supportRvmExportAudit.supportPrimitiveCodeHistogra
 assert.equal(result.audit.supportRvmExportAudit.supportConePrimitiveCount, 0);
 assert.deepEqual(result.audit.supportRvmExportAudit.supportForbiddenPrimitiveCodesPresent, []);
 assert.ok(result.att.includes('NEW INPUTXML-20-GUIDE'));
-assert.ok(result.att.includes('SUPPORT_SYMBOL_POLICY CODE8_COMPACT_BAR_GLYPHS_NO_PYRAMIDS_NO_CONE_FAN'));
+assert.ok(result.att.includes("SUPPORT_SYMBOL_POLICY := 'CODE8_COMPACT_BAR_GLYPHS_NO_PYRAMIDS_NO_CONE_FAN'"));
 
 const [restRecord, guideRecord, lineStopRecord] = result.profile.supportRecords;
 assert.equal(restRecord.attributes.SUPPORT_GAP_MM, '7mm');
@@ -92,7 +92,10 @@ assert.equal(audit.supportVisualCounts.total, 3);
 assert.equal(audit.supportVisualCounts.REST, 1);
 assert.equal(audit.supportVisualCounts.GUIDE, 1);
 assert.equal(audit.supportVisualCounts.LINE_STOP, 1);
-assert.equal(audit.supportVisualPolicy.previewGeometry, 'compact-code8-equivalent-cylinder-bars-no-cones');
+assert.equal(audit.supportVisualPolicy.schema, 'ManagedStageSupportVisualResolver.v5');
+assert.equal(audit.supportVisualPolicy.previewGeometry, 'cone-and-can-support-glyphs');
+assert.equal(audit.supportVisualPolicy.discCapsRemoved, true);
+assert.equal(audit.supportVisualPolicy.supportPreviewRaycastDisabled, true);
 assert.equal(audit.pass, true);
 
 for (const node of supportNodes) {

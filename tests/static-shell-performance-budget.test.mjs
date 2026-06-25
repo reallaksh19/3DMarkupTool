@@ -17,12 +17,13 @@ const pkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url),
 const moduleScriptCount = (index.match(/<script\s+type="module"/g) || []).length;
 const staticShellImports = (bootstrap.match(/\.js\?v=\$\{SAFE_UI_VERSION\}/g) || []).length;
 const startupScriptBlock = index.slice(index.indexOf('<script type="module"'));
-const rootCacheKeyPattern = /app-boot-dialog-conversion-hotfix-20260623|support-ui-render-export-fix-20260623|tool-fixes-v2-20260620|perf-tdz-fix-20260620|perf-static-drawer-bundle-20260620|perf-idle-diagnostics-20260620|perf-static-shell-20260620/;
 
 assert.ok(moduleScriptCount <= 3, `index.html should keep top-level module scripts bounded; found ${moduleScriptCount}.`);
-assert.match(index, new RegExp(`static-shell-performance\\.css\\?v=(${rootCacheKeyPattern.source})`), 'Index must load static performance CSS before JS bootstrap.');
+assert.match(index, /static-shell-performance\.css\?v=(staged-json-review-ui-rvm-fix-20260625|app-boot-dialog-conversion-hotfix-20260623|support-ui-render-export-fix-20260623|tool-fixes-v2-20260620|perf-tdz-fix-20260620|perf-static-drawer-bundle-20260620|perf-idle-diagnostics-20260620|perf-static-shell-20260620)/, 'Index must load static performance CSS before JS bootstrap.');
 assert.match(index, /id="topReviewMenu"[\s\S]*review-top-menu-btn/, 'Top Review menu slot must be statically reserved before JS decorates it.');
 assert.match(index, /id="staticReviewRibbonGroup"/, 'Review ribbon group must be statically reserved before JS decorates it.');
+assert.match(index, /id="workflowStatusInline"/, 'Workflow status must be statically integrated into the topbar row.');
+assert.match(index, /class="tool-group toolbar-group color-toolbar-group"[\s\S]*id="colorBySelect"/, 'Color By must live in the second toolbar row while preserving #colorBySelect.');
 assert.match(index, /class="tool-group toolbar-group navis-tag-tools tag-lite-host static-markup-tools"/, 'Markup row host must be statically present before JS decorates it.');
 assert.match(index, /data-section="support-mapping"/, 'Support mapping workflow card must be statically present.');
 assert.match(index, /conversionOptionsCompatRoot/, 'Legacy controller compatibility controls must remain hidden in raw HTML.');
@@ -32,13 +33,13 @@ assert.doesNotMatch(startupScriptBlock, /src="\.\/src\/app\.js/, 'Index must not
 assert.doesNotMatch(startupScriptBlock, /src="\.\/src\/fresh-clip-controller\.js/, 'Fresh clip controller must not run as a top-level pre-LCP module.');
 assert.doesNotMatch(startupScriptBlock, /src="\.\/src\/clip-render-hook\.js/, 'Clip render hook and freeze guard must not run as a top-level pre-LCP module.');
 
-assert.match(perfCss, /\.viewer-topbar \.markup-ribbon[\s\S]*min-height:\s*52px/, 'Markup ribbon row must reserve first-paint height.');
-assert.match(perfCss, /\.viewer-topbar \.markup-ribbon:has\(\.navis-tag-tools:empty\)[\s\S]*display:\s*flex/, 'Static performance CSS must override the base hidden-empty markup row rule.');
+assert.match(perfCss, /\.viewer-topbar\s*\{\s*grid-template-rows:\s*auto auto;/, 'Topbar must use the compact two-row header/ribbon layout.');
+assert.match(perfCss, /\.viewer-topbar \.markup-ribbon:has\(\.navis-tag-tools:empty\)[\s\S]*display:\s*none/, 'Empty markup row must not create a stranded third rail.');
 assert.match(perfCss, /#staticReviewRibbonGroup:empty[\s\S]*min-width:\s*116px/, 'Review ribbon placeholder must reserve first-paint width.');
 assert.match(perfCss, /\.topbar-actions \.top-menu-wrap[\s\S]*min-width:\s*86px/, 'Top Review menu must reserve first-paint width.');
 assert.match(perfCss, /#inputDrawer \.workflow-card[\s\S]*display:\s*grid/, 'Workflow cards must reserve first-paint layout.');
 assert.match(perfCss, /conversion-options-compat-root\s*\{\s*display:\s*none\s*!important/, 'Compatibility controls must stay out of the visible drawer.');
-assert.doesNotMatch(perfCss, /\.markup-ribbon:has\(\.navis-tag-tools:empty\)\s*\{\s*display:\s*none/, 'Markup ribbon must not be hidden while waiting for JS.');
+assert.match(perfCss, /support-workflow-card \.conversion-collapsible-content[\s\S]*display:\s*revert\s*!important/, 'Support Mapping controls must not be hidden by compatibility collapse CSS.');
 
 assert.match(appLoader, /requestAnimationFrame/, 'App loader must yield paint frames before importing app.js.');
 assert.match(appLoader, /requestIdleCallback/, 'App loader must use idle scheduling when available.');

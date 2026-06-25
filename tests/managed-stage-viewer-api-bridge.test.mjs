@@ -18,6 +18,7 @@ assert.match(bridge, /viewer:managed-stage-viewer-api-ready/);
 
 assert.match(sampleController, /import '\.\/managed-stage-viewer-api-bridge\.js';/);
 assert.match(managedController, /Viewer API unavailable for managed-stage preview/);
-assert.match(managedController, /viewer\.setModelRoot\(modelRoot, \{ source: 'managed-stage-json' \}\)/);
+assert.match(managedController, /api\.setModelRoot\(root, \{ source: 'managed-stage-json'/);
+assert.match(managedController, /api\.clearModelRoot\(\{ source: 'managed-stage-json'/);
 
 console.log('managed-stage viewer API bridge exposes setModelRoot for bundled JSON preview');

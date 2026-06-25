@@ -12,7 +12,10 @@ function makeObject(name, userData = {}, children = []) {
     children,
     traverse(callback) {
       callback(this);
-      for (const child of children) child.traverse?.(callback) || callback(child);
+      for (const child of children) {
+        if (typeof child.traverse === 'function') child.traverse(callback);
+        else callback(child);
+      }
     }
   };
 }

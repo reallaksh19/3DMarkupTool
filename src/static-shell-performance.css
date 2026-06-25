@@ -5,10 +5,19 @@
  * UI does not push the LCP text or workspace around.
  */
 
-.viewer-topbar { grid-template-rows: auto auto auto; }
+.viewer-topbar { grid-template-rows: auto auto; }
 
 .main-ribbon .tool-group,
 .main-ribbon .toolbar-group { min-height: 68px; }
+
+.color-toolbar-group {
+  min-width: 220px;
+}
+
+.color-toolbar-group .color-control {
+  min-height: 44px;
+  margin: 0;
+}
 
 .main-ribbon #staticReviewRibbonGroup:empty,
 .main-ribbon .shell-reserved-group:empty {
@@ -33,26 +42,10 @@
 
 .topbar-actions .top-menu-btn { min-width: 86px; }
 
-.viewer-topbar .markup-ribbon,
-.viewer-topbar .markup-ribbon:has(.navis-tag-tools:empty) {
-  display: flex;
-  min-height: 52px;
-  align-items: center;
-}
-
-.viewer-topbar .markup-ribbon .navis-tag-tools,
+.viewer-topbar .markup-ribbon:has(.navis-tag-tools:empty),
 .viewer-topbar .markup-ribbon .navis-tag-tools:empty {
-  display: flex;
-  min-height: 52px;
-}
-
-.markup-ribbon .navis-tag-tools:empty::before {
-  content: 'Markup / XML tools';
-  color: rgba(159, 179, 204, .58);
-  font-size: 12px;
-  font-weight: 850;
-  letter-spacing: .03em;
-  padding: 0 6px;
+  display: none;
+  min-height: 0;
 }
 
 #inputDrawer { scroll-padding-top: 8px; }
@@ -141,6 +134,7 @@
 }
 
 #inputDrawer .workflow-card[data-section="input"] #loadSampleBtn,
+#inputDrawer .workflow-card[data-section="input"] #loadManagedStageJsonSampleBtn,
 #inputDrawer .workflow-card[data-section="input"] #clearBtn,
 .workflow-primary-row > button {
   flex: 1 1 0;
@@ -152,12 +146,26 @@
 }
 
 #inputDrawer .workflow-card[data-section="input"] #loadSampleBtn span,
+#inputDrawer .workflow-card[data-section="input"] #loadManagedStageJsonSampleBtn span,
 #inputDrawer .workflow-card[data-section="input"] #clearBtn span,
 .workflow-primary-row > button span {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.conversion-status {
+  min-height: 24px;
+  display: flex;
+  align-items: center;
+  padding: 3px 8px;
+  border: 1px solid rgba(83, 125, 176, .28);
+  border-radius: 8px;
+  color: #dbeafe;
+  background: rgba(4, 14, 28, .42);
+  font-size: 11px;
+  font-weight: 820;
 }
 
 .support-workflow-card .support-mapping-settings-shell {
@@ -173,6 +181,13 @@
 
 .support-workflow-card .support-mapping-settings-open {
   min-height: 36px !important;
+}
+
+#inputDrawer .support-workflow-card .conversion-collapsible-content,
+#inputDrawer .support-workflow-card .support-mapper-config-details,
+.support-mapping-settings-dialog .conversion-collapsible-content,
+.support-mapping-settings-dialog .support-mapper-config-details {
+  display: revert !important;
 }
 
 .workflow-advanced-options {
@@ -195,10 +210,8 @@
 /* Compatibility-only controls are retained for old controllers/tests but must
  * never consume visible drawer space in the workflow-card layout.
  */
-body:not(.conversion-expanded) #inputDrawer .conversion-options-compat-root .conversion-collapsible-content,
-body:not(.conversion-expanded) #inputDrawer .conversion-collapsible-content,
-body:not(.sideload-expanded) #inputDrawer .conversion-options-compat-root .sideload-collapsible-content,
-body:not(.sideload-expanded) #inputDrawer .sideload-collapsible-content,
+#inputDrawer .conversion-options-compat-root .conversion-collapsible-content,
+#inputDrawer .conversion-options-compat-root .sideload-collapsible-content,
 .conversion-options-compat-root {
   display: none !important;
 }

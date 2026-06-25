@@ -66,9 +66,10 @@ const explicitLineStop = resolveManagedStageSupportSymbolCatalogue(mapped({ SUPP
   fieldMapper: { axisFields: ['CAESAR_AXIS'] },
   axisBasis: { axes: { '-X': { engineeringDirection: 'NORTH', canvasAxis: '+Z' } } }
 }), { pipeAxisSigned: '+X' });
-assert.equal(explicitLineStop.family, 'LIMIT_STOP');
+assert.equal(explicitLineStop.family, 'LINE_STOP');
+assert.equal(explicitLineStop.graphicsRule, 'axial-pair-or-explicit-sign');
 assert.deepEqual(axes(explicitLineStop), ['+Z']);
-assert.equal(explicitLineStop.primitiveCount, 1, 'explicit signed axial restraint should emit one directional symbol');
+assert.equal(explicitLineStop.primitiveCount, 1, 'explicit signed LIMIT/LINE STOP restraint should emit one directional axial symbol');
 assert.equal(explicitLineStop.primitives[0].tipSeparationMm, 50, 'explicit signed axial restraint uses the full positive 10x gap separation');
 assert.equal(explicitLineStop.odTwoThirdsResolverApplied, true);
 assert.equal(explicitLineStop.odTwoThirdsSymbolLengthMm, 300);
@@ -77,11 +78,12 @@ assert.equal(explicitLineStop.primitives[0].odTwoThirdsEligible, true);
 const axisOnlyWarning = resolveManagedStageSupportSymbolCatalogue(mapped({ AXIS: 'X', DIAMETER: '300mm' }, {
   fieldMapper: { axisFields: ['AXIS'] }
 }));
-assert.equal(axisOnlyWarning.family, 'SINGLE_AXIS_WARNING');
+assert.equal(axisOnlyWarning.family, 'UNKNOWN');
+assert.equal(axisOnlyWarning.graphicsRule, 'unknown-cross-warning');
 assert.equal(axisOnlyWarning.popupRequired, true);
 assert.equal(axisOnlyWarning.primitiveCount, 3);
 assert.equal(axisOnlyWarning.primitiveBudgetOk, true);
-assert.ok(axisOnlyWarning.warnings.some((warning) => warning.includes('missing explicit +/-')));
+assert.ok(axisOnlyWarning.warnings.some((warning) => warning.includes('unknown support kind')));
 assert.equal(axisOnlyWarning.odTwoThirdsResolverApplied, false);
 assert.equal(axisOnlyWarning.odTwoThirdsSymbolLengthMm, 0, 'ODx2/3 must not size unresolved warning symbols');
 

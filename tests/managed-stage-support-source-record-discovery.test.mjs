@@ -41,7 +41,9 @@ const profile = parseManagedStageProfile({
 });
 assert.equal(profile.supportRecords.length, 2, 'GUIDE/REST records must be treated as support records');
 assert.equal(profile.geometryRecords.length, 0, 'support-family records must not leak into normal geometry records');
-assert.equal(profile.supportRecords[0].attributes.SUPPORT_GAP_MM, 10);
+assert.equal(profile.supportRecords[0].attributes.SUPPORT_GAP_MM, '10mm');
+assert.equal(profile.supportRecords[0].attributes.SUPPORT_GAP_RECORD_SCOPED, 'TRUE');
+assert.equal(profile.supportRecords[0].attributes.SUPPORT_GAP_CARRY_FORWARD, 'FALSE');
 assert.deepEqual(profile.supportRecords[0].attributes.SUPPORTCOORD, { x: 10, y: 20, z: 30 });
 assert.equal(profile.supportRecords[0].attributes.SUPPORT_COORDINATE_SOURCE_FIELD, 'SUPPORTCOORD');
 assert.equal(profile.supportRecords[0].attributes.SUPPORT_COORDINATE_NORMALIZED, 'TRUE');

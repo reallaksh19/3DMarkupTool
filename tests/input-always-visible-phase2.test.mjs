@@ -9,16 +9,17 @@ const perfCss = readFileSync(new URL('../src/static-shell-performance.css', impo
 const checklist = readFileSync(new URL('../docs/post-pr133-recovery-checklist.md', import.meta.url), 'utf8');
 const pkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
 
-const staticKeyPattern = /app-boot-dialog-conversion-hotfix-20260623|support-ui-render-export-fix-20260623|tool-fixes-v2-20260620|perf-tdz-fix-20260620|perf-static-drawer-bundle-20260620|perf-idle-diagnostics-20260620|perf-static-shell-20260620|phase4a-static-input-panel-cleanup-20260619/;
+const staticKeyPattern = /staged-json-review-ui-rvm-fix-20260625|app-boot-dialog-conversion-hotfix-20260623|support-ui-render-export-fix-20260623|tool-fixes-v2-20260620|perf-tdz-fix-20260620|perf-static-drawer-bundle-20260620|perf-idle-diagnostics-20260620|perf-static-shell-20260620|phase4a-static-input-panel-cleanup-20260619/;
 
-assert.match(index, /<div id="inputFileStatus" class="input-file-status" aria-live="polite">No file chosen<\/div>/, 'Input panel must statically show No file chosen.');
+assert.match(index, /id="inputFileStatus"[\s\S]*No file chosen/, 'Input panel must statically show No file chosen.');
+assert.match(index, /id="inputStatus"/, 'Input panel must expose a dedicated input status value for static and dynamic controllers.');
 assert.match(index, /<span>Choose stagedJson<\/span>/, 'Input panel must show Choose stagedJson.');
-assert.match(index, /id="loadSampleBtn"[\s\S]*Load stagedJson sample/, 'Input panel must expose the real Load stagedJson sample button.');
+assert.match(index, /id="loadSampleBtn"[\s\S]*Load BM_CII stagedJson/, 'Input panel must expose the real BM_CII stagedJson sample button.');
 assert.match(index, /id="clearBtn"[\s\S]*Clear All/, 'Input panel must expose the real Clear All button.');
 assert.match(index, /phase2-input-sticky-section/, 'Input section must use the Phase 2 visible block class.');
 assert.match(index, /phase4a-input-compact-section/, 'Input section must use the compact static block class.');
 assert.match(index, /data-phase4a-input="compact-static"/, 'Input section must statically declare the compact layout contract.');
-assert.match(index, staticKeyPattern, 'Index must use the active boot hotfix cache key, support UI/render/export cache key, or a permitted static shell cache key.');
+assert.match(index, staticKeyPattern, 'Index must use the active stagedJson review fix key, boot hotfix key, support UI/render/export key, or permitted static shell cache key.');
 assert.doesNotMatch(index, /core-safe-boot-20260619/, 'Index must not revert to the emergency core-safe startup shell.');
 assert.doesNotMatch(index, /Choose InputXML|Load InputXML|from InputXML/, 'Index must not expose retired InputXML file-selection wording.');
 
@@ -47,8 +48,8 @@ assert.doesNotMatch(controller, /Choose InputXML|Load InputXML|from InputXML/, '
 
 assert.match(perfCss, /flex-wrap:\s*nowrap/, 'Static CSS must keep input primary actions in one compact row.');
 assert.match(perfCss, /#inputFileStatus\.input-file-status/, 'Static CSS must own the input file status visual styling.');
-assert.match(perfCss, /body:not\(\.conversion-expanded\)[\s\S]*conversion-collapsible-content/, 'Static CSS must collapse conversion by default before JS runs.');
-assert.match(perfCss, /body:not\(\.sideload-expanded\)[\s\S]*sideload-collapsible-content/, 'Static CSS must collapse sideload by default before JS runs.');
+assert.match(perfCss, /conversion-options-compat-root[\s\S]*display:\s*none\s*!important/, 'Compatibility conversion controls must stay hidden before JS and after JS.');
+assert.match(perfCss, /support-workflow-card \.conversion-collapsible-content[\s\S]*display:\s*revert\s*!important/, 'Support Mapping controls must remain visible and must not inherit the hidden compatibility collapse state.');
 
 assert.match(collapseController, /initSideloadSection/, 'Sideload section must have an explicit collapse path.');
 assert.match(collapseController, /sideload-expanded/, 'Sideload section must be collapsed by default and expandable on demand.');

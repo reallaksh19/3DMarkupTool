@@ -15,12 +15,15 @@ const EXACT_GAP_FIELD_PRIORITY = Object.freeze([
   'RESTRAINT_GAP'
 ]);
 
+const GAP_METADATA_FIELD_PATTERN = /(?:RECORD_SCOPED|CARRY_FORWARD|SOURCE_FIELD|MAPPER_SCHEMA|POLICY|AUDIT|ISSUE|WARNING|ERROR)$/i;
+
 export const MANAGED_STAGE_SUPPORT_GAP_MAPPER_POLICY = Object.freeze({
   schema: MANAGED_STAGE_SUPPORT_GAP_MAPPER_SCHEMA,
   rules: [
     'support gap is read from the current stagedJson/jscon record only',
     'SUPPORT_GAP_MM has highest precedence for support records',
-    'if no exact gap field exists, the first current-record attribute whose normalized key contains GAP is used',
+    'if no exact gap field exists, the first current-record engineering attribute whose normalized key contains GAP is used',
+    'gap metadata fields such as SUPPORT_GAP_CARRY_FORWARD are never treated as engineering gap values',
     'gap values are normalized to canonical GAP/GAP_MM/SUPPORT_GAP_MM fields for downstream visual and RVM export resolvers',
     'no previous record, sibling record, branch attribute, or global value is carried forward'
   ],
@@ -57,11 +60,19 @@ export function findRecordGapField(attributes = {}) {
   }
 
   const wildcard = Object.keys(source)
-    .filter((key) => normalizeKey(key).includes('GAP'))
+    .filter((key) => isWildcardGapEngineeringField(key))
     .sort((a, b) => gapKeyRank(a) - gapKeyRank(b) || a.localeCompare(b))
     .find((key) => hasMeaningfulValue(source[key]));
 
   return wildcard ? { key: wildcard, value: source[wildcard], match: 'wildcard' } : null;
+}
+
+function isWildcardGapEngineeringField(key) {
+  const normalized = normalizeKey(key);
+  if (!normalized.includes('GAP')) return false;
+  if (GAP_METADATA_FIELD_PATTERN.test(normalized)) return false;
+  if (normalized.startsWith('SUPPORT_GAP_') && !/(?:MM|VALUE|DISTANCE|CLEARANCE)$/.test(normalized)) return false;
+  return true;
 }
 
 function gapKeyRank(key) {

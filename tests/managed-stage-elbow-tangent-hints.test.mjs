@@ -43,15 +43,29 @@ const exportModel = buildManagedStageRvmExportModel(profile);
 assert.equal(exportModel.audit.elbowTangentHintAudit.bendCount, 7);
 assert.equal(exportModel.audit.elbowTangentHintAudit.allBendsHavePlaneHint, true);
 assert.equal(exportModel.audit.elbowTangentHintAudit.stateHistogram['adjacent-start-end'], 7);
+assert.equal(exportModel.audit.inputXmlBendExclusionAudit.excludedBendCount, 7);
 
 const subgroup = exportModel.root.children[0].children[0];
 const bendNodes = subgroup.children.filter((node) => node.attributes.DTXR === 'BEND');
 assert.equal(bendNodes.length, 7);
 for (const node of bendNodes) {
-  const [primitive] = node.primitives;
-  assert.equal(primitive.tangentHintState, 'adjacent-start-end');
-  assert.ok(primitive.tangentHintSources.start, `${node.name} missing exported start tangent source`);
-  assert.ok(primitive.tangentHintSources.end, `${node.name} missing exported end tangent source`);
+  assert.equal(node.attributes.INPUTXML_BEND_EXCLUDED, 'YES');
+  assert.ok(node.primitives.length >= 1, `${node.name} must export at least one bend replacement primitive`);
+  const elbowPrimitives = node.primitives.filter((primitive) => primitive.kind === 'elbow');
+  if (elbowPrimitives.length) {
+    for (const primitive of elbowPrimitives) {
+      assert.equal(primitive.tangentHintState, 'adjacent-start-end');
+      assert.ok(primitive.tangentHintSources.start, `${node.name} missing exported start tangent source`);
+      assert.ok(primitive.tangentHintSources.end, `${node.name} missing exported end tangent source`);
+    }
+  } else {
+    assert.equal(node.primitives.every((primitive) => primitive.kind === 'cylinder'), true, `${node.name} excluded InputXML bend must export endpoint-locked source-route cylinders`);
+    assert.ok(
+      node.primitives.some((primitive) => primitive.inputXmlSourceRouteBend || primitive.code4BendExcluded || /source-route-bend/i.test(`${primitive.recipeName || ''} ${primitive.localName || ''} ${primitive.primitiveRole || ''}`)),
+      `${node.name} missing source-route bend cylinder marker`
+    );
+    assert.equal(node.primitives.every((primitive) => primitive.endpointLocked === true), true, `${node.name} replacement bend cylinders must be endpoint locked`);
+  }
 }
 
 console.log('Managed-stage elbow tangent hint test passed');

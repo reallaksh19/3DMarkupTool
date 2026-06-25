@@ -79,64 +79,97 @@ function markAppLoaded({ bundled }) {
   }));
 }
 
-async function loadClipRenderHook() {
-  await import(CLIP_HOOK_MODULE_URL).catch((error) => console.warn('[3DMarkupTool] clip render hook unavailable', error));
+function handleAppBootError(error) {
+  console.error('[3DMarkupTool] Deferred app module failed.', error);
+  window.__3D_MARKUP_APP_BOOT_FAILED__ = true;
+  setRuntimeStatus('Viewer Failed');
+  window.dispatchEvent(new CustomEvent('viewer:app-module-failed', {
+    detail: {
+      version: APP_LOADER_VERSION,
+      bundled: Boolean(APP_BUNDLE_URL),
+      reason: error && (error.message || String(error))
+    }
+  }));
+}
+
+function loadClipRenderHook() {
+  if (window.__3D_MARKUP_CLIP_RENDER_HOOK_READY__) return Promise.resolve(true);
+  if (window.__3D_MARKUP_CLIP_RENDER_HOOK_IMPORT__) return window.__3D_MARKUP_CLIP_RENDER_HOOK_IMPORT__;
+
+  window.__3D_MARKUP_CLIP_RENDER_HOOK_IMPORT__ = import(CLIP_HOOK_MODULE_URL)
+    .then(() => {
+      window.__3D_MARKUP_CLIP_RENDER_HOOK_READY__ = true;
+      return true;
+    })
+    .catch((error) => {
+      console.warn('[3DMarkupTool] Clip render hook skipped before app boot.', error);
+      window.dispatchEvent(new CustomEvent('viewer:clip-render-hook-skipped', {
+        detail: { version: APP_LOADER_VERSION, reason: error && (error.message || String(error)) }
+      }));
+      return false;
+    });
+  return window.__3D_MARKUP_CLIP_RENDER_HOOK_IMPORT__;
 }
 
 function loadCanvasToolModeGuard() {
-  import(CANVAS_TOOL_MODE_GUARD_MODULE_URL).catch((error) => console.warn('[3DMarkupTool] canvas tool guard unavailable', error));
-}
-
-function loadManagedStageJsonUiController() {
-  const imports = [
-    MANAGED_STAGE_VISIBLE_FALLBACK_MODULE_URL,
-    MANAGED_STAGE_COMPONENT_PRIMITIVE_SYMBOLS_MODULE_URL,
-    MANAGED_STAGE_INPUTXML_CLASSIFICATION_GUARD_MODULE_URL,
-    MANAGED_STAGE_GEOMETRY_LEDGER_MODULE_URL,
-    MANAGED_STAGE_JSON_UI_MODULE_URL,
-    MANAGED_STAGE_JSON_SAMPLE_MODULE_URL,
-    MANAGED_STAGE_SUPPORT_SOURCE_UI_MODULE_URL,
-    MANAGED_STAGE_SUPPORT_SOURCE_PREVIEW_MODULE_URL,
-    MANAGED_STAGE_PROFILE_SUPPORT_SOURCE_BRIDGE_MODULE_URL,
-    MANAGED_STAGE_SUPPORT_PREVIEW_AUTO_APPLY_MODULE_URL,
-    MANAGED_STAGE_SUPPORT_UI_VISUAL_CLEANUP_MODULE_URL,
-    MANAGED_STAGE_SUPPORT_DEBUG_LOG_MODULE_URL,
-    MANAGED_STAGE_SUPPORT_MAPPER_DIAGNOSTICS_UI_MODULE_URL,
-    MANAGED_STAGE_ISONOTE_WORKFLOW_UI_MODULE_URL,
-    MANAGED_STAGE_SUPPORT_SETTINGS_POPUP_UI_MODULE_URL
-  ];
-  return imports.reduce((chain, url) => chain.then(() => import(url)), Promise.resolve())
-    .catch((error) => console.warn('[3DMarkupTool] managed-stage UI module unavailable', error));
+  if (window.__3D_MARKUP_CANVAS_TOOL_MODE_GUARD_IMPORT_STARTED__) return;
+  window.__3D_MARKUP_CANVAS_TOOL_MODE_GUARD_IMPORT_STARTED__ = true;
+  import(CANVAS_TOOL_MODE_GUARD_MODULE_URL).catch((error) => {
+    console.warn('[3DMarkupTool] Canvas tool mode guard skipped.', error);
+  });
 }
 
 function loadFreshClipController() {
-  import(FRESH_CLIP_MODULE_URL).catch((error) => console.warn('[3DMarkupTool] fresh clip controller unavailable', error));
+  if (window.__3D_MARKUP_FRESH_CLIP_CONTROLLER_IMPORT_STARTED__) return;
+  window.__3D_MARKUP_FRESH_CLIP_CONTROLLER_IMPORT_STARTED__ = true;
+  import(FRESH_CLIP_MODULE_URL).catch((error) => {
+    console.warn('[3DMarkupTool] Fresh clip controller skipped.', error);
+  });
+}
+
+function loadManagedStageJsonUiController() {
+  if (window.__3D_MARKUP_MANAGED_STAGE_JSON_UI_IMPORT_STARTED__) return;
+  window.__3D_MARKUP_MANAGED_STAGE_JSON_UI_IMPORT_STARTED__ = true;
+  Promise.resolve()
+    .then(() => import(MANAGED_STAGE_VISIBLE_FALLBACK_MODULE_URL))
+    .then(() => import(MANAGED_STAGE_COMPONENT_PRIMITIVE_SYMBOLS_MODULE_URL))
+    .then(() => import(MANAGED_STAGE_INPUTXML_CLASSIFICATION_GUARD_MODULE_URL))
+    .then(() => import(MANAGED_STAGE_GEOMETRY_LEDGER_MODULE_URL))
+    .then(() => import(MANAGED_STAGE_SUPPORT_SOURCE_UI_MODULE_URL))
+    .then(() => import(MANAGED_STAGE_SUPPORT_SOURCE_PREVIEW_MODULE_URL))
+    .then(() => import(MANAGED_STAGE_PROFILE_SUPPORT_SOURCE_BRIDGE_MODULE_URL))
+    .then(() => import(MANAGED_STAGE_SUPPORT_PREVIEW_AUTO_APPLY_MODULE_URL))
+    .then(() => import(MANAGED_STAGE_SUPPORT_UI_VISUAL_CLEANUP_MODULE_URL))
+    .then(() => import(MANAGED_STAGE_SUPPORT_DEBUG_LOG_MODULE_URL))
+    .then(() => import(MANAGED_STAGE_SUPPORT_MAPPER_DIAGNOSTICS_UI_MODULE_URL))
+    .then(() => import(MANAGED_STAGE_ISONOTE_WORKFLOW_UI_MODULE_URL))
+    .then(() => import(MANAGED_STAGE_SUPPORT_SETTINGS_POPUP_UI_MODULE_URL))
+    .then(() => import(MANAGED_STAGE_JSON_UI_MODULE_URL))
+    .then(() => import(MANAGED_STAGE_JSON_SAMPLE_MODULE_URL))
+    .catch((error) => {
+      console.warn('[3DMarkupTool] Managed-stage JSON UI skipped.', error);
+      setRuntimeStatus('Managed-stage UI limited');
+    });
 }
 
 function scheduleAfterFirstPaint(callback) {
-  if (typeof requestAnimationFrame !== 'function') {
-    setTimeout(callback, 0);
-    return;
-  }
-  requestAnimationFrame(() => requestAnimationFrame(callback));
+  const run = () => {
+    if (typeof requestIdleCallback === 'function') {
+      requestIdleCallback(callback, { timeout: APP_BOOT_IDLE_TIMEOUT_MS });
+    } else {
+      setTimeout(callback, 80);
+    }
+  };
+  if (typeof requestAnimationFrame === 'function') requestAnimationFrame(() => requestAnimationFrame(run));
+  else setTimeout(run, 0);
 }
 
 function scheduleIdle(callback, timeout) {
   if (typeof requestIdleCallback === 'function') requestIdleCallback(callback, { timeout });
-  else setTimeout(callback, Math.min(timeout, 800));
+  else setTimeout(callback, Math.min(timeout, 250));
 }
 
 function setRuntimeStatus(text) {
-  const status = document.getElementById('runtimeStatus');
-  if (status) status.textContent = text;
-}
-
-function handleAppBootError(error) {
-  window.__3D_MARKUP_APP_BOOT_FAILED__ = true;
-  window.__3D_MARKUP_APP_BOOT_ERROR__ = String(error?.message || error || 'Unknown boot error');
-  window.dispatchEvent(new CustomEvent('viewer:app-module-failed', {
-    detail: { version: APP_LOADER_VERSION, error: window.__3D_MARKUP_APP_BOOT_ERROR__ }
-  }));
-  console.error('[3DMarkupTool] Viewer app failed to load', error);
-  setRuntimeStatus('Viewer Error');
+  const el = document.getElementById('runtimeStatus');
+  if (el) el.textContent = text;
 }

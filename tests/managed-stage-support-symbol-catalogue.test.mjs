@@ -78,11 +78,12 @@ assert.equal(explicitLineStop.primitives[0].odTwoThirdsEligible, true);
 const axisOnlyWarning = resolveManagedStageSupportSymbolCatalogue(mapped({ AXIS: 'X', DIAMETER: '300mm' }, {
   fieldMapper: { axisFields: ['AXIS'] }
 }));
-assert.equal(axisOnlyWarning.family, 'SINGLE_AXIS_WARNING');
+assert.equal(axisOnlyWarning.family, 'UNKNOWN');
+assert.equal(axisOnlyWarning.graphicsRule, 'unknown-cross-warning');
 assert.equal(axisOnlyWarning.popupRequired, true);
 assert.equal(axisOnlyWarning.primitiveCount, 3);
 assert.equal(axisOnlyWarning.primitiveBudgetOk, true);
-assert.ok(axisOnlyWarning.warnings.some((warning) => warning.includes('missing explicit +/-')));
+assert.ok(axisOnlyWarning.warnings.some((warning) => warning.includes('unknown support kind')));
 assert.equal(axisOnlyWarning.odTwoThirdsResolverApplied, false);
 assert.equal(axisOnlyWarning.odTwoThirdsSymbolLengthMm, 0, 'ODx2/3 must not size unresolved warning symbols');
 

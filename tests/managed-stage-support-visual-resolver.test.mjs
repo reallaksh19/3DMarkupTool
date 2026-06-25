@@ -17,9 +17,9 @@ assert.match(bmAudit.supportVisualPolicy.ringArtifactPolicy, /torus geometry is 
 assert.ok(!bmAudit.supportVisualPolicy.blockedPreviewGeometry.includes('ConeGeometry'));
 assert.equal(bmAudit.supportVisualPolicy.maxPrimitiveBudgetPerSupportKind, 5);
 assert.equal(bmAudit.supportVisualCounts.total, 12);
-assert.equal(bmAudit.supportVisualCounts.REST, 4);
-assert.equal(bmAudit.supportVisualCounts.GUIDE, 4);
-assert.equal(bmAudit.supportVisualCounts.LINE_STOP, 4);
+assert.equal(bmAudit.supportVisualCounts.REST, 7);
+assert.equal(bmAudit.supportVisualCounts.GUIDE, 2);
+assert.equal(bmAudit.supportVisualCounts.LINE_STOP, 3);
 assert.equal(bmAudit.supportPopupRequiredCount, 0);
 
 const allowedPreviewGeometry = new Set(['directional-cones', 'five-coil-spring-can', 'open-can-below-pipe', 'hanger-above-pipe', 'warning-cone', 'fallback-cross-rods']);

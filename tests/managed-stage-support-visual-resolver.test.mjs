@@ -8,18 +8,21 @@ const bmScene = createManagedStagePreviewScene(createBmCiiManagedStageSampleJson
 const bmAudit = bmScene.userData.managedStageCoordinateAudit;
 
 assert.equal(bmAudit.supportPreviewOnlyCount, 12);
-assert.equal(bmAudit.supportVisualPolicy.schema, 'ManagedStageSupportVisualResolver.v3');
+assert.equal(bmAudit.supportVisualPolicy.schema, 'ManagedStageSupportVisualResolver.v5');
 assert.equal(bmAudit.supportVisualPolicy.previewGeometry, 'cone-and-can-support-glyphs');
 assert.equal(bmAudit.supportVisualPolicy.supportConeCatalogue, true);
+assert.equal(bmAudit.supportVisualPolicy.discCapsRemoved, true);
+assert.equal(bmAudit.supportVisualPolicy.supportPreviewRaycastDisabled, true);
+assert.match(bmAudit.supportVisualPolicy.ringArtifactPolicy, /torus geometry is allowed only for the five SPRING_CAN coils/i);
 assert.ok(!bmAudit.supportVisualPolicy.blockedPreviewGeometry.includes('ConeGeometry'));
-assert.equal(bmAudit.supportVisualPolicy.maxPrimitiveBudgetPerSupportKind, 4);
+assert.equal(bmAudit.supportVisualPolicy.maxPrimitiveBudgetPerSupportKind, 5);
 assert.equal(bmAudit.supportVisualCounts.total, 12);
 assert.equal(bmAudit.supportVisualCounts.REST, 4);
 assert.equal(bmAudit.supportVisualCounts.GUIDE, 4);
 assert.equal(bmAudit.supportVisualCounts.LINE_STOP, 4);
 assert.equal(bmAudit.supportPopupRequiredCount, 0);
 
-const allowedPreviewGeometry = new Set(['directional-cones', 'three-cylinder-can', 'warning-cone', 'fallback-cross-rods']);
+const allowedPreviewGeometry = new Set(['directional-cones', 'five-coil-spring-can', 'open-can-below-pipe', 'hanger-above-pipe', 'warning-cone', 'fallback-cross-rods']);
 const supportRows = bmAudit.rows.filter((row) => row.supportLike);
 for (const row of supportRows) {
   assert.equal(row.exportedToRvm, false);
@@ -27,10 +30,12 @@ for (const row of supportRows) {
   assert.equal(row.supportVisual.gapRecordScoped, true);
   assert.equal(row.supportVisual.gapCarryForward, false);
   assert.ok(allowedPreviewGeometry.has(row.supportVisual.previewGlyphGeometry));
-  assert.equal(row.supportVisual.previewPrimitiveBudgetLimit, 4);
+  assert.equal(row.supportVisual.previewPrimitiveBudgetLimit, 5);
   assert.equal(row.supportVisual.previewPrimitiveBudgetPass, true);
-  assert.ok(row.supportVisual.previewPrimitiveBudgetCount <= 4);
+  assert.ok(row.supportVisual.previewPrimitiveBudgetCount <= 5);
   assert.equal(row.supportVisual.supportConeCatalogue, true);
+  assert.equal(row.supportVisual.discCapsRemoved, true);
+  assert.match(row.supportVisual.ringArtifactPolicy, /open-ended low-segment cones/i);
 }
 
 const rest = supportRows.find((row) => row.supportVisual.family === 'REST');
@@ -71,10 +76,14 @@ assert.ok(supportRoots.every((object) => object.userData.exportedRvmGeometry ===
 assert.ok(supportRoots.every((object) => object.userData.supportPreviewNoCone === false));
 assert.ok(supportRoots.every((object) => object.userData.supportPreviewUsesConeCatalogue === true));
 assert.ok(supportRoots.every((object) => object.userData.supportPreviewPrimitiveBudgetPass === true));
-assert.ok(supportRoots.every((object) => object.userData.supportPreviewPrimitiveBudgetCount <= 4));
+assert.ok(supportRoots.every((object) => object.userData.supportPreviewPrimitiveBudgetCount <= 5));
+assert.ok(supportRoots.every((object) => object.userData.supportPreviewRaycastDisabled === true));
+assert.ok(supportRoots.every((object) => object.userData.discCapsRemoved === true));
 assert.ok(supportParts.every((object) => object.userData.exportedRvmGeometry === false));
+assert.ok(supportParts.every((object) => object.userData.supportPreviewRaycastDisabled === true));
 assert.ok(supportParts.some((object) => object.geometry?.type === 'ConeGeometry'));
 assert.ok(supportParts.some((object) => object.userData.supportDirectionalCone === true));
+assert.ok(supportParts.filter((object) => object.geometry?.type === 'ConeGeometry').every((object) => object.geometry.parameters.openEnded === true));
 
 const customStage = {
   schema: 'inputxml-managed-stage/v1',
@@ -143,7 +152,7 @@ const customScene = createManagedStagePreviewScene(customStage, { sourceName: 's
 const customRows = customScene.userData.managedStageCoordinateAudit.rows.filter((row) => row.supportLike);
 assert.equal(customRows.length, 4);
 assert.ok(customRows.every((row) => row.supportVisual.previewPrimitiveBudgetPass === true));
-assert.ok(customRows.every((row) => row.supportVisual.previewPrimitiveBudgetCount <= 4));
+assert.ok(customRows.every((row) => row.supportVisual.previewPrimitiveBudgetCount <= 5));
 
 const gapped = customRows.find((row) => row.name === 'LS-GAP');
 assert.equal(gapped.supportVisual.family, 'LINE_STOP');
@@ -159,14 +168,15 @@ const missingSign = customRows.find((row) => row.name === 'AXIS-MISSING-SIGN');
 assert.equal(missingSign.supportVisual.family, 'SINGLE_AXIS_WARNING');
 assert.equal(missingSign.supportVisual.popupRequired, true);
 assert.equal(missingSign.supportVisual.previewPrimitiveBudgetCount, 1);
-assert.match(missingSign.supportVisual.popupReason, /missing explicit \+\/- sign/);
+assert.match(missingSign.supportVisual.popupReason, /single-axis restraint/i);
 
 const springCan = customRows.find((row) => row.name === 'SPRING-CAN');
 assert.equal(springCan.supportVisual.family, 'SPRING_CAN');
 assert.equal(springCan.supportVisual.popupRequired, true);
-assert.equal(springCan.supportVisual.previewPrimitiveBudgetCount, 3);
-assert.equal(springCan.supportVisual.previewGlyphGeometry, 'three-cylinder-can');
-assert.match(springCan.supportVisual.popupReason, /spring can/i);
+assert.equal(springCan.supportVisual.previewPrimitiveBudgetCount, 5);
+assert.equal(springCan.supportVisual.springCoilCount, 5);
+assert.equal(springCan.supportVisual.previewGlyphGeometry, 'five-coil-spring-can');
+assert.match(springCan.supportVisual.popupReason, /five coils/i);
 
 const verticalGuide = customRows.find((row) => row.name === 'V-GUIDE');
 assert.equal(verticalGuide.supportVisual.family, 'GUIDE');
@@ -182,7 +192,8 @@ customScene.traverse((object) => {
   if (object.userData?.managedStageSupportVisualPart === true) customParts.push(object);
 });
 assert.ok(customParts.some((object) => object.userData.role === 'popupRequiredWarningCone'));
-assert.ok(customParts.some((object) => object.userData.role === 'springCanBodyBelowPipe'));
+assert.equal(customParts.filter((object) => object.userData.role === 'springCanFiveCoilBelowPipe').length, 5);
+assert.equal(customParts.filter((object) => object.userData.supportSpringCanCoil === true).length, 5);
 assert.ok(customParts.some((object) => object.geometry?.type === 'ConeGeometry'));
 const customAxialTips = [...new Set(customParts
   .filter((object) => object.userData.axialPipeParallel === true)
@@ -201,6 +212,7 @@ assert.equal(verticalGuideBudgetParts.length, 4);
 assert.ok(verticalGuideBudgetParts.every((object) => object.userData.supportDirectionalCone === true));
 assert.equal(verticalGuideRoot.userData.supportPreviewPrimitiveBudgetCount, 4);
 assert.equal(verticalGuideRoot.userData.supportPreviewPrimitiveBudgetPass, true);
+assert.equal(verticalGuideRoot.userData.supportPreviewRaycastDisabled, true);
 
 console.log(JSON.stringify({
   schema: bmAudit.supportVisualPolicy.schema,

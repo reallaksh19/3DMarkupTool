@@ -1,0 +1,98 @@
+/* Critical INPUT controls visibility contract.
+ *
+ * This stylesheet protects the real stagedJson choose/load controls from any
+ * late workflow-card collapse state. It is loaded directly from index.html so
+ * the INPUT card is readable before optional shell controllers or bundled app
+ * code run.
+ */
+
+#inputDrawer .workflow-card[data-section="input"],
+#inputDrawer .workflow-card[data-phase2-input="always-visible"],
+#inputDrawer .phase2-input-sticky-section[data-section="input"] {
+  display: grid !important;
+  grid-template-rows: auto auto auto auto auto !important;
+  gap: 9px !important;
+  min-height: 168px !important;
+  max-height: none !important;
+  overflow: visible !important;
+}
+
+#inputDrawer .workflow-card[data-section="input"] > :not(h3),
+#inputDrawer .workflow-card[data-phase2-input="always-visible"] > :not(h3),
+#inputDrawer .phase2-input-sticky-section[data-section="input"] > :not(h3) {
+  visibility: visible !important;
+  opacity: 1 !important;
+  max-height: none !important;
+  transform: none !important;
+  pointer-events: auto !important;
+}
+
+#inputDrawer .workflow-card[data-section="input"] > .workflow-card-hint,
+#inputDrawer .workflow-card[data-phase2-input="always-visible"] > .workflow-card-hint {
+  display: block !important;
+  margin: 0 !important;
+  color: #aebfd4;
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+#inputDrawer .workflow-card[data-section="input"] > #inputFileStatus.input-file-status,
+#inputDrawer .workflow-card[data-section="input"] > .input-file-status,
+#inputDrawer .workflow-card[data-phase2-input="always-visible"] > #inputFileStatus.input-file-status,
+#inputDrawer .workflow-card[data-phase2-input="always-visible"] > .input-file-status {
+  display: flex !important;
+  align-items: center !important;
+  min-height: 24px !important;
+  margin: 0 !important;
+  padding: 3px 8px !important;
+  border: 1px solid rgba(83, 125, 176, .34) !important;
+  border-radius: 8px !important;
+  color: #f8fbff !important;
+  background: rgba(4, 14, 28, .55) !important;
+  font-size: 12px !important;
+  font-weight: 850 !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+}
+
+#inputDrawer .workflow-card[data-section="input"] > label.file-drop,
+#inputDrawer .workflow-card[data-phase2-input="always-visible"] > label.file-drop {
+  display: grid !important;
+  grid-auto-flow: column !important;
+  place-items: center !important;
+  justify-content: center !important;
+  gap: 8px !important;
+  min-height: 34px !important;
+  margin: 0 !important;
+  padding: 6px 10px !important;
+  line-height: 1 !important;
+  border-radius: 9px !important;
+}
+
+#inputDrawer .workflow-card[data-section="input"] > .button-row.input-primary-actions,
+#inputDrawer .workflow-card[data-phase2-input="always-visible"] > .button-row.input-primary-actions {
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  flex-wrap: nowrap !important;
+  margin: 0 !important;
+}
+
+#inputDrawer .workflow-card[data-section="input"] > .input-primary-actions > button,
+#inputDrawer .workflow-card[data-phase2-input="always-visible"] > .input-primary-actions > button {
+  flex: 1 1 0 !important;
+  min-width: 0 !important;
+  min-height: 32px !important;
+  padding: 6px 8px !important;
+  white-space: nowrap !important;
+  font-size: 11px !important;
+}
+
+#inputDrawer .workflow-card[data-section="input"] > .input-primary-actions > button span,
+#inputDrawer .workflow-card[data-phase2-input="always-visible"] > .input-primary-actions > button span {
+  min-width: 0 !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+}

@@ -1,3 +1,4 @@
+import './input-panel-critical-controls.js';
 import './static-shell-core-controller.js';
 import './static-input-always-visible-controller.js';
 import './static-input-conversion-collapse-controller.js';
@@ -30,5 +31,5 @@ import './static-global-tool-lifecycle-controller.js';
 
 window.__3D_MARKUP_STATIC_SHELL_BUNDLE_READY__ = true;
 window.dispatchEvent(new CustomEvent('viewer:static-shell-bundle-ready', {
-  detail: { version: 'input-postbootstrap-reassert-20260626' }
+  detail: { version: 'input-panel-critical-controls-20260626' }
 }));

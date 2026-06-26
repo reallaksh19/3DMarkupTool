@@ -57,16 +57,29 @@ runStep('inspect final artifact tables', [
   ...expectationArgs
 ]);
 
+const artifactAudit = JSON.parse(readFileSync(join(repoRoot, outDir, `${base}.audit.json`), 'utf8'));
+const topologyProofGate = artifactAudit.managedStageTopologyProofGate || null;
+if (topologyProofGate?.ok !== true) throw new Error('Final managed-stage artifact topology proof gate failed');
+
 const finalZipName = `${base}.final-rmss-style.zip`;
 const finalZipPath = join(repoRoot, outDir, finalZipName);
 writeFileSync(finalZipPath, makeStoredZip(readFinalEntries(join(repoRoot, outDir), base)));
 
 console.log(JSON.stringify({
-  schema: 'ManagedStageFinalRvmArtifact.v1',
+  schema: 'ManagedStageFinalRvmArtifact.v2',
   ok: true,
   base,
   outDir,
   finalZip: finalZipName,
+  topologyProofGateOk: topologyProofGate.ok,
+  explicitBendRecordCount: topologyProofGate.explicitBendRecordCount,
+  explicitBendDetailCount: topologyProofGate.explicitBendDetailCount,
+  missingExplicitBendDetailCount: topologyProofGate.missingExplicitBendDetailCount,
+  synthetic1p5DTrimBlockedCount: topologyProofGate.synthetic1p5DTrimBlockedCount,
+  supportAssociationOnlyCount: topologyProofGate.supportAssociationOnlyCount,
+  supportTopologyBlockedCount: topologyProofGate.supportTopologyBlockedCount,
+  supportContinuityEdgeCount: topologyProofGate.supportContinuityEdgeCount,
+  supportInlineFaceCount: topologyProofGate.supportInlineFaceCount,
   referenceMode: referenceRvm ? 'external-rmss-reference' : 'layout-self-check',
   generatedFiles: readFinalEntries(join(repoRoot, outDir), base).map(([name]) => name)
 }, null, 2));

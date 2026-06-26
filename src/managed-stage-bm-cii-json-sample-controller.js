@@ -1,7 +1,7 @@
 import './managed-stage-viewer-api-bridge.js';
 import { BM_CII_MANAGED_STAGE_SAMPLE_NAME, createBmCiiManagedStageSampleJson } from './managed-stage-bm-cii-json-sample-data.js';
 
-const SAMPLE_CONTROLLER_SCHEMA = 'ManagedStageBmCiiJsonSampleController.v2';
+const SAMPLE_CONTROLLER_SCHEMA = 'ManagedStageBmCiiJsonSampleController.v3';
 const SAMPLE_SOURCE_NAME = BM_CII_MANAGED_STAGE_SAMPLE_NAME;
 
 installManagedStageBmCiiJsonSampleButton();
@@ -12,14 +12,17 @@ export function installManagedStageBmCiiJsonSampleButton() {
   }
 
   const sampleButton = ensureSampleButton();
-  sampleButton.addEventListener('click', (event) => {
-    event.preventDefault?.();
-    event.stopImmediatePropagation?.();
-    loadBundledManagedStageJsonSample().catch((error) => {
-      log(`ERROR loading ${SAMPLE_SOURCE_NAME}: ${error.message}`);
-      setStatus('BM_CII stagedJson sample load failed');
-    });
-  }, true);
+  if (sampleButton.dataset.managedStageJsonSampleBound !== '1') {
+    sampleButton.dataset.managedStageJsonSampleBound = '1';
+    sampleButton.addEventListener('click', (event) => {
+      event.preventDefault?.();
+      event.stopImmediatePropagation?.();
+      loadBundledManagedStageJsonSample().catch((error) => {
+        log(`ERROR loading ${SAMPLE_SOURCE_NAME}: ${error.message}`);
+        setStatus('BM_CII stagedJson sample load failed');
+      });
+    }, true);
+  }
 
   const api = {
     schema: SAMPLE_CONTROLLER_SCHEMA,
@@ -39,8 +42,15 @@ function ensureSampleButton() {
   if (primary) {
     primary.title = 'Load bundled BM_CII_INPUT_managed_stage.json stagedJson sample';
     primary.setAttribute('aria-label', 'Load BM_CII stagedJson sample');
-    primary.innerHTML = '<i data-lucide="folder-open"></i><span>Load BM_CII stagedJson</span>';
+    const label = primary.querySelector('span');
+    if (label) label.textContent = 'Load BM_CII stagedJson';
+    if (!primary.querySelector('i') && !primary.querySelector('svg')) {
+      const icon = document.createElement('i');
+      icon.setAttribute('data-lucide', 'folder-open');
+      primary.prepend(icon);
+    }
     primary.dataset.managedStageJsonSampleButton = 'true';
+    primary.dataset.sourceOwner = primary.dataset.sourceOwner || 'index-html';
     return primary;
   }
 
@@ -62,7 +72,7 @@ function ensureSampleButton() {
 }
 
 async function loadBundledManagedStageJsonSample() {
-  const managedStageApi = window.__3D_MARKUP_MANAGED_STAGE_JSON_UI__;
+  const managedStageApi = await ensureManagedStageJsonApi();
   if (typeof managedStageApi?.loadText !== 'function') {
     throw new Error('managed-stage JSON UI is not ready');
   }
@@ -71,6 +81,15 @@ async function loadBundledManagedStageJsonSample() {
   const sourceText = createBmCiiManagedStageSampleJson();
   log(`Loaded bundled ${SAMPLE_SOURCE_NAME} (${sourceText.length.toLocaleString()} chars)`);
   return managedStageApi.loadText(sourceText, SAMPLE_SOURCE_NAME);
+}
+
+async function ensureManagedStageJsonApi() {
+  if (typeof window.__3D_MARKUP_MANAGED_STAGE_JSON_UI__?.loadText === 'function') {
+    return window.__3D_MARKUP_MANAGED_STAGE_JSON_UI__;
+  }
+  const module = await import('./managed-stage-json-ui-controller.js');
+  if (typeof module.installManagedStageJsonUi === 'function') return module.installManagedStageJsonUi();
+  return window.__3D_MARKUP_MANAGED_STAGE_JSON_UI__;
 }
 
 function setStatus(message) {

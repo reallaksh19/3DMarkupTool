@@ -2,11 +2,16 @@ import assert from 'node:assert/strict';
 import { createBmCiiManagedStageSampleJson } from '../src/managed-stage-bm-cii-json-sample-data.js';
 import { createManagedStagePreviewScene } from '../src/managed-stage-preview-scene-explicit-bend.js';
 import { buildManagedStageTopologyAudit } from '../src/managed-stage-uxml-topology-adapter.js';
+import { assertManagedStageTopologyQualityGate } from '../src/managed-stage-topology-quality-gate.js';
 
 const sourceText = createBmCiiManagedStageSampleJson();
 const topologyAudit = buildManagedStageTopologyAudit(sourceText, { sourceName: 'BM_CII_INPUT_managed_stage.json' });
+const qualityGate = assertManagedStageTopologyQualityGate(topologyAudit);
 assert.equal(topologyAudit.summary.supportCount, 12);
 assert.equal(topologyAudit.summary.supportContinuityEdgeCount, 0);
+assert.equal(qualityGate.ok, true);
+assert.equal(qualityGate.internalDisconnectedRequiredPortCount, 0);
+assert.ok(qualityGate.classifiedOpenTerminalPortCount > 0);
 
 const scene = createManagedStagePreviewScene(sourceText, {
   sourceName: 'BM_CII_INPUT_managed_stage.json',
@@ -15,7 +20,6 @@ const scene = createManagedStagePreviewScene(sourceText, {
 
 const audit = scene.userData.managedStageCoordinateAudit;
 assert.ok(audit, 'preview scene should expose coordinate audit');
-assert.equal(audit.topologyAuditOk, true);
 assert.equal(audit.supportTopologyGatePass, true);
 assert.equal(audit.supportTopologyBlockedCount, 0);
 assert.equal(audit.supportAssociationOnlyCount, 12);
@@ -43,5 +47,7 @@ console.log(JSON.stringify({
   supportTopologyGatePass: audit.supportTopologyGatePass,
   supportAssociationOnlyCount: audit.supportAssociationOnlyCount,
   supportContinuityEdgeCount: audit.supportContinuityEdgeCount,
-  supportInlineFaceCount: audit.supportInlineFaceCount
+  supportInlineFaceCount: audit.supportInlineFaceCount,
+  classifiedOpenTerminalPortCount: qualityGate.classifiedOpenTerminalPortCount,
+  internalDisconnectedRequiredPortCount: qualityGate.internalDisconnectedRequiredPortCount
 }, null, 2));

@@ -6,7 +6,9 @@ const DEFAULT_MAX_BRANCH_NODE_DEGREE = 4;
 export function assertManagedStageTopologyQualityGate(topologyAudit = {}, options = {}) {
   const gate = buildManagedStageTopologyQualityGate(topologyAudit, options);
   if (!gate.ok) {
-    throw new Error(`Managed-stage topology quality gate failed: ${gate.issues.join('; ')}`);
+    const error = new Error(`Managed-stage topology quality gate failed: ${gate.issues.join('; ')}`);
+    error.gate = gate;
+    throw error;
   }
   return gate;
 }

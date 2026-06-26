@@ -9,6 +9,17 @@ const NON_BLOCKING_MANAGED_STAGE_AUDIT_PATTERNS = Object.freeze([
   '^expected skipped support records:',
   '^expected support records emitted to RVM:',
   '^expected support RVM primitive count:',
+  '^expected topology component count:',
+  '^expected topology geometry component count:',
+  '^expected topology support count:',
+  '^expected explicit BEND record count:',
+  '^expected explicit BEND detail count:',
+  '^expected missing explicit BEND detail count:',
+  '^expected synthetic 1.5D trim blocked count:',
+  '^expected support association-only count:',
+  '^expected support topology blocked count:',
+  '^expected support continuity edge count:',
+  '^expected support inline face count:',
   '^expected code 1 pyramid primitives:',
   '^expected code 4 torus primitives:',
   '^expected code 8 cylinder primitives:',
@@ -20,6 +31,17 @@ const BM_CII_STAGED_JSON_EXPECTATIONS = Object.freeze({
   supportRecordsSkippedFromGeometry: 12,
   supportRecordsEmittedToRvm: 12,
   supportRvmPrimitiveCount: 42,
+  topologyComponentCount: 52,
+  topologyGeometryComponentCount: 40,
+  topologySupportCount: 12,
+  explicitBendRecordCount: 7,
+  explicitBendDetailCount: 7,
+  missingExplicitBendDetailCount: 0,
+  synthetic1p5DTrimBlockedCount: 7,
+  supportAssociationOnlyCount: 12,
+  supportTopologyBlockedCount: 0,
+  supportContinuityEdgeCount: 0,
+  supportInlineFaceCount: 0,
   primitiveCodeCounts: { 1: 0, 4: 0, 8: 157 },
   code1: 0,
   cntbCount: 56,
@@ -150,6 +172,8 @@ async function loadManagedStageText(sourceText, sourceName = 'BM_CII_INPUT_manag
   const options = bmCiiLikeSourceName(sourceName) ? { strictAuditExpectations: BM_CII_STAGED_JSON_EXPECTATIONS } : {};
   const result = convertManagedStageJsonToRvmAtt(sourceText, options);
   const previewScene = createManagedStagePreviewScene(sourceText, { sourceName, exportModel: result.exportModel });
+  const previewAudit = previewScene.userData?.managedStageCoordinateAudit || null;
+  const visibleDiagnostics = buildManagedStageVisibleDiagnostics(result.audit, previewAudit);
   previewScene.name = `${managedStageUiState.basename}_RAW_STAGED_PREVIEW`;
   previewScene.userData = {
     ...(previewScene.userData || {}),
@@ -158,7 +182,8 @@ async function loadManagedStageText(sourceText, sourceName = 'BM_CII_INPUT_manag
     sourceName,
     geometryComponents: result.audit?.inputCounts?.geometryComponents,
     primitiveCount: result.audit?.rvmPrimitivePayloadContract?.primitiveCount,
-    previewPipeline: 'raw-managed-stage-json-coordinate-preserving-explicit-bend'
+    previewPipeline: 'raw-managed-stage-json-coordinate-preserving-explicit-bend-topology-gated',
+    managedStageVisibleDiagnostics: visibleDiagnostics
   };
 
   managedStageUiState.artifact = {
@@ -170,22 +195,26 @@ async function loadManagedStageText(sourceText, sourceName = 'BM_CII_INPUT_manag
     exportModel: result.exportModel,
     profile: result.profile,
     previewScene,
-    previewPipeline: 'raw-managed-stage-json-coordinate-preserving-explicit-bend',
-    previewCoordinateAudit: previewScene.userData?.managedStageCoordinateAudit || null
+    previewPipeline: 'raw-managed-stage-json-coordinate-preserving-explicit-bend-topology-gated',
+    previewCoordinateAudit: previewAudit,
+    visibleDiagnostics
   };
 
   showManagedStagePreview(previewScene);
   enableManagedStageDownloads();
   setStatus('Managed-stage RVM ready');
-  updateDrawerSummary(result.audit);
+  updateDrawerSummary(result.audit, previewAudit);
+  updateManagedStageDiagnosticsPanel(result.audit, previewAudit);
   logManagedStageSummary(result.audit);
-  logManagedStagePreviewCoordinateAudit(previewScene.userData?.managedStageCoordinateAudit);
+  logManagedStagePreviewCoordinateAudit(previewAudit);
+  logManagedStageVisibleDiagnostics(visibleDiagnostics);
   showManagedStageAuditWarnings(result.audit?.managedStageStrictGate);
   window.dispatchEvent(new CustomEvent('viewer:managed-stage-json-loaded', {
     detail: {
       sourceName,
       audit: result.audit,
-      previewCoordinateAudit: previewScene.userData?.managedStageCoordinateAudit,
+      previewCoordinateAudit: previewAudit,
+      visibleDiagnostics,
       modelRoot: previewScene
     }
   }));
@@ -261,12 +290,65 @@ function enableManagedStageDownloads() {
   }
 }
 
-function updateDrawerSummary(audit) {
+function updateDrawerSummary(audit, previewAudit = null) {
   const target = document.getElementById('conversionSummary') || document.getElementById('conversionStatus');
   if (!target || !audit) return;
   const counts = audit.inputCounts || {};
   const histogram = audit.primitiveHistogram || {};
-  target.textContent = `Managed JSON: ${counts.geometryComponents || 0} geometry, ${counts.supportRecordsSkippedFromGeometry || 0} supports, RVM primitives ${audit.rvmPrimitivePayloadContract?.primitiveCount || audit.chunkHierarchy?.primCount || 0} (code8=${histogram[8] || 0}, code1=${histogram[1] || 0})`;
+  const diagnostics = buildManagedStageVisibleDiagnostics(audit, previewAudit);
+  target.textContent = `Managed JSON: ${counts.geometryComponents || 0} geometry, ${counts.supportRecordsSkippedFromGeometry || 0} supports, RVM primitives ${audit.rvmPrimitivePayloadContract?.primitiveCount || audit.chunkHierarchy?.primCount || 0} (code8=${histogram[8] || 0}, code1=${histogram[1] || 0}); topology=${diagnostics.topologyProofGateOk ? 'PASS' : 'FAIL'}, BEND details=${diagnostics.explicitBendDetailCount}/${diagnostics.explicitBendRecordCount}, support topology=${diagnostics.supportTopologyGatePass ? 'PASS' : 'FAIL'}`;
+}
+
+function updateManagedStageDiagnosticsPanel(audit, previewAudit = null) {
+  const status = document.getElementById('conversionStatus') || document.getElementById('runtimeStatus');
+  if (!status || !audit) return;
+  const panel = ensureManagedStageDiagnosticsPanel(status);
+  const diagnostics = buildManagedStageVisibleDiagnostics(audit, previewAudit);
+  panel.textContent = renderManagedStageVisibleDiagnostics(diagnostics);
+  panel.dataset.schema = diagnostics.schema;
+  panel.dataset.topologyProofGateOk = String(diagnostics.topologyProofGateOk);
+  panel.dataset.explicitBendRecordCount = String(diagnostics.explicitBendRecordCount);
+  panel.dataset.explicitBendDetailCount = String(diagnostics.explicitBendDetailCount);
+  panel.dataset.supportAssociationOnlyCount = String(diagnostics.supportAssociationOnlyCount);
+  panel.dataset.supportContinuityEdgeCount = String(diagnostics.supportContinuityEdgeCount);
+}
+
+function ensureManagedStageDiagnosticsPanel(anchor) {
+  const existing = document.getElementById('managedStageTopologyDiagnostics');
+  if (existing) return existing;
+  const panel = document.createElement('div');
+  panel.id = 'managedStageTopologyDiagnostics';
+  panel.className = 'conversion-status managed-stage-topology-diagnostics';
+  panel.setAttribute('role', 'status');
+  panel.setAttribute('aria-live', 'polite');
+  panel.setAttribute('aria-label', 'Managed-stage topology proof diagnostics');
+  anchor.insertAdjacentElement('afterend', panel);
+  return panel;
+}
+
+function buildManagedStageVisibleDiagnostics(audit = {}, previewAudit = null) {
+  const proof = audit.managedStageTopologyProofGate || {};
+  const topologySummary = audit.supportTopologyAudit?.summary || previewAudit?.topologySummary || {};
+  const supportExport = audit.supportRvmExportAudit || {};
+  return {
+    schema: 'ManagedStageVisibleDiagnostics.v1',
+    topologyProofGateOk: proof.ok === true,
+    strictGateOk: audit.managedStageStrictGate?.ok === true,
+    previewTopologyAuditOk: previewAudit?.topologyAuditOk === true,
+    explicitBendRecordCount: numberOrZero(proof.explicitBendRecordCount ?? topologySummary.explicitBendRecordCount ?? previewAudit?.explicitBendRecordCount),
+    explicitBendDetailCount: numberOrZero(proof.explicitBendDetailCount ?? topologySummary.explicitBendDetailCount ?? previewAudit?.explicitBendDetailCount),
+    missingExplicitBendDetailCount: numberOrZero(proof.missingExplicitBendDetailCount ?? topologySummary.missingExplicitBendDetailCount),
+    synthetic1p5DTrimBlockedCount: numberOrZero(proof.synthetic1p5DTrimBlockedCount ?? topologySummary.synthetic1p5DTrimBlockedCount ?? previewAudit?.explicitBendTrimBlockedCount),
+    supportAssociationOnlyCount: numberOrZero(proof.supportAssociationOnlyCount ?? supportExport.supportAssociationOnlyCount ?? previewAudit?.supportAssociationOnlyCount),
+    supportTopologyBlockedCount: numberOrZero(proof.supportTopologyBlockedCount ?? supportExport.supportTopologyBlockedCount ?? previewAudit?.supportTopologyBlockedCount),
+    supportContinuityEdgeCount: numberOrZero(proof.supportContinuityEdgeCount ?? supportExport.supportContinuityEdgeCount ?? previewAudit?.supportContinuityEdgeCount),
+    supportInlineFaceCount: numberOrZero(proof.supportInlineFaceCount ?? supportExport.supportInlineFaceCount ?? previewAudit?.supportInlineFaceCount),
+    supportTopologyGatePass: (proof.supportTopologyGatePass ?? supportExport.supportTopologyGatePass ?? previewAudit?.supportTopologyGatePass) === true
+  };
+}
+
+function renderManagedStageVisibleDiagnostics(diagnostics) {
+  return `Topology proof: ${diagnostics.topologyProofGateOk ? 'PASS' : 'FAIL'} | Explicit BEND details: ${diagnostics.explicitBendDetailCount}/${diagnostics.explicitBendRecordCount}, missing ${diagnostics.missingExplicitBendDetailCount}, synthetic trim blocked ${diagnostics.synthetic1p5DTrimBlockedCount} | Support topology: ${diagnostics.supportTopologyGatePass ? 'PASS' : 'FAIL'}, association-only ${diagnostics.supportAssociationOnlyCount}, blocked ${diagnostics.supportTopologyBlockedCount}, continuity edges ${diagnostics.supportContinuityEdgeCount}, inline faces ${diagnostics.supportInlineFaceCount}`;
 }
 
 function showManagedStageAuditWarnings(gate = {}) {
@@ -295,7 +377,17 @@ function logManagedStageSummary(audit) {
 
 function logManagedStagePreviewCoordinateAudit(audit) {
   if (!audit) return;
-  log(`Managed-stage preview audit: sourceLines=${audit.sourceLineCount}, supports=${audit.supportPreviewOnlyCount}, explicitBends=${audit.explicitBendRecordCount || 0}, trimmedBends=${audit.trimmedBendSourceLineCount || 0}, unexplainedNonBendDelta=${audit.unexplainedNonBendDeltaCount || 0}`);
+  log(`Managed-stage preview audit: sourceLines=${audit.sourceLineCount}, supports=${audit.supportPreviewOnlyCount}, explicitBends=${audit.explicitBendRecordCount || 0}, trimmedBends=${audit.trimmedBendSourceLineCount || 0}, topologyGate=${audit.supportTopologyGatePass ? 'PASS' : 'FAIL'}, supportContinuityEdges=${audit.supportContinuityEdgeCount || 0}, supportInlineFaces=${audit.supportInlineFaceCount || 0}, unexplainedNonBendDelta=${audit.unexplainedNonBendDeltaCount || 0}`);
+}
+
+function logManagedStageVisibleDiagnostics(diagnostics) {
+  if (!diagnostics) return;
+  log(`Managed-stage topology proof diagnostics: ${renderManagedStageVisibleDiagnostics(diagnostics)}`);
+}
+
+function numberOrZero(value) {
+  const number = Number(value);
+  return Number.isFinite(number) ? number : 0;
 }
 
 function downloadBlob(data, filename, type) {

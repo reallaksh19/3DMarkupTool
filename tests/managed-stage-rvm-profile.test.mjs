@@ -78,6 +78,25 @@ assert.ok(result.audit.supportRvmExportAudit.supportMaxPrimitiveSpanMm <= 60);
 assert.ok(result.audit.supportRvmExportAudit.supportMaxBarRadiusMm <= 3);
 assert.ok(result.att.includes('NEW /BM_CII-CU-PI-SUPPORTS'));
 assert.ok(result.att.includes('NEW INPUTXML-35-LINESTOP'));
+assert.ok(result.att.includes("BEND_SOURCE_TRUTH := 'EXPLICIT_STAGEDJSON_BEND'"));
+assert.ok(result.att.includes("BEND_CENTERLINE_KIND := 'arc'"));
+assert.ok(result.att.includes("BEND_RADIUS_SOURCE := 'stagedJson.BEND_RADIUS'"));
+assert.ok(result.att.includes("BEND_ANGLE_SOURCE := 'stagedJson.BEND_ANGLE'"));
+assert.ok(result.att.includes("BEND_SOURCE := 'stagedJson.BEND_RADIUS+BEND_ANGLE'"));
+assert.ok(result.att.includes("SYNTHETIC_1P5D_BEND_TRIM_BLOCKED := 'YES'"));
+assert.ok(result.att.includes("SYNTHETIC_1P5D_BEND_TRIM_ALLOWED := 'NO'"));
+assert.equal(countOccurrences(result.att, "BEND_SOURCE_TRUTH := 'EXPLICIT_STAGEDJSON_BEND'"), 7);
+assert.equal(countOccurrences(result.att, "BEND_RADIUS_SOURCE := 'stagedJson.BEND_RADIUS'"), 7);
+assert.equal(countOccurrences(result.att, "BEND_ANGLE_SOURCE := 'stagedJson.BEND_ANGLE'"), 7);
+assert.equal(countOccurrences(result.att, "SYNTHETIC_1P5D_BEND_TRIM_BLOCKED := 'YES'"), 7);
+assert.ok(result.att.includes("SUPPORT_TOPOLOGY_GATE := 'ok'"));
+assert.ok(result.att.includes("SUPPORT_TOPOLOGY_ASSOCIATION_ONLY := 'TRUE'"));
+assert.ok(result.att.includes("SUPPORT_CONTINUITY_EDGE_BLOCKED := 'TRUE'"));
+assert.ok(result.att.includes("SUPPORT_INLINE_FACE_BLOCKED := 'TRUE'"));
+assert.equal(countOccurrences(result.att, "SUPPORT_TOPOLOGY_GATE := 'ok'"), 12);
+assert.equal(countOccurrences(result.att, "SUPPORT_TOPOLOGY_ASSOCIATION_ONLY := 'TRUE'"), 12);
+assert.equal(countOccurrences(result.att, "SUPPORT_CONTINUITY_EDGE_BLOCKED := 'TRUE'"), 12);
+assert.equal(countOccurrences(result.att, "SUPPORT_INLINE_FACE_BLOCKED := 'TRUE'"), 12);
 
 const componentAudit = result.exportModel.audit.componentPrimitiveSymbolExportAudit;
 assert.equal(componentAudit.schema, 'ManagedStageComponentPrimitiveRvmExport.v1');
@@ -124,7 +143,7 @@ for (const { node, primitive } of supportPrimitives) {
   }
 }
 
-console.log('Managed-stage BM_CII support, flange, valve, and topology proof RVM export gate passed');
+console.log('Managed-stage BM_CII support, flange, valve, topology proof, and ATT parity RVM export gate passed');
 
 function maxEndpointDistance(primitive, center) {
   return Math.max(distance(primitive.startMm, center), distance(primitive.endMm, center));
@@ -132,6 +151,10 @@ function maxEndpointDistance(primitive, center) {
 
 function distance(a, b) {
   return Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
+}
+
+function countOccurrences(text, needle) {
+  return String(text).split(needle).length - 1;
 }
 
 function sumValues(values = {}) {

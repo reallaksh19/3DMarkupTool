@@ -15,6 +15,17 @@ const baseAudit = {
     warnings: [],
     maxCenterlineGapMm: 0
   },
+  managedStageTopologyProofGate: {
+    ok: true,
+    topologyQualityGateOk: true,
+    topologyQualityGate: {
+      internalDisconnectedRequiredPortCount: 0,
+      classifiedOpenTerminalPortCount: 2,
+      highDegreeTopologyNodeCount: 0,
+      nodeCoordinateConflictCount: 0,
+      invalidBranchNodeDegreeCount: 0
+    }
+  },
   boundingExtentsMm: {
     bboxMm: [0, 0, 0, 1, 1, 1],
     cntbBboxFieldsWritten: false
@@ -54,6 +65,8 @@ const warningGate = assertManagedStageRvmAuditGate(baseAudit, {
 });
 
 assert.equal(warningGate.ok, true);
+assert.equal(warningGate.topologyProofGateOk, true);
+assert.equal(warningGate.topologyQualityGateOk, true);
 assert.equal(warningGate.warningOnly, true);
 assert.equal(warningGate.nonBlockingAuditWarningCount, 3);
 assert.deepEqual(warningGate.nonBlockingAuditIssues, [
@@ -69,6 +82,17 @@ assert.throws(
     nonBlockingAuditIssuePatterns: ['^expected support RVM primitive count:']
   }),
   /expected geometry components: expected 39, got 40/
+);
+
+assert.throws(
+  () => assertManagedStageRvmAuditGate({
+    ...baseAudit,
+    managedStageTopologyProofGate: {
+      ...baseAudit.managedStageTopologyProofGate,
+      ok: false
+    }
+  }),
+  /managedStageTopologyProofGate\.ok: expected true, got false/
 );
 
 assert.throws(
@@ -93,4 +117,4 @@ assert.throws(
   /supportMaxGlyphExtentMm: expected <= 100, got 101/
 );
 
-console.log('managed-stage audit gate permits UI-only non-geometry warnings while blocking support code/envelope failures');
+console.log('managed-stage audit gate nonblocking warning test passed');

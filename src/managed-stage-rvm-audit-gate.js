@@ -17,6 +17,7 @@ export function assertManagedStageRvmAuditGate(audit = {}, expectations = {}) {
   const bbox = audit.boundingExtentsMm || {};
   const stitchManifest = audit.stitchManifest || {};
   const supportExport = audit.supportRvmExportAudit || {};
+  const topologyProofGate = audit.managedStageTopologyProofGate || {};
   const toleranceMm = Number(expectations.maxCenterlineGapMm ?? DEFAULT_GAP_TOLERANCE_MM);
 
   requireEqual(audit.generationMode, 'managed-stage-cylinder-torus', 'generationMode', issues);
@@ -26,6 +27,7 @@ export function assertManagedStageRvmAuditGate(audit = {}, expectations = {}) {
   requireArrayEmpty(topology.zeroLength, 'topology.zeroLength', issues);
   requireArrayEmpty(topology.warnings, 'topology.warnings', issues);
   requireMax(topology.maxCenterlineGapMm, toleranceMm, 'topology.maxCenterlineGapMm', issues);
+  requireEqual(topologyProofGate.ok, true, 'managedStageTopologyProofGate.ok', issues);
 
   for (const code of Object.keys(primitiveHistogram).map(Number)) {
     if (!ALLOWED_CODES.includes(code)) issues.push(`primitiveHistogram contains non-managed-stage primitive code ${code}`);
@@ -86,6 +88,7 @@ export function assertManagedStageRvmAuditGate(audit = {}, expectations = {}) {
     nonBlockingAuditIssues: nonBlockingIssues,
     nonBlockingAuditWarningCount: nonBlockingIssues.length,
     warningOnly: nonBlockingIssues.length > 0,
+    topologyProofGateOk: topologyProofGate.ok === true,
     allowedPrimitiveCodes: [...ALLOWED_CODES],
     forbiddenPrimitiveCodes: [...FORBIDDEN_CODES],
     supportAllowedPrimitiveCodes: [...SUPPORT_ALLOWED_CODES],

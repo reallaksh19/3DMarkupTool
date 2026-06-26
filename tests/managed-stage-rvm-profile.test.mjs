@@ -19,6 +19,10 @@ const expectations = {
   supportTopologyBlockedCount: 0,
   supportContinuityEdgeCount: 0,
   supportInlineFaceCount: 0,
+  internalDisconnectedRequiredPortCount: 0,
+  highDegreeTopologyNodeCount: 0,
+  nodeCoordinateConflictCount: 0,
+  invalidBranchNodeDegreeCount: 0,
   code1: 0,
   code4: 0,
   code8: 157,
@@ -37,6 +41,12 @@ const result = convertManagedStageJsonToRvmAtt(JSON.stringify(createBmCiiManaged
 assert.equal(result.audit.managedStageStrictGate.ok, true);
 assert.equal(result.audit.managedStageStrictGate.topologyProofGateOk, true);
 assert.equal(result.audit.managedStageTopologyProofGate.ok, true);
+assert.equal(result.audit.managedStageTopologyProofGate.topologyQualityGateOk, true);
+assert.equal(result.audit.managedStageTopologyProofGate.topologyQualityGate.internalDisconnectedRequiredPortCount, 0);
+assert.equal(result.audit.managedStageTopologyProofGate.topologyQualityGate.highDegreeTopologyNodeCount, 0);
+assert.equal(result.audit.managedStageTopologyProofGate.topologyQualityGate.nodeCoordinateConflictCount, 0);
+assert.equal(result.audit.managedStageTopologyProofGate.topologyQualityGate.invalidBranchNodeDegreeCount, 0);
+assert.ok(result.audit.managedStageTopologyProofGate.topologyQualityGate.classifiedOpenTerminalPortCount > 0);
 assert.equal(result.audit.managedStageTopologyProofGate.topologyComponentCount, 52);
 assert.equal(result.audit.managedStageTopologyProofGate.topologyGeometryComponentCount, 40);
 assert.equal(result.audit.managedStageTopologyProofGate.topologySupportCount, 12);
@@ -143,7 +153,7 @@ for (const { node, primitive } of supportPrimitives) {
   }
 }
 
-console.log('Managed-stage BM_CII support, flange, valve, topology proof, and ATT parity RVM export gate passed');
+console.log('Managed-stage BM_CII support, flange, valve, topology quality, topology proof, and ATT parity RVM export gate passed');
 
 function maxEndpointDistance(primitive, center) {
   return Math.max(distance(primitive.startMm, center), distance(primitive.endMm, center));

@@ -1,4 +1,6 @@
-export const MANAGED_STAGE_TOPOLOGY_PROOF_GATE_SCHEMA = 'ManagedStageTopologyProofGate.v1';
+import { assertManagedStageTopologyQualityGate } from './managed-stage-topology-quality-gate.js';
+
+export const MANAGED_STAGE_TOPOLOGY_PROOF_GATE_SCHEMA = 'ManagedStageTopologyProofGate.v2';
 
 export function assertManagedStageTopologyProofGate(audit = {}, expectations = {}) {
   const issues = [];
@@ -8,6 +10,14 @@ export function assertManagedStageTopologyProofGate(audit = {}, expectations = {
   const faceSummary = topologyAudit.faceModel?.summary || {};
   const supportExport = audit.supportRvmExportAudit || {};
   const supportGateSummary = supportExport.supportTopologyGateSummary || {};
+  let qualityGate = null;
+
+  try {
+    qualityGate = assertManagedStageTopologyQualityGate(topologyAudit, expectations);
+  } catch (error) {
+    issues.push(error.message);
+    qualityGate = error?.gate || null;
+  }
 
   requireTruthy(topologyAudit.schema, 'supportTopologyAudit.schema', issues);
   requireTruthy(validation.ready === true, 'supportTopologyAudit.validation.ready', issues);
@@ -29,6 +39,10 @@ export function assertManagedStageTopologyProofGate(audit = {}, expectations = {
   checkExpected(expectations.supportTopologyBlockedCount, supportExport.supportTopologyBlockedCount || 0, 'expected support topology blocked count', issues);
   checkExpected(expectations.supportContinuityEdgeCount, supportExport.supportContinuityEdgeCount || 0, 'expected support continuity edge count', issues);
   checkExpected(expectations.supportInlineFaceCount, supportExport.supportInlineFaceCount || 0, 'expected support inline face count', issues);
+  checkExpected(expectations.internalDisconnectedRequiredPortCount, qualityGate?.internalDisconnectedRequiredPortCount || 0, 'expected internal disconnected required port count', issues);
+  checkExpected(expectations.highDegreeTopologyNodeCount, qualityGate?.highDegreeTopologyNodeCount || 0, 'expected high-degree topology node count', issues);
+  checkExpected(expectations.nodeCoordinateConflictCount, qualityGate?.nodeCoordinateConflictCount || 0, 'expected node coordinate conflict count', issues);
+  checkExpected(expectations.invalidBranchNodeDegreeCount, qualityGate?.invalidBranchNodeDegreeCount || 0, 'expected invalid branch node degree count', issues);
 
   if (issues.length) throw new Error(`Managed-stage topology proof gate failed: ${issues.join('; ')}`);
 
@@ -37,6 +51,8 @@ export function assertManagedStageTopologyProofGate(audit = {}, expectations = {
     ok: true,
     topologyAuditSchema: topologyAudit.schema,
     topologyReady: validation.ready === true,
+    topologyQualityGate: qualityGate,
+    topologyQualityGateOk: qualityGate?.ok === true,
     topologyComponentCount: Number(topologySummary.componentCount || 0),
     topologyGeometryComponentCount: Number(topologySummary.geometryComponentCount || 0),
     topologySupportCount: Number(topologySummary.supportCount || 0),

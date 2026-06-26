@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
-const ACTIVE_CACHE_KEY = 'input-load-controls-restored-20260626';
-const SOURCE_INDEX_CACHE_KEY = 'input-load-controls-restored-20260626';
+const ACTIVE_CACHE_KEY = 'input-postbootstrap-reassert-20260626';
+const SOURCE_INDEX_CACHE_KEY = 'input-postbootstrap-reassert-20260626';
 const LEGACY_FIRST_PAINT_CACHE_KEY = 'tool-fixes-v2-20260620';
 
 const read = (path) => readFileSync(new URL('../' + path, import.meta.url), 'utf8');
@@ -39,7 +39,7 @@ for (const [name, source] of [['build-pages.mjs', buildScript], ['app-loader.js'
 }
 for (const [name, source] of [['safe-ui-bootstrap.js', safeBootstrap], ['static-browser-diagnostics-controller.js', diagnostics]]) assert.ok(source.includes(LEGACY_FIRST_PAINT_CACHE_KEY), name + ' must keep the stable first-paint shell cache key marker');
 assert.ok(buildScript.includes('LEGACY_CACHE_KEYS = Object.freeze(['));
-for (const key of ['app-boot-dialog-conversion-hotfix-20260623', 'support-axis-transform-generalized-20260624', 'support-ringless-input-panel-revamp-20260624', 'staged-json-review-ui-rvm-fix-20260625', ACTIVE_CACHE_KEY]) assert.ok(buildScript.includes(key), 'Pages build must include cache key ' + key);
+for (const key of ['app-boot-dialog-conversion-hotfix-20260623', 'support-axis-transform-generalized-20260624', 'support-ringless-input-panel-revamp-20260624', 'staged-json-review-ui-rvm-fix-20260625', 'input-load-controls-restored-20260626', ACTIVE_CACHE_KEY]) assert.ok(buildScript.includes(key), 'Pages build must include cache key ' + key);
 assert.ok(diagnostics.includes("STALE_SHELL_VERSION = 'perf-static-drawer-bundle-20260620'"));
 assertBefore(safeBootstrap, 'const SAFE_UI_VERSION', 'scheduleCoreShell()', 'safe-ui-bootstrap constants must be declared before module-init calls');
 assertBefore(appLoader, 'const APP_LOADER_VERSION', 'scheduleAfterFirstPaint(startViewerApp)', 'app-loader constants must be declared before module-init calls');

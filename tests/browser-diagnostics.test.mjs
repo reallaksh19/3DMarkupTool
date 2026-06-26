@@ -7,9 +7,10 @@ const controller = readFileSync(new URL('../src/static-browser-diagnostics-contr
 const checklist = readFileSync(new URL('../docs/post-pr133-recovery-checklist.md', import.meta.url), 'utf8');
 const pkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
 
-const activeCacheKey = 'input-postbootstrap-reassert-20260626';
+const activeCacheKey = 'input-root-owner-20260626';
 const allowedShellKeys = [
   activeCacheKey,
+  'input-postbootstrap-reassert-20260626',
   'input-load-controls-restored-20260626',
   'workflow-input-expanded-load-controls-20260625',
   'input-always-visible-20260619',

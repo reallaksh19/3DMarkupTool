@@ -4,8 +4,11 @@ import { readFileSync } from 'node:fs';
 const index = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
 const staticShellCss = readFileSync(new URL('../src/static-shell-performance.css', import.meta.url), 'utf8');
 const inputController = readFileSync(new URL('../src/static-input-always-visible-controller.js', import.meta.url), 'utf8');
+const criticalController = readFileSync(new URL('../src/input-panel-critical-controls.js', import.meta.url), 'utf8');
+const shellBundleEntry = readFileSync(new URL('../src/static-shell-bundle-entry.js', import.meta.url), 'utf8');
 const collapseController = readFileSync(new URL('../src/static-input-conversion-collapse-controller.js', import.meta.url), 'utf8');
 const bootstrap = readFileSync(new URL('../src/safe-ui-bootstrap.js', import.meta.url), 'utf8');
+const buildScript = readFileSync(new URL('../scripts/build-pages.mjs', import.meta.url), 'utf8');
 const pkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
 
 const inputIndex = index.indexOf('data-section="input"');
@@ -57,6 +60,16 @@ assert.doesNotMatch(inputController, /BM_CII sample selected/, 'sample loading m
 assert.doesNotMatch(inputController, /document\.createElement\(['"]style['"]\)|style\.textContent|appendChild\(style\)/, 'input controller must not inject layout CSS');
 assert.doesNotMatch(inputController, /new\s+MutationObserver|setInterval\(/, 'input controller must not use observers or polling for layout correction');
 assert.doesNotMatch(inputController, /Choose InputXML|Load InputXML|from InputXML/, 'input controller must not restore retired InputXML UI wording');
+
+assert.match(criticalController, /const VERSION = 'input-panel-critical-controls-20260626'/, 'critical controller must carry the input-panel controls version');
+assert.match(criticalController, /ensureFileDrop\(section\)/, 'critical controller must restore #xmlFile if the card is emptied');
+assert.match(criticalController, /ensureButton\(actions, 'loadSampleBtn'/, 'critical controller must restore the real sample button');
+assert.match(criticalController, /ensureButton\(actions, 'clearBtn'/, 'critical controller must restore the real clear button');
+assert.match(criticalController, /viewer:input-panel-critical-controls-ready/, 'critical controller must publish a visible-controls diagnostic event');
+assert.doesNotMatch(criticalController, /document\.createElement\(['"]style['"]\)|appendChild\(style\)|new\s+MutationObserver|setInterval\(/, 'critical controller must not rely on style injection, observers, or polling');
+assert.match(shellBundleEntry, /import '\.\/input-panel-critical-controls\.js';/, 'Pages static shell bundle must include the critical INPUT controls controller');
+assert.match(buildScript, /const VERSION = 'input-panel-critical-controls-20260626'/, 'Pages build must cache-bust the deployed bundle after the INPUT fix');
+
 assert.doesNotMatch(collapseController, /sections\s*\[\s*1\s*\]/, 'collapse controller must not depend on DOM section positions');
 assert.match(collapseController, /setSectionExpanded\('conversion', false\)/, 'legacy collapse controller may still initialize conversion collapsed when a legacy section exists');
 assert.match(bootstrap, /workflow-input-expanded-load-controls-20260625|input-load-controls-restored-20260626|input-postbootstrap-reassert-20260626/, 'input final-state controller must use a recognized expanded load-controls cache key');

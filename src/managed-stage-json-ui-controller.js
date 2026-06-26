@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { convertManagedStageJsonToRvmAtt } from './managed-stage-rvm-converter.js';
-import { createManagedStagePreviewScene } from './managed-stage-preview-scene.js';
+import { createManagedStagePreviewScene } from './managed-stage-preview-scene-explicit-bend.js';
 
 const CONTROLLER_SCHEMA = 'ManagedStageJsonUiController.v2';
 const MANAGED_STAGE_SCHEMA = 'inputxml-managed-stage/v1';
@@ -158,7 +158,7 @@ async function loadManagedStageText(sourceText, sourceName = 'BM_CII_INPUT_manag
     sourceName,
     geometryComponents: result.audit?.inputCounts?.geometryComponents,
     primitiveCount: result.audit?.rvmPrimitivePayloadContract?.primitiveCount,
-    previewPipeline: 'raw-managed-stage-json-coordinate-preserving'
+    previewPipeline: 'raw-managed-stage-json-coordinate-preserving-explicit-bend'
   };
 
   managedStageUiState.artifact = {
@@ -170,7 +170,7 @@ async function loadManagedStageText(sourceText, sourceName = 'BM_CII_INPUT_manag
     exportModel: result.exportModel,
     profile: result.profile,
     previewScene,
-    previewPipeline: 'raw-managed-stage-json-coordinate-preserving',
+    previewPipeline: 'raw-managed-stage-json-coordinate-preserving-explicit-bend',
     previewCoordinateAudit: previewScene.userData?.managedStageCoordinateAudit || null
   };
 
@@ -295,7 +295,7 @@ function logManagedStageSummary(audit) {
 
 function logManagedStagePreviewCoordinateAudit(audit) {
   if (!audit) return;
-  log(`Managed-stage preview audit: sourceLines=${audit.sourceLineCount}, supports=${audit.supportPreviewOnlyCount}, unexplainedNonBendDelta=${audit.unexplainedNonBendDeltaCount || 0}`);
+  log(`Managed-stage preview audit: sourceLines=${audit.sourceLineCount}, supports=${audit.supportPreviewOnlyCount}, explicitBends=${audit.explicitBendRecordCount || 0}, trimmedBends=${audit.trimmedBendSourceLineCount || 0}, unexplainedNonBendDelta=${audit.unexplainedNonBendDeltaCount || 0}`);
 }
 
 function downloadBlob(data, filename, type) {
@@ -320,38 +320,10 @@ function looksLikeManagedStageJson(text, name = '') {
   }
 }
 
-function isJsonFileName(name = '') {
-  return /\.(json|jscon)$/i.test(String(name));
-}
-
-function bmCiiLikeSourceName(name = '') {
-  return /BM_CII_INPUT_managed_stage/i.test(String(name));
-}
-
-function basenameWithoutExtension(name = '') {
-  return String(name || 'managed-stage').replace(/\.[^.]+$/, '') || 'managed-stage';
-}
-
-function resetManagedStageStateOnly() {
-  managedStageUiState.sourceText = '';
-  managedStageUiState.sourceName = '';
-  managedStageUiState.basename = 'managed-stage';
-  managedStageUiState.artifact = null;
-}
-
-function updateInputStatus(text) {
-  const status = document.getElementById('inputStatus');
-  if (status) status.textContent = text;
-}
-
-function setStatus(text) {
-  const status = document.getElementById('runtimeStatus') || document.getElementById('conversionStatus');
-  if (status) status.textContent = text;
-}
-
-function log(message) {
-  const logEl = document.getElementById('log');
-  const line = `[${new Date().toLocaleTimeString()}] ${message}`;
-  if (logEl) logEl.textContent += `${line}\n`;
-  else console.log(line);
-}
+function isJsonFileName(name = '') { return /\.(json|jscon)$/i.test(String(name)); }
+function bmCiiLikeSourceName(name = '') { return /BM_CII_INPUT_managed_stage/i.test(String(name)); }
+function basenameWithoutExtension(name = '') { return String(name || 'managed-stage').replace(/\.[^.]+$/, '') || 'managed-stage'; }
+function resetManagedStageStateOnly() { managedStageUiState.sourceText = ''; managedStageUiState.sourceName = ''; managedStageUiState.basename = 'managed-stage'; managedStageUiState.artifact = null; }
+function updateInputStatus(text) { const status = document.getElementById('inputStatus'); if (status) status.textContent = text; }
+function setStatus(text) { const status = document.getElementById('runtimeStatus') || document.getElementById('conversionStatus'); if (status) status.textContent = text; }
+function log(message) { const logEl = document.getElementById('log'); const line = `[${new Date().toLocaleTimeString()}] ${message}`; if (logEl) logEl.textContent += `${line}\n`; else console.log(line); }

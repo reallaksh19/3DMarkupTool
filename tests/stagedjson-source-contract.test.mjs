@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
 import { createBmCiiManagedStageSampleJson } from '../src/managed-stage-bm-cii-json-sample-data.js';
 import { detectSourceType, parseMarkupSource } from '../src/source-parser.js';
+import { createManagedStagePreviewScene } from '../src/managed-stage-preview-scene-explicit-bend.js';
+import { summarizeExplicitBendRows } from '../src/managed-stage-explicit-bend-details.js';
 import {
   STAGEDJSON_SOURCE_CONTRACT_SCHEMA,
   assertStagedJsonSourceContract,
@@ -30,6 +32,32 @@ assert.equal(contract.supports.length, 12);
 assert.ok(contract.isonoteRecords.length >= 4);
 assert.ok(contract.diagnostics.some((entry) => entry.code === 'STAGEDJSON_SOURCE_CONTRACT_BUILT'));
 assertStagedJsonSourceContract(contract);
+
+const explicitBendSummary = summarizeExplicitBendRows(contract.managedStageProfile.geometryRecords);
+assert.equal(explicitBendSummary.explicitBendRecordCount, 7);
+assert.equal(explicitBendSummary.explicitBendDetailCount, 7);
+assert.equal(explicitBendSummary.missingExplicitBendDetailCount, 0);
+assert.ok(explicitBendSummary.rows.every((row) => row.bendRadiusMm > 0 && row.bendAngleDeg > 0));
+
+const previewScene = createManagedStagePreviewScene(sourceText, { sourceName: 'BM_CII_INPUT_managed_stage.json' });
+const previewAudit = previewScene.userData.managedStageCoordinateAudit;
+assert.equal(previewAudit.explicitBendRecordCount, 7);
+assert.equal(previewAudit.explicitBendDetailCount, 7);
+assert.equal(previewAudit.trimmedBendSourceLineCount, 0);
+assert.equal(previewAudit.syntheticOrthogonalBendSkippedForExplicitBend, true);
+assert.match(previewAudit.elbowRadiusPolicy, /BEND_RADIUS\/BEND_ANGLE are authoritative/i);
+
+const bendRows = previewAudit.rows.filter((row) => row.isBend);
+assert.equal(bendRows.length, 7);
+for (const row of bendRows) {
+  assert.equal(row.explicitBendRecord, true);
+  assert.equal(row.explicitBendDetailsPresent, true);
+  assert.equal(row.intentionalPreviewTrim, false);
+  assert.equal(row.previewTrim, null);
+  assert.equal(row.deltaMm.max, 0);
+  assert.ok(row.bendRadiusMm > 0);
+  assert.ok(row.bendAngleDeg > 0);
+}
 
 const rest = contract.supports.find((support) => support.nodeNumber === '10' && support.supportFamily === 'REST');
 assert.ok(rest, 'REST support should be normalized into contract');
@@ -82,5 +110,7 @@ console.log(JSON.stringify({
   supports: parsedViaMainRoute.supports.length,
   restraints: parsedViaMainRoute.restraints.length,
   isonoteRecords: parsedViaMainRoute.isonoteRecords.length,
-  matchedIsonoteSupports: parsedViaMainRoute.supports.filter((support) => support.matchedIsonoteRecord).length
+  matchedIsonoteSupports: parsedViaMainRoute.supports.filter((support) => support.matchedIsonoteRecord).length,
+  explicitBendRecordCount: previewAudit.explicitBendRecordCount,
+  trimmedBendSourceLineCount: previewAudit.trimmedBendSourceLineCount
 }, null, 2));

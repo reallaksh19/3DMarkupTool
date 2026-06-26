@@ -42,6 +42,10 @@ assert.match(staticShellCss, /conversion-options-compat-root\s*\{\s*display:\s*n
 assert.match(inputController, /forceInputControlsExpanded\(section\)/, 'input controller must call the runtime expansion guard');
 assert.match(inputController, /section\.dataset\.inputExpanded = 'true'/, 'input controller must stamp INPUT as expanded');
 assert.match(inputController, /INPUT_CONTENT_SELECTORS/, 'input controller must target real INPUT content controls explicitly');
+assert.match(inputController, /POST_BOOTSTRAP_REASSERT_EVENTS/, 'input controller must reassert after post-bootstrap shell events');
+assert.match(inputController, /viewer:static-shell-bundle-loaded/, 'input controller must reassert after static shell bundle load');
+assert.match(inputController, /viewer:svg-icons-refreshed/, 'input controller must reassert after icon replacement');
+assert.match(inputController, /viewer:app-module-loaded/, 'input controller must reassert after app module load');
 assert.match(inputController, /ensureInputSection\(drawer\)/, 'input controller must recreate a missing INPUT card inside the real drawer');
 assert.match(inputController, /ensureFileDrop\(section\)/, 'input controller must recreate the real file drop control when missing');
 assert.match(inputController, /ensurePrimaryActions\(section\)/, 'input controller must recreate the real Load/Clear action row when missing');
@@ -55,8 +59,8 @@ assert.doesNotMatch(inputController, /MutationObserver|setInterval\(/, 'input co
 assert.doesNotMatch(inputController, /Choose InputXML|Load InputXML|from InputXML/, 'input controller must not restore retired InputXML UI wording');
 assert.doesNotMatch(collapseController, /sections\s*\[\s*1\s*\]/, 'collapse controller must not depend on DOM section positions');
 assert.match(collapseController, /setSectionExpanded\('conversion', false\)/, 'legacy collapse controller may still initialize conversion collapsed when a legacy section exists');
-assert.match(bootstrap, /workflow-input-expanded-load-controls-20260625|input-load-controls-restored-20260626/, 'input final-state controller must use a recognized expanded load-controls cache key');
+assert.match(bootstrap, /workflow-input-expanded-load-controls-20260625|input-load-controls-restored-20260626|input-postbootstrap-reassert-20260626/, 'input final-state controller must use a recognized expanded load-controls cache key');
 assert.match(bootstrap, /static-input-always-visible-controller\.js\?v=\$\{SAFE_UI_VERSION\}/, 'input final-state controller must be loaded through the deterministic early bootstrap path');
 assert.match(pkg.scripts.test, /input-panel-final-state\.test\.mjs/, 'npm test must include the INPUT final-state gate');
 
-console.log('input panel workflow-revamp final-state expanded-load-controls restoration gate passed');
+console.log('input panel workflow-revamp final-state post-bootstrap reassertion gate passed');

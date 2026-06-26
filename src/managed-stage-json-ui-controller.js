@@ -1,8 +1,4 @@
-import * as THREE from 'three';
-import { convertManagedStageJsonToRvmAtt } from './managed-stage-rvm-converter.js';
-import { createManagedStagePreviewScene } from './managed-stage-preview-scene-explicit-bend.js';
-
-const CONTROLLER_SCHEMA = 'ManagedStageJsonUiController.v2';
+const CONTROLLER_SCHEMA = 'ManagedStageJsonUiController.v3';
 const MANAGED_STAGE_SCHEMA = 'inputxml-managed-stage/v1';
 const MANAGED_STAGE_PROFILE = 'AVEVA_JSON_FOR_3D_RVM_VIEWER';
 const NON_BLOCKING_MANAGED_STAGE_AUDIT_PATTERNS = Object.freeze([
@@ -62,6 +58,8 @@ const managedStageUiState = {
   modelRoot: null
 };
 
+let managedStageRuntimeModulesPromise = null;
+
 installManagedStageJsonUi();
 
 export function installManagedStageJsonUi() {
@@ -69,15 +67,13 @@ export function installManagedStageJsonUi() {
     return window.__3D_MARKUP_MANAGED_STAGE_JSON_UI__;
   }
 
-  const inputActions = document.querySelector('.input-primary-actions');
-  if (!inputActions) {
-    throw new Error('Managed-stage JSON UI cannot find .input-primary-actions');
-  }
-
   const modelFileInput = ensureUnifiedModelFileInput();
   ensureUnifiedDropZone(modelFileInput);
-  const button = ensureUnifiedModelButton(inputActions, modelFileInput);
-  button.addEventListener('click', () => modelFileInput.click());
+  const button = ensureUnifiedModelButton(document.querySelector('.input-primary-actions'), modelFileInput);
+  if (button && button.dataset.managedStageJsonUiBound !== '1') {
+    button.dataset.managedStageJsonUiBound = '1';
+    button.addEventListener('click', () => modelFileInput.click());
+  }
   modelFileInput.addEventListener('change', onUnifiedModelFileChange, true);
 
   installManagedStageButtonInterceptors(modelFileInput);
@@ -115,21 +111,30 @@ function ensureUnifiedModelButton(host, modelFileInput) {
   const legacyManagedButton = document.getElementById('loadManagedStageJsonBtn');
   if (legacyManagedButton) {
     legacyManagedButton.id = 'loadUnifiedModelFileBtn';
-    legacyManagedButton.title = 'Load stagedJson or BM_CII_INPUT_managed_stage.json';
-    legacyManagedButton.setAttribute('aria-label', 'Load stagedJson');
-    legacyManagedButton.innerHTML = '<span class="managed-stage-json-icon" aria-hidden="true">↥</span><span>Load stagedJson</span>';
+    legacyManagedButton.title = 'Import stagedJson file';
+    legacyManagedButton.setAttribute('aria-label', 'Import stagedJson file');
+    legacyManagedButton.innerHTML = '<i data-lucide="upload"></i><span>Import stagedJson</span>';
     return legacyManagedButton;
   }
 
   const existing = document.getElementById('loadUnifiedModelFileBtn');
-  if (existing) return existing;
+  if (existing) {
+    existing.title = 'Import stagedJson file';
+    existing.setAttribute('aria-label', 'Import stagedJson file');
+    const span = existing.querySelector('span');
+    if (span) span.textContent = 'Import stagedJson';
+    existing.dataset.sourceOwner = existing.dataset.sourceOwner || 'index-html';
+    return existing;
+  }
+
+  if (!host) return null;
   const button = document.createElement('button');
   button.id = 'loadUnifiedModelFileBtn';
   button.type = 'button';
   button.className = 'ghost icon-text managed-stage-json-load-btn unified-model-load-btn';
-  button.title = 'Load stagedJson or BM_CII_INPUT_managed_stage.json';
-  button.setAttribute('aria-label', 'Load stagedJson');
-  button.innerHTML = '<span class="managed-stage-json-icon" aria-hidden="true">↥</span><span>Load stagedJson</span>';
+  button.title = 'Import stagedJson file';
+  button.setAttribute('aria-label', 'Import stagedJson file');
+  button.innerHTML = '<i data-lucide="upload"></i><span>Import stagedJson</span>';
   button.addEventListener('click', () => modelFileInput.click());
   const sampleButton = document.getElementById('loadSampleBtn');
   if (sampleButton && sampleButton.parentElement === host) host.insertBefore(button, sampleButton);
@@ -169,6 +174,7 @@ async function loadManagedStageText(sourceText, sourceName = 'BM_CII_INPUT_manag
   updateInputStatus(`${sourceName} — managed-stage JSON`);
   log(`Loaded managed-stage JSON ${sourceName} (${sourceText.length.toLocaleString()} chars)`);
 
+  const { convertManagedStageJsonToRvmAtt, createManagedStagePreviewScene } = await getManagedStageRuntimeModules();
   const options = bmCiiLikeSourceName(sourceName) ? { strictAuditExpectations: BM_CII_STAGED_JSON_EXPECTATIONS } : {};
   const result = convertManagedStageJsonToRvmAtt(sourceText, options);
   const previewScene = createManagedStagePreviewScene(sourceText, { sourceName, exportModel: result.exportModel });
@@ -221,7 +227,20 @@ async function loadManagedStageText(sourceText, sourceName = 'BM_CII_INPUT_manag
   return managedStageUiState.artifact;
 }
 
-function installManagedStageButtonInterceptors(modelFileInput) {
+function getManagedStageRuntimeModules() {
+  if (!managedStageRuntimeModulesPromise) {
+    managedStageRuntimeModulesPromise = Promise.all([
+      import('./managed-stage-rvm-converter.js'),
+      import('./managed-stage-preview-scene-explicit-bend.js')
+    ]).then(([converter, preview]) => ({
+      convertManagedStageJsonToRvmAtt: converter.convertManagedStageJsonToRvmAtt,
+      createManagedStagePreviewScene: preview.createManagedStagePreviewScene
+    }));
+  }
+  return managedStageRuntimeModulesPromise;
+}
+
+function installManagedStageButtonInterceptors() {
   captureClick('convertBtn', async (event) => {
     if (!managedStageUiState.sourceText) return false;
     event.preventDefault();

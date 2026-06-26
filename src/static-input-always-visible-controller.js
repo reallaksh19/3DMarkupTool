@@ -1,9 +1,11 @@
-// Phase 2 / Phase 4A input always-visible controller.
-// Keeps the real stagedJson controls visible without duplicating fake controls.
-// Layout is owned by static HTML/CSS so the first paint and post-JS state match.
-// No scene traversal, no polling, no review-tool activation.
+// INPUT panel source-owner controller.
+//
+// The INPUT card is owned by index.html and static-shell-performance.css.
+// This module only binds the source-owned controls, normalizes legacy labels,
+// and exposes diagnostics. It does not inject styles, poll, observe, or depend
+// on heavy managed-stage conversion modules.
 
-const VERSION = 'input-postbootstrap-reassert-20260626';
+const VERSION = 'input-root-owner-20260626';
 const INPUT_CONTENT_SELECTORS = [
   '.workflow-card-hint',
   '#inputFileStatus',
@@ -11,6 +13,7 @@ const INPUT_CONTENT_SELECTORS = [
   '.input-file-status',
   '.file-drop',
   '.input-primary-actions',
+  '#loadUnifiedModelFileBtn',
   '#loadSampleBtn',
   '#clearBtn'
 ];
@@ -73,7 +76,6 @@ function bindPostBootstrapReassertions() {
   } else {
     window.setTimeout(() => reassertInputControls('after-first-paint'), 0);
   }
-  window.setTimeout(() => reassertInputControls('after-bootstrap-idle'), 750);
 }
 
 function scheduleReassert(source) {
@@ -104,7 +106,7 @@ function ensureInputBlock() {
   section.dataset.phase2Input = 'always-visible';
   section.dataset.phase4aInput = 'compact-static';
   section.dataset.inputExpanded = 'true';
-  section.dataset.layoutOwner = 'static-css';
+  section.dataset.layoutOwner = 'source-html-static-css';
   section.classList.add('panel-section', 'workflow-card', 'phase2-input-sticky-section', 'phase4a-input-compact-section');
 
   ensureInputHeading(section);
@@ -216,12 +218,17 @@ function ensurePrimaryActions(section) {
   if (!actions) {
     actions = document.createElement('div');
     actions.className = 'button-row input-primary-actions';
+    actions.dataset.owner = 'source-html-fallback';
     section.appendChild(actions);
   }
   actions.classList.add('button-row', 'input-primary-actions');
 
-  const loadSampleBtn = ensureButton(actions, 'loadSampleBtn', 'primary icon-text', 'folder-open', 'Load BM_CII stagedJson');
-  loadSampleBtn.title = 'Load BM_CII stagedJson sample';
+  const importBtn = ensureButton(actions, 'loadUnifiedModelFileBtn', 'ghost icon-text managed-stage-json-load-btn unified-model-load-btn', 'upload', 'Import stagedJson');
+  importBtn.title = 'Import stagedJson file';
+  importBtn.setAttribute('aria-label', 'Import stagedJson file');
+
+  const loadSampleBtn = ensureButton(actions, 'loadSampleBtn', 'primary icon-text managed-stage-json-sample-btn', 'folder-open', 'Load BM_CII stagedJson');
+  loadSampleBtn.title = 'Load bundled BM_CII_INPUT_managed_stage.json stagedJson sample';
   loadSampleBtn.setAttribute('aria-label', 'Load BM_CII stagedJson sample');
 
   const clearBtn = ensureButton(actions, 'clearBtn', 'ghost icon-text', 'folder-x', 'Clear All');
@@ -264,9 +271,17 @@ function normalizeInputControlLabels(section) {
     if (label) label.textContent = 'Choose stagedJson';
   }
 
+  const importBtn = document.getElementById('loadUnifiedModelFileBtn');
+  if (importBtn) {
+    importBtn.title = 'Import stagedJson file';
+    importBtn.setAttribute('aria-label', 'Import stagedJson file');
+    const label = importBtn.querySelector('span');
+    if (label) label.textContent = 'Import stagedJson';
+  }
+
   const loadSampleBtn = document.getElementById('loadSampleBtn');
   if (loadSampleBtn) {
-    loadSampleBtn.title = 'Load BM_CII stagedJson sample';
+    loadSampleBtn.title = 'Load bundled BM_CII_INPUT_managed_stage.json stagedJson sample';
     loadSampleBtn.setAttribute('aria-label', 'Load BM_CII stagedJson sample');
     const label = loadSampleBtn.querySelector('span');
     if (label) label.textContent = 'Load BM_CII stagedJson';
@@ -325,6 +340,7 @@ function forceInputControlsExpanded(section) {
 
 function bindFileStatus() {
   const input = document.getElementById('xmlFile');
+  const importBtn = document.getElementById('loadUnifiedModelFileBtn');
   const loadSampleBtn = document.getElementById('loadSampleBtn');
   const clearBtn = document.getElementById('clearBtn');
 
@@ -333,6 +349,11 @@ function bindFileStatus() {
   if (input && input.dataset.inputAlwaysVisibleBound !== '1') {
     input.dataset.inputAlwaysVisibleBound = '1';
     input.addEventListener('change', updateStatusFromInput);
+  }
+
+  if (importBtn && importBtn.dataset.inputAlwaysVisibleBound !== '1') {
+    importBtn.dataset.inputAlwaysVisibleBound = '1';
+    importBtn.addEventListener('click', () => input?.click());
   }
 
   if (loadSampleBtn && loadSampleBtn.dataset.inputAlwaysVisibleBound !== '1') {
@@ -413,6 +434,7 @@ function revealElement(element) {
 
 function checklist() {
   const section = getInputSection();
+  const importBtn = document.getElementById('loadUnifiedModelFileBtn');
   const loadSampleBtn = document.getElementById('loadSampleBtn');
   const fileDrop = section?.querySelector('.file-drop');
   const inputActions = section?.querySelector('.input-primary-actions');
@@ -423,6 +445,7 @@ function checklist() {
     statusVisible: Boolean(getStatusNode()),
     statusText: getStatusNode()?.textContent || '',
     chooseInputVisible: Boolean(fileDrop && fileDrop.hidden === false),
+    importVisible: Boolean(importBtn && importBtn.hidden === false),
     loadSampleVisible: Boolean(loadSampleBtn && loadSampleBtn.hidden === false),
     clearAllVisible: Boolean(document.getElementById('clearBtn')),
     actionRowVisible: Boolean(inputActions && inputActions.hidden === false),
@@ -430,7 +453,7 @@ function checklist() {
     postBootstrapEvents: POST_BOOTSTRAP_REASSERT_EVENTS.slice(),
     sampleStateSeparateFromFileStatus: true,
     compactStaticInputBlock: Boolean(section?.dataset.phase4aInput === 'compact-static'),
-    layoutOwner: section?.dataset.layoutOwner || 'static-css',
+    layoutOwner: section?.dataset.layoutOwner || 'source-html-static-css',
     noRuntimeLayoutStyleInjection: true,
     noPolling: true,
     noMutationObserver: true,

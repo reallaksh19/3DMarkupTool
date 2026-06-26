@@ -7,18 +7,18 @@
   <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
   <link rel="shortcut icon" href="./favicon.ico" />
   <link rel="preconnect" href="https://unpkg.com" crossorigin />
-  <link rel="stylesheet" href="./src/styles.css?v=input-postbootstrap-reassert-20260626" />
-  <link rel="stylesheet" href="./src/static-shell-performance.css?v=input-postbootstrap-reassert-20260626" />
-  <link rel="preload" href="./src/clip-adjuster.css?v=input-postbootstrap-reassert-20260626" as="style" onload="this.onload=null;this.rel='stylesheet'" />
-  <noscript><link rel="stylesheet" href="./src/clip-adjuster.css?v=input-postbootstrap-reassert-20260626" /></noscript>
-  <link rel="preload" href="./src/clip-visual-overlays.css?v=input-postbootstrap-reassert-20260626" as="style" onload="this.onload=null;this.rel='stylesheet'" />
-  <noscript><link rel="stylesheet" href="./src/clip-visual-overlays.css?v=input-postbootstrap-reassert-20260626" /></noscript>
+  <link rel="stylesheet" href="./src/styles.css?v=input-root-owner-20260626" />
+  <link rel="stylesheet" href="./src/static-shell-performance.css?v=input-root-owner-20260626" />
+  <link rel="preload" href="./src/clip-adjuster.css?v=input-root-owner-20260626" as="style" onload="this.onload=null;this.rel='stylesheet'" />
+  <noscript><link rel="stylesheet" href="./src/clip-adjuster.css?v=input-root-owner-20260626" /></noscript>
+  <link rel="preload" href="./src/clip-visual-overlays.css?v=input-root-owner-20260626" as="style" onload="this.onload=null;this.rel='stylesheet'" />
+  <noscript><link rel="stylesheet" href="./src/clip-visual-overlays.css?v=input-root-owner-20260626" /></noscript>
   <script type="importmap">
     {
       "imports": {
         "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
         "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/",
-        "lucide": "./src/lucide-safe.js?v=input-postbootstrap-reassert-20260626"
+        "lucide": "./src/lucide-safe.js?v=input-root-owner-20260626"
       }
     }
   </script>
@@ -127,8 +127,9 @@
           <i data-lucide="upload"></i>
           <span>Choose stagedJson</span>
         </label>
-        <div class="button-row input-primary-actions">
-          <button id="loadSampleBtn" type="button" class="primary icon-text" title="Load bundled BM_CII_INPUT_managed_stage.json stagedJson sample" aria-label="Load BM_CII stagedJson sample"><i data-lucide="folder-open"></i><span>Load BM_CII stagedJson</span></button>
+        <div class="button-row input-primary-actions" data-owner="source-html">
+          <button id="loadUnifiedModelFileBtn" type="button" class="ghost icon-text managed-stage-json-load-btn unified-model-load-btn" title="Import stagedJson file" aria-label="Import stagedJson file"><i data-lucide="upload"></i><span>Import stagedJson</span></button>
+          <button id="loadSampleBtn" type="button" class="primary icon-text managed-stage-json-sample-btn" title="Load bundled BM_CII_INPUT_managed_stage.json stagedJson sample" aria-label="Load BM_CII stagedJson sample"><i data-lucide="folder-open"></i><span>Load BM_CII stagedJson</span></button>
           <button id="clearBtn" type="button" class="ghost icon-text" aria-label="Clear all input and sample data"><i data-lucide="folder-x"></i><span>Clear All</span></button>
         </div>
       </section>
@@ -236,7 +237,7 @@
     </div>
   </dialog>
 
-  <script type="module" src="./src/safe-ui-bootstrap.js?v=input-postbootstrap-reassert-20260626"></script>
-  <script type="module" src="./src/app-loader.js?v=input-postbootstrap-reassert-20260626"></script>
+  <script type="module" src="./src/safe-ui-bootstrap.js?v=input-root-owner-20260626"></script>
+  <script type="module" src="./src/app-loader.js?v=input-root-owner-20260626"></script>
 </body>
 </html>

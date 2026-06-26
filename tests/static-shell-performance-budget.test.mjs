@@ -19,7 +19,7 @@ const staticShellImports = (bootstrap.match(/\.js\?v=\$\{SAFE_UI_VERSION\}/g) ||
 const startupScriptBlock = index.slice(index.indexOf('<script type="module"'));
 
 assert.ok(moduleScriptCount <= 3, `index.html should keep top-level module scripts bounded; found ${moduleScriptCount}.`);
-assert.match(index, /static-shell-performance\.css\?v=(input-postbootstrap-reassert-20260626|input-load-controls-restored-20260626|workflow-input-expanded-load-controls-20260625|staged-json-review-ui-rvm-fix-20260625|app-boot-dialog-conversion-hotfix-20260623|support-ui-render-export-fix-20260623|tool-fixes-v2-20260620|perf-tdz-fix-20260620|perf-static-drawer-bundle-20260620|perf-idle-diagnostics-20260620|perf-static-shell-20260620)/, 'Index must load static performance CSS before JS bootstrap.');
+assert.match(index, /static-shell-performance\.css\?v=(input-root-owner-20260626|input-postbootstrap-reassert-20260626|input-load-controls-restored-20260626|workflow-input-expanded-load-controls-20260625|staged-json-review-ui-rvm-fix-20260625|app-boot-dialog-conversion-hotfix-20260623|support-ui-render-export-fix-20260623|tool-fixes-v2-20260620|perf-tdz-fix-20260620|perf-static-drawer-bundle-20260620|perf-idle-diagnostics-20260620|perf-static-shell-20260620)/, 'Index must load static performance CSS before JS bootstrap.');
 assert.match(index, /id="topReviewMenu"[\s\S]*review-top-menu-btn/, 'Top Review menu slot must be statically reserved before JS decorates it.');
 assert.match(index, /id="staticReviewRibbonGroup"/, 'Review ribbon group must be statically reserved before JS decorates it.');
 assert.match(index, /id="workflowStatusInline"/, 'Workflow status must be statically integrated into the topbar row.');
@@ -48,6 +48,7 @@ assert.match(appLoader, /APP_BUNDLE_URL/, 'App loader must support a bundled pro
 assert.match(appLoader, /import\(APP_BUNDLE_URL\)/, 'App loader must import the production app bundle when the Pages build injects it.');
 assert.match(appLoader, /CLIP_HOOK_MODULE_URL/, 'App loader must defer-load the clip hook in source mode instead of relying on top-level HTML.');
 assert.match(appLoader, /__3D_MARKUP_INSTALL_STARTUP_FREEZE_GUARD__/, 'App loader must install the freeze guard immediately before source-mode app boot.');
+assert.match(appLoader, /loadManagedStageDecorators/, 'App loader must separate managed-stage INPUT binding from heavy decorators.');
 assert.doesNotMatch(appLoader, /deferred-app-loader\.js/, 'App loader must not chain through deferred-app-loader.js.');
 assert.match(deferredAppLoader, /CLIP_HOOK_MODULE_URL/, 'Compatibility deferred loader must also defer-load the clip hook.');
 assert.doesNotMatch(prebridge, /from ['"]three['"]/, 'Render prebridge must not import Three.js in the LCP path.');
@@ -60,6 +61,7 @@ assert.match(bootstrap, /const DEFERRED_MODULE_URLS = \[/, 'Bootstrap must keep 
 assert.match(bootstrap, /const LATE_IDLE_MODULE_URLS = \[/, 'Bootstrap must reserve expensive diagnostics for late idle import.');
 assert.match(bootstrap, /STATIC_SHELL_BUNDLE_URL/, 'Bootstrap must support production static-shell bundle loading.');
 assert.match(bootstrap, /import\(STATIC_SHELL_BUNDLE_URL\)/, 'Bootstrap must import the static shell bundle in Pages build mode.');
+assert.doesNotMatch(bootstrap, /early static shell source parity/, 'Bootstrap must not execute duplicated source parity modules after bundled shell import.');
 assert.doesNotMatch(bootstrap, /static-drawer-summary-controller\.js\?v=\$\{SAFE_UI_VERSION\}/, 'Drawer summary must not be default-loaded because it can shift the drawer after paint.');
 assert.match(bootstrap, /static-browser-diagnostics-controller\.js\?v=\$\{SAFE_UI_VERSION\}/, 'Browser diagnostics must remain available as a late idle module.');
 assert.match(bootstrap, /scheduleAfterFirstPaint\(startDeferredShell\)/, 'Deferred shell imports must wait until after first paint scheduling.');

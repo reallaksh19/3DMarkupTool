@@ -164,6 +164,7 @@
   margin: 0;
 }
 
+#inputDrawer .workflow-card[data-section="input"] #loadUnifiedModelFileBtn,
 #inputDrawer .workflow-card[data-section="input"] #loadSampleBtn,
 #inputDrawer .workflow-card[data-section="input"] #loadManagedStageJsonSampleBtn,
 #inputDrawer .workflow-card[data-section="input"] #clearBtn,
@@ -176,6 +177,7 @@
   font-size: 11px;
 }
 
+#inputDrawer .workflow-card[data-section="input"] #loadUnifiedModelFileBtn span,
 #inputDrawer .workflow-card[data-section="input"] #loadSampleBtn span,
 #inputDrawer .workflow-card[data-section="input"] #loadManagedStageJsonSampleBtn span,
 #inputDrawer .workflow-card[data-section="input"] #clearBtn span,

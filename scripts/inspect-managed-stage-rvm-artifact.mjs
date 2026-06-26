@@ -10,6 +10,7 @@ const { scanCntbRecords } = await import('../src/rvm-cntb-bounds-policy.js');
 const { parseAttHierarchy, scanRvmChunkHierarchy } = await import('../src/rvm-chunk-hierarchy-validator.js');
 const { scanRvmPrimitivePayloads } = await import('../src/rvm-primitive-payload-decoder.js');
 const { assertManagedStageRvmAuditGate } = await import('../src/managed-stage-rvm-audit-gate.js');
+const { assertManagedStageTopologyProofGate } = await import('../src/managed-stage-topology-audit-gate.js');
 
 const rvm = readFileSync(join(dir, `${base}.rvm`));
 const att = readFileSync(join(dir, `${base}.att`), 'utf8');
@@ -18,7 +19,9 @@ const cntbRecords = scanCntbRecords(rvm);
 const primitives = scanRvmPrimitivePayloads(rvm);
 const chunkHierarchy = scanRvmChunkHierarchy(rvm, cntbRecords);
 const attHierarchy = parseAttHierarchy(att);
-const gate = assertManagedStageRvmAuditGate(audit, args['expect-bm-cii'] ? bmCiiExpectations() : {});
+const expectations = args['expect-bm-cii'] ? bmCiiExpectations() : {};
+const topologyGate = assertManagedStageTopologyProofGate(audit, expectations);
+const gate = assertManagedStageRvmAuditGate(audit, expectations);
 const primitiveHistogram = histogram(primitives.map((primitive) => primitive.code));
 const issues = [];
 
@@ -43,13 +46,15 @@ const rows = primitives.map((primitive, index) => ({
 }));
 const componentAudit = audit.componentPrimitiveSymbolExportAudit || null;
 const inspection = {
-  schema: 'ManagedStageRvmArtifactInspection.v2',
+  schema: 'ManagedStageRvmArtifactInspection.v3',
   base,
   gate,
+  topologyGate,
   cntbCount: cntbRecords.length,
   primitiveCount: primitives.length,
   primitiveHistogram,
   componentPrimitiveSymbolExportAudit: componentAudit,
+  supportTopologyAudit: audit.supportTopologyAudit?.summary || null,
   supportRvmExportAudit: audit.supportRvmExportAudit || null,
   issues: []
 };
@@ -57,12 +62,21 @@ mkdirSync(outDir, { recursive: true });
 writeFileSync(join(outDir, `${base}.inspection.json`), `${JSON.stringify(inspection, null, 2)}\n`);
 writeFileSync(join(outDir, `${base}.primitives.csv`), renderCsv(rows));
 writeFileSync(join(outDir, `${base}.elements.csv`), renderCsv((audit.stitchManifest?.elements || []).map((element) => ({ elementIndex: element.index, reviewName: element.reviewName, primitiveCount: element.primitiveCount }))));
-writeFileSync(join(outDir, `${base}.inspection.md`), `# Managed-stage RVM inspection\n\nBase: ${base}\nCNTB: ${cntbRecords.length}\nPRIM: ${primitives.length}\nCode histogram: ${JSON.stringify(primitiveHistogram)}\nFlange nodes: ${componentAudit?.flangeNodeCount || 0}\nValve nodes: ${componentAudit?.valveNodeCount || 0}\nWeldNeck flange primitives: ${componentAudit?.weldNeckFlangePrimitiveCount || 0}\nBall valve primitives: ${componentAudit?.ballValvePrimitiveCount || 0}\nSupport RVM primitives: ${audit.supportRvmExportAudit?.supportPrimitiveCount || 0}\nSupport code histogram: ${JSON.stringify(audit.supportRvmExportAudit?.supportPrimitiveCodeHistogram || {})}\nSupport cones: ${audit.supportRvmExportAudit?.supportConePrimitiveCount || 0}\nSupport bars: ${audit.supportRvmExportAudit?.supportBarPrimitiveCount || 0}\nSupport max glyph extent mm: ${audit.supportRvmExportAudit?.supportMaxGlyphExtentMm || 0}\nSupport max cluster offset mm: ${audit.supportRvmExportAudit?.supportMaxClusterOffsetMm || 0}\n`);
+writeFileSync(join(outDir, `${base}.inspection.md`), `# Managed-stage RVM inspection\n\nBase: ${base}\nCNTB: ${cntbRecords.length}\nPRIM: ${primitives.length}\nCode histogram: ${JSON.stringify(primitiveHistogram)}\nTopology proof gate: ${topologyGate.ok ? 'PASS' : 'FAIL'}\nExplicit BEND records: ${topologyGate.explicitBendRecordCount}\nExplicit BEND details: ${topologyGate.explicitBendDetailCount}\nMissing explicit BEND details: ${topologyGate.missingExplicitBendDetailCount}\nSynthetic 1.5D BEND trim blocked: ${topologyGate.synthetic1p5DTrimBlockedCount}\nSupport association-only count: ${topologyGate.supportAssociationOnlyCount}\nSupport topology blocked count: ${topologyGate.supportTopologyBlockedCount}\nSupport continuity edge count: ${topologyGate.supportContinuityEdgeCount}\nSupport inline face count: ${topologyGate.supportInlineFaceCount}\nFlange nodes: ${componentAudit?.flangeNodeCount || 0}\nValve nodes: ${componentAudit?.valveNodeCount || 0}\nWeldNeck flange primitives: ${componentAudit?.weldNeckFlangePrimitiveCount || 0}\nBall valve primitives: ${componentAudit?.ballValvePrimitiveCount || 0}\nSupport RVM primitives: ${audit.supportRvmExportAudit?.supportPrimitiveCount || 0}\nSupport code histogram: ${JSON.stringify(audit.supportRvmExportAudit?.supportPrimitiveCodeHistogram || {})}\nSupport cones: ${audit.supportRvmExportAudit?.supportConePrimitiveCount || 0}\nSupport bars: ${audit.supportRvmExportAudit?.supportBarPrimitiveCount || 0}\nSupport max glyph extent mm: ${audit.supportRvmExportAudit?.supportMaxGlyphExtentMm || 0}\nSupport max cluster offset mm: ${audit.supportRvmExportAudit?.supportMaxClusterOffsetMm || 0}\n`);
 
 console.log(JSON.stringify({
-  schema: 'ManagedStageRvmArtifactInspection.v2',
+  schema: 'ManagedStageRvmArtifactInspection.v3',
   ok: true,
   base,
+  topologyProofGateOk: topologyGate.ok,
+  explicitBendRecordCount: topologyGate.explicitBendRecordCount,
+  explicitBendDetailCount: topologyGate.explicitBendDetailCount,
+  missingExplicitBendDetailCount: topologyGate.missingExplicitBendDetailCount,
+  synthetic1p5DTrimBlockedCount: topologyGate.synthetic1p5DTrimBlockedCount,
+  supportAssociationOnlyCount: topologyGate.supportAssociationOnlyCount,
+  supportTopologyBlockedCount: topologyGate.supportTopologyBlockedCount,
+  supportContinuityEdgeCount: topologyGate.supportContinuityEdgeCount,
+  supportInlineFaceCount: topologyGate.supportInlineFaceCount,
   cntbCount: cntbRecords.length,
   primitiveCount: primitives.length,
   primitiveHistogram,
@@ -85,7 +99,32 @@ function parseArgs(values) {
   return out;
 }
 function bmCiiExpectations() {
-  return { geometryComponents: 40, supportRecordsSkippedFromGeometry: 12, supportRecordsEmittedToRvm: 12, supportRvmPrimitiveCount: 42, code1: 0, code4: 0, code8: 157, cntbCount: 56, primCount: 157, supportMaxGlyphExtentMm: 100, supportMaxClusterOffsetMm: 30, supportMaxPrimitiveSpanMm: 60, supportMaxBarRadiusMm: 3 };
+  return {
+    geometryComponents: 40,
+    supportRecordsSkippedFromGeometry: 12,
+    supportRecordsEmittedToRvm: 12,
+    supportRvmPrimitiveCount: 42,
+    topologyComponentCount: 52,
+    topologyGeometryComponentCount: 40,
+    topologySupportCount: 12,
+    explicitBendRecordCount: 7,
+    explicitBendDetailCount: 7,
+    missingExplicitBendDetailCount: 0,
+    synthetic1p5DTrimBlockedCount: 7,
+    supportAssociationOnlyCount: 12,
+    supportTopologyBlockedCount: 0,
+    supportContinuityEdgeCount: 0,
+    supportInlineFaceCount: 0,
+    code1: 0,
+    code4: 0,
+    code8: 157,
+    cntbCount: 56,
+    primCount: 157,
+    supportMaxGlyphExtentMm: 100,
+    supportMaxClusterOffsetMm: 30,
+    supportMaxPrimitiveSpanMm: 60,
+    supportMaxBarRadiusMm: 3
+  };
 }
 function histogram(values) {
   return values.reduce((out, value) => {

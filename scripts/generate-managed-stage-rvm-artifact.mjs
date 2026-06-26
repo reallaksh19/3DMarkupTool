@@ -17,6 +17,7 @@ if (!inputPath && fixtureName !== 'bm-cii') {
 const { convertManagedStageJsonToRvmAtt } = await import('../src/managed-stage-rvm-converter.js');
 const { sourceText, baseName, strictAuditExpectations } = await resolveSource(inputPath, fixtureName, { baseNameOverride, expectBmCii });
 const result = convertManagedStageJsonToRvmAtt(sourceText, { strictAuditExpectations });
+assertArtifactAuditGates(result.audit);
 mkdirSync(outDir, { recursive: true });
 
 const files = [
@@ -43,7 +44,14 @@ console.log(`Support cones: ${result.audit.supportRvmExportAudit?.supportConePri
 console.log(`Support bars: ${result.audit.supportRvmExportAudit?.supportBarPrimitiveCount || 0}`);
 console.log(`Support max glyph extent mm: ${result.audit.supportRvmExportAudit?.supportMaxGlyphExtentMm || 0}`);
 console.log(`Support max cluster offset mm: ${result.audit.supportRvmExportAudit?.supportMaxClusterOffsetMm || 0}`);
+console.log(`Explicit BEND records: ${result.audit.managedStageTopologyProofGate?.explicitBendRecordCount || 0}`);
+console.log(`Explicit BEND details: ${result.audit.managedStageTopologyProofGate?.explicitBendDetailCount || 0}`);
+console.log(`Synthetic 1.5D BEND trim blocked: ${result.audit.managedStageTopologyProofGate?.synthetic1p5DTrimBlockedCount || 0}`);
+console.log(`Support association-only count: ${result.audit.managedStageTopologyProofGate?.supportAssociationOnlyCount || 0}`);
+console.log(`Support continuity edge count: ${result.audit.managedStageTopologyProofGate?.supportContinuityEdgeCount || 0}`);
+console.log(`Support inline face count: ${result.audit.managedStageTopologyProofGate?.supportInlineFaceCount || 0}`);
 console.log(`Max centerline gap mm: ${result.audit.topology.maxCenterlineGapMm}`);
+console.log(`Topology proof gate: ${result.audit.managedStageTopologyProofGate.ok ? 'PASS' : 'FAIL'}`);
 console.log(`Strict audit gate: ${result.audit.managedStageStrictGate.ok ? 'PASS' : 'FAIL'}`);
 
 async function resolveSource(input, fixture, options = {}) {
@@ -62,12 +70,28 @@ async function resolveSource(input, fixture, options = {}) {
   };
 }
 
+function assertArtifactAuditGates(audit) {
+  if (audit.managedStageTopologyProofGate?.ok !== true) throw new Error('Managed-stage artifact topology proof gate failed');
+  if (audit.managedStageStrictGate?.ok !== true) throw new Error('Managed-stage artifact strict audit gate failed');
+}
+
 function bmCiiExpectations() {
   return {
     geometryComponents: 40,
     supportRecordsSkippedFromGeometry: 12,
     supportRecordsEmittedToRvm: 12,
     supportRvmPrimitiveCount: 42,
+    topologyComponentCount: 52,
+    topologyGeometryComponentCount: 40,
+    topologySupportCount: 12,
+    explicitBendRecordCount: 7,
+    explicitBendDetailCount: 7,
+    missingExplicitBendDetailCount: 0,
+    synthetic1p5DTrimBlockedCount: 7,
+    supportAssociationOnlyCount: 12,
+    supportTopologyBlockedCount: 0,
+    supportContinuityEdgeCount: 0,
+    supportInlineFaceCount: 0,
     code1: 0,
     code4: 0,
     code8: 157,

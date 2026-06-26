@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
-const activeKey = 'workflow-input-expanded-load-controls-20260625';
+const activeKey = 'input-load-controls-restored-20260626';
 const buildScript = readFileSync(new URL('../scripts/build-pages.mjs', import.meta.url), 'utf8');
 const appLoader = readFileSync(new URL('../src/app-loader.js', import.meta.url), 'utf8');
 const safeBootstrap = readFileSync(new URL('../src/safe-ui-bootstrap.js', import.meta.url), 'utf8');
@@ -13,6 +13,8 @@ assert.ok(buildScript.includes('support-axis-transform-generalized-20260624'));
 assert.ok(buildScript.includes('support-ringless-input-panel-revamp-20260624'));
 assert.ok(buildScript.includes('app-boot-dialog-conversion-hotfix-20260623'));
 assert.ok(buildScript.includes('staged-json-review-ui-rvm-fix-20260625'));
+assert.ok(buildScript.includes('workflow-input-expanded-load-controls-20260625'));
+assert.ok(buildScript.includes(activeKey));
 assert.ok(buildScript.includes('rollup'));
 assert.ok(buildScript.includes('assets/app.bundle.js'));
 assert.ok(buildScript.includes('assets/static-shell.bundle.js'));

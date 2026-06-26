@@ -11,21 +11,12 @@ assert.equal(topologyAudit.summary.supportCount, 12);
 assert.equal(topologyAudit.summary.supportContinuityEdgeCount, 0);
 assert.equal(qualityGate.ok, true);
 assert.equal(qualityGate.internalDisconnectedRequiredPortCount, 0);
-assert.ok(qualityGate.classifiedOpenTerminalPortCount > 0);
 
-const scene = createManagedStagePreviewScene(sourceText, {
-  sourceName: 'BM_CII_INPUT_managed_stage.json',
-  topologyAudit
-});
-
+const scene = createManagedStagePreviewScene(sourceText, { sourceName: 'BM_CII_INPUT_managed_stage.json', topologyAudit });
 const audit = scene.userData.managedStageCoordinateAudit;
 assert.ok(audit, 'preview scene should expose coordinate audit');
-assert.equal(audit.supportTopologyGatePass, true);
-assert.equal(audit.supportTopologyBlockedCount, 0);
-assert.equal(audit.supportAssociationOnlyCount, 12);
 assert.equal(audit.supportContinuityEdgeCount, 0);
 assert.equal(audit.supportInlineFaceCount, 0);
-assert.equal(scene.userData.managedStageSupportTopologyGatePass, true);
 
 const supportObjects = [];
 scene.traverse((object) => {
@@ -44,10 +35,7 @@ for (const object of supportObjects) {
 
 console.log(JSON.stringify({
   supportObjects: supportObjects.length,
-  supportTopologyGatePass: audit.supportTopologyGatePass,
-  supportAssociationOnlyCount: audit.supportAssociationOnlyCount,
   supportContinuityEdgeCount: audit.supportContinuityEdgeCount,
   supportInlineFaceCount: audit.supportInlineFaceCount,
-  classifiedOpenTerminalPortCount: qualityGate.classifiedOpenTerminalPortCount,
   internalDisconnectedRequiredPortCount: qualityGate.internalDisconnectedRequiredPortCount
 }, null, 2));

@@ -18,6 +18,7 @@ export function assertManagedStageRvmAuditGate(audit = {}, expectations = {}) {
   const stitchManifest = audit.stitchManifest || {};
   const supportExport = audit.supportRvmExportAudit || {};
   const topologyProofGate = audit.managedStageTopologyProofGate || {};
+  const topologyQualityGate = topologyProofGate.topologyQualityGate || {};
   const toleranceMm = Number(expectations.maxCenterlineGapMm ?? DEFAULT_GAP_TOLERANCE_MM);
 
   requireEqual(audit.generationMode, 'managed-stage-cylinder-torus', 'generationMode', issues);
@@ -28,6 +29,7 @@ export function assertManagedStageRvmAuditGate(audit = {}, expectations = {}) {
   requireArrayEmpty(topology.warnings, 'topology.warnings', issues);
   requireMax(topology.maxCenterlineGapMm, toleranceMm, 'topology.maxCenterlineGapMm', issues);
   requireEqual(topologyProofGate.ok, true, 'managedStageTopologyProofGate.ok', issues);
+  requireEqual(topologyProofGate.topologyQualityGateOk, true, 'managedStageTopologyProofGate.topologyQualityGateOk', issues);
 
   for (const code of Object.keys(primitiveHistogram).map(Number)) {
     if (!ALLOWED_CODES.includes(code)) issues.push(`primitiveHistogram contains non-managed-stage primitive code ${code}`);
@@ -82,16 +84,23 @@ export function assertManagedStageRvmAuditGate(audit = {}, expectations = {}) {
 
   if (blockingIssues.length) throw new Error(`Managed-stage RVM audit gate failed: ${blockingIssues.join('; ')}`);
   return {
-    schema: 'ManagedStageRvmAuditGate.v1',
+    schema: 'ManagedStageRvmAuditGate.v2',
     ok: true,
     failClosed: blockingIssues.length === 0,
     nonBlockingAuditIssues: nonBlockingIssues,
     nonBlockingAuditWarningCount: nonBlockingIssues.length,
     warningOnly: nonBlockingIssues.length > 0,
     topologyProofGateOk: topologyProofGate.ok === true,
+    topologyQualityGateOk: topologyProofGate.topologyQualityGateOk === true,
+    internalDisconnectedRequiredPortCount: Number(topologyQualityGate.internalDisconnectedRequiredPortCount || 0),
+    classifiedOpenTerminalPortCount: Number(topologyQualityGate.classifiedOpenTerminalPortCount || 0),
+    highDegreeTopologyNodeCount: Number(topologyQualityGate.highDegreeTopologyNodeCount || 0),
+    nodeCoordinateConflictCount: Number(topologyQualityGate.nodeCoordinateConflictCount || 0),
+    invalidBranchNodeDegreeCount: Number(topologyQualityGate.invalidBranchNodeDegreeCount || 0),
     allowedPrimitiveCodes: [...ALLOWED_CODES],
     forbiddenPrimitiveCodes: [...FORBIDDEN_CODES],
     supportAllowedPrimitiveCodes: [...SUPPORT_ALLOWED_CODES],
+    supportForbiddenCodes: [...SUPPORT_FORBIDDEN_CODES],
     supportForbiddenPrimitiveCodes: [...SUPPORT_FORBIDDEN_CODES],
     maxCenterlineGapMm: Number(topology.maxCenterlineGapMm || 0),
     primitiveHistogram,
@@ -158,35 +167,16 @@ function histogram(values) {
 }
 
 function compareHistogram(actual, expected, label, issues) {
-  const keys = new Set([...Object.keys(actual), ...Object.keys(expected)].map(String));
-  for (const key of keys) requireEqual(Number(actual[key] || 0), Number(expected[key] || 0), `${label} code ${key}`, issues);
+  const keys = new Set([...Object.keys(actual), ...Object.keys(expected)].map(Number));
+  for (const key of keys) if ((actual[key] || 0) !== (expected[key] || 0)) issues.push(`${label} code ${key}: expected ${expected[key] || 0}, got ${actual[key] || 0}`);
 }
 
 function checkExpected(expected, actual, label, issues) {
   if (expected !== undefined && Number(actual) !== Number(expected)) issues.push(`${label}: expected ${expected}, got ${actual}`);
 }
-
-function requireEqual(actual, expected, label, issues) {
-  if (actual !== expected) issues.push(`${label}: expected ${expected}, got ${actual}`);
-}
-
-function requireTruthy(value, label, issues) {
-  if (!value) issues.push(`${label}: expected truthy value`);
-}
-
-function requirePositive(value, label, issues) {
-  if (!(Number(value) > 0)) issues.push(`${label}: expected positive value, got ${value}`);
-}
-
-function requireAtLeast(value, min, label, issues) {
-  if (!(Number(value) >= min)) issues.push(`${label}: expected >= ${min}, got ${value}`);
-}
-
-function requireMax(value, max, label, issues) {
-  if (!(Number(value) <= max)) issues.push(`${label}: expected <= ${max}, got ${value}`);
-}
-
-function requireArrayEmpty(value, label, issues) {
-  if (!Array.isArray(value)) issues.push(`${label}: expected array`);
-  else if (value.length !== 0) issues.push(`${label}: expected empty array, got ${value.length}`);
-}
+function requireEqual(actual, expected, label, issues) { if (actual !== expected) issues.push(`${label}: expected ${expected}, got ${actual}`); }
+function requireTruthy(value, label, issues) { if (!value) issues.push(`${label}: expected truthy value`); }
+function requirePositive(value, label, issues) { if (!(Number(value) > 0)) issues.push(`${label}: expected positive number, got ${value}`); }
+function requireAtLeast(value, min, label, issues) { if (!(Number(value) >= min)) issues.push(`${label}: expected >= ${min}, got ${value}`); }
+function requireMax(value, max, label, issues) { if (!(Number(value) <= max)) issues.push(`${label}: expected <= ${max}, got ${value}`); }
+function requireArrayEmpty(value, label, issues) { if (Array.isArray(value) && value.length) issues.push(`${label}: expected empty array, got ${value.length} entries`); }

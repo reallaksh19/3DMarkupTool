@@ -60,7 +60,7 @@ assert.match(controller, /__3D_MARKUP_INPUT_ALWAYS_VISIBLE__/, 'Controller must 
 assert.match(controller, /noPolling: true/, 'Input visibility controller must be non-polling.');
 assert.match(controller, /noMutationObserver: true/, 'Input visibility controller must declare no MutationObserver dependency.');
 assert.match(controller, /noSceneTraversal: true/, 'Input visibility controller must not traverse scene content.');
-assert.doesNotMatch(controller, /MutationObserver/, 'Compact cleanup must not use MutationObserver.');
+assert.doesNotMatch(controller, /new\s+MutationObserver/, 'Compact cleanup must not construct MutationObserver.');
 assert.doesNotMatch(controller, /setInterval\(/, 'Input visibility controller must not poll.');
 assert.doesNotMatch(controller, /appendChild\(style\)|createElement\('style'\)|createElement\("style"\)/, 'Input visibility controller must not inject layout styles after first paint.');
 assert.doesNotMatch(controller, /position:\s*sticky\s*!important/, 'Input visibility controller must not reintroduce sticky runtime layout overrides.');

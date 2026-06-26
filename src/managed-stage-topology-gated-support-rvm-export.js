@@ -77,6 +77,6 @@ export function buildTopologyGatedManagedStageSupportRvmExportNodes(profile, opt
     supportInlineFaceCount: gateSummary.supportInlineFaceCount,
     supportWarnings,
     nodes,
-    policy: 'managed-stage support RVM export is topology-gated: support records must resolve to SUPPORT_ASSOCIATION-only topology with zero support continuity edges before any compact code-8 support glyph is emitted'
+    policy: 'managed-stage support RVM export is topology-gated: support records must resolve to SUPPORT_ASSOCIATION-only topology with zero support continuity edges before code-8 cylinder bar glyphs only are emitted as compact support glyphs'
   };
 }

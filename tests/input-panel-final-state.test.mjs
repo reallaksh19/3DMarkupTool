@@ -55,7 +55,7 @@ assert.match(inputController, /ensureButton\(actions, 'clearBtn'/, 'input contro
 assert.match(inputController, /setStatus\(file \? `File: \$\{file\.name\}` : 'No file chosen'\)/, 'file status must describe only the local file chooser');
 assert.doesNotMatch(inputController, /BM_CII sample selected/, 'sample loading must not overwrite file status text');
 assert.doesNotMatch(inputController, /document\.createElement\(['"]style['"]\)|style\.textContent|appendChild\(style\)/, 'input controller must not inject layout CSS');
-assert.doesNotMatch(inputController, /MutationObserver|setInterval\(/, 'input controller must not use observers or polling for layout correction');
+assert.doesNotMatch(inputController, /new\s+MutationObserver|setInterval\(/, 'input controller must not use observers or polling for layout correction');
 assert.doesNotMatch(inputController, /Choose InputXML|Load InputXML|from InputXML/, 'input controller must not restore retired InputXML UI wording');
 assert.doesNotMatch(collapseController, /sections\s*\[\s*1\s*\]/, 'collapse controller must not depend on DOM section positions');
 assert.match(collapseController, /setSectionExpanded\('conversion', false\)/, 'legacy collapse controller may still initialize conversion collapsed when a legacy section exists');

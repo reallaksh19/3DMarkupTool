@@ -30,5 +30,5 @@ import './static-global-tool-lifecycle-controller.js';
 
 window.__3D_MARKUP_STATIC_SHELL_BUNDLE_READY__ = true;
 window.dispatchEvent(new CustomEvent('viewer:static-shell-bundle-ready', {
-  detail: { version: 'selection-first-tools-20260620' }
+  detail: { version: 'input-load-controls-restored-20260626' }
 }));

@@ -3,7 +3,7 @@
 // Layout is owned by static HTML/CSS so the first paint and post-JS state match.
 // No scene traversal, no polling, no review-tool activation.
 
-const VERSION = 'workflow-input-expanded-load-controls-20260625';
+const VERSION = 'input-load-controls-restored-20260626';
 const INPUT_CONTENT_SELECTORS = [
   '.workflow-card-hint',
   '#inputFileStatus',
@@ -48,7 +48,7 @@ function ensureInputBlock() {
   const drawer = document.getElementById('inputDrawer');
   if (!drawer) return null;
 
-  const section = getInputSection();
+  const section = ensureInputSection(drawer);
   if (!section) return null;
 
   section.dataset.section = 'input';
@@ -56,33 +56,164 @@ function ensureInputBlock() {
   section.dataset.phase4aInput = 'compact-static';
   section.dataset.inputExpanded = 'true';
   section.dataset.layoutOwner = 'static-css';
-  section.classList.add('phase2-input-sticky-section', 'phase4a-input-compact-section');
+  section.classList.add('panel-section', 'workflow-card', 'phase2-input-sticky-section', 'phase4a-input-compact-section');
+
+  ensureInputHeading(section);
+  ensureInputHint(section);
+  ensureInputStatus(section);
+  ensureFileDrop(section);
+  ensurePrimaryActions(section);
   forceInputControlsExpanded(section);
+  normalizeInputControlLabels(section);
 
-  const heading = section.querySelector('h3');
-  const fileDrop = section.querySelector('.file-drop');
-  const actions = section.querySelector('.button-row');
+  return section;
+}
 
-  if (!section.querySelector('#inputFileStatus')) {
-    const status = document.createElement('div');
+function ensureInputSection(drawer) {
+  const existing = getInputSection();
+  if (existing) return existing;
+
+  const section = document.createElement('section');
+  section.className = 'panel-section workflow-card phase2-input-sticky-section phase4a-input-compact-section';
+  section.dataset.section = 'input';
+  const summary = document.getElementById('drawerSummaryCard');
+  const before = Array.from(drawer.children).find((child) => child !== summary && child.classList?.contains('panel-section'));
+  if (before) drawer.insertBefore(section, before);
+  else if (summary?.nextSibling) drawer.insertBefore(section, summary.nextSibling);
+  else drawer.appendChild(section);
+  return section;
+}
+
+function ensureInputHeading(section) {
+  let heading = section.querySelector(':scope > h3');
+  if (!heading) {
+    heading = document.createElement('h3');
+    section.prepend(heading);
+  }
+  if (!/\bInput\b/i.test(heading.textContent || '')) heading.innerHTML = '<span class="section-no">1</span> Input';
+  return heading;
+}
+
+function ensureInputHint(section) {
+  let hint = section.querySelector(':scope > .workflow-card-hint');
+  if (!hint) {
+    hint = document.createElement('p');
+    hint.className = 'workflow-card-hint';
+    insertAfter(section, ensureInputHeading(section), hint);
+  }
+  if (!hint.textContent.trim()) hint.textContent = 'Choose a stagedJson file or load the bundled BM_CII stagedJson sample.';
+  return hint;
+}
+
+function ensureInputStatus(section) {
+  let status = document.getElementById('inputFileStatus') || section.querySelector(':scope > .input-file-status');
+  if (!status) {
+    status = document.createElement('div');
     status.id = 'inputFileStatus';
     status.className = 'input-file-status';
     status.setAttribute('aria-live', 'polite');
     status.innerHTML = 'Status: <span id="inputStatus">No file chosen</span>';
-    if (heading && heading.nextSibling) {
-      section.insertBefore(status, heading.nextSibling);
-    } else {
-      section.prepend(status);
-    }
+  }
+  status.id = 'inputFileStatus';
+  status.classList.add('input-file-status');
+  status.setAttribute('aria-live', 'polite');
+  if (!status.querySelector('#inputStatus')) status.innerHTML = 'Status: <span id="inputStatus">No file chosen</span>';
+  if (status.parentElement !== section) section.insertBefore(status, ensureFileDrop(section));
+  return status;
+}
+
+function ensureFileDrop(section) {
+  let fileDrop = section.querySelector(':scope > .file-drop');
+  if (!fileDrop) {
+    fileDrop = document.createElement('label');
+    fileDrop.className = 'file-drop input-file-drop-visible';
   }
 
+  let input = document.getElementById('xmlFile') || fileDrop.querySelector('input[type="file"]');
+  if (!input) {
+    input = document.createElement('input');
+    input.type = 'file';
+  }
+  input.id = 'xmlFile';
+  input.type = 'file';
+  input.accept = '.json,.jscon,application/json';
+  if (input.parentElement !== fileDrop) fileDrop.prepend(input);
+
+  if (!fileDrop.querySelector('i')) {
+    const icon = document.createElement('i');
+    icon.setAttribute('data-lucide', 'upload');
+    fileDrop.appendChild(icon);
+  }
+
+  let label = fileDrop.querySelector('span');
+  if (!label) {
+    label = document.createElement('span');
+    fileDrop.appendChild(label);
+  }
+  label.textContent = 'Choose stagedJson';
+  fileDrop.classList.add('input-file-drop-visible');
+  revealElement(fileDrop);
+
+  const actions = section.querySelector(':scope > .input-primary-actions, :scope > .button-row');
+  if (fileDrop.parentElement !== section) {
+    if (actions) section.insertBefore(fileDrop, actions);
+    else section.appendChild(fileDrop);
+  }
+  return fileDrop;
+}
+
+function ensurePrimaryActions(section) {
+  let actions = section.querySelector(':scope > .input-primary-actions') || section.querySelector(':scope > .button-row');
+  if (!actions) {
+    actions = document.createElement('div');
+    actions.className = 'button-row input-primary-actions';
+    section.appendChild(actions);
+  }
+  actions.classList.add('button-row', 'input-primary-actions');
+
+  const loadSampleBtn = ensureButton(actions, 'loadSampleBtn', 'primary icon-text', 'folder-open', 'Load BM_CII stagedJson');
+  loadSampleBtn.title = 'Load BM_CII stagedJson sample';
+  loadSampleBtn.setAttribute('aria-label', 'Load BM_CII stagedJson sample');
+
+  const clearBtn = ensureButton(actions, 'clearBtn', 'ghost icon-text', 'folder-x', 'Clear All');
+  clearBtn.setAttribute('aria-label', 'Clear all input and sample data');
+
+  revealElement(actions);
+  return actions;
+}
+
+function ensureButton(parent, id, className, iconName, text) {
+  let button = document.getElementById(id);
+  if (!button) {
+    button = document.createElement('button');
+    button.id = id;
+    button.type = 'button';
+  }
+  button.type = 'button';
+  button.className = className;
+  if (button.parentElement !== parent) parent.appendChild(button);
+  if (!button.querySelector('i')) {
+    const icon = document.createElement('i');
+    icon.setAttribute('data-lucide', iconName);
+    button.prepend(icon);
+  }
+  let label = button.querySelector('span');
+  if (!label) {
+    label = document.createElement('span');
+    button.appendChild(label);
+  }
+  label.textContent = text;
+  revealElement(button);
+  return button;
+}
+
+function normalizeInputControlLabels(section) {
+  const fileDrop = section.querySelector('.file-drop');
   if (fileDrop) {
     fileDrop.classList.add('input-file-drop-visible');
     const label = fileDrop.querySelector('span');
     if (label) label.textContent = 'Choose stagedJson';
   }
-
-  if (actions) actions.classList.add('input-primary-actions');
 
   const loadSampleBtn = document.getElementById('loadSampleBtn');
   if (loadSampleBtn) {
@@ -101,16 +232,11 @@ function ensureInputBlock() {
     closeInputBtn.setAttribute('aria-hidden', 'true');
     closeInputBtn.tabIndex = -1;
   }
-
-  return section;
 }
 
 function forceInputControlsExpanded(section) {
   if (!section) return;
-  section.hidden = false;
-  section.removeAttribute('hidden');
-  section.removeAttribute('aria-hidden');
-  section.removeAttribute('inert');
+  revealElement(section);
   section.classList.remove('collapsed', 'is-collapsed', 'workflow-card-collapsed', 'conversion-collapsed', 'sideload-collapsed');
   if (section.dataset.collapsible) delete section.dataset.collapsible;
 
@@ -124,10 +250,7 @@ function forceInputControlsExpanded(section) {
 
   for (const selector of INPUT_CONTENT_SELECTORS) {
     for (const element of section.querySelectorAll(selector)) {
-      element.hidden = false;
-      element.removeAttribute('hidden');
-      element.removeAttribute('aria-hidden');
-      element.removeAttribute('inert');
+      revealElement(element);
       element.classList.remove('conversion-collapsible-content', 'sideload-collapsible-content', 'collapsed', 'is-collapsed');
     }
   }
@@ -187,7 +310,7 @@ function getStatusNode() {
 function getInputSection() {
   const drawer = document.getElementById('inputDrawer');
   if (!drawer) return null;
-  return Array.from(drawer.querySelectorAll(':scope > .panel-section')).find((section) => {
+  return drawer.querySelector(':scope > .panel-section[data-section="input"]') || Array.from(drawer.querySelectorAll(':scope > .panel-section')).find((section) => {
     const heading = section.querySelector('h3');
     return /\bInput\b/i.test(heading?.textContent || '');
   }) || null;
@@ -207,6 +330,25 @@ function ensureDrawerOpen() {
     drawer.removeAttribute('hidden');
     drawer.removeAttribute('aria-hidden');
   }
+}
+
+function insertAfter(parent, reference, child) {
+  if (!reference || !reference.nextSibling) parent.appendChild(child);
+  else parent.insertBefore(child, reference.nextSibling);
+}
+
+function revealElement(element) {
+  if (!element) return;
+  element.hidden = false;
+  element.removeAttribute('hidden');
+  element.removeAttribute('aria-hidden');
+  element.removeAttribute('inert');
+  element.style.removeProperty('display');
+  element.style.removeProperty('visibility');
+  element.style.removeProperty('opacity');
+  element.style.removeProperty('max-height');
+  element.style.removeProperty('transform');
+  element.style.removeProperty('pointer-events');
 }
 
 function checklist() {

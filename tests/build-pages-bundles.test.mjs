@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
-const activeKey = 'input-root-owner-20260626';
-const previousKey = 'input-postbootstrap-reassert-20260626';
+const activeKey = 'input-persistent-root-card-20260626';
+const previousKey = 'input-root-owner-20260626';
 const buildScript = readFileSync(new URL('../scripts/build-pages.mjs', import.meta.url), 'utf8');
 const appLoader = readFileSync(new URL('../src/app-loader.js', import.meta.url), 'utf8');
 const safeBootstrap = readFileSync(new URL('../src/safe-ui-bootstrap.js', import.meta.url), 'utf8');
@@ -33,8 +33,10 @@ assert.ok(index.includes(`static-shell-performance.css?v=${activeKey}`));
 assert.ok(index.includes(`safe-ui-bootstrap.js?v=${activeKey}`));
 assert.ok(index.includes(`app-loader.js?v=${activeKey}`));
 assert.ok(index.includes('id="loadUnifiedModelFileBtn"'));
+assert.ok(index.includes('data-input-root="persistent"'));
+assert.doesNotMatch(index, /workflow-card phase2-input-sticky-section phase4a-input-compact-section" data-section="input"/, 'INPUT must not remain in the generic workflow-card collapse path');
 assert.ok(shellBundleEntry.includes(`version: '${activeKey}'`));
 assert.ok(packageJson.scripts.build.includes('scripts/build-pages.mjs'));
 assert.ok(packageJson.devDependencies?.rollup);
 
-console.log('Pages bundle build root-owner regression gate passed');
+console.log('Pages bundle build persistent INPUT root-card gate passed');

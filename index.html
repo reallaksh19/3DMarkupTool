@@ -7,18 +7,18 @@
   <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
   <link rel="shortcut icon" href="./favicon.ico" />
   <link rel="preconnect" href="https://unpkg.com" crossorigin />
-  <link rel="stylesheet" href="./src/styles.css?v=input-root-owner-20260626" />
-  <link rel="stylesheet" href="./src/static-shell-performance.css?v=input-root-owner-20260626" />
-  <link rel="preload" href="./src/clip-adjuster.css?v=input-root-owner-20260626" as="style" onload="this.onload=null;this.rel='stylesheet'" />
-  <noscript><link rel="stylesheet" href="./src/clip-adjuster.css?v=input-root-owner-20260626" /></noscript>
-  <link rel="preload" href="./src/clip-visual-overlays.css?v=input-root-owner-20260626" as="style" onload="this.onload=null;this.rel='stylesheet'" />
-  <noscript><link rel="stylesheet" href="./src/clip-visual-overlays.css?v=input-root-owner-20260626" /></noscript>
+  <link rel="stylesheet" href="./src/styles.css?v=input-persistent-root-card-20260626" />
+  <link rel="stylesheet" href="./src/static-shell-performance.css?v=input-persistent-root-card-20260626" />
+  <link rel="preload" href="./src/clip-adjuster.css?v=input-persistent-root-card-20260626" as="style" onload="this.onload=null;this.rel='stylesheet'" />
+  <noscript><link rel="stylesheet" href="./src/clip-adjuster.css?v=input-persistent-root-card-20260626" /></noscript>
+  <link rel="preload" href="./src/clip-visual-overlays.css?v=input-persistent-root-card-20260626" as="style" onload="this.onload=null;this.rel='stylesheet'" />
+  <noscript><link rel="stylesheet" href="./src/clip-visual-overlays.css?v=input-persistent-root-card-20260626" /></noscript>
   <script type="importmap">
     {
       "imports": {
         "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
         "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/",
-        "lucide": "./src/lucide-safe.js?v=input-root-owner-20260626"
+        "lucide": "./src/lucide-safe.js?v=input-persistent-root-card-20260626"
       }
     }
   </script>
@@ -27,217 +27,49 @@
   <header class="viewer-topbar" aria-label="Application header">
     <div class="topbar-main">
       <div class="brand-block">
-        <div class="brand-logo" aria-hidden="true">
-          <i data-lucide="box"></i>
-        </div>
-        <div>
-          <h1>StagedJson GLB/RVM Review Viewer</h1>
-        </div>
+        <div class="brand-logo" aria-hidden="true"><i data-lucide="box"></i></div>
+        <div><h1>StagedJson GLB/RVM Review Viewer</h1></div>
       </div>
-
       <div class="topbar-actions" aria-label="Panel controls and workflow status">
         <button id="toggleInputBtn" type="button" class="panel-toggle active" title="Open or close the workflow input drawer"><span>Input</span></button>
         <button id="togglePropsBtn" type="button" class="panel-toggle active" title="Open or close the selection properties drawer"><span>Props</span></button>
-        <div id="topReviewMenu" class="top-menu-wrap review-top-menu-wrap shell-reserved-top-menu">
-          <button type="button" class="top-menu-btn panel-toggle review-top-menu-btn" aria-expanded="false" title="Review tools"><span>Review</span></button>
-          <div class="top-menu-popover review-top-menu-popover" hidden role="menu" aria-label="Review tools"></div>
-        </div>
+        <div id="topReviewMenu" class="top-menu-wrap review-top-menu-wrap shell-reserved-top-menu"><button type="button" class="top-menu-btn panel-toggle review-top-menu-btn" aria-expanded="false" title="Review tools"><span>Review</span></button><div class="top-menu-popover review-top-menu-popover" hidden role="menu" aria-label="Review tools"></div></div>
         <div id="workflowStatusInline" class="workflow-status-inline" aria-label="Review workflow status"></div>
         <div id="runtimeStatus" class="status-pill" role="status">Ready</div>
       </div>
     </div>
-
     <nav class="toolbar main-ribbon" aria-label="Viewer controls">
-      <div class="tool-group toolbar-group color-toolbar-group" aria-label="Color controls">
-        <label class="color-control">
-          <span>Color By</span>
-          <select id="colorBySelect" aria-label="Color model by">
-            <option value="default">Default</option>
-            <option value="lineNo">Line No.</option>
-            <option value="componentType">Component Type</option>
-            <option value="supportSource">Support Source</option>
-            <option value="sourceMode">Source Mode</option>
-          </select>
-        </label>
-      </div>
-
-      <div class="tool-group toolbar-group primary-tools" aria-label="Navigation tools">
-        <button id="selectToolBtn" type="button" class="tool-btn active"><i data-lucide="mouse-pointer-2"></i><span>Select</span></button>
-        <button id="orbitToolBtn" type="button" class="tool-btn"><i data-lucide="orbit"></i><span>Orbit</span></button>
-        <button id="panToolBtn" type="button" class="tool-btn"><i data-lucide="hand"></i><span>Pan</span></button>
-        <button id="measureBtn" type="button" class="tool-btn"><i data-lucide="ruler"></i><span>Measure</span></button>
-      </div>
-
-      <div class="tool-group toolbar-group" aria-label="View tools">
-        <button id="viewIsoBtn" type="button" class="tool-btn"><i data-lucide="box"></i><span>ISO</span></button>
-        <button id="viewTopBtn" type="button" class="tool-btn"><i data-lucide="flip-vertical"></i><span>TOP</span></button>
-        <button id="viewFrontBtn" type="button" class="tool-btn"><i data-lucide="rectangle-horizontal"></i><span>FRONT</span></button>
-        <button id="viewSideBtn" type="button" class="tool-btn"><i data-lucide="cuboid"></i><span>SIDE</span></button>
-        <button id="resetCameraBtn" type="button" class="tool-btn"><i data-lucide="scan"></i><span>Fit All</span></button>
-        <button id="fitSelectionBtn" type="button" class="tool-btn"><i data-lucide="scan-search"></i><span>Fit Sel</span></button>
-      </div>
-
-      <div class="tool-group toolbar-group two-row-command-group" data-group="display" aria-label="Display and clipping tools">
-        <button id="clipBtn" type="button" class="tool-btn" hidden aria-hidden="true" tabindex="-1"><i data-lucide="split-square-horizontal"></i><span>Clip Off</span></button>
-        <button id="freshClipPlaneBtn" type="button" class="tool-btn fresh-clip-btn" title="Clip selected geometry with a single adjustable plane"><span class="fresh-clip-glyph" aria-hidden="true">◧</span><span>Plane</span></button>
-        <button id="freshClipBoxBtn" type="button" class="tool-btn fresh-clip-btn" title="Clip to selected geometry bounds with six renderer planes"><span class="fresh-clip-glyph" aria-hidden="true">▣</span><span>Box</span></button>
-        <button id="freshClipClearBtn" type="button" class="tool-btn fresh-clip-btn" title="Clear renderer clipping planes"><span class="fresh-clip-glyph" aria-hidden="true">×</span><span>Clear Clip</span></button>
-        <button id="clearSelectionBtn" type="button" class="tool-btn"><i data-lucide="eraser"></i><span>Clear</span></button>
-      </div>
-
+      <div class="tool-group toolbar-group color-toolbar-group" aria-label="Color controls"><label class="color-control"><span>Color By</span><select id="colorBySelect" aria-label="Color model by"><option value="default">Default</option><option value="lineNo">Line No.</option><option value="componentType">Component Type</option><option value="supportSource">Support Source</option><option value="sourceMode">Source Mode</option></select></label></div>
+      <div class="tool-group toolbar-group primary-tools" aria-label="Navigation tools"><button id="selectToolBtn" type="button" class="tool-btn active"><i data-lucide="mouse-pointer-2"></i><span>Select</span></button><button id="orbitToolBtn" type="button" class="tool-btn"><i data-lucide="orbit"></i><span>Orbit</span></button><button id="panToolBtn" type="button" class="tool-btn"><i data-lucide="hand"></i><span>Pan</span></button><button id="measureBtn" type="button" class="tool-btn"><i data-lucide="ruler"></i><span>Measure</span></button></div>
+      <div class="tool-group toolbar-group" aria-label="View tools"><button id="viewIsoBtn" type="button" class="tool-btn"><i data-lucide="box"></i><span>ISO</span></button><button id="viewTopBtn" type="button" class="tool-btn"><i data-lucide="flip-vertical"></i><span>TOP</span></button><button id="viewFrontBtn" type="button" class="tool-btn"><i data-lucide="rectangle-horizontal"></i><span>FRONT</span></button><button id="viewSideBtn" type="button" class="tool-btn"><i data-lucide="cuboid"></i><span>SIDE</span></button><button id="resetCameraBtn" type="button" class="tool-btn"><i data-lucide="scan"></i><span>Fit All</span></button><button id="fitSelectionBtn" type="button" class="tool-btn"><i data-lucide="scan-search"></i><span>Fit Sel</span></button></div>
+      <div class="tool-group toolbar-group two-row-command-group" data-group="display" aria-label="Display and clipping tools"><button id="clipBtn" type="button" class="tool-btn" hidden aria-hidden="true" tabindex="-1"><i data-lucide="split-square-horizontal"></i><span>Clip Off</span></button><button id="freshClipPlaneBtn" type="button" class="tool-btn fresh-clip-btn" title="Clip selected geometry with a single adjustable plane"><span class="fresh-clip-glyph" aria-hidden="true">◧</span><span>Plane</span></button><button id="freshClipBoxBtn" type="button" class="tool-btn fresh-clip-btn" title="Clip to selected geometry bounds with six renderer planes"><span class="fresh-clip-glyph" aria-hidden="true">▣</span><span>Box</span></button><button id="freshClipClearBtn" type="button" class="tool-btn fresh-clip-btn" title="Clear renderer clipping planes"><span class="fresh-clip-glyph" aria-hidden="true">×</span><span>Clear Clip</span></button><button id="clearSelectionBtn" type="button" class="tool-btn"><i data-lucide="eraser"></i><span>Clear</span></button></div>
       <div id="staticReviewRibbonGroup" class="tool-group toolbar-group review-ribbon-group shell-reserved-group" data-expanded-group="review" data-expanded-label="Review" aria-label="Review tools"></div>
-
-      <div class="tool-group toolbar-group" aria-label="Preview mode">
-        <button id="previewGlbBtn" type="button" class="tool-btn mode active" disabled title="Run conversion before previewing GLB"><i data-lucide="box"></i><span>GLB</span></button>
-        <button id="previewRvmBtn" type="button" class="tool-btn mode" disabled title="Load or convert stagedJson before previewing RVM"><i data-lucide="file-box"></i><span>RVM</span></button>
-      </div>
+      <div class="tool-group toolbar-group" aria-label="Preview mode"><button id="previewGlbBtn" type="button" class="tool-btn mode active" disabled title="Run conversion before previewing GLB"><i data-lucide="box"></i><span>GLB</span></button><button id="previewRvmBtn" type="button" class="tool-btn mode" disabled title="Load or convert stagedJson before previewing RVM"><i data-lucide="file-box"></i><span>RVM</span></button></div>
     </nav>
-
-    <div class="markup-ribbon" aria-label="Markup and JSON tools">
-      <div class="tool-group toolbar-group navis-tag-tools tag-lite-host static-markup-tools" aria-label="Markup, JSON, and session tools"></div>
-    </div>
+    <div class="markup-ribbon" aria-label="Markup and JSON tools"><div class="tool-group toolbar-group navis-tag-tools tag-lite-host static-markup-tools" aria-label="Markup, JSON, and session tools"></div></div>
   </header>
-
   <main class="app-workspace">
     <aside class="control-drawer input-drawer workflow-drawer" id="inputDrawer" aria-label="Input and conversion controls">
-      <div class="drawer-head workflow-drawer-head">
-        <div>
-          <h2><i data-lucide="file-input"></i> Workflow</h2>
-          <p>Load stagedJson, map supports, convert, then export GLB / RVM / ATT.</p>
-        </div>
-        <button id="closeInputBtn" type="button" class="icon-btn" title="Close input panel"><i data-lucide="chevrons-left"></i></button>
-      </div>
-
-      <section id="drawerSummaryCard" class="drawer-summary-card" aria-label="Input and export summary" data-static-summary="true">
-        <div class="drawer-summary-head"><span>Review Flow</span><small id="drawerSummaryStamp">init</small></div>
-        <div class="drawer-summary-grid" aria-label="Workflow status">
-          <div id="drawerSummary_input" class="drawer-summary-step" data-state="idle"><strong>Input</strong><span>Waiting</span></div>
-          <div id="drawerSummary_model" class="drawer-summary-step" data-state="idle"><strong>Model</strong><span>Not converted</span></div>
-          <div id="drawerSummary_export" class="drawer-summary-step" data-state="idle"><strong>Export</strong><span>Locked</span></div>
-        </div>
-        <p id="drawerSummaryHint" class="drawer-summary-hint">Load stagedJson or bundled sample to begin.</p>
-      </section>
-
-      <section class="panel-section workflow-card phase2-input-sticky-section phase4a-input-compact-section" data-section="input" data-phase2-input="always-visible" data-phase4a-input="compact-static">
+      <div class="drawer-head workflow-drawer-head"><div><h2><i data-lucide="file-input"></i> Workflow</h2><p>Load stagedJson, map supports, convert, then export GLB / RVM / ATT.</p></div><button id="closeInputBtn" type="button" class="icon-btn" title="Close input panel"><i data-lucide="chevrons-left"></i></button></div>
+      <section id="drawerSummaryCard" class="drawer-summary-card" aria-label="Input and export summary" data-static-summary="true"><div class="drawer-summary-head"><span>Review Flow</span><small id="drawerSummaryStamp">init</small></div><div class="drawer-summary-grid" aria-label="Workflow status"><div id="drawerSummary_input" class="drawer-summary-step" data-state="idle"><strong>Input</strong><span>Waiting</span></div><div id="drawerSummary_model" class="drawer-summary-step" data-state="idle"><strong>Model</strong><span>Not converted</span></div><div id="drawerSummary_export" class="drawer-summary-step" data-state="idle"><strong>Export</strong><span>Locked</span></div></div><p id="drawerSummaryHint" class="drawer-summary-hint">Load stagedJson or bundled sample to begin.</p></section>
+      <section class="panel-section input-root-card phase2-input-sticky-section phase4a-input-compact-section" data-section="input" data-input-root="persistent" data-phase2-input="always-visible" data-phase4a-input="compact-static">
         <h3><span class="section-no">1</span> Input</h3>
         <p class="workflow-card-hint">Choose a stagedJson file or load the bundled BM_CII stagedJson sample.</p>
         <div id="inputFileStatus" class="input-file-status" aria-live="polite">Status: <span id="inputStatus">No file chosen</span></div>
-        <label class="file-drop input-file-drop-visible">
-          <input type="file" id="xmlFile" accept=".json,.jscon,application/json" />
-          <i data-lucide="upload"></i>
-          <span>Choose stagedJson</span>
-        </label>
-        <div class="button-row input-primary-actions" data-owner="source-html">
-          <button id="loadUnifiedModelFileBtn" type="button" class="ghost icon-text managed-stage-json-load-btn unified-model-load-btn" title="Import stagedJson file" aria-label="Import stagedJson file"><i data-lucide="upload"></i><span>Import stagedJson</span></button>
-          <button id="loadSampleBtn" type="button" class="primary icon-text managed-stage-json-sample-btn" title="Load bundled BM_CII_INPUT_managed_stage.json stagedJson sample" aria-label="Load BM_CII stagedJson sample"><i data-lucide="folder-open"></i><span>Load BM_CII stagedJson</span></button>
-          <button id="clearBtn" type="button" class="ghost icon-text" aria-label="Clear all input and sample data"><i data-lucide="folder-x"></i><span>Clear All</span></button>
-        </div>
+        <label class="file-drop input-file-drop-visible"><input type="file" id="xmlFile" accept=".json,.jscon,application/json" /><i data-lucide="upload"></i><span>Choose stagedJson</span></label>
+        <div class="button-row input-primary-actions" data-owner="source-html"><button id="loadUnifiedModelFileBtn" type="button" class="ghost icon-text managed-stage-json-load-btn unified-model-load-btn" title="Import stagedJson file" aria-label="Import stagedJson file"><i data-lucide="upload"></i><span>Import stagedJson</span></button><button id="loadSampleBtn" type="button" class="primary icon-text managed-stage-json-sample-btn" title="Load bundled BM_CII_INPUT_managed_stage.json stagedJson sample" aria-label="Load BM_CII stagedJson sample"><i data-lucide="folder-open"></i><span>Load BM_CII stagedJson</span></button><button id="clearBtn" type="button" class="ghost icon-text" aria-label="Clear all input and sample data"><i data-lucide="folder-x"></i><span>Clear All</span></button></div>
       </section>
-
-      <section class="panel-section workflow-card support-workflow-card" data-section="support-mapping">
-        <h3><span class="section-no">2</span> Support Mapping</h3>
-        <p class="workflow-card-hint">Configure stagedJson / ISONOTE source, CAESAR axis basis, mapper fields, and support diagnostics.</p>
-        <div id="supportMappingSettingsShell" class="support-mapping-settings-shell" aria-label="Support mapping and ISONOTE launcher"></div>
-      </section>
-
-      <section class="panel-section workflow-card" data-section="conversion">
-        <h3><span class="section-no">3</span> Convert</h3>
-        <p class="workflow-card-hint">Run the managed-stage conversion after the input and support mapping are ready.</p>
-        <div id="conversionStatus" class="conversion-status" role="status" aria-live="polite">Idle — load stagedJson or BM_CII stagedJson sample.</div>
-        <div class="button-row workflow-primary-row">
-          <button id="convertBtn" type="button" class="primary icon-text"><i data-lucide="refresh-cw"></i><span>Run Conversion</span></button>
-          <button id="viewRulesBtn" type="button" class="ghost">Mapping Rules</button>
-        </div>
-        <details class="workflow-advanced-options">
-          <summary>Advanced conversion settings</summary>
-          <label class="field"><span>RVM / GLB scale</span><input id="scaleInput" type="number" value="0.001" step="0.0001" /></label>
-          <label class="field"><span>Support visual scale</span><input id="supportScaleInput" type="number" value="1" step="0.1" min="0.1" /></label>
-          <label class="field"><span>Board width</span><input id="boardWidthInput" type="number" value="2.8" step="0.1" min="0.5" /></label>
-          <label class="field"><span>RVM version</span><input id="rvmVersion" type="text" value="3.0" /></label>
-        </details>
-      </section>
-
-      <section class="panel-section workflow-card" data-section="export">
-        <h3><span class="section-no">4</span> Export</h3>
-        <p class="workflow-card-hint">Download the converted review files and audit package.</p>
-        <div class="download-grid">
-          <button id="downloadGlbBtn" type="button" disabled title="Load or convert stagedJson before downloading GLB"><i data-lucide="box"></i><span>GLB</span></button>
-          <button id="downloadRvmBtn" type="button" disabled title="Load or convert stagedJson before downloading RVM"><i data-lucide="file-down"></i><span>RVM</span></button>
-          <button id="downloadAttBtn" type="button" disabled title="Load or convert stagedJson before downloading ATT"><i data-lucide="file-text"></i><span>ATT</span></button>
-          <button id="downloadAuditBtn" type="button" disabled title="Load or convert stagedJson before downloading audit JSON"><i data-lucide="download"></i><span>Audit</span></button>
-        </div>
-      </section>
-
-      <section class="panel-section workflow-card log-section">
-        <h3><span class="section-no">5</span> Log</h3>
-        <pre id="log"></pre>
-      </section>
-
-      <div id="conversionOptionsCompatRoot" class="conversion-options-compat-root" hidden aria-hidden="true">
-        <label><input id="renderExpectedSupport" type="checkbox" checked /><span>Render expected supports from ISONOTE</span></label>
-        <label><input id="renderActualSupport" type="checkbox" checked /><span>Render actual supports from stagedJson</span></label>
-        <label><input id="showSupportLabel" type="checkbox" /><span>Show support labels</span></label>
-        <label><span>Single-axis unresolved decision</span><select id="singleAxisDecision"><option value="warning" selected>Warning marker only</option><option value="+">Use + axis</option><option value="-">Use - axis</option></select></label>
-        <div id="sideload-options-body" class="sideload-collapsible-content">
-          <label><span>Line No sideload CSV</span><textarea id="lineNoText" spellcheck="false" rows="3"></textarea></label>
-          <label><span>ISONOTE sideload CSV / text</span><textarea id="isonoteText" spellcheck="false" rows="5"></textarea></label>
-        </div>
-        <details id="conversion-options-body"><summary>Compatibility options</summary>
-          <div class="check-grid">
-            <label><input type="checkbox" id="nodeLabels" checked /> Node labels</label>
-            <label><input type="checkbox" id="isonoteBoards" checked /> ISONOTE boards</label>
-            <label><input type="checkbox" id="supportLabels" /> Support labels</label>
-            <label><input type="checkbox" id="componentText" /> Component text labels</label>
-            <label><input type="checkbox" id="compareColors" checked /> Compare colors</label>
-            <label><input type="checkbox" id="compactMode" checked /> Compact geometry</label>
-          </div>
-        </details>
-      </div>
+      <section class="panel-section workflow-card support-workflow-card" data-section="support-mapping"><h3><span class="section-no">2</span> Support Mapping</h3><p class="workflow-card-hint">Configure stagedJson / ISONOTE source, CAESAR axis basis, mapper fields, and support diagnostics.</p><div id="supportMappingSettingsShell" class="support-mapping-settings-shell" aria-label="Support mapping and ISONOTE launcher"></div></section>
+      <section class="panel-section workflow-card" data-section="conversion"><h3><span class="section-no">3</span> Convert</h3><p class="workflow-card-hint">Run the managed-stage conversion after the input and support mapping are ready.</p><div id="conversionStatus" class="conversion-status" role="status" aria-live="polite">Idle — load stagedJson or BM_CII stagedJson sample.</div><div class="button-row workflow-primary-row"><button id="convertBtn" type="button" class="primary icon-text"><i data-lucide="refresh-cw"></i><span>Run Conversion</span></button><button id="viewRulesBtn" type="button" class="ghost">Mapping Rules</button></div><details class="workflow-advanced-options"><summary>Advanced conversion settings</summary><label class="field"><span>RVM / GLB scale</span><input id="scaleInput" type="number" value="0.001" step="0.0001" /></label><label class="field"><span>Support visual scale</span><input id="supportScaleInput" type="number" value="1" step="0.1" min="0.1" /></label><label class="field"><span>Board width</span><input id="boardWidthInput" type="number" value="2.8" step="0.1" min="0.5" /></label><label class="field"><span>RVM version</span><input id="rvmVersion" type="text" value="3.0" /></label></details></section>
+      <section class="panel-section workflow-card" data-section="export"><h3><span class="section-no">4</span> Export</h3><p class="workflow-card-hint">Download the converted review files and audit package.</p><div class="download-grid"><button id="downloadGlbBtn" type="button" disabled title="Load or convert stagedJson before downloading GLB"><i data-lucide="box"></i><span>GLB</span></button><button id="downloadRvmBtn" type="button" disabled title="Load or convert stagedJson before downloading RVM"><i data-lucide="file-down"></i><span>RVM</span></button><button id="downloadAttBtn" type="button" disabled title="Load or convert stagedJson before downloading ATT"><i data-lucide="file-text"></i><span>ATT</span></button><button id="downloadAuditBtn" type="button" disabled title="Load or convert stagedJson before downloading audit JSON"><i data-lucide="download"></i><span>Audit</span></button></div></section>
+      <section class="panel-section workflow-card log-section"><h3><span class="section-no">5</span> Log</h3><pre id="log"></pre></section>
+      <div id="conversionOptionsCompatRoot" class="conversion-options-compat-root" hidden aria-hidden="true"><label><input id="renderExpectedSupport" type="checkbox" checked /><span>Render expected supports from ISONOTE</span></label><label><input id="renderActualSupport" type="checkbox" checked /><span>Render actual supports from stagedJson</span></label><label><input id="showSupportLabel" type="checkbox" /><span>Show support labels</span></label><label><span>Single-axis unresolved decision</span><select id="singleAxisDecision"><option value="warning" selected>Warning marker only</option><option value="+">Use + axis</option><option value="-">Use - axis</option></select></label><div id="sideload-options-body" class="sideload-collapsible-content"><label><span>Line No sideload CSV</span><textarea id="lineNoText" spellcheck="false" rows="3"></textarea></label><label><span>ISONOTE sideload CSV / text</span><textarea id="isonoteText" spellcheck="false" rows="5"></textarea></label></div><details id="conversion-options-body"><summary>Compatibility options</summary><div class="check-grid"><label><input type="checkbox" id="nodeLabels" checked /> Node labels</label><label><input type="checkbox" id="isonoteBoards" checked /> ISONOTE boards</label><label><input type="checkbox" id="supportLabels" /> Support labels</label><label><input type="checkbox" id="componentText" /> Component text labels</label><label><input type="checkbox" id="compareColors" checked /> Compare colors</label><label><input type="checkbox" id="compactMode" checked /> Compact geometry</label></div></details></div>
     </aside>
-
-    <section class="viewer-shell" aria-label="3D viewer">
-      <div id="viewer" class="viewer-canvas" tabindex="0" aria-label="3D model viewport">
-        <canvas id="measureOverlay" aria-hidden="true"></canvas>
-        <div id="viewCube" class="view-cube" aria-label="View cube">
-          <button data-view="front">FRONT</button>
-          <button data-view="top">TOP</button>
-          <button data-view="side">RIGHT</button>
-        </div>
-        <div id="hint" class="canvas-help">Load stagedJson or BM_CII stagedJson sample to begin.</div>
-        <div id="measureReadout" class="measure-readout" hidden>Measure: -</div>
-      </div>
-      <div id="viewerStatusbar" class="viewer-statusbar" aria-label="Viewer status">
-        <span id="selectedStatus">Selected: none</span>
-        <span id="componentStatus">Objects: 0</span>
-        <span id="coordStatus">XYZ: -</span>
-      </div>
-    </section>
-
-    <aside class="property-drawer" id="propertyDrawer" aria-label="Selection properties">
-      <div class="drawer-head">
-        <div>
-          <h2><i data-lucide="list-tree"></i> Selection</h2>
-          <p>Click an item in the model to inspect component data.</p>
-        </div>
-        <button id="closePropsBtn" type="button" class="icon-btn" title="Close properties"><i data-lucide="chevrons-right"></i></button>
-      </div>
-      <div id="propertiesBody" class="properties-body empty-state" data-legacy-id="propertiesContent">
-        <p>No selection yet.</p>
-      </div>
-    </aside>
+    <section class="viewer-shell" aria-label="3D viewer"><div id="viewer" class="viewer-canvas" tabindex="0" aria-label="3D model viewport"><canvas id="measureOverlay" aria-hidden="true"></canvas><div id="viewCube" class="view-cube" aria-label="View cube"><button data-view="front">FRONT</button><button data-view="top">TOP</button><button data-view="side">RIGHT</button></div><div id="hint" class="canvas-help">Load stagedJson or BM_CII stagedJson sample to begin.</div><div id="measureReadout" class="measure-readout" hidden>Measure: -</div></div><div id="viewerStatusbar" class="viewer-statusbar" aria-label="Viewer status"><span id="selectedStatus">Selected: none</span><span id="componentStatus">Objects: 0</span><span id="coordStatus">XYZ: -</span></div></section>
+    <aside class="property-drawer" id="propertyDrawer" aria-label="Selection properties"><div class="drawer-head"><div><h2><i data-lucide="list-tree"></i> Selection</h2><p>Click an item in the model to inspect component data.</p></div><button id="closePropsBtn" type="button" class="icon-btn" title="Close properties"><i data-lucide="chevrons-right"></i></button></div><div id="propertiesBody" class="properties-body empty-state" data-legacy-id="propertiesContent"><p>No selection yet.</p></div></aside>
   </main>
-
-  <dialog id="rulesDialog" class="rules-dialog" aria-label="Mapping rules">
-    <div class="rules-dialog-card">
-      <div class="rules-dialog-head">
-        <h3>Mapping Rules</h3>
-        <button id="closeRulesBtn" type="button" aria-label="Close mapping rules">×</button>
-      </div>
-      <div id="rulesContent"></div>
-    </div>
-  </dialog>
-
-  <script type="module" src="./src/safe-ui-bootstrap.js?v=input-root-owner-20260626"></script>
-  <script type="module" src="./src/app-loader.js?v=input-root-owner-20260626"></script>
+  <dialog id="rulesDialog" class="rules-dialog" aria-label="Mapping rules"><div class="rules-dialog-card"><div class="rules-dialog-head"><h3>Mapping Rules</h3><button id="closeRulesBtn" type="button" aria-label="Close mapping rules">×</button></div><div id="rulesContent"></div></div></dialog>
+  <script type="module" src="./src/safe-ui-bootstrap.js?v=input-persistent-root-card-20260626"></script>
+  <script type="module" src="./src/app-loader.js?v=input-persistent-root-card-20260626"></script>
 </body>
 </html>

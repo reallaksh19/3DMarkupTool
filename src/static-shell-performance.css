@@ -10,21 +10,14 @@
 .main-ribbon .tool-group,
 .main-ribbon .toolbar-group { min-height: 68px; }
 
-.color-toolbar-group {
-  min-width: 220px;
-}
-
-.color-toolbar-group .color-control {
-  min-height: 44px;
-  margin: 0;
-}
+.color-toolbar-group { min-width: 220px; }
+.color-toolbar-group .color-control { min-height: 44px; margin: 0; }
 
 .main-ribbon #staticReviewRibbonGroup:empty,
 .main-ribbon .shell-reserved-group:empty {
   min-width: 116px;
   justify-content: center;
 }
-
 .main-ribbon #staticReviewRibbonGroup:empty::before,
 .main-ribbon .shell-reserved-group:empty::before {
   content: 'Review';
@@ -34,33 +27,19 @@
   letter-spacing: .03em;
 }
 
-.topbar-actions .top-menu-wrap {
-  position: relative;
-  flex: 0 0 auto;
-  min-width: 86px;
-}
-
+.topbar-actions .top-menu-wrap { position: relative; flex: 0 0 auto; min-width: 86px; }
 .topbar-actions .top-menu-btn { min-width: 86px; }
 
 .viewer-topbar .markup-ribbon:has(.navis-tag-tools:empty),
-.viewer-topbar .markup-ribbon .navis-tag-tools:empty {
-  display: none;
-  min-height: 0;
-}
+.viewer-topbar .markup-ribbon .navis-tag-tools:empty { display: none; min-height: 0; }
 
 #inputDrawer { scroll-padding-top: 8px; }
-
 #inputDrawer > #drawerSummaryCard.drawer-summary-card { display: none !important; }
-
-.workflow-drawer {
-  display: grid;
-  align-content: start;
-  gap: 10px;
-}
-
+.workflow-drawer { display: grid; align-content: start; gap: 10px; }
 .workflow-drawer-head { margin-bottom: 2px !important; }
 
-#inputDrawer .workflow-card {
+#inputDrawer .workflow-card,
+#inputDrawer .input-root-card {
   position: static;
   display: grid;
   gap: 9px;
@@ -72,40 +51,43 @@
   box-shadow: inset 0 1px 0 rgba(255,255,255,.04);
 }
 
-#inputDrawer .workflow-card > h3 {
+#inputDrawer .workflow-card > h3,
+#inputDrawer .input-root-card > h3 {
   margin: 0;
   min-height: 22px;
   line-height: 1.1;
   cursor: default;
 }
+#inputDrawer .workflow-card > h3::after,
+#inputDrawer .input-root-card > h3::after { content: none; display: none; }
 
-#inputDrawer .workflow-card > h3::after { content: none; display: none; }
+.workflow-card-hint { color: #aebfd4; font-size: 11px; line-height: 1.35; }
 
-.workflow-card-hint {
-  color: #aebfd4;
-  font-size: 11px;
-  line-height: 1.35;
-}
-
-#inputDrawer .workflow-card[data-section="input"],
-#inputDrawer .workflow-card[data-phase2-input="always-visible"] {
+/* INPUT is not a collapsible workflow-card. It is a persistent root card.
+ * This prevents generic workflow/collapse decorators from leaving a heading-only
+ * blank panel while still preserving the same visual card language.
+ */
+#inputDrawer > .input-root-card[data-section="input"],
+#inputDrawer > [data-input-root="persistent"] {
   display: grid !important;
-  grid-template-rows: auto auto auto auto !important;
+  grid-template-rows: auto auto auto auto auto !important;
   min-height: 168px;
   max-height: none !important;
   overflow: visible !important;
+  contain: layout style;
 }
 
-#inputDrawer .workflow-card[data-section="input"] > .workflow-card-hint,
-#inputDrawer .workflow-card[data-section="input"] > #inputFileStatus,
-#inputDrawer .workflow-card[data-section="input"] > .input-file-status,
-#inputDrawer .workflow-card[data-section="input"] > .file-drop,
-#inputDrawer .workflow-card[data-section="input"] > .input-primary-actions,
-#inputDrawer .workflow-card[data-phase2-input="always-visible"] > .workflow-card-hint,
-#inputDrawer .workflow-card[data-phase2-input="always-visible"] > #inputFileStatus,
-#inputDrawer .workflow-card[data-phase2-input="always-visible"] > .input-file-status,
-#inputDrawer .workflow-card[data-phase2-input="always-visible"] > .file-drop,
-#inputDrawer .workflow-card[data-phase2-input="always-visible"] > .input-primary-actions {
+#inputDrawer > .input-root-card[data-section="input"] > .workflow-card-hint,
+#inputDrawer > .input-root-card[data-section="input"] > #inputFileStatus,
+#inputDrawer > .input-root-card[data-section="input"] > .input-file-status,
+#inputDrawer > .input-root-card[data-section="input"] > .file-drop,
+#inputDrawer > .input-root-card[data-section="input"] > .input-primary-actions,
+#inputDrawer > [data-input-root="persistent"] > .workflow-card-hint,
+#inputDrawer > [data-input-root="persistent"] > #inputFileStatus,
+#inputDrawer > [data-input-root="persistent"] > .input-file-status,
+#inputDrawer > [data-input-root="persistent"] > .file-drop,
+#inputDrawer > [data-input-root="persistent"] > .input-primary-actions {
+  display: revert !important;
   visibility: visible !important;
   opacity: 1 !important;
   max-height: none !important;
@@ -113,13 +95,12 @@
   pointer-events: auto !important;
 }
 
-#inputDrawer .workflow-card[data-section="input"] > .workflow-card-hint,
-#inputDrawer .workflow-card[data-phase2-input="always-visible"] > .workflow-card-hint {
-  display: block !important;
-}
+#inputDrawer > .input-root-card[data-section="input"] > .workflow-card-hint,
+#inputDrawer > [data-input-root="persistent"] > .workflow-card-hint { display: block !important; }
 
 #inputFileStatus.input-file-status,
-#inputDrawer .workflow-card[data-section="input"] > .input-file-status {
+#inputDrawer > .input-root-card[data-section="input"] > .input-file-status,
+#inputDrawer > [data-input-root="persistent"] > .input-file-status {
   display: flex !important;
   align-items: center;
   min-height: 24px;
@@ -136,7 +117,8 @@
   white-space: nowrap;
 }
 
-#inputDrawer .workflow-card[data-section="input"] > .file-drop {
+#inputDrawer > .input-root-card[data-section="input"] > .file-drop,
+#inputDrawer > [data-input-root="persistent"] > .file-drop {
   display: grid !important;
   grid-auto-flow: column;
   place-items: center;
@@ -149,13 +131,13 @@
   border-radius: 9px;
 }
 
-#inputDrawer .workflow-card[data-section="input"] > .file-drop .lucide,
-#inputDrawer .workflow-card[data-section="input"] > .file-drop i {
-  width: 15px;
-  height: 15px;
-}
+#inputDrawer > .input-root-card[data-section="input"] > .file-drop .lucide,
+#inputDrawer > .input-root-card[data-section="input"] > .file-drop i,
+#inputDrawer > [data-input-root="persistent"] > .file-drop .lucide,
+#inputDrawer > [data-input-root="persistent"] > .file-drop i { width: 15px; height: 15px; }
 
-#inputDrawer .workflow-card[data-section="input"] > .input-primary-actions,
+#inputDrawer > .input-root-card[data-section="input"] > .input-primary-actions,
+#inputDrawer > [data-input-root="persistent"] > .input-primary-actions,
 .workflow-primary-row {
   display: flex !important;
   align-items: center;
@@ -164,10 +146,14 @@
   margin: 0;
 }
 
-#inputDrawer .workflow-card[data-section="input"] #loadUnifiedModelFileBtn,
-#inputDrawer .workflow-card[data-section="input"] #loadSampleBtn,
-#inputDrawer .workflow-card[data-section="input"] #loadManagedStageJsonSampleBtn,
-#inputDrawer .workflow-card[data-section="input"] #clearBtn,
+#inputDrawer > .input-root-card[data-section="input"] #loadUnifiedModelFileBtn,
+#inputDrawer > .input-root-card[data-section="input"] #loadSampleBtn,
+#inputDrawer > .input-root-card[data-section="input"] #loadManagedStageJsonSampleBtn,
+#inputDrawer > .input-root-card[data-section="input"] #clearBtn,
+#inputDrawer > [data-input-root="persistent"] #loadUnifiedModelFileBtn,
+#inputDrawer > [data-input-root="persistent"] #loadSampleBtn,
+#inputDrawer > [data-input-root="persistent"] #loadManagedStageJsonSampleBtn,
+#inputDrawer > [data-input-root="persistent"] #clearBtn,
 .workflow-primary-row > button {
   flex: 1 1 0;
   min-width: 0;
@@ -177,10 +163,14 @@
   font-size: 11px;
 }
 
-#inputDrawer .workflow-card[data-section="input"] #loadUnifiedModelFileBtn span,
-#inputDrawer .workflow-card[data-section="input"] #loadSampleBtn span,
-#inputDrawer .workflow-card[data-section="input"] #loadManagedStageJsonSampleBtn span,
-#inputDrawer .workflow-card[data-section="input"] #clearBtn span,
+#inputDrawer > .input-root-card[data-section="input"] #loadUnifiedModelFileBtn span,
+#inputDrawer > .input-root-card[data-section="input"] #loadSampleBtn span,
+#inputDrawer > .input-root-card[data-section="input"] #loadManagedStageJsonSampleBtn span,
+#inputDrawer > .input-root-card[data-section="input"] #clearBtn span,
+#inputDrawer > [data-input-root="persistent"] #loadUnifiedModelFileBtn span,
+#inputDrawer > [data-input-root="persistent"] #loadSampleBtn span,
+#inputDrawer > [data-input-root="persistent"] #loadManagedStageJsonSampleBtn span,
+#inputDrawer > [data-input-root="persistent"] #clearBtn span,
 .workflow-primary-row > button span {
   min-width: 0;
   overflow: hidden;
@@ -201,78 +191,41 @@
   font-weight: 820;
 }
 
-.support-workflow-card .support-mapping-settings-shell {
-  margin: 0 !important;
-  padding: 0 !important;
-  border: 0 !important;
-  background: transparent !important;
-}
-
-.support-workflow-card .support-mapping-settings-launcher {
-  gap: 6px !important;
-}
-
-.support-workflow-card .support-mapping-settings-open {
-  min-height: 36px !important;
-}
+.support-workflow-card .support-mapping-settings-shell { margin: 0 !important; padding: 0 !important; border: 0 !important; background: transparent !important; }
+.support-workflow-card .support-mapping-settings-launcher { gap: 6px !important; }
+.support-workflow-card .support-mapping-settings-open { min-height: 36px !important; }
 
 #inputDrawer .support-workflow-card .conversion-collapsible-content,
 #inputDrawer .support-workflow-card .support-mapper-config-details,
 .support-mapping-settings-dialog .conversion-collapsible-content,
-.support-mapping-settings-dialog .support-mapper-config-details {
-  display: revert !important;
-}
+.support-mapping-settings-dialog .support-mapper-config-details { display: revert !important; }
 
-.workflow-advanced-options {
-  border: 1px solid rgba(83, 125, 176, .22);
-  border-radius: 10px;
-  background: rgba(4, 14, 28, .44);
-}
-
-.workflow-advanced-options summary {
-  padding: 8px 10px;
-  cursor: pointer;
-  color: #dcecff;
-  font-weight: 850;
-}
-
-.workflow-advanced-options .field {
-  margin: 8px 10px 10px;
-}
+.workflow-advanced-options { border: 1px solid rgba(83, 125, 176, .22); border-radius: 10px; background: rgba(4, 14, 28, .44); }
+.workflow-advanced-options summary { padding: 8px 10px; cursor: pointer; color: #dcecff; font-weight: 850; }
+.workflow-advanced-options .field { margin: 8px 10px 10px; }
 
 /* Compatibility-only controls are retained for old controllers/tests but must
  * never consume visible drawer space in the workflow-card layout.
  */
 #inputDrawer .conversion-options-compat-root .conversion-collapsible-content,
 #inputDrawer .conversion-options-compat-root .sideload-collapsible-content,
-.conversion-options-compat-root {
-  display: none !important;
-}
+.conversion-options-compat-root { display: none !important; }
 
 #closeInputBtn[hidden] { display: none; }
-
 .property-drawer,
 .input-drawer,
 .viewer-shell,
 .app-workspace { min-height: 0; }
-
 .properties-body.empty-state { min-height: 65%; }
 
 /* Layout containment: scope layout/style recalculation to decorated UI regions
  * without clipping overflow or allocating permanent compositor layers.
  */
-.main-ribbon {
-  contain: layout style;
-  min-height: 88px;
-}
-
+.main-ribbon { contain: layout style; min-height: 88px; }
 .main-ribbon .tool-group,
 .main-ribbon .toolbar-group { contain: layout style; }
-
 .panel-section { contain: layout style; }
-
 .markup-ribbon { contain: layout style; }
-
 .markup-ribbon .tool-group,
 .markup-ribbon .toolbar-group,
 .static-markup-tools { contain: layout style; }

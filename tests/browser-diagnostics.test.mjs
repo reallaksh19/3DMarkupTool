@@ -7,27 +7,13 @@ const controller = readFileSync(new URL('../src/static-browser-diagnostics-contr
 const checklist = readFileSync(new URL('../docs/post-pr133-recovery-checklist.md', import.meta.url), 'utf8');
 const pkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
 
-const activeCacheKey = 'input-root-owner-20260626';
-const allowedShellKeys = [
-  activeCacheKey,
-  'input-postbootstrap-reassert-20260626',
-  'input-load-controls-restored-20260626',
-  'workflow-input-expanded-load-controls-20260625',
-  'input-always-visible-20260619',
-  'phase4-global-esc-lifecycle-20260619',
-  'phase4a-static-input-panel-cleanup-20260619',
-  'perf-static-shell-20260620',
-  'perf-lcp-deferred-app-20260620',
-  'perf-idle-diagnostics-20260620',
-  'perf-tdz-fix-20260620',
-  'canvas-tool-manager-20260620',
-  'tool-fixes-v2-20260620'
-];
+const activeCacheKey = 'input-persistent-root-card-20260626';
+const allowedShellKeys = [activeCacheKey, 'input-root-owner-20260626', 'input-postbootstrap-reassert-20260626', 'input-load-controls-restored-20260626', 'workflow-input-expanded-load-controls-20260625', 'input-always-visible-20260619', 'phase4-global-esc-lifecycle-20260619', 'phase4a-static-input-panel-cleanup-20260619', 'perf-static-shell-20260620', 'perf-lcp-deferred-app-20260620', 'perf-idle-diagnostics-20260620', 'perf-tdz-fix-20260620', 'canvas-tool-manager-20260620', 'tool-fixes-v2-20260620'];
 
 assert.match(index, new RegExp(activeCacheKey));
 assert.doesNotMatch(index, /fresh-clip-core-20260619/);
-assert.ok(index.includes(`safe-ui-bootstrap.js?v=${activeCacheKey}`), 'index must load safe-ui-bootstrap with the active cache key');
-assert.ok(allowedShellKeys.some((key) => bootstrap.includes(key)), 'bootstrap must carry a recognized static shell key marker');
+assert.ok(index.includes(`safe-ui-bootstrap.js?v=${activeCacheKey}`));
+assert.ok(allowedShellKeys.some((key) => bootstrap.includes(key)));
 assert.match(bootstrap, /LATE_IDLE_MODULE_URLS[\s\S]*static-browser-diagnostics-controller\.js\?v=\$\{SAFE_UI_VERSION\}/);
 assert.doesNotMatch(bootstrap, /static-properties-actions-controller\.js/);
 assert.match(bootstrap, /emitBootstrapModuleFailure\(/);
@@ -65,5 +51,4 @@ assert.doesNotMatch(controller, /setInterval\(/);
 assert.match(checklist, /X1 — Chrome-only erratic response/);
 assert.match(checklist, /X2 — Chrome runtime\/cache diagnostics/);
 assert.match(pkg.scripts.test, /browser-diagnostics\.test\.mjs/);
-
 console.log('browser diagnostics gate passed');

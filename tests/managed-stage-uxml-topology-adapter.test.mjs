@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { createBmCiiManagedStageSampleJson } from '../src/managed-stage-bm-cii-json-sample-data.js';
+import { assertManagedStageTopologyQualityGate } from '../src/managed-stage-topology-quality-gate.js';
 import {
   MANAGED_STAGE_TOPOLOGY_AUDIT_SCHEMA,
   MANAGED_STAGE_UXML_TOPOLOGY_SCHEMA,
@@ -64,9 +65,22 @@ assert.equal(audit.summary.missingExplicitBendDetailCount, 0);
 assert.equal(audit.summary.synthetic1p5DTrimBlockedCount, 7);
 assert.equal(audit.summary.supportContinuityEdgeCount, 0);
 
+const qualityGate = assertManagedStageTopologyQualityGate(audit);
+assert.equal(qualityGate.ok, true);
+assert.equal(qualityGate.internalDisconnectedRequiredPortCount, 0);
+assert.equal(qualityGate.supportContinuityEdgeCount, 0);
+assert.equal(qualityGate.supportInlineFaceCount, 0);
+assert.equal(qualityGate.highDegreeTopologyNodeCount, 0);
+assert.equal(qualityGate.nodeCoordinateConflictCount, 0);
+assert.equal(qualityGate.invalidBranchNodeDegreeCount, 0);
+assert.ok(qualityGate.classifiedOpenTerminalPortCount > 0);
+assert.equal(qualityGate.classifiedOpenTerminalPortCount + qualityGate.internalDisconnectedRequiredPortCount, qualityGate.disconnectedRequiredPortCount);
+
 console.log(JSON.stringify({
   schema: audit.schema,
+  qualityGateSchema: qualityGate.schema,
   ok: audit.ok,
+  qualityGateOk: qualityGate.ok,
   components: audit.summary.componentCount,
   geometryComponents: audit.summary.geometryComponentCount,
   supports: audit.summary.supportCount,
@@ -75,5 +89,10 @@ console.log(JSON.stringify({
   nodeCount: audit.summary.nodeCount,
   edgeCount: audit.summary.edgeCount,
   disconnectedRequiredPortCount: audit.summary.disconnectedRequiredPortCount,
+  classifiedOpenTerminalPortCount: qualityGate.classifiedOpenTerminalPortCount,
+  internalDisconnectedRequiredPortCount: qualityGate.internalDisconnectedRequiredPortCount,
+  highDegreeTopologyNodeCount: qualityGate.highDegreeTopologyNodeCount,
+  nodeCoordinateConflictCount: qualityGate.nodeCoordinateConflictCount,
+  invalidBranchNodeDegreeCount: qualityGate.invalidBranchNodeDegreeCount,
   supportContinuityEdgeCount: audit.summary.supportContinuityEdgeCount
 }, null, 2));

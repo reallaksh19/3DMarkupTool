@@ -26,7 +26,8 @@ import {
   managedStageMaterialForClass,
   planManagedStagePrimitives
 } from './managed-stage-rvm-primitive-planner.js';
-import { buildManagedStageSupportRvmExportNodes } from './managed-stage-support-rvm-export.js';
+import { buildTopologyGatedManagedStageSupportRvmExportNodes } from './managed-stage-topology-gated-support-rvm-export.js';
+import { buildManagedStageTopologyAudit } from './managed-stage-uxml-topology-adapter.js';
 import { point3 } from './managed-stage-topology-audit.js';
 
 export function buildManagedStageRvmExportModel(profile, options = {}) {
@@ -44,8 +45,12 @@ export function buildManagedStageRvmExportModel(profile, options = {}) {
   const branchFittingInference = applyManagedStageInputXmlBranchFittingInference(bendEndpointLock.contracts, processingConfig);
   const contracts = branchFittingInference.contracts;
   const elements = contracts.map((contract, index) => elementNode(contract, index));
-  const supportExport = buildManagedStageSupportRvmExportNodes(profile, {
-    materialId: MANAGED_STAGE_RVM_MATERIALS.SUPPORT
+  const supportTopologyAudit = options.supportTopologyAudit || buildManagedStageTopologyAudit(managedStageProfileToTopologySource(profile), {
+    sourceName: profile.source || 'managed-stage-profile-for-rvm-export'
+  });
+  const supportExport = buildTopologyGatedManagedStageSupportRvmExportNodes(profile, {
+    materialId: MANAGED_STAGE_RVM_MATERIALS.SUPPORT,
+    topologyAudit: supportTopologyAudit
   });
   const componentPrimitiveSymbolExportAudit = auditComponentPrimitiveSymbolExport(elements, supportExport);
   const disciplineChildren = [
@@ -86,6 +91,7 @@ export function buildManagedStageRvmExportModel(profile, options = {}) {
       inputXmlNodeLocalElbowAudit: nodeLocalElbows.audit,
       inputXmlBendEndpointLockAudit: bendEndpointLock.audit,
       inputXmlBranchFittingInferenceAudit: branchFittingInference.audit,
+      supportTopologyAudit,
       supportRvmExportAudit: supportExport
     }
   };
@@ -214,11 +220,14 @@ function auditComponentPrimitiveSymbolExport(elements, supportExport) {
   }
   return {
     schema: 'ManagedStageComponentPrimitiveRvmExport.v1',
-    policy: 'stagedJson flange/valve visual primitives are emitted into generated RVM as endpoint-locked code-8 cylinder recipes, not Canvas-only overlays; supports are emitted as compact code-8 support glyphs',
+    policy: 'stagedJson flange/valve visual primitives are emitted into generated RVM as endpoint-locked code-8 cylinder recipes, not Canvas-only overlays; supports are topology-gated compact code-8 support glyphs only after SUPPORT_ASSOCIATION-only validation',
     flangeNodeCount,
     valveNodeCount,
     supportNodeCount: supportExport.supportNodeCount || 0,
     supportPrimitiveCount: supportExport.supportPrimitiveCount || 0,
+    supportTopologyGatePass: supportExport.supportTopologyGatePass === true,
+    supportAssociationOnlyCount: supportExport.supportAssociationOnlyCount || 0,
+    supportContinuityEdgeCount: supportExport.supportContinuityEdgeCount || 0,
     weldNeckFlangePrimitiveCount,
     ballValvePrimitiveCount,
     recipeHistogram,
@@ -233,4 +242,14 @@ function primitiveRecipeSummary(primitives = []) {
 
 function midpoint(a, b) {
   return [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2, (a[2] + b[2]) / 2];
+}
+
+function managedStageProfileToTopologySource(profile) {
+  return {
+    schema: profile.schema,
+    profile: profile.profile,
+    source: profile.source || 'managed-stage-profile',
+    units: { length: 'mm' },
+    hierarchy: profile.branches || []
+  };
 }

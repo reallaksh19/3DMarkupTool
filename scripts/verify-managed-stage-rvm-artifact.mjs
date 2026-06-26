@@ -10,6 +10,7 @@ const expectBmCii = args.includes('--expect-bm-cii');
 const artifactDir = join(repoRoot, dir);
 
 const { assertManagedStageRvmAuditGate } = await import('../src/managed-stage-rvm-audit-gate.js');
+const { assertManagedStageTopologyProofGate } = await import('../src/managed-stage-topology-audit-gate.js');
 const { scanCntbRecords } = await import('../src/rvm-cntb-bounds-policy.js');
 const { parseAttHierarchy, scanRvmChunkHierarchy } = await import('../src/rvm-chunk-hierarchy-validator.js');
 const { scanRvmPrimitivePayloads } = await import('../src/rvm-primitive-payload-decoder.js');
@@ -55,18 +56,26 @@ export function verifyManagedStageRvmArtifact({ artifactDir, base, expectations 
   if (!zip.onlyStoredEntries) issues.push('ZIP contains compressed entries; expected stored method only');
   if (zip.trailingBytes !== 0) issues.push(`ZIP has trailing bytes: ${zip.trailingBytes}`);
 
+  const topologyGate = assertManagedStageTopologyProofGate(audit, expectations);
   const strictGate = assertManagedStageRvmAuditGate(audit, expectations);
   if (issues.length) throw new Error(`Managed-stage artifact round-trip failed: ${issues.join('; ')}`);
 
   return {
-    schema: 'ManagedStageRvmArtifactRoundTripVerification.v1',
+    schema: 'ManagedStageRvmArtifactRoundTripVerification.v2',
     artifactDir: basename(artifactDir),
     base,
     strictGateOk: strictGate.ok,
+    topologyProofGateOk: topologyGate.ok,
+    topologyProofGate: topologyGate,
     componentPrimitiveSymbolExport: audit.componentPrimitiveSymbolExportAudit || null,
+    supportTopologyAudit: audit.supportTopologyAudit?.summary || null,
     supportRecordsEmittedToRvm: audit.supportRvmExportAudit?.supportRecordCount || 0,
     supportRvmPrimitives: audit.supportRvmExportAudit?.supportPrimitiveCount || 0,
     supportPrimitiveCodeHistogram: audit.supportRvmExportAudit?.supportPrimitiveCodeHistogram || {},
+    supportAssociationOnlyCount: audit.supportRvmExportAudit?.supportAssociationOnlyCount || 0,
+    supportTopologyBlockedCount: audit.supportRvmExportAudit?.supportTopologyBlockedCount || 0,
+    supportContinuityEdgeCount: audit.supportRvmExportAudit?.supportContinuityEdgeCount || 0,
+    supportInlineFaceCount: audit.supportRvmExportAudit?.supportInlineFaceCount || 0,
     supportConePrimitives: audit.supportRvmExportAudit?.supportConePrimitiveCount || 0,
     supportBarPrimitives: audit.supportRvmExportAudit?.supportBarPrimitiveCount || 0,
     supportMaxGlyphExtentMm: audit.supportRvmExportAudit?.supportMaxGlyphExtentMm || 0,
@@ -136,6 +145,17 @@ function bmCiiExpectations() {
     supportRecordsSkippedFromGeometry: 12,
     supportRecordsEmittedToRvm: 12,
     supportRvmPrimitiveCount: 42,
+    topologyComponentCount: 52,
+    topologyGeometryComponentCount: 40,
+    topologySupportCount: 12,
+    explicitBendRecordCount: 7,
+    explicitBendDetailCount: 7,
+    missingExplicitBendDetailCount: 0,
+    synthetic1p5DTrimBlockedCount: 7,
+    supportAssociationOnlyCount: 12,
+    supportTopologyBlockedCount: 0,
+    supportContinuityEdgeCount: 0,
+    supportInlineFaceCount: 0,
     code1: 0,
     code4: 0,
     code8: 157,

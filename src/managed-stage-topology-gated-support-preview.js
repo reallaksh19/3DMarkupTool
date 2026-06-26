@@ -192,9 +192,13 @@ function findSupportComponent(doc, record) {
 
 function candidateNames(record) {
   const attrs = record?.attrs || record?.attributes || {};
+  const sourcePathLeaf = String(record?.sourcePath || '').split('/').filter(Boolean).pop() || '';
   return new Set([
     record?.name,
     record?.rawName,
+    record?.sourceName,
+    record?.sourcePath,
+    sourcePathLeaf,
     attrs.SOURCE_RESTRAINT_ID,
     attrs.REF,
     attrs.NAME,
@@ -205,7 +209,7 @@ function candidateNames(record) {
 
 function supportRecordName(record) {
   const attrs = record?.attrs || record?.attributes || {};
-  return attrs.NAME || attrs.SOURCE_RESTRAINT_ID || attrs.REF || record?.name || record?.rawName || 'SUPPORT';
+  return attrs.NAME || attrs.SOURCE_RESTRAINT_ID || attrs.REF || record?.sourceName || record?.name || record?.rawName || 'SUPPORT';
 }
 
 function supportPosition(record) {

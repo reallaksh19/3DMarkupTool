@@ -4,16 +4,33 @@ const BEND_DTXR = new Set(['BEND', 'ELBO', 'ELBOW']);
 
 export function isExplicitManagedStageBendRecord(record) {
   const attrs = record?.attributes || record?.attrs || {};
-  const dtxr = normalizeToken(attrs.DTXR || attrs.RAW_TYPE || record?.dtxr || record?.type || '');
-  const type = normalizeToken(attrs.TYPE || record?.type || '');
+  const dtxr = normalizeToken(attrs.DTXR || attrs.RAW_TYPE || record?.dtxr || record?.sourceDtxr || record?.rawType || record?.type || '');
+  const type = normalizeToken(attrs.TYPE || record?.type || record?.rawType || '');
   return BEND_DTXR.has(dtxr) || BEND_DTXR.has(type);
 }
 
 export function resolveExplicitManagedStageBendDetails(record) {
   const attrs = record?.attributes || record?.attrs || {};
   const explicitBendRecord = isExplicitManagedStageBendRecord(record);
-  const bendRadiusMm = parseMm(firstPresent(attrs.BEND_RADIUS, attrs.BENDRADIUS, attrs.CURVE_RADIUS, attrs.RADIUS, attrs.RAD, attrs.BEND_RADIUS_MM));
-  const bendAngleDeg = parseNumber(firstPresent(attrs.BEND_ANGLE, attrs.BENDANGLE, attrs.ANGLE, attrs.DEG, attrs.BEND_ANGLE_DEG));
+  const bendRadiusMm = parseMm(firstPresent(
+    attrs.BEND_RADIUS,
+    attrs.BENDRADIUS,
+    attrs.CURVE_RADIUS,
+    attrs.RADIUS,
+    attrs.RAD,
+    attrs.BEND_RADIUS_MM,
+    record?.arc?.bendRadiusMm,
+    record?.bendRadiusMm
+  ));
+  const bendAngleDeg = parseNumber(firstPresent(
+    attrs.BEND_ANGLE,
+    attrs.BENDANGLE,
+    attrs.ANGLE,
+    attrs.DEG,
+    attrs.BEND_ANGLE_DEG,
+    record?.arc?.bendAngleDeg,
+    record?.bendAngleDeg
+  ));
   const hasExplicitBendDetails = explicitBendRecord && bendRadiusMm > 0 && bendAngleDeg > 0;
   return {
     schema: MANAGED_STAGE_EXPLICIT_BEND_SCHEMA,
@@ -25,8 +42,8 @@ export function resolveExplicitManagedStageBendDetails(record) {
     bendSource: explicitBendRecord ? (hasExplicitBendDetails ? 'stagedJson.BEND_RADIUS+BEND_ANGLE' : 'stagedJson.BEND_WITH_MISSING_DETAILS') : 'not-a-bend',
     synthetic1p5DTrimAllowed: !explicitBendRecord,
     synthetic1p5DTrimBlocked: explicitBendRecord,
-    sourceDtxr: attrs.DTXR || attrs.RAW_TYPE || record?.dtxr || record?.type || '',
-    sourceElementId: attrs.SOURCE_ELEMENT_ID || attrs.REF || attrs.NAME || record?.name || ''
+    sourceDtxr: attrs.DTXR || attrs.RAW_TYPE || record?.dtxr || record?.sourceDtxr || record?.rawType || record?.type || '',
+    sourceElementId: attrs.SOURCE_ELEMENT_ID || attrs.REF || attrs.NAME || record?.sourceElementId || record?.elementId || record?.name || ''
   };
 }
 

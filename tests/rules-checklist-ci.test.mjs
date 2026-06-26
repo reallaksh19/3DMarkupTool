@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
-const ACTIVE_CACHE_KEY = 'workflow-input-expanded-load-controls-20260625';
-const SOURCE_INDEX_CACHE_KEY = 'workflow-input-expanded-load-controls-20260625';
+const ACTIVE_CACHE_KEY = 'input-load-controls-restored-20260626';
+const SOURCE_INDEX_CACHE_KEY = 'input-load-controls-restored-20260626';
 const LEGACY_FIRST_PAINT_CACHE_KEY = 'tool-fixes-v2-20260620';
 
 const read = (path) => readFileSync(new URL('../' + path, import.meta.url), 'utf8');

@@ -1,9 +1,9 @@
 // Critical INPUT controls restoration.
 //
 // Keeps the real stagedJson chooser, load sample, and clear controls in the
-// source INPUT workflow card. This runs directly from index.html before the
-// optional static shell and app bootstrap modules, so a later controller cannot
-// leave the INPUT card in a heading-only state.
+// source INPUT workflow card. It is included in the static shell bundle before
+// later UI decorators, so a later controller cannot leave the INPUT card in a
+// heading-only state.
 
 const VERSION = 'input-panel-critical-controls-20260626';
 const REASSERT_EVENTS = [

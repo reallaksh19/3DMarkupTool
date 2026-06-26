@@ -1,1 +1,1 @@
-export { createManagedStagePreviewScene } from './managed-stage-preview-scene-explicit-bend-v2.js';
+export { createManagedStagePreviewScene } from './managed-stage-preview-scene-topology-gated.js';

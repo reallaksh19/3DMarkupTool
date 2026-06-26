@@ -26,6 +26,7 @@ import {
   managedStageMaterialForClass,
   planManagedStagePrimitives
 } from './managed-stage-rvm-primitive-planner.js';
+import { resolveExplicitManagedStageBendDetails } from './managed-stage-explicit-bend-details.js';
 import { buildTopologyGatedManagedStageSupportRvmExportNodes } from './managed-stage-topology-gated-support-rvm-export.js';
 import { buildManagedStageTopologyAudit } from './managed-stage-uxml-topology-adapter.js';
 import { point3 } from './managed-stage-topology-audit.js';
@@ -118,6 +119,7 @@ function elementNodeFromContract(contract, index) {
   const componentClass = managedStageComponentClass(contract);
   const material = managedStageMaterialForClass(componentClass);
   const primitives = planManagedStagePrimitives(contract);
+  const explicitBendAtt = explicitBendAttAttributes(contract);
   return {
     name: contract.name,
     reviewName: contract.name,
@@ -146,6 +148,7 @@ function elementNodeFromContract(contract, index) {
       INPUTXML_BRANCH_FITTING_HOST: contract.genericInputXmlBranchFittings?.length ? 'YES' : 'NO',
       INPUTXML_NODE_LOCAL_ELBOW_HOST: contract.genericInputXmlNodeLocalElbows?.length ? 'YES' : 'NO',
       INPUTXML_BEND_ENDPOINT_LOCKED: contract.genericInputXmlBend?.endpointLocks?.length ? 'YES' : 'NO',
+      ...explicitBendAtt,
       RVM_TRIM_START_MM: contract.rvmTrimStartOffsetMm ? String(contract.rvmTrimStartOffsetMm) : '',
       RVM_TRIM_END_MM: contract.rvmTrimEndOffsetMm ? String(contract.rvmTrimEndOffsetMm) : '',
       MANAGED_STAGE_GEOMETRY_WARNINGS: (contract.nonBlockingGeometryWarnings || []).map((warning) => warning.message).join(' | ')
@@ -161,6 +164,7 @@ function elementNodeFromRecord(record, index) {
   const position = midpoint(point3(record.attributes.APOS, `${record.name}.APOS`), point3(record.attributes.LPOS, `${record.name}.LPOS`));
   const attributes = record.attributes || {};
   const primitives = planManagedStagePrimitives(record);
+  const explicitBendAtt = explicitBendAttAttributes(record);
   return {
     name: record.name,
     reviewName: record.name,
@@ -183,7 +187,8 @@ function elementNodeFromRecord(record, index) {
       SOURCE_FORMAT: attributes.SOURCE_FORMAT || 'inputxml-managed-stage/v1',
       RVM_COMPONENT_PRIMITIVE_RECIPE: primitiveRecipeSummary(primitives),
       RVM_COMPONENT_PRIMITIVE_COUNT: String(primitives.length),
-      RVM_COMPONENT_SYMBOL_EXPORTED: primitives.some((primitive) => primitive.exportedManagedStageComponentSymbol) ? 'YES' : 'NO'
+      RVM_COMPONENT_SYMBOL_EXPORTED: primitives.some((primitive) => primitive.exportedManagedStageComponentSymbol) ? 'YES' : 'NO',
+      ...explicitBendAtt
     },
     primitives,
     children: []
@@ -233,6 +238,22 @@ function auditComponentPrimitiveSymbolExport(elements, supportExport) {
     recipeHistogram,
     classHistogram,
     rows
+  };
+}
+
+function explicitBendAttAttributes(recordOrContract) {
+  const details = resolveExplicitManagedStageBendDetails(recordOrContract);
+  if (!details.explicitBendRecord) return {};
+  return {
+    BEND_SOURCE_TRUTH: details.hasExplicitBendDetails ? 'EXPLICIT_STAGEDJSON_BEND' : 'EXPLICIT_STAGEDJSON_BEND_MISSING_DETAILS',
+    BEND_CENTERLINE_KIND: details.centerlineKind,
+    BEND_RADIUS_MM: details.bendRadiusMm == null ? '' : String(details.bendRadiusMm),
+    BEND_ANGLE_DEG: details.bendAngleDeg == null ? '' : String(details.bendAngleDeg),
+    BEND_RADIUS_SOURCE: details.bendRadiusMm == null ? '' : 'stagedJson.BEND_RADIUS',
+    BEND_ANGLE_SOURCE: details.bendAngleDeg == null ? '' : 'stagedJson.BEND_ANGLE',
+    BEND_SOURCE: details.bendSource,
+    SYNTHETIC_1P5D_BEND_TRIM_BLOCKED: details.synthetic1p5DTrimBlocked ? 'YES' : 'NO',
+    SYNTHETIC_1P5D_BEND_TRIM_ALLOWED: details.synthetic1p5DTrimAllowed ? 'YES' : 'NO'
   };
 }
 

@@ -24,6 +24,9 @@ console.log(JSON.stringify(summary, null, 2));
 if (!result.audit.managedStageStrictGate?.ok) {
   throw new Error('Managed-stage strict gate failed');
 }
+if (!result.audit.managedStageTopologyProofGate?.ok) {
+  throw new Error('Managed-stage topology proof gate failed');
+}
 
 async function resolveSource(input, fixture, expectBmCii) {
   if (fixture === 'bm-cii') {
@@ -47,6 +50,17 @@ function bmCiiExpectations() {
     supportRecordsSkippedFromGeometry: 12,
     supportRecordsEmittedToRvm: 12,
     supportRvmPrimitiveCount: 42,
+    topologyComponentCount: 52,
+    topologyGeometryComponentCount: 40,
+    topologySupportCount: 12,
+    explicitBendRecordCount: 7,
+    explicitBendDetailCount: 7,
+    missingExplicitBendDetailCount: 0,
+    synthetic1p5DTrimBlockedCount: 7,
+    supportAssociationOnlyCount: 12,
+    supportTopologyBlockedCount: 0,
+    supportContinuityEdgeCount: 0,
+    supportInlineFaceCount: 0,
     code1: 0,
     code4: 0,
     code8: 157,
@@ -64,12 +78,15 @@ function buildSummary(sourceLabel, audit) {
     schema: 'ManagedStageRvmProfileVerification.v1',
     source: sourceLabel,
     strictGateOk: audit.managedStageStrictGate?.ok === true,
+    topologyProofGateOk: audit.managedStageTopologyProofGate?.ok === true,
+    topologyProofGate: audit.managedStageTopologyProofGate || null,
     generationMode: audit.generationMode,
     units: audit.units,
     processingConfig: audit.processingConfig,
     inputXmlBendExclusion: audit.inputXmlBendExclusionAudit,
     inputXmlNodeLocalElbows: audit.inputXmlNodeLocalElbowAudit,
     inputXmlBranchFittingInference: audit.inputXmlBranchFittingInferenceAudit,
+    supportTopologyAudit: audit.supportTopologyAudit?.summary || null,
     supportRvmExport: audit.supportRvmExportAudit,
     componentPrimitiveSymbolExport: audit.componentPrimitiveSymbolExportAudit || audit.exportModel?.audit?.componentPrimitiveSymbolExportAudit || null,
     geometryComponents: audit.inputCounts.geometryComponents,
@@ -84,6 +101,14 @@ function buildSummary(sourceLabel, audit) {
     zeroLengthComponents: audit.topology.zeroLength.length,
     branchNodes: audit.topology.branchNodes,
     terminalNodes: audit.topology.terminalNodes,
+    explicitBendRecordCount: audit.supportTopologyAudit?.summary?.explicitBendRecordCount || 0,
+    explicitBendDetailCount: audit.supportTopologyAudit?.summary?.explicitBendDetailCount || 0,
+    missingExplicitBendDetailCount: audit.supportTopologyAudit?.summary?.missingExplicitBendDetailCount || 0,
+    synthetic1p5DTrimBlockedCount: audit.supportTopologyAudit?.summary?.synthetic1p5DTrimBlockedCount || 0,
+    supportAssociationOnlyCount: audit.supportRvmExportAudit?.supportAssociationOnlyCount || 0,
+    supportTopologyBlockedCount: audit.supportRvmExportAudit?.supportTopologyBlockedCount || 0,
+    supportContinuityEdgeCount: audit.supportRvmExportAudit?.supportContinuityEdgeCount || 0,
+    supportInlineFaceCount: audit.supportRvmExportAudit?.supportInlineFaceCount || 0,
     torusOrientationAssumptions: audit.torusOrientationAssumptions.length,
     genericInputXmlBendAssumptions: audit.genericInputXmlBendAssumptions?.length || 0,
     genericInputXmlNodeLocalElbowAssumptions: audit.genericInputXmlNodeLocalElbowAssumptions?.length || 0,

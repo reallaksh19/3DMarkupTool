@@ -7,6 +7,7 @@ import { scanRvmPrimitivePayloads } from './rvm-primitive-payload-decoder.js';
 import { writeRvm } from './rvm-writer.js';
 import { evaluateRvmCode4ElbowEmissionCandidate } from './rvm-code4-elbow-emission-candidate-policy.js';
 import { assertManagedStageRvmAuditGate } from './managed-stage-rvm-audit-gate.js';
+import { assertManagedStageTopologyProofGate } from './managed-stage-topology-audit-gate.js';
 import { buildManagedStageRvmExportModel } from './managed-stage-rvm-export-model.js';
 import { parseManagedStageProfile } from './managed-stage-profile-parser.js';
 import { auditManagedStageTopology } from './managed-stage-topology-audit.js';
@@ -42,6 +43,7 @@ export function convertManagedStageJsonToRvmAtt(sourceText, options = {}) {
   const stitchManifest = buildManagedStageRvmStitchManifest(profile, exportModel, primitivePayloads);
   const stitchManifestGate = warningOnlyGate('ManagedStageRvmStitchManifest', () => assertManagedStageRvmStitchManifest(stitchManifest), writerOptions);
   const supportRvmExportAudit = exportModel.audit?.supportRvmExportAudit || null;
+  const supportTopologyAudit = exportModel.audit?.supportTopologyAudit || null;
   const componentPrimitiveSymbolExportAudit = exportModel.audit?.componentPrimitiveSymbolExportAudit || null;
   const audit = {
     schema: 'ManagedStageRvmConverterAudit.v1',
@@ -59,11 +61,13 @@ export function convertManagedStageJsonToRvmAtt(sourceText, options = {}) {
       statsRestraintsMismatch: Number(profile.inputStats?.restraints || 0) !== profile.supportRecords.length
     },
     topology,
+    supportTopologyAudit,
     processingConfig: exportModel.audit?.processingConfig || null,
     geometryContractAudit: exportModel.audit?.geometryContractAudit || null,
     elbowTangentHintAudit: exportModel.audit?.elbowTangentHintAudit || null,
     inputXmlBendExclusionAudit: exportModel.audit?.inputXmlBendExclusionAudit || null,
     inputXmlNodeLocalElbowAudit: exportModel.audit?.inputXmlNodeLocalElbowAudit || null,
+    inputXmlBendEndpointLockAudit: exportModel.audit?.inputXmlBendEndpointLockAudit || null,
     inputXmlBranchFittingInferenceAudit: exportModel.audit?.inputXmlBranchFittingInferenceAudit || null,
     supportRvmExportAudit,
     componentPrimitiveSymbolExportAudit,
@@ -98,6 +102,11 @@ export function convertManagedStageJsonToRvmAtt(sourceText, options = {}) {
     attBytes: new TextEncoder().encode(att).byteLength,
     cntbCoordinatePolicy: 'CNTB x/y/z fields are RMSS coordinate fields, not bbox fields'
   };
+  audit.managedStageTopologyProofGate = warningOnlyGate(
+    'ManagedStageTopologyProofGate',
+    () => assertManagedStageTopologyProofGate(audit, options.strictAuditExpectations || {}),
+    writerOptions
+  );
   audit.managedStageStrictGate = warningOnlyGate(
     'ManagedStageRvmAuditGate',
     () => assertManagedStageRvmAuditGate(audit, options.strictAuditExpectations || {}),

@@ -8,6 +8,17 @@ const expectations = {
   supportRecordsSkippedFromGeometry: 12,
   supportRecordsEmittedToRvm: 12,
   supportRvmPrimitiveCount: 42,
+  topologyComponentCount: 52,
+  topologyGeometryComponentCount: 40,
+  topologySupportCount: 12,
+  explicitBendRecordCount: 7,
+  explicitBendDetailCount: 7,
+  missingExplicitBendDetailCount: 0,
+  synthetic1p5DTrimBlockedCount: 7,
+  supportAssociationOnlyCount: 12,
+  supportTopologyBlockedCount: 0,
+  supportContinuityEdgeCount: 0,
+  supportInlineFaceCount: 0,
   code1: 0,
   code4: 0,
   code8: 157,
@@ -24,6 +35,19 @@ const result = convertManagedStageJsonToRvmAtt(JSON.stringify(createBmCiiManaged
 });
 
 assert.equal(result.audit.managedStageStrictGate.ok, true);
+assert.equal(result.audit.managedStageStrictGate.topologyProofGateOk, true);
+assert.equal(result.audit.managedStageTopologyProofGate.ok, true);
+assert.equal(result.audit.managedStageTopologyProofGate.topologyComponentCount, 52);
+assert.equal(result.audit.managedStageTopologyProofGate.topologyGeometryComponentCount, 40);
+assert.equal(result.audit.managedStageTopologyProofGate.topologySupportCount, 12);
+assert.equal(result.audit.managedStageTopologyProofGate.explicitBendRecordCount, 7);
+assert.equal(result.audit.managedStageTopologyProofGate.explicitBendDetailCount, 7);
+assert.equal(result.audit.managedStageTopologyProofGate.missingExplicitBendDetailCount, 0);
+assert.equal(result.audit.managedStageTopologyProofGate.synthetic1p5DTrimBlockedCount, 7);
+assert.equal(result.audit.managedStageTopologyProofGate.supportAssociationOnlyCount, 12);
+assert.equal(result.audit.managedStageTopologyProofGate.supportTopologyBlockedCount, 0);
+assert.equal(result.audit.managedStageTopologyProofGate.supportContinuityEdgeCount, 0);
+assert.equal(result.audit.managedStageTopologyProofGate.supportInlineFaceCount, 0);
 assert.equal(result.audit.rvmPrimitivePayloadContract.schema, 'ManagedStageRvmPrimitivePayloadContract.v2');
 assert.deepEqual(result.audit.rvmPrimitivePayloadContract.allowedPrimitiveCodes, [1, 4, 8]);
 assert.equal(result.audit.rvmPrimitivePayloadContract.unsupportedPrimitivePayloadsPresent, false);
@@ -61,6 +85,9 @@ assert.ok(componentAudit.flangeNodeCount >= 8, 'BM_CII fixture must export flang
 assert.equal(componentAudit.valveNodeCount, 6);
 assert.equal(componentAudit.supportNodeCount, 12);
 assert.equal(componentAudit.supportPrimitiveCount, 42);
+assert.equal(componentAudit.supportTopologyGatePass, true);
+assert.equal(componentAudit.supportAssociationOnlyCount, 12);
+assert.equal(componentAudit.supportContinuityEdgeCount, 0);
 assert.ok(componentAudit.weldNeckFlangePrimitiveCount >= 12, 'BM_CII fixture must export weld-neck flange primitive bodies');
 assert.equal(componentAudit.ballValvePrimitiveCount, 30);
 assert.ok(componentAudit.recipeHistogram['weldneck-flange-contiguous-2part'] >= 6);
@@ -85,6 +112,9 @@ assert.ok(supportBars.every(({ primitive }) => primitive.radius <= 3));
 assert.ok(supportBars.every(({ primitive }) => primitive.length <= 60));
 assert.ok(supportPrimitives.every(({ primitive }) => primitive.kind !== 'pyramid'));
 assert.ok(supportPrimitives.every(({ primitive }) => primitive.supportPrimitiveCode === 8));
+assert.ok(supportPrimitives.every(({ primitive }) => primitive.supportTopologyGate === 'ok'));
+assert.ok(supportPrimitives.every(({ primitive }) => primitive.supportTopologyAssociationOnly === true));
+assert.ok(supportPrimitives.every(({ primitive }) => primitive.supportContinuityEdgeBlocked === true));
 assert.ok(supportPrimitives.filter(({ primitive }) => primitive.supportConeFanBlocked === true).length >= 34);
 
 for (const { node, primitive } of supportPrimitives) {
@@ -94,7 +124,7 @@ for (const { node, primitive } of supportPrimitives) {
   }
 }
 
-console.log('Managed-stage BM_CII support, flange, and valve RVM export gate passed');
+console.log('Managed-stage BM_CII support, flange, valve, and topology proof RVM export gate passed');
 
 function maxEndpointDistance(primitive, center) {
   return Math.max(distance(primitive.startMm, center), distance(primitive.endMm, center));

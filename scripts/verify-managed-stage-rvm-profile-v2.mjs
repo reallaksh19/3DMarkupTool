@@ -22,13 +22,20 @@ console.log(JSON.stringify({
   schema: 'ManagedStageRvmProfileVerification.v2',
   source: source.label,
   strictGateOk: result.audit.managedStageStrictGate?.ok === true,
+  topologyProofGateOk: result.audit.managedStageTopologyProofGate?.ok === true,
+  topologyProofGate: result.audit.managedStageTopologyProofGate || null,
   geometryComponents: result.audit.inputCounts.geometryComponents,
   supportRecordsSkippedFromGeometry: result.audit.inputCounts.supportRecordsSkippedFromGeometry,
   supportRecordsEmittedToRvm: result.audit.inputCounts.supportRecordsEmittedToRvm,
+  supportTopologyAudit: result.audit.supportTopologyAudit?.summary || null,
   supportRvmPrimitives: result.audit.supportRvmExportAudit?.supportPrimitiveCount || 0,
   supportPrimitiveCodeHistogram: result.audit.supportRvmExportAudit?.supportPrimitiveCodeHistogram || {},
   supportConePrimitives: result.audit.supportRvmExportAudit?.supportConePrimitiveCount || 0,
   supportBarPrimitives: result.audit.supportRvmExportAudit?.supportBarPrimitiveCount || 0,
+  supportAssociationOnlyCount: result.audit.supportRvmExportAudit?.supportAssociationOnlyCount || 0,
+  supportTopologyBlockedCount: result.audit.supportRvmExportAudit?.supportTopologyBlockedCount || 0,
+  supportContinuityEdgeCount: result.audit.supportRvmExportAudit?.supportContinuityEdgeCount || 0,
+  supportInlineFaceCount: result.audit.supportRvmExportAudit?.supportInlineFaceCount || 0,
   supportMaxGlyphExtentMm: result.audit.supportRvmExportAudit?.supportMaxGlyphExtentMm || 0,
   supportMaxClusterOffsetMm: result.audit.supportRvmExportAudit?.supportMaxClusterOffsetMm || 0,
   componentPrimitiveSymbolExport: result.audit.componentPrimitiveSymbolExportAudit || result.exportModel?.audit?.componentPrimitiveSymbolExportAudit || null,
@@ -39,6 +46,9 @@ console.log(JSON.stringify({
   attBytes: result.audit.attBytes,
   auditOutWritten: Boolean(auditOut)
 }, null, 2));
+
+if (!result.audit.managedStageStrictGate?.ok) throw new Error('Managed-stage strict gate failed');
+if (!result.audit.managedStageTopologyProofGate?.ok) throw new Error('Managed-stage topology proof gate failed');
 
 async function resolveSource() {
   if (fixture === 'bm-cii') {
@@ -54,6 +64,17 @@ function bmCiiExpectations() {
     supportRecordsSkippedFromGeometry: 12,
     supportRecordsEmittedToRvm: 12,
     supportRvmPrimitiveCount: 42,
+    topologyComponentCount: 52,
+    topologyGeometryComponentCount: 40,
+    topologySupportCount: 12,
+    explicitBendRecordCount: 7,
+    explicitBendDetailCount: 7,
+    missingExplicitBendDetailCount: 0,
+    synthetic1p5DTrimBlockedCount: 7,
+    supportAssociationOnlyCount: 12,
+    supportTopologyBlockedCount: 0,
+    supportContinuityEdgeCount: 0,
+    supportInlineFaceCount: 0,
     code1: 0,
     code4: 0,
     code8: 157,

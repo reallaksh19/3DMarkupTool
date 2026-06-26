@@ -3,7 +3,7 @@
 // Layout is owned by static HTML/CSS so the first paint and post-JS state match.
 // No scene traversal, no polling, no review-tool activation.
 
-const VERSION = 'input-load-controls-restored-20260626';
+const VERSION = 'input-postbootstrap-reassert-20260626';
 const INPUT_CONTENT_SELECTORS = [
   '.workflow-card-hint',
   '#inputFileStatus',
@@ -14,6 +14,18 @@ const INPUT_CONTENT_SELECTORS = [
   '#loadSampleBtn',
   '#clearBtn'
 ];
+const POST_BOOTSTRAP_REASSERT_EVENTS = [
+  'viewer:static-shell-bundle-ready',
+  'viewer:static-shell-bundle-loaded',
+  'viewer:svg-icons-refreshed',
+  'viewer:managed-stage-json-ui-ready',
+  'viewer:managed-stage-json-loaded',
+  'viewer:app-module-loaded',
+  'viewer:workflow-status-changed'
+];
+
+let postBootstrapBound = false;
+let reassertTimer = 0;
 
 runWhenReady(initInputAlwaysVisible);
 
@@ -31,10 +43,13 @@ function initInputAlwaysVisible() {
 
   bindFileStatus();
   ensureDrawerOpen();
+  normalizeWorkflowCopy();
+  bindPostBootstrapReassertions();
 
   window.__3D_MARKUP_INPUT_ALWAYS_VISIBLE__ = {
     version: VERSION,
     ensure: initInputAlwaysVisible,
+    reassert: () => reassertInputControls('manual'),
     getStatusText: () => getStatusNode()?.textContent || '',
     checklist
   };
@@ -42,6 +57,40 @@ function initInputAlwaysVisible() {
   document.dispatchEvent(new CustomEvent('3dmarkup:input-always-visible-ready', {
     detail: checklist()
   }));
+}
+
+function bindPostBootstrapReassertions() {
+  if (postBootstrapBound) return;
+  postBootstrapBound = true;
+
+  for (const eventName of POST_BOOTSTRAP_REASSERT_EVENTS) {
+    window.addEventListener(eventName, () => scheduleReassert(eventName));
+    document.addEventListener(eventName, () => scheduleReassert(eventName));
+  }
+
+  if (typeof window.requestAnimationFrame === 'function') {
+    window.requestAnimationFrame(() => window.requestAnimationFrame(() => reassertInputControls('after-first-paint')));
+  } else {
+    window.setTimeout(() => reassertInputControls('after-first-paint'), 0);
+  }
+  window.setTimeout(() => reassertInputControls('after-bootstrap-idle'), 750);
+}
+
+function scheduleReassert(source) {
+  window.clearTimeout(reassertTimer);
+  reassertTimer = window.setTimeout(() => reassertInputControls(source), 0);
+}
+
+function reassertInputControls(source = 'scheduled') {
+  const section = ensureInputBlock();
+  if (!section) return null;
+  bindFileStatus();
+  ensureDrawerOpen();
+  normalizeWorkflowCopy();
+  document.dispatchEvent(new CustomEvent('3dmarkup:input-controls-reasserted', {
+    detail: { source, ...checklist() }
+  }));
+  return section;
 }
 
 function ensureInputBlock() {
@@ -101,7 +150,7 @@ function ensureInputHint(section) {
     hint.className = 'workflow-card-hint';
     insertAfter(section, ensureInputHeading(section), hint);
   }
-  if (!hint.textContent.trim()) hint.textContent = 'Choose a stagedJson file or load the bundled BM_CII stagedJson sample.';
+  if (!hint.textContent.trim() || /InputXML/i.test(hint.textContent)) hint.textContent = 'Choose a stagedJson file or load the bundled BM_CII stagedJson sample.';
   return hint;
 }
 
@@ -139,7 +188,7 @@ function ensureFileDrop(section) {
   input.accept = '.json,.jscon,application/json';
   if (input.parentElement !== fileDrop) fileDrop.prepend(input);
 
-  if (!fileDrop.querySelector('i')) {
+  if (!fileDrop.querySelector('i') && !fileDrop.querySelector('svg')) {
     const icon = document.createElement('i');
     icon.setAttribute('data-lucide', 'upload');
     fileDrop.appendChild(icon);
@@ -192,7 +241,7 @@ function ensureButton(parent, id, className, iconName, text) {
   button.type = 'button';
   button.className = className;
   if (button.parentElement !== parent) parent.appendChild(button);
-  if (!button.querySelector('i')) {
+  if (!button.querySelector('i') && !button.querySelector('svg')) {
     const icon = document.createElement('i');
     icon.setAttribute('data-lucide', iconName);
     button.prepend(icon);
@@ -220,7 +269,7 @@ function normalizeInputControlLabels(section) {
     loadSampleBtn.title = 'Load BM_CII stagedJson sample';
     loadSampleBtn.setAttribute('aria-label', 'Load BM_CII stagedJson sample');
     const label = loadSampleBtn.querySelector('span');
-    if (label && !/BM_CII/i.test(label.textContent || '')) label.textContent = 'Load BM_CII stagedJson';
+    if (label) label.textContent = 'Load BM_CII stagedJson';
   }
 
   const clearBtn = document.getElementById('clearBtn');
@@ -232,6 +281,17 @@ function normalizeInputControlLabels(section) {
     closeInputBtn.setAttribute('aria-hidden', 'true');
     closeInputBtn.tabIndex = -1;
   }
+}
+
+function normalizeWorkflowCopy() {
+  const drawerHeadText = document.querySelector('#inputDrawer .drawer-head p');
+  if (drawerHeadText && /InputXML/i.test(drawerHeadText.textContent || '')) {
+    drawerHeadText.textContent = 'Load stagedJson, map supports, convert, then export GLB / RVM / ATT.';
+  }
+  const hint = document.getElementById('workflowHint');
+  if (hint && /InputXML/i.test(hint.textContent || '')) hint.textContent = 'Load stagedJson or BM_CII stagedJson sample to begin.';
+  const canvasHint = document.getElementById('hint');
+  if (canvasHint && /InputXML/i.test(canvasHint.textContent || '')) canvasHint.textContent = 'Load stagedJson or BM_CII stagedJson sample to begin.';
 }
 
 function forceInputControlsExpanded(section) {
@@ -366,11 +426,14 @@ function checklist() {
     loadSampleVisible: Boolean(loadSampleBtn && loadSampleBtn.hidden === false),
     clearAllVisible: Boolean(document.getElementById('clearBtn')),
     actionRowVisible: Boolean(inputActions && inputActions.hidden === false),
+    postBootstrapReassertions: true,
+    postBootstrapEvents: POST_BOOTSTRAP_REASSERT_EVENTS.slice(),
     sampleStateSeparateFromFileStatus: true,
     compactStaticInputBlock: Boolean(section?.dataset.phase4aInput === 'compact-static'),
     layoutOwner: section?.dataset.layoutOwner || 'static-css',
     noRuntimeLayoutStyleInjection: true,
     noPolling: true,
+    noMutationObserver: true,
     noSceneTraversal: true
   };
 }

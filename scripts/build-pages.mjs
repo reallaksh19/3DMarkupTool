@@ -6,7 +6,7 @@ import { rollup } from 'rollup';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const SITE_DIR = path.join(ROOT, '_site');
 const ASSET_DIR = path.join(SITE_DIR, 'assets');
-const VERSION = 'input-load-controls-restored-20260626';
+const VERSION = 'input-postbootstrap-reassert-20260626';
 const LEGACY_CACHE_KEYS = Object.freeze([
   'tool-fixes-v2-20260620',
   'support-ui-render-export-fix-20260623',
@@ -24,7 +24,8 @@ const LEGACY_CACHE_KEYS = Object.freeze([
   'support-ringless-input-panel-revamp-20260624',
   'staged-json-review-ui-rvm-fix-20260625',
   'workflow-input-expanded-load-controls-20260625',
-  'input-load-controls-restored-20260626'
+  'input-load-controls-restored-20260626',
+  'input-postbootstrap-reassert-20260626'
 ]);
 
 await rm(SITE_DIR, { recursive: true, force: true });
@@ -42,8 +43,6 @@ await assertFile(path.join(ASSET_DIR, 'static-shell.bundle.js'), 'Pages static s
 console.log('Built GitHub Pages artifact with bundled app/static shell assets.');
 
 async function copyStaticSite(from, to) {
-  // fs.cp rejects copying into a subdirectory of itself at the path-check
-  // stage, before the filter runs — so we walk the tree manually instead.
   await mkdir(to, { recursive: true });
   const entries = await readdir(from, { withFileTypes: true });
   for (const entry of entries) {
@@ -66,9 +65,6 @@ async function copyStaticSite(from, to) {
 }
 
 async function ensurePagesIndexArtifact() {
-  // Keep the Pages entry point explicit.  The recursive copier normally copies
-  // root/index.html, but the deploy workflow validates this exact path and a
-  // missing index should fail inside the build step with a useful message.
   const sourceIndex = path.join(ROOT, 'index.html');
   const siteIndex = path.join(SITE_DIR, 'index.html');
   await assertFile(sourceIndex, 'source index.html');

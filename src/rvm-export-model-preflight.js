@@ -27,6 +27,7 @@ export function assertRvmExportModelPreflight(exportModel = {}) {
     primitiveCount: 0,
     reviewNameCount: 0,
     implicitSphereDirectionCount: 0,
+    explicitBasisPrimitiveCount: 0,
     kindCounts: {},
     materialIds: new Set(),
     layerNames: new Set()
@@ -109,6 +110,13 @@ function validateCenter(value, primitiveName) {
 }
 
 function validateDirectionPolicy(primitive, primitiveName, summary) {
+  if (primitive.basis?.x && primitive.basis?.y && primitive.basis?.z) {
+    finiteArray(primitive.basis.x, 3, `RVM primitive ${primitiveName} basis.x`);
+    finiteArray(primitive.basis.y, 3, `RVM primitive ${primitiveName} basis.y`);
+    finiteArray(primitive.basis.z, 3, `RVM primitive ${primitiveName} basis.z`);
+    summary.explicitBasisPrimitiveCount += 1;
+    return;
+  }
   if (primitive.kind === 'sphere' && primitive.direction === undefined) {
     summary.implicitSphereDirectionCount += 1;
     return;
@@ -137,6 +145,22 @@ function validatePrimitiveDimensions(primitive, primitiveName) {
     positiveArray(primitive.top, 2, `RVM primitive ${primitiveName} top`);
     finiteArray(primitive.offset, 2, `RVM primitive ${primitiveName} offset`);
     positiveNumber(primitive.height, `RVM primitive ${primitiveName} height`);
+    return;
+  }
+
+  if (primitive.kind === 'elbow') {
+    positiveNumber(primitive.bendRadius, `RVM primitive ${primitiveName} bendRadius`);
+    positiveNumber(primitive.tubeRadius, `RVM primitive ${primitiveName} tubeRadius`);
+    positiveNumber(primitive.sweepAngleRad, `RVM primitive ${primitiveName} sweepAngleRad`);
+    return;
+  }
+
+  if (primitive.kind === 'snout') {
+    positiveNumber(primitive.radiusBottom, `RVM primitive ${primitiveName} radiusBottom`);
+    nonNegativeNumber(primitive.radiusTop, `RVM primitive ${primitiveName} radiusTop`);
+    positiveNumber(primitive.height, `RVM primitive ${primitiveName} height`);
+    finiteNumber(primitive.offsetX || 0, `RVM primitive ${primitiveName} offsetX`);
+    finiteNumber(primitive.offsetY || 0, `RVM primitive ${primitiveName} offsetY`);
     return;
   }
 
@@ -187,6 +211,22 @@ function positiveNumber(value, context) {
   const parsed = Number(value);
   if (!Number.isFinite(parsed) || parsed <= 0) {
     throw new Error(`${context} must be a positive finite number`);
+  }
+  return parsed;
+}
+
+function nonNegativeNumber(value, context) {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed < 0) {
+    throw new Error(`${context} must be a non-negative finite number`);
+  }
+  return parsed;
+}
+
+function finiteNumber(value, context) {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) {
+    throw new Error(`${context} must be a finite number`);
   }
   return parsed;
 }

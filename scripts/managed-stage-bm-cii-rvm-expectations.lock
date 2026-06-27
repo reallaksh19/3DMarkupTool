@@ -1,2 +1,0 @@
-BM_CII expectations are centralized in scripts/managed-stage-bm-cii-rvm-expectations.mjs.
-Do not duplicate primitive count blocks in generator, verifier, inspection, or profile scripts.

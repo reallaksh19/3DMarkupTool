@@ -28,6 +28,7 @@ export function auditManagedStageRvmGeometry(manifest = {}, payloadSemanticsAudi
       elementCount: elements.length,
       primitiveCount: geometryPrimitives.length,
       primitiveCodeHistogram: histogram(geometryPrimitives.map((primitive) => primitive.emittedCode)),
+      primitiveRoleTagCounts: groupCount(geometryPrimitives.map(roleTag)),
       code4Elbows: summarizeElbows(code4, payloadSemanticsAudit.code4),
       code7Snouts: summarizeSnouts(code7, payloadSemanticsAudit.code7),
       code9Spheres: summarizeSpheres(code9, payloadSemanticsAudit.code9),
@@ -36,6 +37,7 @@ export function auditManagedStageRvmGeometry(manifest = {}, payloadSemanticsAudi
     supportOverlay: {
       primitiveCount: supportPrimitives.length,
       primitiveCodeHistogram: supportCodeHistogram,
+      primitiveRoleTagCounts: groupCount(supportPrimitives.map(roleTag)),
       allowedPrimitiveCodes: [...SUPPORT_CODES],
       isolatedFromPipeFittingCodes: supportPipeFittingCodes.length === 0,
       nonCode8PrimitiveCount: supportNonCode8.length
@@ -51,58 +53,59 @@ function summarizeElbows(entries, semantics = {}) {
     payloadIssueCount: semantics.issueCount || 0,
     sweepAngleRad: numericSummary(sweeps),
     bendRadiusMm: numericSummary(radii),
-    samples: entries.slice(0, 12).map((entry) => ({
-      element: entry.element.reviewName || entry.element.inputName || '',
-      localName: entry.localName,
-      bodyLength: entry.bodyLength,
-      dimensions: entry.dimensions
-    }))
+    roleTagCounts: groupCount(entries.map(roleTag)),
+    samples: entries.slice(0, 12).map(sampleEntry)
   };
 }
 
 function summarizeSnouts(entries, semantics = {}) {
-  const byRole = groupCount(entries.map((entry) => entry.localName));
-  const flangeHubCount = entries.filter((entry) => /weldNeckHub/i.test(entry.localName || '')).length;
-  const reducerCount = entries.filter((entry) => /reducerSnout/i.test(entry.localName || '')).length;
+  const roleTags = entries.map(roleTag);
+  const flangeHubCount = roleTags.filter((tag) => tag === 'flangeHubSnout').length;
+  const reducerCount = roleTags.filter((tag) => tag === 'reducerSnout').length;
   return {
     count: entries.length,
     payloadIssueCount: semantics.issueCount || 0,
-    roleCounts: byRole,
+    roleTagCounts: groupCount(roleTags),
     flangeHubCount,
     reducerCount,
-    samples: entries.slice(0, 12).map((entry) => ({
-      element: entry.element.reviewName || entry.element.inputName || '',
-      localName: entry.localName,
-      dtxr: entry.element.dtxr || '',
-      bodyLength: entry.bodyLength,
-      dimensions: entry.dimensions
-    }))
+    samples: entries.slice(0, 12).map(sampleEntry)
   };
 }
 
 function summarizeSpheres(entries, semantics = {}) {
-  const valveBodyCount = entries.filter((entry) => /centralBallBody/i.test(entry.localName || '')).length;
+  const roleTags = entries.map(roleTag);
+  const valveBodyCount = roleTags.filter((tag) => tag === 'valveBodySphere').length;
   return {
     count: entries.length,
     payloadIssueCount: semantics.issueCount || 0,
     valveBodyCount,
-    roleCounts: groupCount(entries.map((entry) => entry.localName)),
-    samples: entries.slice(0, 12).map((entry) => ({
-      element: entry.element.reviewName || entry.element.inputName || '',
-      localName: entry.localName,
-      dtxr: entry.element.dtxr || '',
-      bodyLength: entry.bodyLength,
-      dimensions: entry.dimensions
-    }))
+    roleTagCounts: groupCount(roleTags),
+    samples: entries.slice(0, 12).map(sampleEntry)
   };
 }
 
 function summarizeCylinders(entries) {
   return {
     count: entries.length,
-    roleCounts: groupCount(entries.map((entry) => entry.localName)),
+    roleTagCounts: groupCount(entries.map(roleTag)),
     genericInputXmlFallbackCount: entries.filter((entry) => /^source-route-bend|^node-local-elbow|generic-branch/i.test(entry.localName || '')).length
   };
+}
+
+function sampleEntry(entry) {
+  return {
+    element: entry.element.reviewName || entry.element.inputName || '',
+    localName: entry.localName,
+    primitiveRole: entry.primitiveRole || '',
+    primitiveRoleTag: roleTag(entry),
+    dtxr: entry.element.dtxr || '',
+    bodyLength: entry.bodyLength,
+    dimensions: entry.dimensions
+  };
+}
+
+function roleTag(entry) {
+  return String(entry?.primitiveRoleTag || entry?.primitiveRole || entry?.localName || 'UNNAMED');
 }
 
 function histogram(values) {

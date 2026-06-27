@@ -27,6 +27,8 @@ export function buildManagedStageRvmStitchManifest(profile = {}, exportModel = {
       return {
         index: primitiveIndex + 1,
         localName: primitive.localName || primitive.name || `PRIM_${primitiveIndex + 1}`,
+        primitiveRole: primitive.primitiveRole || primitive.localName || '',
+        primitiveRoleTag: primitive.primitiveRoleTag || primitive.primitiveRole || primitive.localName || '',
         kind: primitive.kind,
         expectedCode,
         emittedCode: Number(decoded.code),
@@ -50,6 +52,7 @@ export function buildManagedStageRvmStitchManifest(profile = {}, exportModel = {
       material: node.material ?? null,
       primitiveCount: primitives.length,
       primitiveCodes: primitives.map((primitive) => primitive.emittedCode),
+      primitiveRoleTags: primitives.map((primitive) => primitive.primitiveRoleTag),
       primitives
     };
   });
@@ -66,6 +69,8 @@ export function buildManagedStageRvmStitchManifest(profile = {}, exportModel = {
     return {
       index: index + 1,
       localName: planned.localName || planned.name || `SUPPORT_PRIM_${index + 1}`,
+      primitiveRole: planned.primitiveRole || planned.localName || '',
+      primitiveRoleTag: planned.primitiveRoleTag || planned.primitiveRole || planned.localName || '',
       kind: planned.kind || '',
       expectedCode,
       emittedCode: Number(decoded.code),

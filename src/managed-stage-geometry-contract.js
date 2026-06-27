@@ -1,7 +1,7 @@
 import { distance, point3 } from './managed-stage-topology-audit.js?v=bust-cache-4';
 
 const EPS_MM = 0.001;
-const SUPPORTED_DTXR = new Set(['PIPE', 'UNSPECIFIED', 'BEND', 'FLANGE', 'FLANGE_PAIR', 'VALVE', 'FLANGED_VALVE']);
+const SUPPORTED_DTXR = new Set(['PIPE', 'UNSPECIFIED', 'BEND', 'FLANGE', 'FLANGE_PAIR', 'REDUCER', 'VALVE', 'FLANGED_VALVE']);
 const DTXR_ALIASES = new Map([
   ['FLAN', 'FLANGE'],
   ['FLG', 'FLANGE'],
@@ -12,6 +12,13 @@ const DTXR_ALIASES = new Map([
   ['WELD_NECK', 'FLANGE'],
   ['WELDNECK_FLANGE', 'FLANGE'],
   ['WELD_NECK_FLANGE', 'FLANGE'],
+  ['RED', 'REDUCER'],
+  ['REDUC', 'REDUCER'],
+  ['REDUCER', 'REDUCER'],
+  ['CONCENTRIC_REDUCER', 'REDUCER'],
+  ['ECCENTRIC_REDUCER', 'REDUCER'],
+  ['CONC_REDUCER', 'REDUCER'],
+  ['ECC_REDUCER', 'REDUCER'],
   ['VALV', 'VALVE'],
   ['BV', 'VALVE'],
   ['BALL', 'VALVE'],
@@ -78,7 +85,9 @@ export function createManagedStageGeometryContract(record, elementIndex = 0, opt
   const lengthMm = distance(start, end);
   if (!(lengthMm > 0)) throw new Error(`Zero-length managed-stage geometry contract: ${record.name || a.NAME || 'UNNAMED'}`);
 
-  const diameterMm = parseMm(a.DIAMETER || a.BORE || a.ABORE || a.LBORE);
+  const startDiameterMm = parseOptionalMm(a.ABORE || a.START_DIAMETER || a.START_BORE);
+  const endDiameterMm = parseOptionalMm(a.LBORE || a.END_DIAMETER || a.END_BORE);
+  const diameterMm = parseMm(a.DIAMETER || a.BORE || startDiameterMm || endDiameterMm);
   if (!(diameterMm > 0)) throw new Error(`Missing/invalid diameter for ${record.name || a.NAME || 'UNNAMED'}`);
 
   const axis = normalize(vsub(end, start));
@@ -105,6 +114,12 @@ export function createManagedStageGeometryContract(record, elementIndex = 0, opt
     lengthMm,
     diameterMm,
     radiusMm: diameterMm / 2,
+    startDiameterMm: startDiameterMm || diameterMm,
+    endDiameterMm: endDiameterMm || diameterMm,
+    startRadiusMm: (startDiameterMm || diameterMm) / 2,
+    endRadiusMm: (endDiameterMm || diameterMm) / 2,
+    reducerOffsetXMm: parseOptionalNumber(a.REDUCER_OFFSET_X || a.ECC_OFFSET_X || a.OFFSET_X || a.XOFFSET) || 0,
+    reducerOffsetYMm: parseOptionalNumber(a.REDUCER_OFFSET_Y || a.ECC_OFFSET_Y || a.OFFSET_Y || a.YOFFSET) || 0,
     material: a.MATERIAL || '',
     wallThickMm: parseOptionalMm(a.WALL_THICK),
     sourceFormat: a.SOURCE_FORMAT || '',
@@ -119,7 +134,7 @@ export function createManagedStageGeometryContract(record, elementIndex = 0, opt
     if (!(bendRadiusMm > 0)) bendIssues.push(`Missing/invalid bend radius for ${contract.name}`);
     if (!(bendAngleDeg > 0)) bendIssues.push(`Missing/invalid bend angle for ${contract.name}`);
     if (bendIssues.length) {
-      if (!warningOnly(options)) throw new Error(bendIssues[0]);
+      if (!warningOnly(options)) throw error;
       for (const issue of bendIssues) warnings.push(geometryWarning('bend-arc-degraded-to-source-route', contract.name, issue));
       contract.centerlineKind = 'line';
       contract.excludeCode4Bend = true;
@@ -217,6 +232,7 @@ export function componentClassForDtxr(dtxr) {
   if (normalized === 'BEND') return 'BEND';
   if (normalized === 'FLANGE') return 'FLANGE';
   if (normalized === 'FLANGE_PAIR') return 'FLANGE_PAIR';
+  if (normalized === 'REDUCER') return 'REDUCER';
   if (normalized === 'VALVE') return 'VALVE';
   if (normalized === 'FLANGED_VALVE') return 'FLANGED_VALVE';
   return 'UNKNOWN';
@@ -239,36 +255,38 @@ function geometryWarning(code, elementName, message) {
 }
 
 function parseMm(value) {
-  if (typeof value === 'number') return value;
-  return Number(String(value || '').replace(/mm$/i, '').trim());
+  const parsed = parseOptionalMm(value);
+  if (!(parsed > 0)) return NaN;
+  return parsed;
 }
 
 function parseOptionalMm(value) {
   if (value === undefined || value === null || value === '') return null;
-  const parsed = parseMm(value);
-  return Number.isFinite(parsed) ? parsed : null;
+  const match = String(value).match(/-?\d+(?:\.\d+)?/);
+  if (!match) return null;
+  return Number(match[0]);
 }
 
 function parseOptionalNumber(value) {
   if (value === undefined || value === null || value === '') return null;
-  const parsed = Number(value);
-  return Number.isFinite(parsed) ? parsed : null;
+  const number = Number(String(value).replace(/[^0-9.+-]/g, ''));
+  return Number.isFinite(number) ? number : null;
 }
 
-function normalize(v) {
-  const l = Math.hypot(v[0], v[1], v[2]);
-  if (!(l > 0)) throw new Error('Zero-length geometry direction');
-  return [v[0] / l, v[1] / l, v[2] / l];
-}
-
-function midpoint(a, b) {
-  return [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2, (a[2] + b[2]) / 2];
+function normalize(vector) {
+  const length = Math.hypot(vector[0], vector[1], vector[2]);
+  if (!(length > 0)) throw new Error('Cannot normalize zero-length vector');
+  return vector.map((entry) => entry / length);
 }
 
 function vsub(a, b) {
   return [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
 }
 
+function midpoint(a, b) {
+  return [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2, (a[2] + b[2]) / 2];
+}
+
 function round(value) {
-  return Number(Number(value).toFixed(9));
+  return Math.round(Number(value || 0) * 1000) / 1000;
 }

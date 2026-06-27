@@ -46,6 +46,7 @@ export function managedStageComponentClass(recordOrContract) {
   if (dtxr === 'BEND') return 'BEND';
   if (dtxr === 'FLANGE') return 'FLANGE';
   if (dtxr === 'FLANGE_PAIR') return 'FLANGE_PAIR';
+  if (dtxr === 'REDUCER') return 'REDUCER';
   if (dtxr === 'VALVE') return 'VALVE';
   if (dtxr === 'FLANGED_VALVE') return 'FLANGED_VALVE';
   return 'UNKNOWN';
@@ -54,6 +55,7 @@ export function managedStageComponentClass(recordOrContract) {
 export function managedStageMaterialForClass(componentClass) {
   if (componentClass === 'PIPE') return MANAGED_STAGE_RVM_MATERIALS.PIPE;
   if (componentClass === 'BEND') return MANAGED_STAGE_RVM_MATERIALS.FITTING;
+  if (componentClass === 'REDUCER') return MANAGED_STAGE_RVM_MATERIALS.FITTING;
   if (componentClass.includes('FLANGE')) return MANAGED_STAGE_RVM_MATERIALS.FLANGE;
   if (componentClass.includes('VALVE')) return MANAGED_STAGE_RVM_MATERIALS.VALVE;
   if (componentClass === 'UNKNOWN_PIPELIKE') return MANAGED_STAGE_RVM_MATERIALS.UNKNOWN_PIPELIKE;

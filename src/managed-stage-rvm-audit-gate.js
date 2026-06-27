@@ -1,5 +1,5 @@
-const FORBIDDEN_CODES = Object.freeze([2, 5, 6, 7, 11]);
-const ALLOWED_CODES = Object.freeze([1, 4, 8]);
+const FORBIDDEN_CODES = Object.freeze([2, 5, 6, 11]);
+const ALLOWED_CODES = Object.freeze([1, 4, 7, 8, 9]);
 const SUPPORT_ALLOWED_CODES = Object.freeze([8]);
 const SUPPORT_FORBIDDEN_CODES = Object.freeze([1, 5, 6, 7, 11]);
 const DEFAULT_GAP_TOLERANCE_MM = 0.001;
@@ -70,7 +70,9 @@ export function assertManagedStageRvmAuditGate(audit = {}, expectations = {}) {
   checkExpected(expectations.supportRvmPrimitiveCount, supportExport.supportPrimitiveCount, 'expected support RVM primitive count', issues);
   checkExpected(expectations.code1, primitiveHistogram[1] || 0, 'expected code 1 pyramid primitives', issues);
   checkExpected(expectations.code4, primitiveHistogram[4] || 0, 'expected code 4 torus primitives', issues);
+  checkExpected(expectations.code7, primitiveHistogram[7] || 0, 'expected code 7 snout primitives', issues);
   checkExpected(expectations.code8, primitiveHistogram[8] || 0, 'expected code 8 cylinder primitives', issues);
+  checkExpected(expectations.code9, primitiveHistogram[9] || 0, 'expected code 9 sphere primitives', issues);
   checkExpected(expectations.cntbCount, chunkHierarchy.cntbCount, 'expected CNTB count', issues);
   checkExpected(expectations.primCount, chunkHierarchy.primCount, 'expected PRIM count', issues);
 
@@ -178,5 +180,5 @@ function requireEqual(actual, expected, label, issues) { if (actual !== expected
 function requireTruthy(value, label, issues) { if (!value) issues.push(`${label}: expected truthy value`); }
 function requirePositive(value, label, issues) { if (!(Number(value) > 0)) issues.push(`${label}: expected positive number, got ${value}`); }
 function requireAtLeast(value, min, label, issues) { if (!(Number(value) >= min)) issues.push(`${label}: expected >= ${min}, got ${value}`); }
-function requireMax(value, max, label, issues) { if (!(Number(value) <= max)) issues.push(`${label}: expected <= ${max}, got ${value}`); }
-function requireArrayEmpty(value, label, issues) { if (Array.isArray(value) && value.length) issues.push(`${label}: expected empty array, got ${value.length} entries`); }
+function requireMax(value, max, label, issues) { if (Number(value) > Number(max)) issues.push(`${label}: expected <= ${max}, got ${value}`); }
+function requireArrayEmpty(value, label, issues) { if (Array.isArray(value) && value.length) issues.push(`${label}: expected empty array`); }

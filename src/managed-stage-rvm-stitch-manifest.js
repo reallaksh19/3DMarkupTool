@@ -1,4 +1,4 @@
-const PRIMITIVE_CODE_BY_KIND = Object.freeze({ pyramid: 1, cylinder: 8, elbow: 4 });
+const PRIMITIVE_CODE_BY_KIND = Object.freeze({ pyramid: 1, box: 2, elbow: 4, snout: 7, cylinder: 8, sphere: 9 });
 const SUPPORT_OVERLAY_PRIMITIVE_CODES = Object.freeze([8]);
 
 export function buildManagedStageRvmStitchManifest(profile = {}, exportModel = {}, primitivePayloads = []) {
@@ -83,7 +83,7 @@ export function buildManagedStageRvmStitchManifest(profile = {}, exportModel = {
   return {
     schema: 'ManagedStageRvmStitchManifest.v1',
     stitchStrategy: 'single RVM stream assembled from ordered managed-stage piping element CNTB nodes plus optional support overlay CNTB nodes',
-    supportOverlayPolicy: 'support overlays are Review-safe code-8 cylinder bar glyphs only; filled code-1 pyramid/cone substitutes are blocked',
+    supportOverlayPolicy: 'support overlays are Review-safe code-8 cylinder bar glyphs only; filled code-1 pyramid/cone/snout substitutes are blocked',
     elementCount: elements.length,
     exportElementNodeCount: elementNodes.length,
     primitiveCount: elements.reduce((sum, element) => sum + element.primitiveCount, 0) + supportOverlayPrimitives.length,
@@ -149,6 +149,12 @@ function managedStageSupportNodes(exportModel) {
 function primitiveDimensions(primitive) {
   if (primitive?.kind === 'cylinder') {
     return { radiusMm: round(primitive.radius), lengthMm: round(primitive.length) };
+  }
+  if (primitive?.kind === 'snout') {
+    return { radiusBottomMm: round(primitive.radiusBottom), radiusTopMm: round(primitive.radiusTop), heightMm: round(primitive.height), offsetX: round(primitive.offsetX), offsetY: round(primitive.offsetY) };
+  }
+  if (primitive?.kind === 'sphere') {
+    return { diameterMm: round(primitive.diameter) };
   }
   if (primitive?.kind === 'pyramid') {
     return { bottomMm: (primitive.bottom || []).map(round), topMm: (primitive.top || []).map(round), heightMm: round(primitive.height) };

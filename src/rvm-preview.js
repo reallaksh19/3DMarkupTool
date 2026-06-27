@@ -164,9 +164,12 @@ function createSnout(primitive, fallbackMaterialId) {
     throw new Error('Invalid RVM preview snout radii: at least one radius must be positive');
   }
   const height = positiveNumber(primitive.height, 'height');
+  const offsetX = finiteNumberOrDefault(primitive.offsetX, 0, 'offsetX');
+  const offsetY = finiteNumberOrDefault(primitive.offsetY, 0, 'offsetY');
   const geometry = new THREE.CylinderGeometry(radiusTop, radiusBottom, height, 24, 1, false);
   // Three.js CylinderGeometry is local-Y aligned. RVM Snout is local-Z aligned.
   geometry.rotateX(Math.PI / 2);
+  applySnoutTopOffset(geometry, height, offsetX, offsetY);
   geometry.computeBoundingBox();
   geometry.computeBoundingSphere();
   const mesh = new THREE.Mesh(geometry, materialFor(primitive, fallbackMaterialId));
@@ -184,6 +187,20 @@ function createSnout(primitive, fallbackMaterialId) {
     heightAxis: 'basis.z'
   };
   return mesh;
+}
+
+function applySnoutTopOffset(geometry, height, offsetX, offsetY) {
+  if (Math.abs(offsetX) < 1e-9 && Math.abs(offsetY) < 1e-9) return;
+  const position = geometry.getAttribute('position');
+  const topZ = height / 2;
+  for (let index = 0; index < position.count; index += 1) {
+    if (position.getZ(index) > topZ - 1e-6) {
+      position.setX(index, position.getX(index) + offsetX);
+      position.setY(index, position.getY(index) + offsetY);
+    }
+  }
+  position.needsUpdate = true;
+  geometry.computeVertexNormals();
 }
 
 function createSphere(primitive, fallbackMaterialId) {
@@ -352,5 +369,12 @@ function positiveNumber(value, fieldName) {
 function nonNegativeNumber(value, fieldName) {
   const parsed = Number(value);
   if (!Number.isFinite(parsed) || parsed < 0) throw new Error(`Invalid RVM preview ${fieldName}: expected non-negative number`);
+  return parsed;
+}
+
+function finiteNumberOrDefault(value, defaultValue, fieldName) {
+  if (value === undefined || value === null || value === '') return defaultValue;
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) throw new Error(`Invalid RVM preview ${fieldName}: expected finite number`);
   return parsed;
 }

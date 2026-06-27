@@ -4,7 +4,6 @@ import { buildRvmPrimitiveTransform } from './rvm-axis-basis-policy.js?v=bust-ca
 import { resolveRvmCntbPosition } from './rvm-cntb-coordinate-policy.js?v=bust-cache-4';
 import { RVM_COLR_BODY_VERSION, collectRvmColrMaterialRecords } from './rvm-colr-material-policy.js?v=bust-cache-4';
 import {
-  RVM_CODE4_ELBOW_PRIMITIVE_CODE,
   assertExperimentalRvmCode4ElbowWriterCandidate,
   buildRvmCode4ElbowLocalBbox
 } from './rvm-experimental-code4-elbow-writer-policy.js?v=bust-cache-4';
@@ -24,6 +23,17 @@ import {
 const REVIEW_CHUNK_HEADER_MARKER = 1;
 const REVIEW_CONTAINER_CLOSE_BODY_MARKER = 2;
 const REVIEW_END_BODY_MARKER = 1;
+
+const PRIMITIVE_BODY_WRITERS = Object.freeze({
+  pyramid: writePyramidPrimitivePayload,
+  box: writeBoxPrimitivePayload,
+  elbow: writeElbowPrimitivePayload,
+  snout: writeSnoutPrimitivePayload,
+  cylinder: writeCylinderPrimitivePayload,
+  sphere: writeSpherePrimitivePayload
+});
+
+export const RVM_WRITER_PRIMITIVE_KINDS = Object.freeze(Object.keys(PRIMITIVE_BODY_WRITERS));
 
 export function writeRvm(exportModel, options = {}) {
   const writer = createChunkWriter();
@@ -94,56 +104,73 @@ function reviewNodeName(node) {
 
 function primitiveBody(primitive, options = {}) {
   assertPrimitiveMaterial(primitive);
+  const writer = PRIMITIVE_BODY_WRITERS[String(primitive?.kind || '')];
+  if (!writer) throw new Error(`Unsupported RVM primitive kind: ${primitive?.kind}`);
+
   const matrix = buildRvmPrimitiveTransform(primitive);
   const bbox = localBboxForPrimitive(primitive);
-  const code = primitive.kind === 'elbow'
-    ? RVM_CODE4_ELBOW_PRIMITIVE_CODE
-    : rvmPrimitiveCodeForKind(primitive.kind);
+  const code = rvmPrimitiveCodeForKind(primitive.kind);
   const common = [
     uint32Body(1),
     uint32Body(code),
     float32ArrayBody(matrix),
     float32ArrayBody(bbox)
   ];
+  return writer(primitive, common, bbox, options);
+}
 
-  if (primitive.kind === 'elbow') {
-    const candidate = assertExperimentalRvmCode4ElbowWriterCandidate(primitive, bbox, options);
-    return concatBuffers(common.concat(candidate.payload.map((value) => float32Body(value))));
-  }
+function writeElbowPrimitivePayload(primitive, common, bbox, options = {}) {
+  const candidate = assertExperimentalRvmCode4ElbowWriterCandidate(primitive, bbox, options);
+  return concatBuffers(common.concat(candidate.payload.map((value) => float32Body(value))));
+}
 
-  if (primitive.kind === 'cylinder') {
-    return concatBuffers(common.concat([
-      float32Body(positiveNumber(primitive.radius, 'radius')),
-      float32Body(positiveNumber(primitive.length, 'length'))
-    ]));
-  }
+function writeCylinderPrimitivePayload(primitive, common) {
+  return concatBuffers(common.concat([
+    float32Body(positiveNumber(primitive.radius, 'radius')),
+    float32Body(positiveNumber(primitive.length, 'length'))
+  ]));
+}
 
-  if (primitive.kind === 'box') {
-    return concatBuffers(common.concat(float32ArrayBody(lengths3(primitive.lengths))));
-  }
+function writeBoxPrimitivePayload(primitive, common) {
+  return concatBuffers(common.concat(float32ArrayBody(lengths3(primitive.lengths))));
+}
 
-  if (primitive.kind === 'pyramid') {
-    const bottom = lengths2(primitive.bottom);
-    const top = lengths2(primitive.top);
-    const offset = numberPair(primitive.offset, 'offset');
-    return concatBuffers(common.concat([
-      float32Body(bottom[0]),
-      float32Body(bottom[1]),
-      float32Body(top[0]),
-      float32Body(top[1]),
-      float32Body(offset[0]),
-      float32Body(offset[1]),
-      float32Body(positiveNumber(primitive.height, 'height'))
-    ]));
-  }
+function writePyramidPrimitivePayload(primitive, common) {
+  const bottom = lengths2(primitive.bottom);
+  const top = lengths2(primitive.top);
+  const offset = numberPair(primitive.offset, 'offset');
+  return concatBuffers(common.concat([
+    float32Body(bottom[0]),
+    float32Body(bottom[1]),
+    float32Body(top[0]),
+    float32Body(top[1]),
+    float32Body(offset[0]),
+    float32Body(offset[1]),
+    float32Body(positiveNumber(primitive.height, 'height'))
+  ]));
+}
 
-  if (primitive.kind === 'sphere') {
-    // PDMS Code 11 takes Radius
-    const radius = positiveNumber(primitive.diameter, 'diameter') / 2;
-    return concatBuffers(common.concat([float32Body(radius)]));
-  }
+function writeSpherePrimitivePayload(primitive, common) {
+  return concatBuffers(common.concat([float32Body(positiveNumber(primitive.diameter, 'diameter'))]));
+}
 
-  throw new Error(`Unsupported RVM primitive kind: ${primitive.kind}`);
+function writeSnoutPrimitivePayload(primitive, common) {
+  const radiusBottom = positiveNumber(primitive.radiusBottom, 'radiusBottom');
+  const radiusTop = nonNegativeNumber(primitive.radiusTop, 'radiusTop');
+  const height = positiveNumber(primitive.height, 'height');
+  const offsetX = finiteNumber(primitive.offsetX || 0, 'offsetX');
+  const offsetY = finiteNumber(primitive.offsetY || 0, 'offsetY');
+  return concatBuffers(common.concat([
+    float32Body(radiusBottom),
+    float32Body(radiusTop),
+    float32Body(height),
+    float32Body(offsetX),
+    float32Body(offsetY),
+    float32Body(0),
+    float32Body(0),
+    float32Body(0),
+    float32Body(0)
+  ]));
 }
 
 function assertPrimitiveMaterial(primitive) {
@@ -181,6 +208,17 @@ function localBboxForPrimitive(primitive) {
   if (primitive.kind === 'sphere') {
     const radius = positiveNumber(primitive.diameter, 'diameter') / 2;
     return [-radius, -radius, -radius, radius, radius, radius];
+  }
+
+  if (primitive.kind === 'snout') {
+    const radiusBottom = positiveNumber(primitive.radiusBottom, 'radiusBottom');
+    const radiusTop = nonNegativeNumber(primitive.radiusTop, 'radiusTop');
+    const height = positiveNumber(primitive.height, 'height');
+    const offsetX = finiteNumber(primitive.offsetX || 0, 'offsetX');
+    const offsetY = finiteNumber(primitive.offsetY || 0, 'offsetY');
+    const r = Math.max(radiusBottom, radiusTop) + Math.max(Math.abs(offsetX), Math.abs(offsetY));
+    const half = height / 2;
+    return [-r, -r, -half, r, r, half];
   }
 
   throw new Error(`Unsupported RVM primitive kind: ${primitive.kind}`);
@@ -297,6 +335,22 @@ function positiveNumber(value, fieldName) {
   const parsed = Number(value);
   if (!Number.isFinite(parsed) || parsed <= 0) {
     throw new Error(`Invalid RVM ${fieldName}: expected positive number`);
+  }
+  return parsed;
+}
+
+function nonNegativeNumber(value, fieldName) {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed < 0) {
+    throw new Error(`Invalid RVM ${fieldName}: expected non-negative number`);
+  }
+  return parsed;
+}
+
+function finiteNumber(value, fieldName) {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) {
+    throw new Error(`Invalid RVM ${fieldName}: expected finite number`);
   }
   return parsed;
 }

@@ -30,6 +30,14 @@ const MATERIAL_BY_RVM_ID = new Map([
   [31, PREVIEW_COLORS.spring]
 ]);
 
+export const RVM_PREVIEW_PRIMITIVE_MESH_BUILDERS = new Map([
+  ['cylinder', createCylinder],
+  ['elbow', createElbow],
+  ['sphere', createSphere],
+  ['box', createBox],
+  ['pyramid', createPyramid]
+]);
+
 /**
  * Creates a Three.js scene from the generated RVM export tree.
  * Parameters: export tree returned by convertInputXmlToRvmAtt or convertManagedStageJsonToRvmAtt.
@@ -106,12 +114,12 @@ function createAnnotationOverlay(node) {
 }
 
 function createPrimitiveMesh(primitive, fallbackMaterialId) {
-  if (primitive.kind === 'cylinder') return createCylinder(primitive, fallbackMaterialId);
-  if (primitive.kind === 'elbow') return createElbow(primitive, fallbackMaterialId);
-  if (primitive.kind === 'sphere') return createSphere(primitive, fallbackMaterialId);
-  if (primitive.kind === 'box') return createBox(primitive, fallbackMaterialId);
-  if (primitive.kind === 'pyramid') return createPyramid(primitive, fallbackMaterialId);
-  throw new Error(`Unsupported RVM preview primitive: ${primitive.kind}`);
+  const kind = String(primitive.kind || '');
+  const buildMesh = RVM_PREVIEW_PRIMITIVE_MESH_BUILDERS.get(kind);
+  if (!buildMesh) {
+    throw new Error(`Unsupported RVM preview primitive: ${primitive.kind}`);
+  }
+  return buildMesh(primitive, fallbackMaterialId);
 }
 
 function createCylinder(primitive, fallbackMaterialId) {

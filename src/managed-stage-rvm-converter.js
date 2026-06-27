@@ -5,6 +5,7 @@ import { assertRvmMaterialLayerContract } from './rvm-material-layer-contract.js
 import { assertRvmMaterialTableContract } from './rvm-material-table-contract.js?v=bust-cache-4';
 import { scanRvmPrimitivePayloads } from './rvm-primitive-payload-decoder.js?v=bust-cache-4';
 import { auditManagedStageRvmPayloadSemantics } from './managed-stage-rvm-payload-semantics-audit.js?v=bust-cache-4';
+import { auditManagedStageRvmGeometry } from './managed-stage-rvm-geometry-audit.js?v=bust-cache-4';
 import { writeRvm } from './rvm-writer.js?v=bust-cache-4';
 import { evaluateRvmCode4ElbowEmissionCandidate } from './rvm-code4-elbow-emission-candidate-policy.js?v=bust-cache-4';
 import { assertManagedStageRvmAuditGate } from './managed-stage-rvm-audit-gate.js?v=bust-cache-4';
@@ -51,6 +52,7 @@ export function convertManagedStageJsonToRvmAtt(sourceText, options = {}) {
   const boundingExtentsMm = computeExportModelBoundingExtents(exportModel);
   const chunkHierarchy = assertRvmChunkHierarchy(rvm, att, exportModel);
   const stitchManifest = buildManagedStageRvmStitchManifest(profile, exportModel, primitivePayloads);
+  const rvmGeometryAudit = auditManagedStageRvmGeometry(stitchManifest, primitivePayloadSemanticsAudit);
   const stitchManifestGate = warningOnlyGate('ManagedStageRvmStitchManifest', () => assertManagedStageRvmStitchManifest(stitchManifest), writerOptions);
   const supportRvmExportAudit = exportModel.audit?.supportRvmExportAudit || null;
   const supportTopologyAudit = exportModel.audit?.supportTopologyAudit || null;
@@ -84,6 +86,7 @@ export function convertManagedStageJsonToRvmAtt(sourceText, options = {}) {
     primitiveHistogram: primitivePayloadContract.codeCounts,
     primitiveBodyLengths: primitivePayloads.map((primitive) => ({ code: primitive.code, bodyLength: primitive.bodyLength })),
     rvmPrimitivePayloadSemanticsAudit: primitivePayloadSemanticsAudit,
+    rvmGeometryAudit,
     torusOrientationAssumptions: collectTorusAssumptions(exportModel.root),
     genericInputXmlBendAssumptions: collectGenericInputXmlBendAssumptions(exportModel.root),
     genericInputXmlNodeLocalElbowAssumptions: collectGenericInputXmlNodeLocalElbowAssumptions(exportModel.root),

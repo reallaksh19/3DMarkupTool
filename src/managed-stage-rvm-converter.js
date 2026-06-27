@@ -6,6 +6,9 @@ import { assertRvmMaterialTableContract } from './rvm-material-table-contract.js
 import { scanRvmPrimitivePayloads } from './rvm-primitive-payload-decoder.js?v=bust-cache-4';
 import { auditManagedStageRvmPayloadSemantics } from './managed-stage-rvm-payload-semantics-audit.js?v=bust-cache-4';
 import { auditManagedStageRvmGeometry } from './managed-stage-rvm-geometry-audit.js?v=bust-cache-4';
+import { auditManagedStageRvmElbows } from './managed-stage-rvm-elbow-audit.js?v=bust-cache-4';
+import { auditManagedStageRvmSegments } from './managed-stage-rvm-segment-audit.js?v=bust-cache-4';
+import { summarizeManagedStageRvmAudit } from './managed-stage-rvm-audit-summary.js?v=bust-cache-4';
 import { writeRvm } from './rvm-writer.js?v=bust-cache-4';
 import { evaluateRvmCode4ElbowEmissionCandidate } from './rvm-code4-elbow-emission-candidate-policy.js?v=bust-cache-4';
 import { assertManagedStageRvmAuditGate } from './managed-stage-rvm-audit-gate.js?v=bust-cache-4';
@@ -53,6 +56,9 @@ export function convertManagedStageJsonToRvmAtt(sourceText, options = {}) {
   const chunkHierarchy = assertRvmChunkHierarchy(rvm, att, exportModel);
   const stitchManifest = buildManagedStageRvmStitchManifest(profile, exportModel, primitivePayloads);
   const rvmGeometryAudit = auditManagedStageRvmGeometry(stitchManifest, primitivePayloadSemanticsAudit);
+  const torusOrientationAssumptions = collectTorusAssumptions(exportModel.root);
+  const rvmCode4ElbowAudit = auditManagedStageRvmElbows(torusOrientationAssumptions, primitivePayloadSemanticsAudit);
+  const rvmSegmentAudit = auditManagedStageRvmSegments(exportModel.root);
   const stitchManifestGate = warningOnlyGate('ManagedStageRvmStitchManifest', () => assertManagedStageRvmStitchManifest(stitchManifest), writerOptions);
   const supportRvmExportAudit = exportModel.audit?.supportRvmExportAudit || null;
   const supportTopologyAudit = exportModel.audit?.supportTopologyAudit || null;
@@ -87,7 +93,9 @@ export function convertManagedStageJsonToRvmAtt(sourceText, options = {}) {
     primitiveBodyLengths: primitivePayloads.map((primitive) => ({ code: primitive.code, bodyLength: primitive.bodyLength })),
     rvmPrimitivePayloadSemanticsAudit: primitivePayloadSemanticsAudit,
     rvmGeometryAudit,
-    torusOrientationAssumptions: collectTorusAssumptions(exportModel.root),
+    rvmCode4ElbowAudit,
+    rvmSegmentAudit,
+    torusOrientationAssumptions,
     genericInputXmlBendAssumptions: collectGenericInputXmlBendAssumptions(exportModel.root),
     genericInputXmlNodeLocalElbowAssumptions: collectGenericInputXmlNodeLocalElbowAssumptions(exportModel.root),
     genericInputXmlBranchFittingAssumptions: collectGenericInputXmlBranchFittingAssumptions(exportModel.root),
@@ -106,6 +114,7 @@ export function convertManagedStageJsonToRvmAtt(sourceText, options = {}) {
   };
   audit.managedStageTopologyProofGate = warningOnlyGate('ManagedStageTopologyProofGate', () => assertManagedStageTopologyProofGate(audit, options.strictAuditExpectations || {}), writerOptions);
   audit.managedStageStrictGate = warningOnlyGate('ManagedStageRvmAuditGate', () => assertManagedStageRvmAuditGate(audit, options.strictAuditExpectations || {}), writerOptions);
+  audit.rvmAuditSummary = summarizeManagedStageRvmAudit(audit);
   return { profile, sourceContract, exportModel, rvm, att, audit };
 }
 
@@ -137,10 +146,32 @@ export function assertManagedStagePrimitivePayloadCompatibility(primitives = [],
 
 function collectTorusAssumptions(root) {
   const assumptions = [];
-  visit(root, (node) => { for (const primitive of node.primitives || []) if (primitive.kind === 'elbow') assumptions.push({ element: node.reviewName || node.name, primitive: primitive.name, primitiveCode: 4, bendRadiusMm: primitive.bendRadius, tubeRadiusMm: primitive.tubeRadius, sweepAngleRad: primitive.sweepAngleRad, orientationAssumption: primitive.orientationAssumption, tangentHintState: primitive.tangentHintState || '', tangentHintSources: primitive.tangentHintSources || null }); });
+  visit(root, (node) => {
+    for (const primitive of node.primitives || []) {
+      if (primitive.kind === 'elbow') {
+        assumptions.push({
+          element: node.reviewName || node.name,
+          primitive: primitive.name,
+          primitiveCode: 4,
+          bendRadiusMm: primitive.bendRadius,
+          tubeRadiusMm: primitive.tubeRadius,
+          sweepAngleRad: primitive.sweepAngleRad,
+          declaredBendRadiusMm: primitive.declaredBendRadiusMm,
+          declaredSweepAngleRad: primitive.declaredSweepAngleRad,
+          minRadiusForChordMm: primitive.minRadiusForChordMm,
+          radiusInflatedMm: primitive.radiusInflatedMm,
+          endpointFitErrorMm: primitive.endpointFitErrorMm,
+          chordLengthMm: primitive.chordLengthMm,
+          solverState: primitive.solverState || '',
+          orientationAssumption: primitive.orientationAssumption,
+          tangentHintState: primitive.tangentHintState || '',
+          tangentHintSources: primitive.tangentHintSources || null
+        });
+      }
+    }
+  });
   return assumptions;
-}
-
+}\n
 function collectGenericInputXmlBendAssumptions(root) {
   const assumptions = [];
   visit(root, (node) => { for (const primitive of node.primitives || []) if (primitive.genericInputXmlBend) assumptions.push({ element: node.reviewName || node.name, primitive: primitive.name, primitiveCode: 8, segmentRole: primitive.genericInputXmlBendSegmentRole || '', genericBendRadiusMm: primitive.genericBendRadiusMm, genericBendTrimLengthMm: primitive.genericBendTrimLengthMm, originalBendRadiusMm: primitive.originalBendRadiusMm, startMm: primitive.startMm, endMm: primitive.endMm, sourceRouteTrimmedForNodeLocalElbow: primitive.sourceRouteTrimmedForNodeLocalElbow || false, orientationAssumption: primitive.orientationAssumption }); });

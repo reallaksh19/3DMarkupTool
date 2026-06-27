@@ -30,7 +30,7 @@ const weldNeckFlange = recipes.find((recipe) => recipe.componentName === 'PE_006
 assertManagedStagePipingComponentRecipe(weldNeckFlange, { primitiveCount: 2, recipeName: 'weldneck-flange-contiguous-2part' });
 assert.deepEqual(weldNeckFlange.primitives.map((primitive) => primitive.localName), ['weldNeckHub', 'raisedFaceDisk']);
 assert.deepEqual(weldNeckFlange.primitives.map((primitive) => primitive.kind), ['snout', 'cylinder']);
-assert.equal(weldNeckFlange.primitives[0].radiusBottom, weldNeckFlange.primitives[1].startOffsetMm === 0 ? weldNeckFlange.primitives[0].radiusBottom : weldNeckFlange.primitives[0].radiusBottom);
+assert.ok(weldNeckFlange.primitives[0].radiusTop > weldNeckFlange.primitives[0].radiusBottom, 'weld-neck hub snout must expand from pipe OD toward flange hub OD');
 assert.equal(pointsTouch(weldNeckFlange.primitives[0].endMm, weldNeckFlange.primitives[1].startMm), true);
 assert.equal(weldNeckFlange.primitiveBudgetLimit, 2);
 

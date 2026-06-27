@@ -67,7 +67,7 @@ assert.equal(primitivePayloads.length, 4, 'decoder must find all generated PRIM 
 assert.deepEqual(
   primitivePayloads.map((primitive) => primitive.code).sort((a, b) => a - b),
   [1, 2, 8, 9],
-  'generated RVM must use only the currently emitted primitive codes'
+  'generated RVM must use only the currently emitted default primitive codes'
 );
 
 const byCode = new Map(primitivePayloads.map((primitive) => [primitive.code, primitive]));
@@ -95,16 +95,16 @@ for (const primitive of primitivePayloads) {
 }
 
 const referenceObservedLayouts = [
-  { code: 1, bodyLength: 108, expectedStatus: 'emitted-layout-supported', rmss: true, rhbg: false },
-  { code: 2, bodyLength: 92, expectedStatus: 'emitted-layout-supported', rmss: true, rhbg: true },
-  { code: 3, bodyLength: 96, expectedStatus: 'reference-observed-layout-blocked', rmss: false, rhbg: true },
-  { code: 4, bodyLength: 92, expectedStatus: 'reference-observed-layout-blocked', rmss: true, rhbg: true },
-  { code: 5, bodyLength: 88, expectedStatus: 'reference-observed-layout-blocked', rmss: true, rhbg: true },
-  { code: 6, bodyLength: 88, expectedStatus: 'reference-observed-layout-blocked', rmss: true, rhbg: false },
-  { code: 7, bodyLength: 116, expectedStatus: 'reference-observed-layout-blocked', rmss: true, rhbg: true },
-  { code: 8, bodyLength: 88, expectedStatus: 'emitted-layout-supported', rmss: true, rhbg: true },
-  { code: 11, bodyLength: 708, expectedStatus: 'reference-observed-layout-blocked', rmss: true, rhbg: true },
-  { code: 11, bodyLength: 18340, expectedStatus: 'reference-observed-layout-blocked', rmss: true, rhbg: true }
+  { code: 1, bodyLength: 108, expectedStatus: 'emitted-layout-supported', rmss: true, rhbg: false, supported: true, blocked: false },
+  { code: 2, bodyLength: 92, expectedStatus: 'emitted-layout-supported', rmss: true, rhbg: true, supported: true, blocked: false },
+  { code: 3, bodyLength: 96, expectedStatus: 'reference-observed-layout-blocked', rmss: false, rhbg: true, supported: false, blocked: true },
+  { code: 4, bodyLength: 92, expectedStatus: 'emitted-layout-supported', rmss: true, rhbg: true, supported: true, blocked: false },
+  { code: 5, bodyLength: 88, expectedStatus: 'reference-observed-layout-blocked', rmss: true, rhbg: true, supported: false, blocked: true },
+  { code: 6, bodyLength: 88, expectedStatus: 'reference-observed-layout-blocked', rmss: true, rhbg: false, supported: false, blocked: true },
+  { code: 7, bodyLength: 116, expectedStatus: 'reference-observed-layout-blocked', rmss: true, rhbg: true, supported: false, blocked: true },
+  { code: 8, bodyLength: 88, expectedStatus: 'emitted-layout-supported', rmss: true, rhbg: true, supported: true, blocked: false },
+  { code: 11, bodyLength: 708, expectedStatus: 'reference-observed-layout-blocked', rmss: true, rhbg: true, supported: false, blocked: true },
+  { code: 11, bodyLength: 18340, expectedStatus: 'reference-observed-layout-blocked', rmss: true, rhbg: true, supported: false, blocked: true }
 ];
 
 for (const layout of referenceObservedLayouts) {
@@ -114,17 +114,16 @@ for (const layout of referenceObservedLayouts) {
   assert.equal(classification.rmssObserved, layout.rmss, `code ${layout.code} RMSS observation flag must match`);
   assert.equal(classification.rhbgObserved, layout.rhbg, `code ${layout.code} RHBG observation flag must match`);
   assert.equal(classification.referenceObserved, true, `code ${layout.code} must be in the combined reference-observed set`);
-  if ([3, 4, 5, 6, 7, 11].includes(layout.code)) {
-    assert.equal(classification.supportedForEmission, false, `reference-observed code ${layout.code} must remain blocked until its payload semantics are implemented`);
-    assert.equal(classification.referenceObservedButBlocked, true, `reference-observed code ${layout.code} must be explicitly blocked`);
-  }
+  assert.equal(classification.supportedForEmission, layout.supported, `code ${layout.code} supported-for-emission flag must match contract state`);
+  assert.equal(classification.referenceObservedButBlocked, layout.blocked, `code ${layout.code} reference-blocked flag must match contract state`);
 }
 
 const unexpectedCode11Length = classifyRvmPrimitivePayload(11, 900);
 assert.equal(unexpectedCode11Length.compatibilityStatus, 'reference-observed-code-unexpected-length');
 assert.equal(unexpectedCode11Length.lengthMatchesKnownLayout, false);
 
-assert.equal(RVM_PRIMITIVE_PAYLOAD_LAYOUTS[4].semanticType, 'rmss-rhbg-elbow-bend-like-blocked', 'RMSS/RHBG code 4 must be identified as elbow/bend-like but blocked');
+assert.equal(RVM_PRIMITIVE_PAYLOAD_LAYOUTS[4].emittedKind, 'elbow', 'code 4 must now map to the contract-supported elbow kind');
+assert.equal(RVM_PRIMITIVE_PAYLOAD_LAYOUTS[4].semanticType, 'rmss-rhbg-elbow-bend-like', 'RMSS/RHBG code 4 must be identified as elbow/bend-like');
 assert.deepEqual(RVM_PRIMITIVE_PAYLOAD_LAYOUTS[4].payloadFields, ['bendRadius', 'tubeRadius', 'sweepAngleRad']);
 assert.equal(RVM_PRIMITIVE_PAYLOAD_LAYOUTS[5].semanticType, 'rmss-rhbg-cone-like-blocked', 'RMSS/RHBG code 5 must be identified as cone-like but blocked');
 assert.deepEqual(RVM_PRIMITIVE_PAYLOAD_LAYOUTS[5].payloadFields, ['radius', 'height']);
@@ -160,10 +159,11 @@ const elbowBody = makePrimitiveBody({
 });
 const elbow = decodeRvmPrimitivePayload(elbowBody);
 assert.equal(elbow.code, 4);
-assert.equal(elbow.supportedForEmission, false, 'RMSS/RHBG code 4 remains blocked for emission');
+assert.equal(elbow.supportedForEmission, true, 'code 4 is contract-supported, while writeRvm emission remains experimentally gated');
+assert.equal(elbow.compatibilityStatus, 'emitted-layout-supported');
 assert.equal(elbow.semanticType, 'rmss-rhbg-elbow-bend-like');
 assert.equal(elbow.candidateEmissionKind, 'elbow');
-assert.equal(elbow.semanticConfidence, 'medium');
+assert.equal(elbow.semanticConfidence, 'writer-owned');
 assertAlmostEqual(elbow.payloadSemantics.bendRadius, 305);
 assertAlmostEqual(elbow.payloadSemantics.tubeRadius, 109.55);
 assertAlmostEqual(elbow.payloadSemantics.sweepAngleRad, Math.PI / 2);

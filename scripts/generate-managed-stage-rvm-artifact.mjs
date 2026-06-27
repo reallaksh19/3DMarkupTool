@@ -93,12 +93,13 @@ function buildArtifactSummary(audit = {}) {
   };
   const supportCodeHistogram = geometry.supportOverlay?.primitiveCodeHistogram || support.supportPrimitiveCodeHistogram || {};
   const supportIsolated = geometry.supportOverlay?.isolatedFromPipeFittingCodes !== false;
-  const ready = sourceSummary.ready ?? (
-    payloadIssues.total === 0
-    && geometry.issueCount !== undefined ? Number(geometry.issueCount || 0) === 0 : true
+  const geometryOk = geometry.issueCount === undefined ? true : Number(geometry.issueCount || 0) === 0;
+  const fallbackReady = payloadIssues.total === 0
+    && geometryOk
     && audit.managedStageTopologyProofGate?.ok !== false
     && audit.managedStageStrictGate?.ok !== false
-  );
+    && audit.stitchManifestGate?.ok !== false;
+  const ready = sourceSummary.ready ?? fallbackReady;
   return {
     schema: 'ManagedStageRvmArtifactSummary.v1',
     ready: Boolean(ready),

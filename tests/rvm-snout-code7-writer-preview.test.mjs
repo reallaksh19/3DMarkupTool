@@ -80,10 +80,10 @@ assert.equal(snoutMesh.userData.heightAxis, 'basis.z');
 
 snoutMesh.geometry.computeBoundingBox();
 const previewBox = snoutMesh.geometry.boundingBox;
-assertAlmostEqual(previewBox.min.x, -90);
-assertAlmostEqual(previewBox.max.x, 90);
-assertAlmostEqual(previewBox.min.y, -90);
-assertAlmostEqual(previewBox.max.y, 90);
+assertAlmostEqual(previewBox.min.x, -60);
+assertAlmostEqual(previewBox.max.x, 120);
+assertAlmostEqual(previewBox.min.y, -115);
+assertAlmostEqual(previewBox.max.y, 65);
 assertAlmostEqual(previewBox.min.z, -200);
 assertAlmostEqual(previewBox.max.z, 200);
 

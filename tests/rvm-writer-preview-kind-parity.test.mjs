@@ -36,6 +36,20 @@ assert.equal(RVM_PRIMITIVE_KIND_CODES.elbow, 4, 'elbow must be promoted into the
 assert.equal(RVM_PRIMITIVE_KIND_CONTRACT.elbow.paramCount, 3, 'code 4 elbow must keep its verified 3-float payload');
 assert.deepEqual(RVM_PRIMITIVE_KIND_CONTRACT.elbow.params, ['bendRadius', 'tubeRadius', 'sweepAngleRad']);
 
+assert.equal(RVM_PRIMITIVE_KIND_CODES.snout, 7, 'snout must be promoted into the primitive kind contract');
+assert.equal(RVM_PRIMITIVE_KIND_CONTRACT.snout.paramCount, 9, 'code 7 snout must keep its verified 9-float payload');
+assert.deepEqual(RVM_PRIMITIVE_KIND_CONTRACT.snout.params, [
+  'radiusBottom',
+  'radiusTop',
+  'height',
+  'offsetX',
+  'offsetY',
+  'botShearX',
+  'botShearY',
+  'topShearX',
+  'topShearY'
+]);
+
 assert.equal(RVM_PRIMITIVE_KIND_CODES.cylinder, 8, 'cylinder must remain code 8');
 assert.equal(RVM_PRIMITIVE_KIND_CODES.sphere, 9, 'sphere must remain code 9');
 assert.match(pkg.scripts.test, /rvm-writer-preview-kind-parity\.test\.mjs/, 'npm test must include the writer/preview primitive kind parity guard');

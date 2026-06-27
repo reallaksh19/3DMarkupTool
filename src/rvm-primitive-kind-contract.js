@@ -29,6 +29,12 @@ export const RVM_PRIMITIVE_KIND_CONTRACT = Object.freeze({
     params: Object.freeze(['bendRadius', 'tubeRadius', 'sweepAngleRad']),
     note: 'CircularTorus elbow/bend primitive. Emission remains explicitly gated by the experimental code-4 writer policy.'
   }),
+  snout: Object.freeze({
+    code: 7,
+    paramCount: 9,
+    params: Object.freeze(['radiusBottom', 'radiusTop', 'height', 'offsetX', 'offsetY', 'botShearX', 'botShearY', 'topShearX', 'topShearY']),
+    note: 'Snout/frustum primitive. Height is on local Z; radii are in local X/Y. A cone is represented with radiusTop = 0.'
+  }),
   cylinder: Object.freeze({
     code: 8,
     paramCount: 2,
@@ -103,6 +109,6 @@ export function rvmPrimitiveKindCompatibilityReport() {
     rmssObservedCodesNotEmitted: [...UNEMITTED_RMSS_PRIMITIVE_CODES],
     rhbgObservedCodesNotEmitted: [...UNEMITTED_RHBG_PRIMITIVE_CODES],
     referenceObservedCodesNotEmitted: [...UNEMITTED_REFERENCE_PRIMITIVE_CODES],
-    note: 'Observed RMSS/RHBG primitive codes are not emitted until each payload layout is implemented and verified; code 4 elbow is contract-supported but remains gated by explicit writer options.'
+    note: 'Observed RMSS/RHBG primitive codes are not emitted until each payload layout is implemented and verified; code 4 elbow is contract-supported but remains gated by explicit writer options, and code 7 snout is writer/preview-supported for controlled synthetic validation.'
   };
 }

@@ -33,6 +33,7 @@ const MATERIAL_BY_RVM_ID = new Map([
 export const RVM_PREVIEW_PRIMITIVE_MESH_BUILDERS = new Map([
   ['cylinder', createCylinder],
   ['elbow', createElbow],
+  ['snout', createSnout],
   ['sphere', createSphere],
   ['box', createBox],
   ['pyramid', createPyramid]
@@ -143,7 +144,7 @@ function createElbow(primitive, fallbackMaterialId) {
   const mesh = new THREE.Mesh(geometry, materialFor(primitive, fallbackMaterialId));
   mesh.name = primitive.name;
   mesh.position.copy(v3(primitive.center));
-  const basis = basisForElbow(primitive);
+  const basis = basisForPrimitive(primitive);
   const matrix = new THREE.Matrix4().makeBasis(basis.x, basis.y, basis.z);
   mesh.setRotationFromMatrix(matrix);
   mesh.userData = {
@@ -154,6 +155,52 @@ function createElbow(primitive, fallbackMaterialId) {
     previewGeometry: 'torus-arc'
   };
   return mesh;
+}
+
+function createSnout(primitive, fallbackMaterialId) {
+  const radiusBottom = nonNegativeNumber(primitive.radiusBottom, 'radiusBottom');
+  const radiusTop = nonNegativeNumber(primitive.radiusTop, 'radiusTop');
+  if (radiusBottom <= 0 && radiusTop <= 0) {
+    throw new Error('Invalid RVM preview snout radii: at least one radius must be positive');
+  }
+  const height = positiveNumber(primitive.height, 'height');
+  const offsetX = finiteNumberOrDefault(primitive.offsetX, 0, 'offsetX');
+  const offsetY = finiteNumberOrDefault(primitive.offsetY, 0, 'offsetY');
+  const geometry = new THREE.CylinderGeometry(radiusTop, radiusBottom, height, 24, 1, false);
+  // Three.js CylinderGeometry is local-Y aligned. RVM Snout is local-Z aligned.
+  geometry.rotateX(Math.PI / 2);
+  applySnoutTopOffset(geometry, height, offsetX, offsetY);
+  geometry.computeBoundingBox();
+  geometry.computeBoundingSphere();
+  const mesh = new THREE.Mesh(geometry, materialFor(primitive, fallbackMaterialId));
+  mesh.name = primitive.name;
+  mesh.position.copy(v3(primitive.center));
+  const basis = basisForPrimitive(primitive);
+  const matrix = new THREE.Matrix4().makeBasis(basis.x, basis.y, basis.z);
+  mesh.setRotationFromMatrix(matrix);
+  mesh.userData = {
+    TYPE: 'RVM_PRIMITIVE',
+    primitiveKind: primitive.kind,
+    sourceName: primitive.name,
+    primitiveCode: 7,
+    previewGeometry: 'snout-frustum',
+    heightAxis: 'basis.z'
+  };
+  return mesh;
+}
+
+function applySnoutTopOffset(geometry, height, offsetX, offsetY) {
+  if (Math.abs(offsetX) < 1e-9 && Math.abs(offsetY) < 1e-9) return;
+  const position = geometry.getAttribute('position');
+  const topZ = height / 2;
+  for (let index = 0; index < position.count; index += 1) {
+    if (position.getZ(index) > topZ - 1e-6) {
+      position.setX(index, position.getX(index) + offsetX);
+      position.setY(index, position.getY(index) + offsetY);
+    }
+  }
+  position.needsUpdate = true;
+  geometry.computeVertexNormals();
 }
 
 function createSphere(primitive, fallbackMaterialId) {
@@ -203,7 +250,7 @@ function createPyramid(primitive, fallbackMaterialId) {
   return mesh;
 }
 
-function basisForElbow(primitive) {
+function basisForPrimitive(primitive) {
   if (primitive.basis?.x && primitive.basis?.y && primitive.basis?.z) {
     return {
       x: v3(primitive.basis.x).normalize(),
@@ -316,5 +363,18 @@ function v3(value) {
 function positiveNumber(value, fieldName) {
   const parsed = Number(value);
   if (!Number.isFinite(parsed) || parsed <= 0) throw new Error(`Invalid RVM preview ${fieldName}: expected positive number`);
+  return parsed;
+}
+
+function nonNegativeNumber(value, fieldName) {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed < 0) throw new Error(`Invalid RVM preview ${fieldName}: expected non-negative number`);
+  return parsed;
+}
+
+function finiteNumberOrDefault(value, defaultValue, fieldName) {
+  if (value === undefined || value === null || value === '') return defaultValue;
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) throw new Error(`Invalid RVM preview ${fieldName}: expected finite number`);
   return parsed;
 }

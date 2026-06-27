@@ -20,7 +20,8 @@ import {
 export const MANAGED_STAGE_CODE4_RVM_OPTIONS = Object.freeze({
   experimentalRvmPrimitiveCodes: ['code4-elbow'],
   allowExperimentalCode4ElbowEmission: true,
-  allowManagedStageCode4Elbows: true
+  allowManagedStageCode4Elbows: true,
+  excludeBendsWhileProcessingInputXmlBasedJson: false
 });
 
 export function convertManagedStageJsonToRvmAtt(sourceText, options = {}) {

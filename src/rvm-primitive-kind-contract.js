@@ -1,15 +1,16 @@
 /**
  * Central RVM primitive-kind compatibility contract.
  *
- * The writer intentionally emits only the primitive kinds that are already mapped
- * through the current export model contract. RMSS/RHBG reference inspection shows
- * additional Review primitive codes, but those remain blocked until each payload
- * layout is implemented and externally verified.
+ * Every writer/preview RVM primitive dispatch must stay tied to this registry.
+ * Additional AVEVA Review primitive codes remain blocked until each payload
+ * layout is implemented and verified end-to-end.
  */
 
 export const RVM_PRIMITIVE_KIND_CODES = Object.freeze({
   pyramid: 1,
   box: 2,
+  elbow: 4,
+  snout: 7,
   cylinder: 8,
   sphere: 9
 });
@@ -62,6 +63,6 @@ export function rvmPrimitiveKindCompatibilityReport() {
     rmssObservedCodesNotEmitted: [...UNEMITTED_RMSS_PRIMITIVE_CODES],
     rhbgObservedCodesNotEmitted: [...UNEMITTED_RHBG_PRIMITIVE_CODES],
     referenceObservedCodesNotEmitted: [...UNEMITTED_REFERENCE_PRIMITIVE_CODES],
-    note: 'Observed RMSS/RHBG primitive codes are not emitted until each payload layout is implemented and verified.'
+    note: 'Observed RMSS/RHBG primitive codes are emitted only after the matching writer, preview, decoder, and verification paths are implemented.'
   };
 }

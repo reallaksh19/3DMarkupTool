@@ -79,23 +79,23 @@ export const RVM_PRIMITIVE_PAYLOAD_LAYOUTS = Object.freeze({
   }),
   7: Object.freeze({
     code: 7,
-    emittedKind: null,
+    emittedKind: 'snout',
     bodyLength: 116,
     payloadWordCount: 9,
     payloadFields: Object.freeze([
-      'baseRadius',
-      'topRadius',
+      'radiusBottom',
+      'radiusTop',
       'height',
       'offsetX',
       'offsetY',
-      'offsetZ',
-      'reserved0',
-      'reserved1',
-      'reserved2'
+      'botShearX',
+      'botShearY',
+      'topShearX',
+      'topShearY'
     ]),
-    semanticType: 'rmss-rhbg-frustum-like-blocked',
-    candidateEmissionKind: 'frustum',
-    emissionStatus: 'reference-observed-blocked',
+    semanticType: 'rmss-rhbg-frustum-like',
+    candidateEmissionKind: 'snout',
+    emissionStatus: 'emitted',
     observedProfiles: Object.freeze(['RMSS', 'RHBG'])
   }),
   8: Object.freeze({
@@ -273,21 +273,34 @@ export function inferRvmPrimitivePayloadSemantics(code, bbox = [], payload = [],
   }
 
   if (normalizedCode === 7) {
-    const [baseRadius, topRadius, height, offsetX = 0, offsetY = 0, offsetZ = 0, reserved0 = 0, reserved1 = 0, reserved2 = 0] = payload;
-    const maxRadius = Math.max(Math.abs(baseRadius || 0), Math.abs(topRadius || 0));
+    const [radiusBottom, radiusTop, height, offsetX = 0, offsetY = 0, botShearX = 0, botShearY = 0, topShearX = 0, topShearY = 0] = payload;
+    const maxRadius = Math.max(Math.abs(radiusBottom || 0), Math.abs(radiusTop || 0));
     const halfHeight = (height || 0) / 2;
-    const bboxConsistentWithPayload =
+    const centeredBboxConsistentWithPayload =
       finitePositive(maxRadius) &&
       finiteNonNegative(height) &&
       bboxMatches(bbox, [-maxRadius, -maxRadius, -halfHeight, maxRadius, maxRadius, halfHeight]);
-    const offsetsAreZero = [offsetX, offsetY, offsetZ, reserved0, reserved1, reserved2].every((value) => approx(value, 0));
+    const eccentricBboxConsistentWithPayload =
+      finitePositive(maxRadius) &&
+      finiteNonNegative(height) &&
+      bboxMatches(bbox, [
+        Math.min(-radiusBottom, offsetX - radiusTop),
+        Math.min(-radiusBottom, offsetY - radiusTop),
+        -halfHeight,
+        Math.max(radiusBottom, offsetX + radiusTop),
+        Math.max(radiusBottom, offsetY + radiusTop),
+        halfHeight
+      ]);
+    const shearsAreZero = [botShearX, botShearY, topShearX, topShearY].every((value) => approx(value, 0));
     return {
       semanticType: 'rmss-rhbg-frustum-like',
-      semanticConfidence: bboxConsistentWithPayload && offsetsAreZero ? 'high' : 'medium',
-      candidateEmissionKind: 'frustum',
-      bboxConsistentWithPayload,
-      payloadSemantics: { baseRadius, topRadius, height, offsetX, offsetY, offsetZ, reserved0, reserved1, reserved2 },
-      semanticNotes: 'RMSS/RHBG code 7 payload matches base/top radius plus axial height; remaining words are zero in observed RHBG samples. Emission stays blocked until frustum taper direction and viewer interpretation are verified.'
+      semanticConfidence: (centeredBboxConsistentWithPayload || eccentricBboxConsistentWithPayload) && shearsAreZero ? (emittedKind ? 'writer-owned' : 'high') : 'medium',
+      candidateEmissionKind: 'snout',
+      bboxConsistentWithPayload: centeredBboxConsistentWithPayload || eccentricBboxConsistentWithPayload,
+      payloadSemantics: { radiusBottom, radiusTop, height, offsetX, offsetY, botShearX, botShearY, topShearX, topShearY },
+      semanticNotes: emittedKind
+        ? 'Writer-owned code 7 Snout layout. Height is local Z; radii occupy local X/Y; writer currently emits zero shears.'
+        : 'RMSS/RHBG code 7 payload matches bottom/top radius plus axial height with optional transverse offsets.'
     };
   }
 

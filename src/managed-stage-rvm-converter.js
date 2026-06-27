@@ -23,6 +23,9 @@ export const MANAGED_STAGE_CODE4_RVM_OPTIONS = Object.freeze({
   allowManagedStageCode4Elbows: true
 });
 
+const MANAGED_STAGE_ALLOWED_NATIVE_PRIMITIVE_CODES = Object.freeze([1, 2, 4, 7, 8, 9]);
+const MANAGED_STAGE_FORBIDDEN_NATIVE_PRIMITIVE_CODES = Object.freeze([3, 5, 6, 10, 11]);
+
 export function convertManagedStageJsonToRvmAtt(sourceText, options = {}) {
   const profile = parseManagedStageProfile(sourceText);
   const sourceContract = parseStagedJsonSourceContract(sourceText, {
@@ -67,7 +70,7 @@ export function convertManagedStageJsonToRvmAtt(sourceText, options = {}) {
       stats: profile.inputStats,
       // Compare validRestraints (not the total restraintRows which includes blank placeholder rows)
       // against the emitted support record count. A mismatch here is only noteworthy when the
-      // converter filtered something unexpected â€” blank CAESAR II rows are never a mismatch.
+      // converter filtered something unexpected — blank CAESAR II rows are never a mismatch.
       statsRestraintsMismatch: Number(profile.inputStats?.validRestraints ?? profile.inputStats?.restraints ?? 0) !== profile.supportRecords.length
     },
     topology,
@@ -84,6 +87,8 @@ export function convertManagedStageJsonToRvmAtt(sourceText, options = {}) {
     primitiveHistogram: primitivePayloadContract.codeCounts,
     primitiveBodyLengths: primitivePayloads.map((primitive) => ({ code: primitive.code, bodyLength: primitive.bodyLength })),
     torusOrientationAssumptions: collectTorusAssumptions(exportModel.root),
+    snoutGeometryAssumptions: collectSnoutAssumptions(exportModel.root),
+    sphereGeometryAssumptions: collectSphereAssumptions(exportModel.root),
     genericInputXmlBendAssumptions: collectGenericInputXmlBendAssumptions(exportModel.root),
     genericInputXmlNodeLocalElbowAssumptions: collectGenericInputXmlNodeLocalElbowAssumptions(exportModel.root),
     genericInputXmlBranchFittingAssumptions: collectGenericInputXmlBranchFittingAssumptions(exportModel.root),
@@ -94,7 +99,7 @@ export function convertManagedStageJsonToRvmAtt(sourceText, options = {}) {
       geometryEmitted: true,
       rvmExported: true
     })),
-    // No support records were skipped â€” all emitted supports are exported to RVM as SUPPORT_MARKER nodes.
+    // No support records were skipped — all emitted supports are exported to RVM as SUPPORT_MARKER nodes.
     skippedSupportRecords: [],
     materialLayerContract,
     materialTableContract,
@@ -128,8 +133,7 @@ export function assertManagedStagePrimitivePayloadCompatibility(primitives = [],
     const code = Number(primitive.code);
     codeCounts[code] = (codeCounts[code] || 0) + 1;
     statusCounts[primitive.compatibilityStatus || 'unknown'] = (statusCounts[primitive.compatibilityStatus || 'unknown'] || 0) + 1;
-    if (code === 8) continue;
-    if (code === 1 && primitive.emittedKind === 'pyramid' && primitive.lengthMatchesKnownLayout) continue;
+    if (MANAGED_STAGE_ALLOWED_NATIVE_PRIMITIVE_CODES.includes(code) && primitive.supportedForEmission && primitive.lengthMatchesKnownLayout) continue;
     if (code === 4 && evaluateRvmCode4ElbowEmissionCandidate(primitive, options).experimentalEmissionCandidateAllowed) continue;
     unsafe.push(primitive);
   }
@@ -137,10 +141,10 @@ export function assertManagedStagePrimitivePayloadCompatibility(primitives = [],
     throw new Error(`Managed-stage RVM contains unsupported primitive code(s): ${unsafe.map((p) => p.code).join(', ')}`);
   }
   return {
-    schema: 'ManagedStageRvmPrimitivePayloadContract.v2',
+    schema: 'ManagedStageRvmPrimitivePayloadContract.v3',
     primitiveCount: primitives.length,
-    allowedPrimitiveCodes: [1, 4, 8],
-    forbiddenPrimitiveCodesPresent: [2, 5, 6, 7, 11].filter((code) => codeCounts[code]),
+    allowedPrimitiveCodes: [...MANAGED_STAGE_ALLOWED_NATIVE_PRIMITIVE_CODES],
+    forbiddenPrimitiveCodesPresent: MANAGED_STAGE_FORBIDDEN_NATIVE_PRIMITIVE_CODES.filter((code) => codeCounts[code]),
     unsupportedPrimitivePayloadsPresent: unsafe.length > 0,
     warningOnlyUnsupportedPrimitivePayloads: unsafe.map((primitive) => ({ code: primitive.code, bodyLength: primitive.bodyLength })),
     codeCounts,
@@ -163,6 +167,46 @@ function collectTorusAssumptions(root) {
           orientationAssumption: primitive.orientationAssumption,
           tangentHintState: primitive.tangentHintState || '',
           tangentHintSources: primitive.tangentHintSources || null
+        });
+      }
+    }
+  });
+  return assumptions;
+}
+
+function collectSnoutAssumptions(root) {
+  const assumptions = [];
+  visit(root, (node) => {
+    for (const primitive of node.primitives || []) {
+      if (primitive.kind === 'snout') {
+        assumptions.push({
+          element: node.reviewName || node.name,
+          primitive: primitive.name,
+          primitiveCode: 7,
+          radiusBottomMm: primitive.radiusBottom,
+          radiusTopMm: primitive.radiusTop,
+          heightMm: primitive.height,
+          offsetX: primitive.offsetX || 0,
+          offsetY: primitive.offsetY || 0,
+          orientationAssumption: primitive.orientationAssumption || 'Snout local Z follows component centerline basis.z; shears are zero.'
+        });
+      }
+    }
+  });
+  return assumptions;
+}
+
+function collectSphereAssumptions(root) {
+  const assumptions = [];
+  visit(root, (node) => {
+    for (const primitive of node.primitives || []) {
+      if (primitive.kind === 'sphere') {
+        assumptions.push({
+          element: node.reviewName || node.name,
+          primitive: primitive.name,
+          primitiveCode: 9,
+          diameterMm: primitive.diameter,
+          orientationAssumption: primitive.orientationAssumption || 'Sphere is direction-invariant; transform translation places center.'
         });
       }
     }
@@ -282,22 +326,39 @@ function primitiveWorldBbox(primitive) {
   const corners = [];
   for (const x of [bbox[0], bbox[3]]) {
     for (const y of [bbox[1], bbox[4]]) {
-      for (const z of [bbox[2], bbox[5]]) corners.push(transformLocalPoint(center, basis, [x, y, z]));
+      for (const z of [bbox[2], bbox[5]]) {
+        corners.push([
+          center[0] + basis.x[0] * x + basis.y[0] * y + basis.z[0] * z,
+          center[1] + basis.x[1] * x + basis.y[1] * y + basis.z[1] * z,
+          center[2] + basis.x[2] * x + basis.y[2] * y + basis.z[2] * z
+        ]);
+      }
     }
   }
-  return unionBboxes(corners.map((corner) => [corner[0], corner[1], corner[2], corner[0], corner[1], corner[2]]));
+  return bboxFromPoints(corners);
 }
 
-function transformLocalPoint(center, basis, local) {
-  return [0, 1, 2].map((axis) => center[axis] + basis.x[axis] * local[0] + basis.y[axis] * local[1] + basis.z[axis] * local[2]);
+function bboxFromPoints(points) {
+  if (!points.length) return null;
+  const min = [Infinity, Infinity, Infinity];
+  const max = [-Infinity, -Infinity, -Infinity];
+  for (const point of points) {
+    for (let index = 0; index < 3; index += 1) {
+      min[index] = Math.min(min[index], point[index]);
+      max[index] = Math.max(max[index], point[index]);
+    }
+  }
+  return [...min, ...max];
 }
 
 function unionBboxes(boxes) {
-  if (!boxes.length) return null;
-  const out = [...boxes[0]];
-  for (const box of boxes.slice(1)) {
-    out[0] = Math.min(out[0], box[0]); out[1] = Math.min(out[1], box[1]); out[2] = Math.min(out[2], box[2]);
-    out[3] = Math.max(out[3], box[3]); out[4] = Math.max(out[4], box[4]); out[5] = Math.max(out[5], box[5]);
+  const valid = boxes.filter(Boolean);
+  if (!valid.length) return null;
+  const min = [Infinity, Infinity, Infinity];
+  const max = [-Infinity, -Infinity, -Infinity];
+  for (const bbox of valid) {
+    for (let index = 0; index < 3; index += 1) min[index] = Math.min(min[index], bbox[index]);
+    for (let index = 0; index < 3; index += 1) max[index] = Math.max(max[index], bbox[index + 3]);
   }
-  return out;
+  return [...min, ...max];
 }

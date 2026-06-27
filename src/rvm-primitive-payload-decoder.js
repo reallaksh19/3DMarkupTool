@@ -39,20 +39,21 @@ export const RVM_PRIMITIVE_PAYLOAD_LAYOUTS = Object.freeze({
     emittedKind: null,
     bodyLength: 96,
     payloadWordCount: 4,
-    payloadFields: Object.freeze(['rhbgRadiusOrMajorRadius', 'rhbgArcOrExtent', 'rhbgThickness', 'rhbgSweepAngleRad']),
-    semanticType: 'rhbg-annular-arc-like-blocked',
+    payloadFields: Object.freeze(['innerRadius', 'outerRadius', 'height', 'sweepAngleRad']),
+    semanticType: 'rectangular-torus-blocked',
+    candidateEmissionKind: 'rectangularTorus',
     emissionStatus: 'reference-observed-blocked',
     observedProfiles: Object.freeze(['RHBG'])
   }),
   4: Object.freeze({
     code: 4,
-    emittedKind: null,
+    emittedKind: 'elbow',
     bodyLength: 92,
     payloadWordCount: 3,
     payloadFields: Object.freeze(['bendRadius', 'tubeRadius', 'sweepAngleRad']),
-    semanticType: 'rmss-rhbg-elbow-bend-like-blocked',
+    semanticType: 'circular-torus-elbow',
     candidateEmissionKind: 'elbow',
-    emissionStatus: 'reference-observed-blocked',
+    emissionStatus: 'emitted',
     observedProfiles: Object.freeze(['RMSS', 'RHBG'])
   }),
   5: Object.freeze({
@@ -60,9 +61,9 @@ export const RVM_PRIMITIVE_PAYLOAD_LAYOUTS = Object.freeze({
     emittedKind: null,
     bodyLength: 88,
     payloadWordCount: 2,
-    payloadFields: Object.freeze(['radius', 'height']),
-    semanticType: 'rmss-rhbg-cone-like-blocked',
-    candidateEmissionKind: 'cone',
+    payloadFields: Object.freeze(['baseRadius', 'height']),
+    semanticType: 'elliptical-dish-blocked',
+    candidateEmissionKind: 'ellipticalDish',
     emissionStatus: 'reference-observed-blocked',
     observedProfiles: Object.freeze(['RMSS', 'RHBG'])
   }),
@@ -71,31 +72,31 @@ export const RVM_PRIMITIVE_PAYLOAD_LAYOUTS = Object.freeze({
     emittedKind: null,
     bodyLength: 88,
     payloadWordCount: 2,
-    payloadFields: Object.freeze(['radius', 'heightOrDepth']),
-    semanticType: 'rmss-cap-dish-like-blocked',
-    candidateEmissionKind: 'cap',
+    payloadFields: Object.freeze(['baseRadius', 'height']),
+    semanticType: 'spherical-dish-blocked',
+    candidateEmissionKind: 'sphericalDish',
     emissionStatus: 'reference-observed-blocked',
     observedProfiles: Object.freeze(['RMSS'])
   }),
   7: Object.freeze({
     code: 7,
-    emittedKind: null,
+    emittedKind: 'snout',
     bodyLength: 116,
     payloadWordCount: 9,
     payloadFields: Object.freeze([
-      'baseRadius',
-      'topRadius',
+      'radiusBottom',
+      'radiusTop',
       'height',
       'offsetX',
       'offsetY',
-      'offsetZ',
-      'reserved0',
-      'reserved1',
-      'reserved2'
+      'bottomShearX',
+      'bottomShearY',
+      'topShearX',
+      'topShearY'
     ]),
-    semanticType: 'rmss-rhbg-frustum-like-blocked',
-    candidateEmissionKind: 'frustum',
-    emissionStatus: 'reference-observed-blocked',
+    semanticType: 'snout-frustum',
+    candidateEmissionKind: 'snout',
+    emissionStatus: 'emitted',
     observedProfiles: Object.freeze(['RMSS', 'RHBG'])
   }),
   8: Object.freeze({
@@ -126,8 +127,8 @@ export const RVM_PRIMITIVE_PAYLOAD_LAYOUTS = Object.freeze({
     knownBodyLengths: Object.freeze([708, 1316, 1468, 3748, 4508, 16820, 17124, 18340]),
     payloadWordCount: null,
     payloadFieldsPrefix: 'meshPayload',
-    semanticType: 'rmss-rhbg-mesh-facet-like-blocked',
-    candidateEmissionKind: 'mesh',
+    semanticType: 'facet-group-blocked',
+    candidateEmissionKind: 'facetGroup',
     emissionStatus: 'reference-observed-blocked',
     observedProfiles: Object.freeze(['RMSS', 'RHBG'])
   })
@@ -180,7 +181,7 @@ export function classifyRvmPrimitivePayload(code, bodyLength) {
   const normalizedCode = Number(code);
   const normalizedBodyLength = Number(bodyLength);
   const layout = RVM_PRIMITIVE_PAYLOAD_LAYOUTS[normalizedCode] || null;
-  const emittedKind = RVM_PRIMITIVE_KIND_BY_CODE[String(normalizedCode)] || null;
+  const emittedKind = RVM_PRIMITIVE_KIND_BY_CODE[String(normalizedCode)] || layout?.emittedKind || null;
   const rmssObserved = RMSS_OBSERVED_CODE_SET.has(normalizedCode);
   const rhbgObserved = RHBG_OBSERVED_CODE_SET.has(normalizedCode);
   const referenceObserved = REFERENCE_OBSERVED_CODE_SET.has(normalizedCode);
@@ -228,79 +229,74 @@ export function inferRvmPrimitivePayloadSemantics(code, bbox = [], payload = [],
       sweepAngleRad > 0 &&
       sweepAngleRad <= Math.PI * 2 + SEMANTIC_TOLERANCE;
     return {
-      semanticType: 'rmss-rhbg-elbow-bend-like',
-      semanticConfidence: payloadLooksLikeElbow ? 'medium' : 'low',
+      semanticType: 'circular-torus-elbow',
+      semanticConfidence: payloadLooksLikeElbow ? (emittedKind ? 'writer-owned' : 'medium') : 'low',
       candidateEmissionKind: 'elbow',
       bboxConsistentWithPayload: null,
       payloadSemantics: { bendRadius, tubeRadius, sweepAngleRad },
-      semanticNotes: 'RMSS/RHBG code 4 payload is recorded as bend radius, tube radius, and sweep angle. Emission stays blocked until transform basis, handedness, and viewer interpretation are verified.'
+      semanticNotes: emittedKind
+        ? 'Code 4 payload is emitted as CircularTorus elbow: bend radius, tube radius, sweep angle radians.'
+        : 'Code 4 payload is recorded as CircularTorus elbow candidate: bend radius, tube radius, sweep angle radians.'
     };
   }
 
   if (normalizedCode === 5) {
-    const [radius, height] = payload;
-    const bboxConsistentWithPayload = finitePositive(radius) && finiteNonNegative(height) && bboxMatches(bbox, [-radius, -radius, 0, radius, radius, height]);
+    const [baseRadius, height] = payload;
     return {
-      semanticType: 'rmss-rhbg-cone-like',
-      semanticConfidence: bboxConsistentWithPayload ? 'high' : 'low',
-      candidateEmissionKind: 'cone',
-      bboxConsistentWithPayload,
-      payloadSemantics: { radius, height },
-      semanticNotes: 'RMSS/RHBG code 5 payload matches radius/height with a local bbox from z=0 to z=height in observed cone-like samples; emission stays blocked until cone orientation and viewer interpretation are verified.'
+      semanticType: 'elliptical-dish',
+      semanticConfidence: finitePositive(baseRadius) && finiteNonNegative(height) ? 'recorded-layout' : 'low',
+      candidateEmissionKind: 'ellipticalDish',
+      bboxConsistentWithPayload: null,
+      payloadSemantics: { baseRadius, height },
+      semanticNotes: 'Code 5 is recorded as EllipticalDish/dome candidate, not a cone. Emission remains blocked.'
     };
   }
 
   if (normalizedCode === 6) {
-    const [radius, heightOrDepth] = payload;
-    const bboxConsistentWithCenteredPayload =
-      finitePositive(radius) &&
-      finiteNonNegative(heightOrDepth) &&
-      bboxMatches(bbox, [-radius, -radius, -heightOrDepth / 2, radius, radius, heightOrDepth / 2]);
-    const bboxConsistentWithPositivePayload =
-      finitePositive(radius) &&
-      finiteNonNegative(heightOrDepth) &&
-      bboxMatches(bbox, [-radius, -radius, 0, radius, radius, heightOrDepth]);
+    const [baseRadius, height] = payload;
     return {
-      semanticType: 'rmss-cap-dish-like',
-      semanticConfidence: bboxConsistentWithCenteredPayload || bboxConsistentWithPositivePayload ? 'medium' : 'recorded-layout',
-      candidateEmissionKind: 'cap',
-      bboxConsistentWithPayload: bboxConsistentWithCenteredPayload || bboxConsistentWithPositivePayload,
-      payloadSemantics: { radius, heightOrDepth },
-      semanticNotes: 'RMSS code 6 is recorded as a two-word cap/dish-like primitive candidate. Emission stays blocked until the cap surface convention and viewer interpretation are verified.'
+      semanticType: 'spherical-dish',
+      semanticConfidence: finitePositive(baseRadius) && finiteNonNegative(height) ? 'recorded-layout' : 'low',
+      candidateEmissionKind: 'sphericalDish',
+      bboxConsistentWithPayload: null,
+      payloadSemantics: { baseRadius, height },
+      semanticNotes: 'Code 6 is recorded as SphericalDish/cap candidate. Emission remains blocked.'
     };
   }
 
   if (normalizedCode === 7) {
-    const [baseRadius, topRadius, height, offsetX = 0, offsetY = 0, offsetZ = 0, reserved0 = 0, reserved1 = 0, reserved2 = 0] = payload;
-    const maxRadius = Math.max(Math.abs(baseRadius || 0), Math.abs(topRadius || 0));
+    const [radiusBottom, radiusTop, height, offsetX = 0, offsetY = 0, bottomShearX = 0, bottomShearY = 0, topShearX = 0, topShearY = 0] = payload;
+    const maxRadius = Math.max(Math.abs(radiusBottom || 0), Math.abs(radiusTop || 0)) + Math.max(Math.abs(offsetX || 0), Math.abs(offsetY || 0));
     const halfHeight = (height || 0) / 2;
     const bboxConsistentWithPayload =
       finitePositive(maxRadius) &&
       finiteNonNegative(height) &&
       bboxMatches(bbox, [-maxRadius, -maxRadius, -halfHeight, maxRadius, maxRadius, halfHeight]);
-    const offsetsAreZero = [offsetX, offsetY, offsetZ, reserved0, reserved1, reserved2].every((value) => approx(value, 0));
+    const shearsAreZero = [bottomShearX, bottomShearY, topShearX, topShearY].every((value) => approx(value, 0));
     return {
-      semanticType: 'rmss-rhbg-frustum-like',
-      semanticConfidence: bboxConsistentWithPayload && offsetsAreZero ? 'high' : 'medium',
-      candidateEmissionKind: 'frustum',
+      semanticType: 'snout-frustum',
+      semanticConfidence: bboxConsistentWithPayload && shearsAreZero ? 'high' : (emittedKind ? 'writer-owned' : 'medium'),
+      candidateEmissionKind: 'snout',
       bboxConsistentWithPayload,
-      payloadSemantics: { baseRadius, topRadius, height, offsetX, offsetY, offsetZ, reserved0, reserved1, reserved2 },
-      semanticNotes: 'RMSS/RHBG code 7 payload matches base/top radius plus axial height; remaining words are zero in observed RHBG samples. Emission stays blocked until frustum taper direction and viewer interpretation are verified.'
+      payloadSemantics: { radiusBottom, radiusTop, height, offsetX, offsetY, bottomShearX, bottomShearY, topShearX, topShearY },
+      semanticNotes: emittedKind
+        ? 'Code 7 payload is emitted as Snout/frustum: bottom radius, top radius, height, offsets, and zero shears.'
+        : 'Code 7 payload is recorded as Snout/frustum candidate.'
     };
   }
 
   if (normalizedCode === 11) {
     return {
-      semanticType: 'rmss-rhbg-mesh-facet-like',
+      semanticType: 'facet-group',
       semanticConfidence: classification.lengthMatchesKnownLayout ? 'recorded-variable-layout' : 'unknown-variable-length',
-      candidateEmissionKind: 'mesh',
+      candidateEmissionKind: 'facetGroup',
       bboxConsistentWithPayload: null,
       payloadSemantics: {
         payloadWordCount: payload.length,
         knownBodyLength: classification.lengthMatchesKnownLayout,
         sampleWords: payload.slice(0, 12)
       },
-      semanticNotes: 'RMSS/RHBG code 11 is recorded as a variable-length mesh/facet-like body. Payload words are retained for profiling only; emission stays blocked until the facet topology is decoded.'
+      semanticNotes: 'Code 11 is recorded as a variable-length FacetGroup/mesh body. Payload words are retained for profiling only; emission remains blocked.'
     };
   }
 
@@ -321,7 +317,7 @@ export function inferRvmPrimitivePayloadSemantics(code, bbox = [], payload = [],
     candidateEmissionKind: layout?.candidateEmissionKind || null,
     bboxConsistentWithPayload: null,
     payloadSemantics: parameterObject(layout, payload),
-    semanticNotes: layout ? 'Recorded RMSS/RHBG reference-observed layout; emission remains blocked.' : 'Unknown primitive layout.'
+    semanticNotes: layout ? 'Recorded reference-observed layout; emission remains blocked.' : 'Unknown primitive layout.'
   };
 }
 

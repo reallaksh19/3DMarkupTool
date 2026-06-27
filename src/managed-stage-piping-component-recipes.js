@@ -159,6 +159,7 @@ function buildPrimitiveForSegment(contract, span, entry, recipeName) {
       offsetY: entry.offsetY || 0,
       material: entry.material,
       primitiveRole: entry.localName,
+      primitiveRoleTag: entry.primitiveRoleTag,
       startOffsetMm,
       endOffsetMm
     });
@@ -169,6 +170,7 @@ function buildPrimitiveForSegment(contract, span, entry, recipeName) {
       diameterMm: entry.diameterMm,
       material: entry.material,
       primitiveRole: entry.localName,
+      primitiveRoleTag: entry.primitiveRoleTag,
       startOffsetMm,
       endOffsetMm,
       sphereSegmentSpanMm: entry.endDistanceMm - entry.startDistanceMm,
@@ -180,6 +182,7 @@ function buildPrimitiveForSegment(contract, span, entry, recipeName) {
     radiusMm: entry.radiusMm,
     material: entry.material,
     primitiveRole: entry.localName,
+    primitiveRoleTag: entry.primitiveRoleTag,
     startOffsetMm,
     endOffsetMm
   });
@@ -220,6 +223,7 @@ function buildContractSnoutPrimitive(contract, options = {}) {
     sourceContractName: contract.name,
     sourceElementId: contract.sourceElementId || contract.elementId || '',
     primitiveRole: options.primitiveRole || localName,
+    primitiveRoleTag: options.primitiveRoleTag || roleTagForLocalName(localName, 'snout'),
     parentStartMm: contract.startMm,
     parentEndMm: contract.endMm,
     startOffsetMm,
@@ -264,6 +268,7 @@ function buildContractSpherePrimitive(contract, options = {}) {
     sourceContractName: contract.name,
     sourceElementId: contract.sourceElementId || contract.elementId || '',
     primitiveRole: options.primitiveRole || localName,
+    primitiveRoleTag: options.primitiveRoleTag || roleTagForLocalName(localName, 'sphere'),
     parentStartMm: contract.startMm,
     parentEndMm: contract.endMm,
     startOffsetMm,
@@ -319,8 +324,22 @@ function segment(startDistanceMm, endDistanceMm, localName, radiusMm, material, 
     localName: String(localName),
     radiusMm: positiveNumber(radiusMm, `${localName}.radiusMm`),
     material,
+    primitiveRoleTag: options.primitiveRoleTag || roleTagForLocalName(localName, options.primitiveKind || 'cylinder'),
     ...options
   };
+}
+
+function roleTagForLocalName(localName, primitiveKind = 'cylinder') {
+  const name = String(localName || '');
+  if (name === 'weldNeckHub') return 'flangeHubSnout';
+  if (name === 'reducerSnout') return 'reducerSnout';
+  if (name === 'centralBallBody') return 'valveBodySphere';
+  if (name === 'leftSeat' || name === 'rightSeat') return 'valveSeatCylinder';
+  if (name === 'raisedFaceDisk') return 'raisedFaceCylinder';
+  if (name === 'leftEndFlange' || name === 'rightEndFlange') return 'valveEndFlangeCylinder';
+  if (name === 'flangeA' || name === 'flangeB') return 'flangePairCylinder';
+  if (name === 'body') return primitiveKind === 'cylinder' ? 'pipeBodyCylinder' : `${primitiveKind}Body`;
+  return name || String(primitiveKind || 'primitive');
 }
 
 function validateSegments(span, recipeName, segments) {

@@ -101,7 +101,7 @@ const referenceObservedLayouts = [
   { code: 4, bodyLength: 92, expectedStatus: 'emitted-layout-supported', rmss: true, rhbg: true, supported: true, blocked: false },
   { code: 5, bodyLength: 88, expectedStatus: 'reference-observed-layout-blocked', rmss: true, rhbg: true, supported: false, blocked: true },
   { code: 6, bodyLength: 88, expectedStatus: 'reference-observed-layout-blocked', rmss: true, rhbg: false, supported: false, blocked: true },
-  { code: 7, bodyLength: 116, expectedStatus: 'reference-observed-layout-blocked', rmss: true, rhbg: true, supported: false, blocked: true },
+  { code: 7, bodyLength: 116, expectedStatus: 'emitted-layout-supported', rmss: true, rhbg: true, supported: true, blocked: false },
   { code: 8, bodyLength: 88, expectedStatus: 'emitted-layout-supported', rmss: true, rhbg: true, supported: true, blocked: false },
   { code: 11, bodyLength: 708, expectedStatus: 'reference-observed-layout-blocked', rmss: true, rhbg: true, supported: false, blocked: true },
   { code: 11, bodyLength: 18340, expectedStatus: 'reference-observed-layout-blocked', rmss: true, rhbg: true, supported: false, blocked: true }
@@ -129,9 +129,10 @@ assert.equal(RVM_PRIMITIVE_PAYLOAD_LAYOUTS[5].semanticType, 'rmss-rhbg-cone-like
 assert.deepEqual(RVM_PRIMITIVE_PAYLOAD_LAYOUTS[5].payloadFields, ['radius', 'height']);
 assert.equal(RVM_PRIMITIVE_PAYLOAD_LAYOUTS[6].semanticType, 'rmss-cap-dish-like-blocked', 'RMSS code 6 must be identified as cap/dish-like but blocked');
 assert.deepEqual(RVM_PRIMITIVE_PAYLOAD_LAYOUTS[6].payloadFields, ['radius', 'heightOrDepth']);
+assert.equal(RVM_PRIMITIVE_PAYLOAD_LAYOUTS[7].emittedKind, 'snout', 'code 7 must now map to the contract-supported snout kind');
 assert.equal(RVM_PRIMITIVE_PAYLOAD_LAYOUTS[7].payloadWordCount, 9, 'RMSS/RHBG code 7 layout length must remain recorded');
-assert.equal(RVM_PRIMITIVE_PAYLOAD_LAYOUTS[7].semanticType, 'rmss-rhbg-frustum-like-blocked', 'RMSS/RHBG code 7 must be identified as frustum-like but blocked');
-assert.deepEqual(RVM_PRIMITIVE_PAYLOAD_LAYOUTS[7].payloadFields.slice(0, 3), ['baseRadius', 'topRadius', 'height']);
+assert.equal(RVM_PRIMITIVE_PAYLOAD_LAYOUTS[7].semanticType, 'rmss-rhbg-frustum-like', 'RMSS/RHBG code 7 must be identified as snout/frustum-like');
+assert.deepEqual(RVM_PRIMITIVE_PAYLOAD_LAYOUTS[7].payloadFields.slice(0, 5), ['radiusBottom', 'radiusTop', 'height', 'offsetX', 'offsetY']);
 assert.equal(RVM_PRIMITIVE_PAYLOAD_LAYOUTS[11].variableBodyLength, true, 'RMSS/RHBG code 11 must be treated as a variable-length mesh/facet candidate');
 assert.deepEqual(RVM_PRIMITIVE_PAYLOAD_LAYOUTS[11].knownBodyLengths, [708, 1316, 1468, 3748, 4508, 16820, 17124, 18340]);
 
@@ -198,21 +199,23 @@ assert.equal(cap.bboxConsistentWithPayload, true);
 assertAlmostEqual(cap.payloadSemantics.radius, 84);
 assertAlmostEqual(cap.payloadSemantics.heightOrDepth, 50);
 
-const frustumBody = makePrimitiveBody({
+const snoutBody = makePrimitiveBody({
   code: 7,
   bodyLength: 116,
   bbox: [-111.85, -111.85, -55.55, 111.85, 111.85, 55.55],
   payload: [111.85, 84.2, 111.1, 0, 0, 0, 0, 0, 0]
 });
-const frustum = decodeRvmPrimitivePayload(frustumBody);
-assert.equal(frustum.code, 7);
-assert.equal(frustum.supportedForEmission, false, 'RMSS/RHBG code 7 remains blocked for emission');
-assert.equal(frustum.semanticType, 'rmss-rhbg-frustum-like');
-assert.equal(frustum.candidateEmissionKind, 'frustum');
-assert.equal(frustum.bboxConsistentWithPayload, true);
-assertAlmostEqual(frustum.payloadSemantics.baseRadius, 111.85);
-assertAlmostEqual(frustum.payloadSemantics.topRadius, 84.2);
-assertAlmostEqual(frustum.payloadSemantics.height, 111.1);
+const snout = decodeRvmPrimitivePayload(snoutBody);
+assert.equal(snout.code, 7);
+assert.equal(snout.supportedForEmission, true, 'RMSS/RHBG code 7 is now contract-supported as snout');
+assert.equal(snout.compatibilityStatus, 'emitted-layout-supported');
+assert.equal(snout.semanticType, 'rmss-rhbg-frustum-like');
+assert.equal(snout.candidateEmissionKind, 'snout');
+assert.equal(snout.bboxConsistentWithPayload, true);
+assert.equal(snout.semanticConfidence, 'writer-owned');
+assertAlmostEqual(snout.payloadSemantics.radiusBottom, 111.85);
+assertAlmostEqual(snout.payloadSemantics.radiusTop, 84.2);
+assertAlmostEqual(snout.payloadSemantics.height, 111.1);
 
 const meshBody = makePrimitiveBody({
   code: 11,
@@ -231,8 +234,9 @@ assert.equal(mesh.payloadSemantics.payloadWordCount, 157);
 assert.equal(mesh.payloadSemantics.knownBodyLength, true);
 assert.deepEqual(mesh.payloadSemantics.sampleWords.slice(0, 3), [0.25, 1.25, 2.25]);
 
-const standaloneSemantics = inferRvmPrimitivePayloadSemantics(7, frustum.bbox, frustum.payload, classifyRvmPrimitivePayload(7, 116));
+const standaloneSemantics = inferRvmPrimitivePayloadSemantics(7, snout.bbox, snout.payload, classifyRvmPrimitivePayload(7, 116));
 assert.equal(standaloneSemantics.semanticType, 'rmss-rhbg-frustum-like');
+assert.equal(standaloneSemantics.candidateEmissionKind, 'snout');
 assert.equal(standaloneSemantics.bboxConsistentWithPayload, true);
 
 assert.match(decoderSource, /RMSS_OBSERVED_PRIMITIVE_CODES/, 'decoder must be tied to the central RMSS-observed primitive code contract');

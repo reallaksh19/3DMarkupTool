@@ -1,7 +1,7 @@
-const FORBIDDEN_CODES = Object.freeze([2, 5, 6, 7, 11]);
-const ALLOWED_CODES = Object.freeze([1, 4, 8]);
-const SUPPORT_ALLOWED_CODES = Object.freeze([8]);
-const SUPPORT_FORBIDDEN_CODES = Object.freeze([1, 5, 6, 7, 11]);
+const FORBIDDEN_CODES = Object.freeze([3, 5, 6, 10, 11]);
+const ALLOWED_CODES = Object.freeze([1, 2, 4, 7, 8, 9]);
+const SUPPORT_ALLOWED_CODES = Object.freeze([2, 8, 9]);
+const SUPPORT_FORBIDDEN_CODES = Object.freeze([1, 4, 5, 6, 7, 10, 11]);
 const DEFAULT_GAP_TOLERANCE_MM = 0.001;
 const DEFAULT_SUPPORT_MAX_GLYPH_EXTENT_MM = 100;
 const DEFAULT_SUPPORT_MAX_CLUSTER_OFFSET_MM = 30;
@@ -50,6 +50,8 @@ export function assertManagedStageRvmAuditGate(audit = {}, expectations = {}) {
   requireTruthy(Array.isArray(bbox.bboxMm) && bbox.bboxMm.length === 6, 'boundingExtentsMm.bboxMm', issues);
   requireEqual(bbox.cntbBboxFieldsWritten, false, 'boundingExtentsMm.cntbBboxFieldsWritten', issues);
   requireEqual((audit.torusOrientationAssumptions || []).length, primitiveHistogram[4] || 0, 'torus assumption count', issues);
+  requireEqual((audit.snoutGeometryAssumptions || []).length, primitiveHistogram[7] || 0, 'snout assumption count', issues);
+  requireEqual((audit.sphereGeometryAssumptions || []).length, primitiveHistogram[9] || 0, 'sphere assumption count', issues);
 
   if (stitchManifest.schema !== undefined) {
     requireEqual(stitchManifest.schema, 'ManagedStageRvmStitchManifest.v1', 'stitchManifest.schema', issues);
@@ -69,8 +71,11 @@ export function assertManagedStageRvmAuditGate(audit = {}, expectations = {}) {
   checkExpected(expectations.supportRecordsEmittedToRvm, inputCounts.supportRecordsEmittedToRvm, 'expected support records emitted to RVM', issues);
   checkExpected(expectations.supportRvmPrimitiveCount, supportExport.supportPrimitiveCount, 'expected support RVM primitive count', issues);
   checkExpected(expectations.code1, primitiveHistogram[1] || 0, 'expected code 1 pyramid primitives', issues);
+  checkExpected(expectations.code2, primitiveHistogram[2] || 0, 'expected code 2 box primitives', issues);
   checkExpected(expectations.code4, primitiveHistogram[4] || 0, 'expected code 4 torus primitives', issues);
+  checkExpected(expectations.code7, primitiveHistogram[7] || 0, 'expected code 7 snout primitives', issues);
   checkExpected(expectations.code8, primitiveHistogram[8] || 0, 'expected code 8 cylinder primitives', issues);
+  checkExpected(expectations.code9, primitiveHistogram[9] || 0, 'expected code 9 sphere primitives', issues);
   checkExpected(expectations.cntbCount, chunkHierarchy.cntbCount, 'expected CNTB count', issues);
   checkExpected(expectations.primCount, chunkHierarchy.primCount, 'expected PRIM count', issues);
 
@@ -84,7 +89,7 @@ export function assertManagedStageRvmAuditGate(audit = {}, expectations = {}) {
 
   if (blockingIssues.length) throw new Error(`Managed-stage RVM audit gate failed: ${blockingIssues.join('; ')}`);
   return {
-    schema: 'ManagedStageRvmAuditGate.v2',
+    schema: 'ManagedStageRvmAuditGate.v3',
     ok: true,
     failClosed: blockingIssues.length === 0,
     nonBlockingAuditIssues: nonBlockingIssues,
@@ -132,7 +137,7 @@ function assertSupportOverlayContract(supportExport = {}, stitchManifest = {}, e
   if (supportPrimitiveCount > 0) {
     requireEqual(sumHistogram(supportHistogram), supportPrimitiveCount, 'support primitive histogram sum', issues);
     for (const code of Object.keys(supportHistogram).map(Number)) {
-      if (!SUPPORT_ALLOWED_CODES.includes(code)) issues.push(`support overlay contains non-code8 primitive code ${code}`);
+      if (!SUPPORT_ALLOWED_CODES.includes(code)) issues.push(`support overlay contains non-support primitive code ${code}`);
     }
     for (const code of SUPPORT_FORBIDDEN_CODES) {
       if ((supportHistogram[code] || 0) !== 0) issues.push(`support overlay emitted forbidden primitive code ${code}`);

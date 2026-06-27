@@ -10,7 +10,10 @@ export function resolveManagedStageJsonProcessingConfig(profile, options = {}) {
   const inputXmlBasedJson = isInputXmlBasedManagedStageProfile(profile);
   const excludeOption = options.excludeBendsWhileProcessingInputXmlBasedJson;
   const legacyExcludeOption = options.excludeInputXmlBends;
-  const excludeRequested = excludeOption ?? legacyExcludeOption ?? MANAGED_STAGE_DEFAULT_PROCESSING_CONFIG.excludeBendsWhileProcessingInputXmlBasedJson;
+  const explicitExcludeOption = excludeOption ?? legacyExcludeOption;
+  const nativeCode4Requested = options.allowManagedStageCode4Elbows === true && options.allowExperimentalCode4ElbowEmission === true;
+  const excludeRequested = explicitExcludeOption
+    ?? (nativeCode4Requested ? false : MANAGED_STAGE_DEFAULT_PROCESSING_CONFIG.excludeBendsWhileProcessingInputXmlBasedJson);
   const config = {
     schema: MANAGED_STAGE_JSON_PROCESSING_CONFIG_SCHEMA,
     inputXmlBasedJson,
@@ -22,16 +25,19 @@ export function resolveManagedStageJsonProcessingConfig(profile, options = {}) {
     inputXmlBendTrimMaxContractFraction: boundedFraction(
       options.inputXmlBendTrimMaxContractFraction ?? MANAGED_STAGE_DEFAULT_PROCESSING_CONFIG.inputXmlBendTrimMaxContractFraction,
       'inputXmlBendTrimMaxContractFraction'
-    )
+    ),
+    nativeCode4Requested
   };
   return {
     ...config,
     mode: config.excludeBendsWhileProcessingInputXmlBasedJson ? 'inputxml-json-generic-1p5d-bends' : 'managed-stage-native-bends',
     reason: config.excludeBendsWhileProcessingInputXmlBasedJson
       ? 'InputXML marker found in managed-stage JSON and bend exclusion config is ON'
-      : inputXmlBasedJson
-        ? 'InputXML marker found but bend exclusion config is OFF'
-        : 'No InputXML marker found in managed-stage JSON'
+      : inputXmlBasedJson && nativeCode4Requested
+        ? 'InputXML marker found and native managed-stage code-4 bend emission is enabled'
+        : inputXmlBasedJson
+          ? 'InputXML marker found but bend exclusion config is OFF'
+          : 'No InputXML marker found in managed-stage JSON'
   };
 }
 

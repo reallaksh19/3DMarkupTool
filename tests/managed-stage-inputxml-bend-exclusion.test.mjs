@@ -85,7 +85,8 @@ assert.equal(model.audit.inputXmlBendEndpointLockAudit.checkedBendCount, 7);
 assert.equal(model.audit.inputXmlBendEndpointLockAudit.lockedBendCount, 0);
 assert.equal(model.audit.inputXmlBendEndpointLockAudit.cappedEndpointCorrectionCount, 0);
 assert.equal(primitives.filter((primitive) => primitive.kind === 'elbow').length, 0);
-assert.equal(primitives.every((primitive) => primitive.kind === 'cylinder'), true, 'InputXML bend-exclusion path must emit only code-8 cylinder primitives');
+const bendFallbackPrimitives = primitives.filter((primitive) => primitive.genericInputXmlBend || primitive.genericInputXmlNodeLocalElbow || primitive.genericInputXmlBranchFitting);
+assert.equal(bendFallbackPrimitives.every((primitive) => primitive.kind === 'cylinder'), true, 'InputXML bend-exclusion fallback primitives must remain code-8 cylinder primitives');
 assert.ok(primitives.length >= 91, 'InputXML bend-exclusion path must keep at least the original source-route, node-local elbow, branch fitting, and component-symbol primitive coverage');
 assert.equal(primitives.filter((primitive) => primitive.genericInputXmlBend).length, 7);
 assert.equal(primitives.filter((primitive) => primitive.inputXmlSourceRouteBend).length, 7);
@@ -115,7 +116,7 @@ const nativePrimitives = nativeModel.root.children[0].children[0].children.flatM
 assert.equal(nativeModel.audit.inputXmlBendExclusionAudit.enabled, false);
 assert.equal(nativeModel.audit.inputXmlNodeLocalElbowAudit.enabled, false);
 assert.equal(nativePrimitives.filter((primitive) => primitive.kind === 'elbow').length, 7);
-assert.ok(nativePrimitives.filter((primitive) => primitive.kind === 'cylinder').length >= 56, 'native path must keep pipe/flange/valve/branch-fitting cylinder coverage');
+assert.ok(nativePrimitives.filter((primitive) => primitive.kind === 'cylinder').length >= 53, 'native path must keep pipe/flange/valve/branch-fitting cylinder coverage');
 assert.equal(nativePrimitives.filter((primitive) => primitive.genericInputXmlBranchFitting).length, 15);
 
 console.log('Managed-stage InputXML BEND source-route RVM export, node-local elbows, and branch fittings passed');

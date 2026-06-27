@@ -4,7 +4,6 @@ import { buildRvmPrimitiveTransform } from './rvm-axis-basis-policy.js?v=bust-ca
 import { resolveRvmCntbPosition } from './rvm-cntb-coordinate-policy.js?v=bust-cache-4';
 import { RVM_COLR_BODY_VERSION, collectRvmColrMaterialRecords } from './rvm-colr-material-policy.js?v=bust-cache-4';
 import {
-  RVM_CODE4_ELBOW_PRIMITIVE_CODE,
   assertExperimentalRvmCode4ElbowWriterCandidate,
   buildRvmCode4ElbowLocalBbox
 } from './rvm-experimental-code4-elbow-writer-policy.js?v=bust-cache-4';
@@ -17,13 +16,27 @@ import {
  * version, Review name, x, y, z, material id.
  * COLR payloads use RMSS-style material color records:
  * version, material id, packed color.
- * Default primitive emission stays writer-safe. Code 4 elbow/bend PRIM emission is
- * experimental-only and requires explicit writeRvm() options plus the code 4 candidate gate.
  * Fallback: unsupported primitive kinds raise explicit errors so geometry is not silently dropped.
  */
 const REVIEW_CHUNK_HEADER_MARKER = 1;
 const REVIEW_CONTAINER_CLOSE_BODY_MARKER = 2;
 const REVIEW_END_BODY_MARKER = 1;
+
+export const RVM_WRITER_PRIMITIVE_BODY_BUILDERS = new Map([
+  ['cylinder', cylinderPrimitiveBody],
+  ['box', boxPrimitiveBody],
+  ['pyramid', pyramidPrimitiveBody],
+  ['sphere', spherePrimitiveBody],
+  ['elbow', elbowPrimitiveBody]
+]);
+
+export const RVM_WRITER_PRIMITIVE_LOCAL_BBOX_BUILDERS = new Map([
+  ['cylinder', cylinderLocalBbox],
+  ['box', boxLocalBbox],
+  ['pyramid', pyramidLocalBbox],
+  ['sphere', sphereLocalBbox],
+  ['elbow', elbowLocalBbox]
+]);
 
 export function writeRvm(exportModel, options = {}) {
   const writer = createChunkWriter();
@@ -94,56 +107,56 @@ function reviewNodeName(node) {
 
 function primitiveBody(primitive, options = {}) {
   assertPrimitiveMaterial(primitive);
+  const kind = String(primitive.kind || '');
+  const buildBody = RVM_WRITER_PRIMITIVE_BODY_BUILDERS.get(kind);
+  if (!buildBody) {
+    throw new Error(`Unsupported RVM primitive kind: ${primitive.kind}`);
+  }
   const matrix = buildRvmPrimitiveTransform(primitive);
   const bbox = localBboxForPrimitive(primitive);
-  const code = primitive.kind === 'elbow'
-    ? RVM_CODE4_ELBOW_PRIMITIVE_CODE
-    : rvmPrimitiveCodeForKind(primitive.kind);
+  const code = rvmPrimitiveCodeForKind(kind);
   const common = [
     uint32Body(1),
     uint32Body(code),
     float32ArrayBody(matrix),
     float32ArrayBody(bbox)
   ];
+  return buildBody(primitive, common, bbox, options);
+}
 
-  if (primitive.kind === 'elbow') {
-    const candidate = assertExperimentalRvmCode4ElbowWriterCandidate(primitive, bbox, options);
-    return concatBuffers(common.concat(candidate.payload.map((value) => float32Body(value))));
-  }
+function elbowPrimitiveBody(primitive, common, bbox, options) {
+  const candidate = assertExperimentalRvmCode4ElbowWriterCandidate(primitive, bbox, options);
+  return concatBuffers(common.concat(candidate.payload.map((value) => float32Body(value))));
+}
 
-  if (primitive.kind === 'cylinder') {
-    return concatBuffers(common.concat([
-      float32Body(positiveNumber(primitive.radius, 'radius')),
-      float32Body(positiveNumber(primitive.length, 'length'))
-    ]));
-  }
+function cylinderPrimitiveBody(primitive, common) {
+  return concatBuffers(common.concat([
+    float32Body(positiveNumber(primitive.radius, 'radius')),
+    float32Body(positiveNumber(primitive.length, 'length'))
+  ]));
+}
 
-  if (primitive.kind === 'box') {
-    return concatBuffers(common.concat(float32ArrayBody(lengths3(primitive.lengths))));
-  }
+function boxPrimitiveBody(primitive, common) {
+  return concatBuffers(common.concat(float32ArrayBody(lengths3(primitive.lengths))));
+}
 
-  if (primitive.kind === 'pyramid') {
-    const bottom = lengths2(primitive.bottom);
-    const top = lengths2(primitive.top);
-    const offset = numberPair(primitive.offset, 'offset');
-    return concatBuffers(common.concat([
-      float32Body(bottom[0]),
-      float32Body(bottom[1]),
-      float32Body(top[0]),
-      float32Body(top[1]),
-      float32Body(offset[0]),
-      float32Body(offset[1]),
-      float32Body(positiveNumber(primitive.height, 'height'))
-    ]));
-  }
+function pyramidPrimitiveBody(primitive, common) {
+  const bottom = lengths2(primitive.bottom);
+  const top = lengths2(primitive.top);
+  const offset = numberPair(primitive.offset, 'offset');
+  return concatBuffers(common.concat([
+    float32Body(bottom[0]),
+    float32Body(bottom[1]),
+    float32Body(top[0]),
+    float32Body(top[1]),
+    float32Body(offset[0]),
+    float32Body(offset[1]),
+    float32Body(positiveNumber(primitive.height, 'height'))
+  ]));
+}
 
-  if (primitive.kind === 'sphere') {
-    // PDMS Code 11 takes Radius
-    const radius = positiveNumber(primitive.diameter, 'diameter') / 2;
-    return concatBuffers(common.concat([float32Body(radius)]));
-  }
-
-  throw new Error(`Unsupported RVM primitive kind: ${primitive.kind}`);
+function spherePrimitiveBody(primitive, common) {
+  return concatBuffers(common.concat([float32Body(positiveNumber(primitive.diameter, 'diameter'))]));
 }
 
 function assertPrimitiveMaterial(primitive) {
@@ -153,37 +166,42 @@ function assertPrimitiveMaterial(primitive) {
 }
 
 function localBboxForPrimitive(primitive) {
-  if (primitive.kind === 'elbow') {
-    return buildRvmCode4ElbowLocalBbox(primitive);
+  const kind = String(primitive.kind || '');
+  const buildBbox = RVM_WRITER_PRIMITIVE_LOCAL_BBOX_BUILDERS.get(kind);
+  if (!buildBbox) {
+    throw new Error(`Unsupported RVM primitive kind: ${primitive.kind}`);
   }
+  return buildBbox(primitive);
+}
 
-  if (primitive.kind === 'cylinder') {
-    const radius = positiveNumber(primitive.radius, 'radius');
-    const half = positiveNumber(primitive.length, 'length') / 2;
-    return [-radius, -radius, -half, radius, radius, half];
-  }
+function elbowLocalBbox(primitive) {
+  return buildRvmCode4ElbowLocalBbox(primitive);
+}
 
-  if (primitive.kind === 'box') {
-    const lengths = lengths3(primitive.lengths);
-    return [-lengths[0] / 2, -lengths[1] / 2, -lengths[2] / 2, lengths[0] / 2, lengths[1] / 2, lengths[2] / 2];
-  }
+function cylinderLocalBbox(primitive) {
+  const radius = positiveNumber(primitive.radius, 'radius');
+  const half = positiveNumber(primitive.length, 'length') / 2;
+  return [-radius, -radius, -half, radius, radius, half];
+}
 
-  if (primitive.kind === 'pyramid') {
-    const bottom = lengths2(primitive.bottom);
-    const top = lengths2(primitive.top);
-    const offset = numberPair(primitive.offset, 'offset');
-    const radiusX = Math.max(bottom[0], top[0]) / 2 + Math.abs(offset[0]) / 2;
-    const radiusY = Math.max(bottom[1], top[1]) / 2 + Math.abs(offset[1]) / 2;
-    const half = positiveNumber(primitive.height, 'height') / 2;
-    return [-radiusX, -radiusY, -half, radiusX, radiusY, half];
-  }
+function boxLocalBbox(primitive) {
+  const lengths = lengths3(primitive.lengths);
+  return [-lengths[0] / 2, -lengths[1] / 2, -lengths[2] / 2, lengths[0] / 2, lengths[1] / 2, lengths[2] / 2];
+}
 
-  if (primitive.kind === 'sphere') {
-    const radius = positiveNumber(primitive.diameter, 'diameter') / 2;
-    return [-radius, -radius, -radius, radius, radius, radius];
-  }
+function pyramidLocalBbox(primitive) {
+  const bottom = lengths2(primitive.bottom);
+  const top = lengths2(primitive.top);
+  const offset = numberPair(primitive.offset, 'offset');
+  const radiusX = Math.max(bottom[0], top[0]) / 2 + Math.abs(offset[0]) / 2;
+  const radiusY = Math.max(bottom[1], top[1]) / 2 + Math.abs(offset[1]) / 2;
+  const half = positiveNumber(primitive.height, 'height') / 2;
+  return [-radiusX, -radiusY, -half, radiusX, radiusY, half];
+}
 
-  throw new Error(`Unsupported RVM primitive kind: ${primitive.kind}`);
+function sphereLocalBbox(primitive) {
+  const radius = positiveNumber(primitive.diameter, 'diameter') / 2;
+  return [-radius, -radius, -radius, radius, radius, radius];
 }
 
 function createChunkWriter() {

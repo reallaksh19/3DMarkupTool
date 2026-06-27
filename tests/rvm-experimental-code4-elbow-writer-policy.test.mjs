@@ -14,7 +14,6 @@ import {
 import { evaluateRvmCode4ElbowEmissionCandidate } from '../src/rvm-code4-elbow-emission-candidate-policy.js';
 
 const pkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
-const kindContractSource = readFileSync(new URL('../src/rvm-primitive-kind-contract.js', import.meta.url), 'utf8');
 
 const policy = describeRvmExperimentalCode4ElbowWriterPolicy();
 assert.equal(policy.schema, RVM_EXPERIMENTAL_CODE4_ELBOW_WRITER_POLICY_SCHEMA);
@@ -32,8 +31,7 @@ assert.equal(isExperimentalRvmCode4ElbowWriterEnabled({
   allowExperimentalCode4ElbowEmission: true
 }), true);
 
-assert.equal(Object.prototype.hasOwnProperty.call(RVM_PRIMITIVE_KIND_CODES, 'elbow'), false);
-assert.doesNotMatch(kindContractSource, /elbow\s*:/, 'primitive-kind contract must not expose elbow as a production writer kind');
+assert.equal(RVM_PRIMITIVE_KIND_CODES.elbow, 4, 'primitive-kind contract must expose elbow so writer/preview parity can include code 4');
 
 const elbowPrimitive = {
   kind: 'elbow',
@@ -86,11 +84,12 @@ const decoded = primitives[0];
 assert.equal(decoded.code, 4);
 assert.equal(decoded.bodyLength, 92);
 assert.equal(decoded.payloadWordCount, 3);
-assert.equal(decoded.supportedForEmission, false, 'code 4 stays outside the production primitive-kind contract');
-assert.equal(decoded.referenceObservedButBlocked, true);
-assert.equal(decoded.compatibilityStatus, 'reference-observed-layout-blocked');
+assert.equal(decoded.supportedForEmission, true, 'code 4 is now contract-supported while actual write emission remains explicitly gated');
+assert.equal(decoded.referenceObservedButBlocked, false);
+assert.equal(decoded.compatibilityStatus, 'emitted-layout-supported');
 assert.equal(decoded.candidateEmissionKind, 'elbow');
 assert.equal(decoded.semanticType, 'rmss-rhbg-elbow-bend-like');
+assert.equal(decoded.semanticConfidence, 'writer-owned');
 assert.ok(approx(decoded.payloadSemantics.bendRadius, 305));
 assert.ok(approx(decoded.payloadSemantics.tubeRadius, 109.55));
 assert.ok(approx(decoded.payloadSemantics.sweepAngleRad, Math.PI / 2));

@@ -43,7 +43,7 @@ export function verifyManagedStageRvmReferenceCompatibility({ artifactDir, base 
   requireEqual(audit.rvmBytes, binary.byteLength, 'persisted audit RVM byte length', issues);
 
   for (const primitive of primitives) {
-    if (![1, 4, 8].includes(Number(primitive.code))) issues.push(`forbidden primitive code ${primitive.code}`);
+    if (![1, 4, 7, 8, 9].includes(Number(primitive.code))) issues.push(`forbidden primitive code ${primitive.code}`);
     if (Number(primitive.code) === 1) {
       requireEqual(primitive.bodyLength, 108, 'code 1 body length', issues);
       requireEqual(primitive.payloadWordCount, 7, 'code 1 payload words', issues);
@@ -56,11 +56,19 @@ export function verifyManagedStageRvmReferenceCompatibility({ artifactDir, base 
       requireEqual(primitive.bodyLength, 92, 'code 4 body length', issues);
       requireEqual(primitive.payloadWordCount, 3, 'code 4 payload words', issues);
     }
+    if (Number(primitive.code) === 7) {
+      requireEqual(primitive.bodyLength, 116, 'code 7 body length', issues);
+      requireEqual(primitive.payloadWordCount, 9, 'code 7 payload words', issues);
+    }
+    if (Number(primitive.code) === 9) {
+      requireEqual(primitive.bodyLength, 84, 'code 9 body length', issues);
+      requireEqual(primitive.payloadWordCount, 1, 'code 9 payload words', issues);
+    }
   }
 
   if (issues.length) throw new Error(`Managed-stage RVM reference compatibility failed: ${issues.join('; ')}`);
   return {
-    schema: 'ManagedStageRvmReferenceCompatibility.v1',
+    schema: 'ManagedStageRvmReferenceCompatibility.v2',
     generated: {
       byteLength: buffer.byteLength,
       chunkCounts: binary.counts,
@@ -70,7 +78,8 @@ export function verifyManagedStageRvmReferenceCompatibility({ artifactDir, base 
     },
     reference: null,
     referenceMode: 'decoder-layout-self-check',
-    compatible: true
+    compatible: true,
+    allowedPrimitiveCodes: [1, 4, 7, 8, 9]
   };
 }
 

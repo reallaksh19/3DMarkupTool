@@ -17,22 +17,31 @@ if (!inputPath && fixtureName !== 'bm-cii') {
 const { convertManagedStageJsonToRvmAtt } = await import('../src/managed-stage-rvm-converter.js');
 const { sourceText, baseName, strictAuditExpectations } = await resolveSource(inputPath, fixtureName, { baseNameOverride, expectBmCii });
 const result = convertManagedStageJsonToRvmAtt(sourceText, { strictAuditExpectations });
+const artifactSummary = buildArtifactSummary(result.audit);
 assertArtifactAuditGates(result.audit);
 mkdirSync(outDir, { recursive: true });
 
 const files = [
   [`${baseName}.rvm`, Buffer.from(result.rvm)],
   [`${baseName}.att`, Buffer.from(result.att)],
-  [`${baseName}.audit.json`, Buffer.from(`${JSON.stringify(result.audit, null, 2)}\n`)]
+  [`${baseName}.audit.json`, Buffer.from(`${JSON.stringify(result.audit, null, 2)}\n`)],
+  [`${baseName}.summary.json`, Buffer.from(`${JSON.stringify(artifactSummary, null, 2)}\n`)]
 ];
 for (const [name, bytes] of files) writeFileSync(join(outDir, name), bytes);
 writeFileSync(join(outDir, `${baseName}.zip`), makeStoredZip(files));
 
 console.log(`Generated managed-stage RVM artifacts in ${outDir}`);
 console.log(`Base name: ${baseName}`);
-console.log(`RVM bytes: ${result.audit.rvmBytes}`);
-console.log(`ATT bytes: ${result.audit.attBytes}`);
-console.log(`Primitive histogram: ${JSON.stringify(result.audit.primitiveHistogram)}`);
+console.log(`Summary file: ${baseName}.summary.json`);
+console.log(`Ready: ${artifactSummary.ready ? 'YES' : 'NO'}`);
+console.log(`RVM bytes: ${artifactSummary.artifacts.rvmBytes}`);
+console.log(`ATT bytes: ${artifactSummary.artifacts.attBytes}`);
+console.log(`CNTB / PRIM: ${artifactSummary.counts.cntb} / ${artifactSummary.counts.prim}`);
+console.log(`Primitive histogram: ${JSON.stringify(artifactSummary.primitiveHistogram)}`);
+console.log(`Payload issues: ${artifactSummary.payloadIssues.total}`);
+console.log(`Geometry primitive histogram: ${JSON.stringify(artifactSummary.geometry.primitiveCodeHistogram)}`);
+console.log(`Support primitive histogram: ${JSON.stringify(artifactSummary.supportOverlay.primitiveCodeHistogram)}`);
+console.log(`Support isolated from pipe/fitting codes: ${artifactSummary.supportOverlay.isolatedFromPipeFittingCodes ? 'YES' : 'NO'}`);
 console.log(`Processing mode: ${result.audit.processingConfig?.mode || 'unknown'}`);
 console.log(`InputXML bends excluded: ${result.audit.inputXmlBendExclusionAudit?.code4BendsExcluded || 0}`);
 console.log(`InputXML branch fittings inferred: ${result.audit.inputXmlBranchFittingInferenceAudit?.genericBranchFittingCount || 0}`);
@@ -67,6 +76,65 @@ async function resolveSource(input, fixture, options = {}) {
     sourceText: readFileSync(input, 'utf8'),
     baseName: options.baseNameOverride || basename(input).replace(/\.json$/i, '') || 'BM_CII_INPUT_managed_stage',
     strictAuditExpectations: options.expectBmCii ? bmCiiExpectations() : {}
+  };
+}
+
+function buildArtifactSummary(audit = {}) {
+  const sourceSummary = audit.rvmAuditSummary || {};
+  const payload = audit.rvmPrimitivePayloadSemanticsAudit || {};
+  const geometry = audit.rvmGeometryAudit || {};
+  const support = audit.supportRvmExportAudit || {};
+  const stitch = audit.stitchManifest || {};
+  const payloadIssues = {
+    total: Number(payload.issueCount || sourceSummary.payloadIssues?.total || 0),
+    code4: Number(payload.code4?.issueCount || sourceSummary.payloadIssues?.code4 || 0),
+    code7: Number(payload.code7?.issueCount || sourceSummary.payloadIssues?.code7 || 0),
+    code9: Number(payload.code9?.issueCount || sourceSummary.payloadIssues?.code9 || 0)
+  };
+  const supportCodeHistogram = geometry.supportOverlay?.primitiveCodeHistogram || support.supportPrimitiveCodeHistogram || {};
+  const supportIsolated = geometry.supportOverlay?.isolatedFromPipeFittingCodes !== false;
+  const ready = sourceSummary.ready ?? (
+    payloadIssues.total === 0
+    && geometry.issueCount !== undefined ? Number(geometry.issueCount || 0) === 0 : true
+    && audit.managedStageTopologyProofGate?.ok !== false
+    && audit.managedStageStrictGate?.ok !== false
+  );
+  return {
+    schema: 'ManagedStageRvmArtifactSummary.v1',
+    ready: Boolean(ready),
+    counts: {
+      geometryComponents: audit.inputCounts?.geometryComponents || 0,
+      supportRecords: audit.inputCounts?.supportRecordsEmittedToRvm || 0,
+      cntb: audit.chunkHierarchy?.cntbCount || sourceSummary.counts?.cntb || 0,
+      prim: audit.chunkHierarchy?.primCount || sourceSummary.counts?.prim || 0
+    },
+    primitiveHistogram: audit.primitiveHistogram || sourceSummary.primitiveHistogram || {},
+    payloadIssues,
+    geometry: {
+      primitiveCount: geometry.geometry?.primitiveCount || stitch.geometryPrimitiveCount || sourceSummary.geometry?.primitiveCount || 0,
+      primitiveCodeHistogram: geometry.geometry?.primitiveCodeHistogram || sourceSummary.geometry?.primitiveCodeHistogram || {},
+      primitiveRoleTagCounts: geometry.geometry?.primitiveRoleTagCounts || sourceSummary.geometry?.primitiveRoleTagCounts || {},
+      code4Count: geometry.geometry?.code4Elbows?.count || sourceSummary.geometry?.code4Count || 0,
+      code7Count: geometry.geometry?.code7Snouts?.count || sourceSummary.geometry?.code7Count || 0,
+      code8Count: geometry.geometry?.code8Cylinders?.count || sourceSummary.geometry?.code8Count || 0,
+      code9Count: geometry.geometry?.code9Spheres?.count || sourceSummary.geometry?.code9Count || 0
+    },
+    supportOverlay: {
+      primitiveCount: geometry.supportOverlay?.primitiveCount || stitch.supportOverlayPrimitiveCount || sourceSummary.supportOverlay?.primitiveCount || 0,
+      primitiveCodeHistogram: supportCodeHistogram,
+      isolatedFromPipeFittingCodes: supportIsolated,
+      nonCode8PrimitiveCount: geometry.supportOverlay?.nonCode8PrimitiveCount || sourceSummary.supportOverlay?.nonCode8PrimitiveCount || 0
+    },
+    gates: {
+      topologyProof: audit.managedStageTopologyProofGate?.ok !== false,
+      strictAudit: audit.managedStageStrictGate?.ok !== false,
+      stitchManifest: audit.stitchManifestGate?.ok !== false
+    },
+    artifacts: {
+      rvmBytes: audit.rvmBytes || sourceSummary.artifacts?.rvmBytes || 0,
+      attBytes: audit.attBytes || sourceSummary.artifacts?.attBytes || 0,
+      generationMode: audit.generationMode || sourceSummary.artifacts?.generationMode || ''
+    }
   };
 }
 

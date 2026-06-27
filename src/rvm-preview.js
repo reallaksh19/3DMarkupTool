@@ -30,6 +30,17 @@ const MATERIAL_BY_RVM_ID = new Map([
   [31, PREVIEW_COLORS.spring]
 ]);
 
+const PRIMITIVE_MESH_CREATORS = Object.freeze({
+  pyramid: createPyramid,
+  box: createBox,
+  elbow: createElbow,
+  snout: createSnout,
+  cylinder: createCylinder,
+  sphere: createSphere
+});
+
+export const RVM_PREVIEW_PRIMITIVE_KINDS = Object.freeze(Object.keys(PRIMITIVE_MESH_CREATORS));
+
 /**
  * Creates a Three.js scene from the generated RVM export tree.
  * Parameters: export tree returned by convertInputXmlToRvmAtt or convertManagedStageJsonToRvmAtt.
@@ -106,12 +117,9 @@ function createAnnotationOverlay(node) {
 }
 
 function createPrimitiveMesh(primitive, fallbackMaterialId) {
-  if (primitive.kind === 'cylinder') return createCylinder(primitive, fallbackMaterialId);
-  if (primitive.kind === 'elbow') return createElbow(primitive, fallbackMaterialId);
-  if (primitive.kind === 'sphere') return createSphere(primitive, fallbackMaterialId);
-  if (primitive.kind === 'box') return createBox(primitive, fallbackMaterialId);
-  if (primitive.kind === 'pyramid') return createPyramid(primitive, fallbackMaterialId);
-  throw new Error(`Unsupported RVM preview primitive: ${primitive.kind}`);
+  const creator = PRIMITIVE_MESH_CREATORS[String(primitive?.kind || '')];
+  if (!creator) throw new Error(`Unsupported RVM preview primitive: ${primitive?.kind}`);
+  return creator(primitive, fallbackMaterialId);
 }
 
 function createCylinder(primitive, fallbackMaterialId) {
@@ -135,7 +143,7 @@ function createElbow(primitive, fallbackMaterialId) {
   const mesh = new THREE.Mesh(geometry, materialFor(primitive, fallbackMaterialId));
   mesh.name = primitive.name;
   mesh.position.copy(v3(primitive.center));
-  const basis = basisForElbow(primitive);
+  const basis = basisForPrimitive(primitive);
   const matrix = new THREE.Matrix4().makeBasis(basis.x, basis.y, basis.z);
   mesh.setRotationFromMatrix(matrix);
   mesh.userData = {
@@ -148,6 +156,30 @@ function createElbow(primitive, fallbackMaterialId) {
   return mesh;
 }
 
+function createSnout(primitive, fallbackMaterialId) {
+  const radiusBottom = positiveNumber(primitive.radiusBottom, 'radiusBottom');
+  const radiusTop = nonNegativeNumber(primitive.radiusTop, 'radiusTop');
+  const height = positiveNumber(primitive.height, 'height');
+  const geometry = new THREE.CylinderGeometry(radiusTop, radiusBottom, height, 24, 1, false);
+  geometry.rotateX(Math.PI / 2);
+  geometry.computeBoundingBox();
+  geometry.computeBoundingSphere();
+  const mesh = new THREE.Mesh(geometry, materialFor(primitive, fallbackMaterialId));
+  mesh.name = primitive.name;
+  mesh.position.copy(v3(primitive.center));
+  const basis = basisForPrimitive(primitive);
+  const matrix = new THREE.Matrix4().makeBasis(basis.x, basis.y, basis.z);
+  mesh.setRotationFromMatrix(matrix);
+  mesh.userData = {
+    TYPE: 'RVM_PRIMITIVE',
+    primitiveKind: primitive.kind,
+    sourceName: primitive.name,
+    primitiveCode: 7,
+    previewGeometry: 'snout-frustum'
+  };
+  return mesh;
+}
+
 function createSphere(primitive, fallbackMaterialId) {
   const mesh = new THREE.Mesh(
     new THREE.SphereGeometry(Number(primitive.diameter) / 2, 24, 16),
@@ -155,7 +187,7 @@ function createSphere(primitive, fallbackMaterialId) {
   );
   mesh.name = primitive.name;
   mesh.position.copy(v3(primitive.center));
-  mesh.userData = { TYPE: 'RVM_PRIMITIVE', primitiveKind: primitive.kind, sourceName: primitive.name };
+  mesh.userData = { TYPE: 'RVM_PRIMITIVE', primitiveKind: primitive.kind, sourceName: primitive.name, primitiveCode: 9 };
   return mesh;
 }
 
@@ -177,7 +209,7 @@ function createBox(primitive, fallbackMaterialId) {
   } else {
     mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), v3(primitive.direction || [0, 0, 1]).normalize());
   }
-  mesh.userData = { TYPE: 'RVM_PRIMITIVE', primitiveKind: primitive.kind, sourceName: primitive.name };
+  mesh.userData = { TYPE: 'RVM_PRIMITIVE', primitiveKind: primitive.kind, sourceName: primitive.name, primitiveCode: 2 };
   return mesh;
 }
 
@@ -191,11 +223,11 @@ function createPyramid(primitive, fallbackMaterialId) {
   mesh.name = primitive.name;
   mesh.position.copy(v3(primitive.center));
   mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), v3(primitive.direction).normalize());
-  mesh.userData = { TYPE: 'RVM_PRIMITIVE', primitiveKind: primitive.kind, sourceName: primitive.name };
+  mesh.userData = { TYPE: 'RVM_PRIMITIVE', primitiveKind: primitive.kind, sourceName: primitive.name, primitiveCode: 1 };
   return mesh;
 }
 
-function basisForElbow(primitive) {
+function basisForPrimitive(primitive) {
   if (primitive.basis?.x && primitive.basis?.y && primitive.basis?.z) {
     return {
       x: v3(primitive.basis.x).normalize(),
@@ -308,5 +340,11 @@ function v3(value) {
 function positiveNumber(value, fieldName) {
   const parsed = Number(value);
   if (!Number.isFinite(parsed) || parsed <= 0) throw new Error(`Invalid RVM preview ${fieldName}: expected positive number`);
+  return parsed;
+}
+
+function nonNegativeNumber(value, fieldName) {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed < 0) throw new Error(`Invalid RVM preview ${fieldName}: expected non-negative number`);
   return parsed;
 }

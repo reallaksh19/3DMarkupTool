@@ -1,6 +1,10 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 import { basename, dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import {
+  assertBmCiiManagedStageRvmHistogram,
+  bmCiiManagedStageRvmExpectations
+} from './managed-stage-bm-cii-rvm-expectations.mjs';
 
 const repoRoot = dirname(dirname(fileURLToPath(import.meta.url)));
 const args = process.argv.slice(2);
@@ -14,8 +18,9 @@ if (!inputPath && fixtureName !== 'bm-cii') {
 }
 
 const { convertManagedStageJsonToRvmAtt } = await import('../src/managed-stage-rvm-converter.js');
-const { sourceText, sourceLabel, strictAuditExpectations } = await resolveSource(inputPath, fixtureName, exactBmCii);
+const { sourceText, sourceLabel, strictAuditExpectations, expectBmCiiHistogram } = await resolveSource(inputPath, fixtureName, exactBmCii);
 const result = convertManagedStageJsonToRvmAtt(sourceText, { strictAuditExpectations });
+if (expectBmCiiHistogram) assertBmCiiManagedStageRvmHistogram(result.audit.primitiveHistogram);
 const summary = buildSummary(sourceLabel, result.audit);
 
 if (auditOut) writeFileSync(join(repoRoot, auditOut), `${JSON.stringify(result.audit, null, 2)}\n`);
@@ -34,48 +39,21 @@ async function resolveSource(input, fixture, expectBmCii) {
     return {
       sourceText: JSON.stringify(createBmCiiManagedStageFixture()),
       sourceLabel: 'fixture:bm-cii',
-      strictAuditExpectations: bmCiiExpectations()
+      strictAuditExpectations: bmCiiManagedStageRvmExpectations(),
+      expectBmCiiHistogram: true
     };
   }
   return {
     sourceText: readFileSync(input, 'utf8'),
     sourceLabel: basename(input),
-    strictAuditExpectations: expectBmCii ? bmCiiExpectations() : {}
-  };
-}
-
-function bmCiiExpectations() {
-  return {
-    geometryComponents: 40,
-    supportRecordsSkippedFromGeometry: 12,
-    supportRecordsEmittedToRvm: 12,
-    supportRvmPrimitiveCount: 42,
-    topologyComponentCount: 52,
-    topologyGeometryComponentCount: 40,
-    topologySupportCount: 12,
-    explicitBendRecordCount: 7,
-    explicitBendDetailCount: 7,
-    missingExplicitBendDetailCount: 0,
-    synthetic1p5DTrimBlockedCount: 7,
-    supportAssociationOnlyCount: 12,
-    supportTopologyBlockedCount: 0,
-    supportContinuityEdgeCount: 0,
-    supportInlineFaceCount: 0,
-    code1: 0,
-    code4: 0,
-    code8: 157,
-    cntbCount: 56,
-    primCount: 157,
-    supportMaxGlyphExtentMm: 100,
-    supportMaxClusterOffsetMm: 30,
-    supportMaxPrimitiveSpanMm: 60,
-    supportMaxBarRadiusMm: 3
+    strictAuditExpectations: expectBmCii ? bmCiiManagedStageRvmExpectations() : {},
+    expectBmCiiHistogram: expectBmCii
   };
 }
 
 function buildSummary(sourceLabel, audit) {
   return {
-    schema: 'ManagedStageRvmProfileVerification.v1',
+    schema: 'ManagedStageRvmProfileVerification.v2',
     source: sourceLabel,
     strictGateOk: audit.managedStageStrictGate?.ok === true,
     topologyProofGateOk: audit.managedStageTopologyProofGate?.ok === true,

@@ -59,7 +59,7 @@ assert.deepEqual(decoded.parameters, {
   topShearX: 0,
   topShearY: 0
 });
-assert.deepEqualRounded(decoded.bbox, [-60, -115, -200, 120, 65, 200]);
+assertArrayAlmostEqual(decoded.bbox, [-60, -115, -200, 120, 65, 200]);
 assert.equal(decoded.bboxConsistentWithPayload, true);
 assert.equal(decoded.semanticConfidence, 'writer-owned');
 assert.equal(decoded.candidateEmissionKind, 'snout');
@@ -103,8 +103,8 @@ const coneRvm = writeRvm(exportModelWithPrimitive({
 }));
 const [cone] = scanRvmPrimitivePayloads(coneRvm);
 assert.equal(cone.code, 7, 'cone-style tapered head must still be emitted as snout code 7');
-assert.deepEqualRounded(cone.payload, [60, 0, 120, 0, 0, 0, 0, 0, 0]);
-assert.deepEqualRounded(cone.bbox, [-60, -60, -60, 60, 60, 60]);
+assertArrayAlmostEqual(cone.payload, [60, 0, 120, 0, 0, 0, 0, 0, 0]);
+assertArrayAlmostEqual(cone.bbox, [-60, -60, -60, 60, 60, 60]);
 
 assert.match(pkg.scripts.test, /rvm-snout-code7-writer-preview\.test\.mjs/, 'npm test must include the snout writer/preview test');
 
@@ -138,7 +138,7 @@ function assertAlmostEqual(actual, expected, tolerance = 1e-4) {
   assert.ok(Math.abs(actual - expected) <= tolerance, `expected ${actual} to be within ${tolerance} of ${expected}`);
 }
 
-assert.deepEqualRounded = function deepEqualRounded(actual, expected, tolerance = 1e-4) {
+function assertArrayAlmostEqual(actual, expected, tolerance = 1e-4) {
   assert.equal(actual.length, expected.length, 'array lengths must match');
   actual.forEach((value, index) => assertAlmostEqual(value, expected[index], tolerance));
-};
+}

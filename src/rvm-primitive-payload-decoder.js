@@ -46,13 +46,13 @@ export const RVM_PRIMITIVE_PAYLOAD_LAYOUTS = Object.freeze({
   }),
   4: Object.freeze({
     code: 4,
-    emittedKind: null,
+    emittedKind: 'elbow',
     bodyLength: 92,
     payloadWordCount: 3,
     payloadFields: Object.freeze(['bendRadius', 'tubeRadius', 'sweepAngleRad']),
-    semanticType: 'rmss-rhbg-elbow-bend-like-blocked',
+    semanticType: 'rmss-rhbg-elbow-bend-like',
     candidateEmissionKind: 'elbow',
-    emissionStatus: 'reference-observed-blocked',
+    emissionStatus: 'experimental-emitted-gated',
     observedProfiles: Object.freeze(['RMSS', 'RHBG'])
   }),
   5: Object.freeze({
@@ -229,11 +229,13 @@ export function inferRvmPrimitivePayloadSemantics(code, bbox = [], payload = [],
       sweepAngleRad <= Math.PI * 2 + SEMANTIC_TOLERANCE;
     return {
       semanticType: 'rmss-rhbg-elbow-bend-like',
-      semanticConfidence: payloadLooksLikeElbow ? 'medium' : 'low',
+      semanticConfidence: payloadLooksLikeElbow ? (emittedKind ? 'writer-owned' : 'medium') : 'low',
       candidateEmissionKind: 'elbow',
       bboxConsistentWithPayload: null,
       payloadSemantics: { bendRadius, tubeRadius, sweepAngleRad },
-      semanticNotes: 'RMSS/RHBG code 4 payload is recorded as bend radius, tube radius, and sweep angle. Emission stays blocked until transform basis, handedness, and viewer interpretation are verified.'
+      semanticNotes: emittedKind
+        ? 'Writer-owned code 4 CircularTorus elbow layout. Actual emission remains gated by the experimental code-4 writer policy.'
+        : 'RMSS/RHBG code 4 payload is recorded as bend radius, tube radius, and sweep angle.'
     };
   }
 

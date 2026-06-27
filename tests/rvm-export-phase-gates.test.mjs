@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { performance } from 'node:perf_hooks';
 
 import { buildRvmExportModel } from '../src/export-model.js';
+import { normalizeNavisExportModelNames } from '../src/navis-safe-export-model.js';
 import { writeRvm } from '../src/rvm-writer.js';
 import { writeAtt } from '../src/att-writer.js';
 
@@ -46,11 +47,11 @@ timedPhase('01 source fixture / topology contract', () => {
 });
 
 timedPhase('02 export model hierarchy / counts', () => {
-  exportModel = buildRvmExportModel(model, {
+  exportModel = normalizeNavisExportModelNames(buildRvmExportModel(model, {
     supportMode: 'inputxml-actual',
     nodeLabels: true,
     isonoteBoards: true
-  });
+  }));
 
   assert.equal(exportModel.root.name, 'INPUTXML_RVM_ROOT');
   assert.equal(exportModel.audit.componentCount, 4);

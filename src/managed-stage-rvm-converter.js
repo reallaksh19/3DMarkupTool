@@ -4,6 +4,7 @@ import { buildRvmAxisBasis, normalizeRvmAxisBasis } from './rvm-axis-basis-polic
 import { assertRvmMaterialLayerContract } from './rvm-material-layer-contract.js?v=bust-cache-4';
 import { assertRvmMaterialTableContract } from './rvm-material-table-contract.js?v=bust-cache-4';
 import { scanRvmPrimitivePayloads } from './rvm-primitive-payload-decoder.js?v=bust-cache-4';
+import { auditManagedStageRvmPayloadSemantics } from './managed-stage-rvm-payload-semantics-audit.js?v=bust-cache-4';
 import { writeRvm } from './rvm-writer.js?v=bust-cache-4';
 import { evaluateRvmCode4ElbowEmissionCandidate } from './rvm-code4-elbow-emission-candidate-policy.js?v=bust-cache-4';
 import { assertManagedStageRvmAuditGate } from './managed-stage-rvm-audit-gate.js?v=bust-cache-4';
@@ -44,6 +45,7 @@ export function convertManagedStageJsonToRvmAtt(sourceText, options = {}) {
   const att = writeAtt(exportModel);
   const primitivePayloads = scanRvmPrimitivePayloads(rvm);
   const primitivePayloadContract = assertManagedStagePrimitivePayloadCompatibility(primitivePayloads, writerOptions);
+  const primitivePayloadSemanticsAudit = auditManagedStageRvmPayloadSemantics(primitivePayloads);
   const materialLayerContract = assertRvmMaterialLayerContract(exportModel);
   const materialTableContract = assertRvmMaterialTableContract(rvm, materialLayerContract);
   const boundingExtentsMm = computeExportModelBoundingExtents(exportModel);
@@ -81,6 +83,7 @@ export function convertManagedStageJsonToRvmAtt(sourceText, options = {}) {
     componentPrimitiveSymbolExportAudit,
     primitiveHistogram: primitivePayloadContract.codeCounts,
     primitiveBodyLengths: primitivePayloads.map((primitive) => ({ code: primitive.code, bodyLength: primitive.bodyLength })),
+    rvmPrimitivePayloadSemanticsAudit: primitivePayloadSemanticsAudit,
     torusOrientationAssumptions: collectTorusAssumptions(exportModel.root),
     genericInputXmlBendAssumptions: collectGenericInputXmlBendAssumptions(exportModel.root),
     genericInputXmlNodeLocalElbowAssumptions: collectGenericInputXmlNodeLocalElbowAssumptions(exportModel.root),

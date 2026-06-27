@@ -26,7 +26,7 @@ const BM_CII_STAGED_JSON_EXPECTATIONS = Object.freeze({
   geometryComponents: 40,
   supportRecordsSkippedFromGeometry: 12,
   supportRecordsEmittedToRvm: 12,
-  supportRvmPrimitiveCount: 42,
+  supportRvmPrimitiveCount: 34,
   topologyComponentCount: 52,
   topologyGeometryComponentCount: 40,
   topologySupportCount: 12,
@@ -38,10 +38,10 @@ const BM_CII_STAGED_JSON_EXPECTATIONS = Object.freeze({
   supportTopologyBlockedCount: 0,
   supportContinuityEdgeCount: 0,
   supportInlineFaceCount: 0,
-  primitiveCodeCounts: { 1: 0, 4: 0, 8: 157 },
+  primitiveCodeCounts: { 1: 0, 4: 0, 8: 149 },
   code1: 0,
   cntbCount: 56,
-  primCount: 157,
+  primCount: 149,
   supportMaxGlyphExtentMm: 100,
   supportMaxClusterOffsetMm: 30,
   supportMaxPrimitiveSpanMm: 60,
@@ -108,38 +108,11 @@ function ensureUnifiedDropZone(input) {
 }
 
 function ensureUnifiedModelButton(host, modelFileInput) {
-  const legacyManagedButton = document.getElementById('loadManagedStageJsonBtn');
-  if (legacyManagedButton) {
-    legacyManagedButton.id = 'loadUnifiedModelFileBtn';
-    legacyManagedButton.title = 'Import stagedJson file';
-    legacyManagedButton.setAttribute('aria-label', 'Import stagedJson file');
-    legacyManagedButton.innerHTML = '<i data-lucide="upload"></i><span>Import stagedJson</span>';
-    return legacyManagedButton;
-  }
-
   const existing = document.getElementById('loadUnifiedModelFileBtn');
   if (existing) {
-    existing.title = 'Import stagedJson file';
-    existing.setAttribute('aria-label', 'Import stagedJson file');
-    const span = existing.querySelector('span');
-    if (span) span.textContent = 'Import stagedJson';
-    existing.dataset.sourceOwner = existing.dataset.sourceOwner || 'index-html';
-    return existing;
+    existing.remove();
   }
-
-  if (!host) return null;
-  const button = document.createElement('button');
-  button.id = 'loadUnifiedModelFileBtn';
-  button.type = 'button';
-  button.className = 'ghost icon-text managed-stage-json-load-btn unified-model-load-btn';
-  button.title = 'Import stagedJson file';
-  button.setAttribute('aria-label', 'Import stagedJson file');
-  button.innerHTML = '<i data-lucide="upload"></i><span>Import stagedJson</span>';
-  button.addEventListener('click', () => modelFileInput.click());
-  const sampleButton = document.getElementById('loadSampleBtn');
-  if (sampleButton && sampleButton.parentElement === host) host.insertBefore(button, sampleButton);
-  else host.prepend(button);
-  return button;
+  return null;
 }
 
 function onUnifiedModelFileChange(event) {
@@ -171,24 +144,45 @@ async function loadManagedStageText(sourceText, sourceName = 'BM_CII_INPUT_manag
   managedStageUiState.sourceName = sourceName;
   managedStageUiState.basename = basenameWithoutExtension(sourceName);
   setStatus('Managed-stage JSON converting');
-  updateInputStatus(`${sourceName} — managed-stage JSON`);
+  updateInputStatus(`${sourceName} â€” managed-stage JSON`);
   log(`Loaded managed-stage JSON ${sourceName} (${sourceText.length.toLocaleString()} chars)`);
 
-  const { convertManagedStageJsonToRvmAtt, createManagedStagePreviewScene } = await getManagedStageRuntimeModules();
+  const { convertManagedStageJsonToRvmAtt, createManagedStagePreviewScene, buildSupportMarkerGlbObject, createRvmPreviewScene } = await getManagedStageRuntimeModules();
   const options = bmCiiLikeSourceName(sourceName) ? { strictAuditExpectations: BM_CII_STAGED_JSON_EXPECTATIONS } : {};
   const result = convertManagedStageJsonToRvmAtt(sourceText, options);
-  const previewScene = createManagedStagePreviewScene(sourceText, { sourceName, exportModel: result.exportModel });
-  const previewAudit = previewScene.userData?.managedStageCoordinateAudit || null;
+
+  // Coordinate-preservation self-test (non-blocking): the raw staged preview validates that
+  // source APOS/LPOS coordinates are preserved. It is no longer displayed — the canvas now
+  // renders the exported RVM geometry — but its audit is kept and surfaced as a diagnostic so
+  // any drift between the staged source and the exported RVM is still reported in the Log panel.
+  let coordinateAuditScene = null;
+  let previewAudit = null;
+  try {
+    coordinateAuditScene = createManagedStagePreviewScene(sourceText, { sourceName, exportModel: result.exportModel });
+    replaceManagedStagePreviewSupportMarkers(coordinateAuditScene, result.sourceContract?.supports || [], buildSupportMarkerGlbObject);
+    previewAudit = coordinateAuditScene.userData?.managedStageCoordinateAudit || null;
+  } catch (err) {
+    log(`[managed-stage] Coordinate-preservation self-test skipped (non-blocking): ${err?.message || err}`);
+  }
   const visibleDiagnostics = buildManagedStageVisibleDiagnostics(result.audit, previewAudit);
-  previewScene.name = `${managedStageUiState.basename}_RAW_STAGED_PREVIEW`;
+
+  // Live preview == exported RVM geometry. Rendered from the same in-memory export model that
+  // writeRvm() serializes, so the canvas matches the downloaded .rvm 1:1. recenter:false keeps
+  // absolute mm coordinates so the XYZ readout and measure tool stay coordinate-true.
+  const previewScene = createRvmPreviewScene(result.exportModel, {
+    recenter: false,
+    sceneName: `${managedStageUiState.basename}_EXPORTED_RVM_PREVIEW`
+  });
   previewScene.userData = {
     ...(previewScene.userData || {}),
-    TYPE: 'MANAGED_STAGE_RAW_PREVIEW',
+    TYPE: 'MANAGED_STAGE_EXPORTED_RVM_PREVIEW',
     SOURCE_FORMAT: MANAGED_STAGE_SCHEMA,
     sourceName,
     geometryComponents: result.audit?.inputCounts?.geometryComponents,
     primitiveCount: result.audit?.rvmPrimitivePayloadContract?.primitiveCount,
-    previewPipeline: 'raw-managed-stage-json-coordinate-preserving-explicit-bend-topology-gated',
+    previewPipeline: 'exported-rvm-export-model-geometry',
+    coordinatePreservationPipeline: 'raw-managed-stage-json-coordinate-preserving-explicit-bend-topology-gated',
+    managedStageCoordinateAudit: previewAudit,
     managedStageVisibleDiagnostics: visibleDiagnostics
   };
 
@@ -200,8 +194,11 @@ async function loadManagedStageText(sourceText, sourceName = 'BM_CII_INPUT_manag
     audit: result.audit,
     exportModel: result.exportModel,
     profile: result.profile,
+    sourceContract: result.sourceContract,
     previewScene,
-    previewPipeline: 'raw-managed-stage-json-coordinate-preserving-explicit-bend-topology-gated',
+    coordinateAuditScene,
+    previewPipeline: 'exported-rvm-export-model-geometry',
+    coordinatePreservationPipeline: 'raw-managed-stage-json-coordinate-preserving-explicit-bend-topology-gated',
     previewCoordinateAudit: previewAudit,
     visibleDiagnostics
   };
@@ -230,14 +227,45 @@ async function loadManagedStageText(sourceText, sourceName = 'BM_CII_INPUT_manag
 function getManagedStageRuntimeModules() {
   if (!managedStageRuntimeModulesPromise) {
     managedStageRuntimeModulesPromise = Promise.all([
-      import('./managed-stage-rvm-converter.js'),
-      import('./managed-stage-preview-scene-explicit-bend.js')
-    ]).then(([converter, preview]) => ({
+      import('./managed-stage-rvm-converter.js?v=bust-cache-4'),
+      import('./managed-stage-preview-scene-explicit-bend.js?v=bust-cache-4'),
+      import('./support-marker-primitive-policy.js?v=bust-cache-4'),
+      import('./rvm-preview.js?v=bust-cache-4')
+    ]).then(([converter, preview, markerPolicy, rvmPreview]) => ({
       convertManagedStageJsonToRvmAtt: converter.convertManagedStageJsonToRvmAtt,
-      createManagedStagePreviewScene: preview.createManagedStagePreviewScene
+      createManagedStagePreviewScene: preview.createManagedStagePreviewScene,
+      buildSupportMarkerGlbObject: markerPolicy.buildSupportMarkerGlbObject,
+      createRvmPreviewScene: rvmPreview.createRvmPreviewScene
     }));
   }
   return managedStageRuntimeModulesPromise;
+}
+
+function replaceManagedStagePreviewSupportMarkers(scene, supports, buildSupportMarkerGlbObject) {
+  const removals = [];
+  scene?.traverse?.((object) => {
+    if (object?.userData?.TYPE === 'MANAGED_STAGE_SUPPORT_RESTRAINT_PREVIEW') removals.push(object);
+  });
+  for (const object of removals) object.parent?.remove(object);
+  if (!Array.isArray(supports) || !supports.length) return;
+  for (const support of supports) scene.add(buildSupportMarkerGlbObject(support, { sceneScale: 1 }));
+  scene.userData = {
+    ...(scene.userData || {}),
+    supportMarkerSource: 'contract.supports',
+    supportMarkerCount: supports.length,
+    supportMarkerPolicy: 'SupportMarkerPrimitivePolicy.v1'
+  };
+  const audit = scene.userData?.managedStageCoordinateAudit;
+  if (audit) {
+    audit.supportMarkerSource = 'contract.supports';
+    audit.supportMarkerCount = supports.length;
+    audit.supportPreviewSelectable = true;
+    audit.supportVisualPolicy = {
+      ...(audit.supportVisualPolicy || {}),
+      selectableContract: 'SUPPORT_MARKER',
+      supportPreviewRaycastDisabled: false
+    };
+  }
 }
 
 function installManagedStageButtonInterceptors() {

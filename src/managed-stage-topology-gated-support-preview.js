@@ -1,6 +1,6 @@
 import * as THREE from 'three';
-import { mat } from './geometry.js?v=professional-viewer-3';
-import { createManagedStageSupportPreviewObject } from './managed-stage-support-visual-resolver.js';
+import { mat } from './geometry.js?v=bust-cache-4';
+import { createManagedStageSupportPreviewObject } from './managed-stage-support-visual-resolver.js?v=bust-cache-4';
 
 export const MANAGED_STAGE_TOPOLOGY_SUPPORT_GATE_SCHEMA = 'ManagedStageTopologySupportGate.v1';
 
@@ -140,7 +140,23 @@ function createBlockedSupportMarker(record, gate, options = {}) {
   mesh.name = `MANAGED_STAGE_SUPPORT_TOPOLOGY_BLOCKED_${safeName(supportRecordName(record))}`;
   mesh.position.set(Number(pos.x) || 0, Number(pos.y) || 0, Number(pos.z) || 0);
   mesh.userData = {
-    TYPE: 'MANAGED_STAGE_SUPPORT_RESTRAINT_PREVIEW',
+    TYPE: 'SUPPORT_MARKER',
+    supportMarkerId: record.markerId || record.id || record.name,
+    node: record.node,
+    family: record.family,
+    axis: record.axis,
+    matchedPipeRef: record.matchedPipeRef,
+    isonoteRawText: record.isonote?.rawText,
+    isonoteNoteName: record.isonote?.noteName,
+    matchMethod: record.isonote?.matchMethod,
+    confidence: record.isonote?.confidence,
+    sourcePath: record.sourcePath,
+    sourceKind: record.sourceKind,
+    sourceAttributes: record.sourceAttributes,
+    axisTransform: record.axisTransform,
+    diagnostics: record.diagnostics,
+    warningCode: record.warningCode || record.diagnostics?.[0]?.code,
+    warningMessage: record.warningMessage || record.diagnostics?.[0]?.message,
     primitiveKind: 'managed-stage-support-topology-blocked-marker',
     managedStageSupportVisual: true,
     previewOnly: true,
@@ -152,7 +168,6 @@ function createBlockedSupportMarker(record, gate, options = {}) {
     supportContinuityEdgeBlocked: true,
     coordinatePolicy: 'support glyph generation blocked because topology gate did not prove SUPPORT_ASSOCIATION-only behavior'
   };
-  mesh.raycast = noopRaycast;
   return mesh;
 }
 
@@ -228,5 +243,3 @@ function normalize(value) {
 function safeName(value) {
   return String(value || 'SUPPORT').replace(/[^A-Za-z0-9_.-]+/g, '_').replace(/^_+|_+$/g, '') || 'SUPPORT';
 }
-
-function noopRaycast() {}

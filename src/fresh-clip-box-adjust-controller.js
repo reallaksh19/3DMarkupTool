@@ -238,7 +238,7 @@ function applyAdjustedBox({ source = 'box-adjust' } = {}) {
   state.active = true;
   state.lastError = '';
   state.lastSource = source;
-  setStatus(`Box clip: ${state.baselineLabel || 'selected component'} · size ${percent}%`);
+  setStatus(`Box clip: ${state.baselineLabel || 'selected component'} Â· size ${percent}%`);
 
   window.dispatchEvent(new CustomEvent('viewer:clipping-changed', {
     detail: {

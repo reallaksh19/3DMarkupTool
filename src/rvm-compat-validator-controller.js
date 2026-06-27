@@ -90,7 +90,7 @@ function ensurePanel() {
         <div class="rvm-compat-kicker">NAVISWORKS RVM QA</div>
         <h2>RVM Compatibility Validator</h2>
       </div>
-      <button type="button" class="rvm-compat-close" title="Close RVM QA">×</button>
+      <button type="button" class="rvm-compat-close" title="Close RVM QA">Ã—</button>
     </div>
     <div class="rvm-compat-actions">
       <button type="button" id="rvmCompatChooseBtn">Choose RVM/ATT</button>
@@ -129,7 +129,7 @@ function wireDownloadCapture() {
   rvmButton?.addEventListener('click', () => {
     state.pendingRvmCapture = true;
     openPanel();
-    setPanelMessage('Capturing generated RVM download for compatibility validation…', 'info');
+    setPanelMessage('Capturing generated RVM download for compatibility validationâ€¦', 'info');
     window.setTimeout(() => { state.pendingRvmCapture = false; }, 2000);
   }, true);
   attButton?.addEventListener('click', () => {

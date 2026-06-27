@@ -1,8 +1,8 @@
 import {
   buildSupportRestraintPrimitiveRecords,
   assertSupportRestraintWriterSafePrimitives
-} from './support-restraint-primitive-adapter.js?v=support-restraint-c14-1';
-import { resolveSupportRestraintVisualSpec } from './support-restraint-visual-catalog.js?v=support-restraint-c14-1';
+} from './support-restraint-primitive-adapter.js?v=bust-cache-4';
+import { resolveSupportRestraintVisualSpec } from './support-restraint-visual-catalog.js?v=bust-cache-4';
 
 /**
  * Replaces production support/restraint symbol primitives with the shared
@@ -16,6 +16,14 @@ import { resolveSupportRestraintVisualSpec } from './support-restraint-visual-ca
 export function applySupportRestraintCatalogueExportParity(exportModel, model, options = {}) {
   const root = exportModel?.root;
   if (!root || !model) return exportModel;
+  if (model.sourceKind === 'stagedJson') {
+    exportModel.audit = {
+      ...(exportModel.audit || {}),
+      supportCatalogueExportParitySkipped: true,
+      supportCatalogueExportParitySkipReason: 'stagedJson SUPPORT_MARKER nodes are canonical and must not be rewritten as legacy SUPPORT_RESTRAINT catalogue geometry.'
+    };
+    return exportModel;
+  }
 
   const elementByNode = buildElementIndex(model);
   const supportGroup = findNode(root, (node) => node.attributes?.ROLE === 'SUPPORTS_RESTRAINTS');

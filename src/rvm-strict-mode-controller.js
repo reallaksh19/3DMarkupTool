@@ -62,7 +62,7 @@ function ensurePanel() {
         <div class="rvm-strict-kicker">RVM EXPORT PROFILE</div>
         <h2>Navisworks Strict Candidate</h2>
       </div>
-      <button type="button" class="rvm-strict-close" title="Close">×</button>
+      <button type="button" class="rvm-strict-close" title="Close">Ã—</button>
     </div>
     <div class="rvm-strict-body">
       <p><b>Default output is unchanged.</b> Strict Candidate is a workflow gate, not a new binary dialect yet.</p>

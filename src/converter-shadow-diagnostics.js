@@ -1,11 +1,11 @@
-import { exportSceneToGlb } from './converter.js?v=professional-viewer-3';
-import { stampLegacyFallbackSceneUserData } from './fallback-render-userdata.js';
-import { hideCatalogReplacedBaseCylinders } from './valve-flange-scene-postprocess.js';
+import { exportSceneToGlb } from './converter.js?v=bust-cache-4';
+import { stampLegacyFallbackSceneUserData } from './fallback-render-userdata.js?v=bust-cache-4';
+import { hideCatalogReplacedBaseCylinders } from './valve-flange-scene-postprocess.js?v=bust-cache-4';
 import {
   attachPipingContractShadow,
   compactReport,
   runPipingContractShadow
-} from './piping-contract-shadow-runner.js';
+} from './piping-contract-shadow-runner.js?v=bust-cache-4';
 
 export const CONVERTER_SHADOW_DIAGNOSTICS_SCHEMA = 'ConverterShadowDiagnostics.v1';
 

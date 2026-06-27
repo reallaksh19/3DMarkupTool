@@ -119,7 +119,7 @@ function renderPanel(panel = document.getElementById(PANEL_ID), query = '') {
   });
   searchRow.appendChild(input);
 
-  searchRow.appendChild(panelButton('×', 'Close search', () => togglePanel(false)));
+  searchRow.appendChild(panelButton('Ã—', 'Close search', () => togglePanel(false)));
   panel.appendChild(searchRow);
 
   const list = document.createElement('div');
@@ -415,8 +415,8 @@ function objectMeta(data, object) {
   if (klass) bits.push(`${klass}`);
   if (type && type !== klass) bits.push(`${type}`);
   if (line) bits.push(`Line ${line}`);
-  if (from || to) bits.push(`${from || '?'}→${to || '?'}`);
-  return bits.join(' · ') || object.type || 'Object';
+  if (from || to) bits.push(`${from || '?'}â†’${to || '?'}`);
+  return bits.join(' Â· ') || object.type || 'Object';
 }
 
 function objectPath(object) {

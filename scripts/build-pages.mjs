@@ -6,7 +6,7 @@ import { rollup } from 'rollup';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const SITE_DIR = path.join(ROOT, '_site');
 const ASSET_DIR = path.join(SITE_DIR, 'assets');
-const VERSION = 'input-persistent-root-card-20260626';
+const VERSION = 'input-persistent-root-card-20260629-c';
 const LEGACY_CACHE_KEYS = Object.freeze([
   'tool-fixes-v2-20260620',
   'support-ui-render-export-fix-20260623',
@@ -28,7 +28,7 @@ const LEGACY_CACHE_KEYS = Object.freeze([
   'input-postbootstrap-reassert-20260626',
   'input-panel-critical-controls-20260626',
   'input-root-owner-20260626',
-  'input-persistent-root-card-20260626'
+  'input-persistent-root-card-20260629-c'
 ]);
 
 await rm(SITE_DIR, { recursive: true, force: true });

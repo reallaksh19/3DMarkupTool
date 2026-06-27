@@ -391,7 +391,7 @@ function totalLength(list = points) {
 }
 
 function formatLength(length) {
-  if (!Number.isFinite(length)) return '—';
+  if (!Number.isFinite(length)) return 'â€”';
   if (Math.abs(length) >= 1000) return `${(length / 1000).toFixed(3)} m`;
   return `${length.toFixed(1)} mm`;
 }

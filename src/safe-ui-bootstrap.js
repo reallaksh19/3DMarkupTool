@@ -9,10 +9,10 @@
 // phase4-global-esc-lifecycle-20260619 phase4a-static-input-panel-cleanup-20260619 perf-static-shell-20260620 perf-lcp-deferred-app-20260620
 // annotation-billboard-lod-20260620 annotation-density-lod-20260620 annotation-readable-callouts-20260620 annotation-isonote-readable-v2-20260620
 // annotation-isonote-world-facing-20260620 canvas-tool-manager-20260620 tool-fixes-v2-20260620 workflow-input-expanded-load-controls-20260625
-// input-load-controls-restored-20260626 input-postbootstrap-reassert-20260626 input-root-owner-20260626 input-persistent-root-card-20260626
+// input-load-controls-restored-20260626 input-postbootstrap-reassert-20260626 input-root-owner-20260626 input-persistent-root-card-20260628
 // Legacy input-panel gate marker only: SAFE_UI_VERSION = 'perf-static-shell-20260620'
 
-const SAFE_UI_VERSION = 'input-persistent-root-card-20260626';
+const SAFE_UI_VERSION = 'input-persistent-root-card-20260628';
 const CLIP_UI_VERSION = 'tool-fixes-v2-20260620';
 const BUNDLED_ASSETS = window.__3D_MARKUP_BUNDLED_ASSETS__ || {};
 const STATIC_SHELL_BUNDLE_URL = resolveFromBase(BUNDLED_ASSETS.shell || '');

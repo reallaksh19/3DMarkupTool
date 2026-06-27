@@ -12,8 +12,8 @@ export function buildManagedStageSupportSettingsPopupModel({ supportUi = {}, iso
   const detectedSupportCount = Number(supportDebug?.diagnostics?.stagedJsonSupportRecordCount || supportDebug?.scene?.managedSupportSymbolCount || recordCount || 0);
   const isonoteStatus = isonoteWorkflow.statusLabel || 'Not parsed';
   const disabled = sourceMode === 'off';
-  const summaryText = disabled ? `Support mapping: Off • ${mapperPresetLabel}` : `Support mapping: ${sourceLabel} • ${mapperPresetLabel} • North ${northSourceAxis}→${northCanvasAxis}`;
-  const isonoteSummaryText = `ISONOTE: ${isonoteStatus} • ${recordCount} support record(s) • ${issueCount} issue(s)`;
+  const summaryText = disabled ? `Support mapping: Off â€¢ ${mapperPresetLabel}` : `Support mapping: ${sourceLabel} â€¢ ${mapperPresetLabel} â€¢ North ${northSourceAxis}â†’${northCanvasAxis}`;
+  const isonoteSummaryText = `ISONOTE: ${isonoteStatus} â€¢ ${recordCount} support record(s) â€¢ ${issueCount} issue(s)`;
   return {
     schema: MANAGED_STAGE_SUPPORT_SETTINGS_POPUP_SCHEMA,
     cacheKey: MANAGED_STAGE_SUPPORT_SETTINGS_POPUP_CACHE_KEY,
@@ -115,7 +115,7 @@ function ensureSupportSettingsLauncherShell(doc, parent) {
     '<div class="support-mapping-summary-grid" aria-label="Support mapping summary">',
     '<span>Mode</span><strong data-support-settings-mode>stagedJson</strong>',
     '<span>Preset</span><strong data-support-settings-preset>CAESAR default</strong>',
-    '<span>North</span><strong data-support-settings-north>-X → -X</strong>',
+    '<span>North</span><strong data-support-settings-north>-X â†’ -X</strong>',
     '<span>Supports</span><strong data-support-settings-count>0 detected</strong>',
     '</div>',
     '<div class="support-mapping-settings-actions">',
@@ -140,7 +140,7 @@ function ensureSupportSettingsDialog(doc) {
     dialog.innerHTML = [
       '<div class="support-mapping-settings-popup-header">',
       '<div><h3>Support Mapping / ISONOTE</h3><small data-support-settings-popup-status aria-live="polite"></small></div>',
-      '<button type="button" data-support-settings-action="close" aria-label="Close support mapping settings">×</button>',
+      '<button type="button" data-support-settings-action="close" aria-label="Close support mapping settings">Ã—</button>',
       '</div>',
       '<div class="support-mapping-settings-popup-grid">',
       '<section data-support-settings-controls><h4>SOURCE</h4></section>',
@@ -170,7 +170,7 @@ function renderSupportSettingsShell(shell, dialog, model, win) {
   const diagnostics = dialog.querySelector?.('[data-support-settings-diagnostics]');
   if (mode) mode.textContent = model.sourceLabel;
   if (preset) preset.textContent = model.mapperPresetLabel;
-  if (north) north.textContent = `${model.northSourceAxis} → ${model.northCanvasAxis}`;
+  if (north) north.textContent = `${model.northSourceAxis} â†’ ${model.northCanvasAxis}`;
   if (count) count.textContent = `${model.detectedSupportCount || 0} detected`;
   if (launcher) launcher.textContent = model.summaryText;
   if (status) status.textContent = `${model.summaryText}. ${model.isonoteSummaryText}.`;
@@ -314,7 +314,7 @@ function diagnosticsText(model, report = {}) {
   return [
     `Mode: ${model.sourceLabel}`,
     `Preset: ${model.mapperPresetLabel}`,
-    `North: ${model.northSourceAxis} → ${model.northCanvasAxis}`,
+    `North: ${model.northSourceAxis} â†’ ${model.northCanvasAxis}`,
     `Detected supports: ${model.detectedSupportCount || 0}`,
     `Bridge: ${diagnostics.status || 'not run'}`,
     `Issues: ${model.isonoteIssueCount || diagnostics.mapperPreflightIssueCount || 0}`

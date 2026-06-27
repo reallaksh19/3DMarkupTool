@@ -1,4 +1,4 @@
-import { assertManagedStageTopologyQualityGate } from './managed-stage-topology-quality-gate.js';
+import { assertManagedStageTopologyQualityGate } from './managed-stage-topology-quality-gate.js?v=bust-cache-4';
 
 export const MANAGED_STAGE_TOPOLOGY_PROOF_GATE_SCHEMA = 'ManagedStageTopologyProofGate.v2';
 

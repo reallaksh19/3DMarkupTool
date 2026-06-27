@@ -195,8 +195,17 @@ function renderBar(bar) {
 }
 
 function triggerSourceView(key) {
-  const source = document.querySelector(`.view-pad button[data-view="${cssEscape(key)}"]`)
-    || document.querySelector(`button[data-view="${cssEscape(key)}"]`);
+  const ID_MAP = {
+    top: '#viewTopBtn',
+    iso: '#viewIsoBtn',
+    side: '#viewSideBtn',
+    front: '#viewFrontBtn',
+    fit: '#resetCameraBtn',
+    fitSelection: '#fitSelectionBtn',
+    zoom: '#marqueeZoomBtn'
+  };
+  const selector = ID_MAP[key] || `.view-pad button[data-view="${cssEscape(key)}"], button[data-view="${cssEscape(key)}"]`;
+  const source = document.querySelector(selector);
   if (source && source !== document.activeElement) {
     source.click();
     return;

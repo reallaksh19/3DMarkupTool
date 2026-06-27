@@ -1,7 +1,7 @@
 import {
   assertContractDryRunResult,
   runPipingContractDryRun
-} from './contract-dry-run.js';
+} from './contract-dry-run.js?v=bust-cache-4';
 
 export const CONTRACT_DRY_RUN_REPORT_SCHEMA = 'ContractDryRunReport.v1';
 

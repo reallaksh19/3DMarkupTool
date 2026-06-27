@@ -1,4 +1,8 @@
-import { parseIsonoteExpectedRecords } from './parser.js?v=professional-viewer-3';
+import { parseIsonoteExpectedRecords } from './parser.js?v=bust-cache-4';
+import {
+  SUPPORT_MARKER_PRIMITIVE_POLICY_SCHEMA,
+  buildSupportMarkerRvmNode
+} from './support-marker-primitive-policy.js?v=bust-cache-4';
 
 const MATERIALS = {
   pipe: 12,
@@ -29,7 +33,7 @@ export function buildRvmExportModel(model, options) {
     material: MATERIALS.pipe,
     attributes: {
       TYPE: 'MODEL_ROOT',
-      SOURCE: 'InputXML',
+      SOURCE: model.sourceKind || 'InputXML',
       EXPORT_FORMAT: 'RVM_ATT',
       TARGET_VIEWER: 'Navisworks',
       SUPPORT_MODE: opts.supportMode || 'compare'
@@ -68,7 +72,8 @@ export function buildRvmExportModel(model, options) {
       annotationCount: annotations.length,
       primitiveCount: countPrimitives(root),
       targetViewer: 'Navisworks',
-      supportMode: opts.supportMode || 'compare'
+      supportMode: opts.supportMode || 'compare',
+      supportMarkerPolicy: model.sourceKind === 'stagedJson' ? SUPPORT_MARKER_PRIMITIVE_POLICY_SCHEMA : ''
     }
   };
 }
@@ -320,13 +325,22 @@ function componentAttributes(element) {
 }
 
 function createSupportNodes(model, options, elementByNode) {
+  if (model?.sourceKind === 'stagedJson' && Array.isArray(model.supports)) {
+    return model.supports.map((support, index) => buildSupportMarkerRvmNode(support, {
+      material: supportMaterial(support.supportFamily),
+      index
+    }));
+  }
   const records = collectSupportRecords(model, options);
   return records.flatMap((record, index) => {
     const pos = nodePosition(model, record.node);
     if (!pos) return [];
     const primitives = supportPrimitives(model, record, elementByNode);
     if (!primitives.length) return [];
-    const name = safeName(`${record.sourceClass}_${record.node}_${record.family}_${index + 1}`);
+    const sourceSeg = record.source || 'InputXML';
+    const nodeSeg = record.node || 'NO_NODE';
+    const familySeg = record.family || 'UNKNOWN';
+    const name = `SUPPORT_MARKER/${sourceSeg}/${nodeSeg}/${familySeg}/${index + 1}`;
     return [{
       name,
       material: supportMaterial(record.family),
@@ -594,7 +608,7 @@ function componentMaterial(element) {
 function supportMaterial(family) {
   if (family === 'REST') return MATERIALS.rest;
   if (family === 'GUIDE') return MATERIALS.guide;
-  if (family === 'LINE_STOP' || family === 'LIMIT' || family === 'ANCHOR' || family === 'AXIS_RESTRAINT') return MATERIALS.lineStop;
+  if (family === 'LINE_STOP' || family === 'LINESTOP' || family === 'LIMIT' || family === 'ANCHOR' || family === 'AXIS_RESTRAINT') return MATERIALS.lineStop;
   if (family === 'HOLDDOWN') return MATERIALS.holddown;
   if (family === 'SPRING_WARNING' || family === 'SPRING') return MATERIALS.spring;
   return MATERIALS.warning;

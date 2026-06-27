@@ -17,7 +17,7 @@ export const CONTRACT_RENDER_BOUNDARY = Object.freeze({
       path: 'src/converter.js',
       owner: 'legacy InputXML/UXML GLB preview renderer',
       reason: 'Allowed only as fallback until GeometryContract-driven viewer/GLB/RVM render adapters replace direct source-to-mesh rendering.',
-      replacement: 'Source Adapter → PipingComponent.v1 → PipingGraph.v1 → GeometryContract.v1 → RenderInstruction.v1',
+      replacement: 'Source Adapter â†’ PipingComponent.v1 â†’ PipingGraph.v1 â†’ GeometryContract.v1 â†’ RenderInstruction.v1',
       fallbackOnly: true
     })
   ])

@@ -134,7 +134,7 @@ function summaryHint(input, model, exp) {
 
 function compactStamp(source) {
   const label = String(source || 'manual').replace(/^viewer:/, '').replace(/^3dmarkup:/, '').replace(/-/g, ' ');
-  return label.length > 18 ? `${label.slice(0, 16)}…` : label;
+  return label.length > 18 ? `${label.slice(0, 16)}â€¦` : label;
 }
 
 function logTextValue() {

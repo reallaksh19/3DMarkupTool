@@ -191,7 +191,7 @@ function ensurePanel() {
         <strong>Color Legend</strong>
         <span data-color-legend-mode>Default</span>
       </div>
-      <button class="color-legend-close" type="button" title="Hide legend" aria-label="Hide color legend">×</button>
+      <button class="color-legend-close" type="button" title="Hide legend" aria-label="Hide color legend">Ã—</button>
     </div>
     <div class="color-legend-list" data-color-legend-list></div>
     <div class="color-legend-foot">

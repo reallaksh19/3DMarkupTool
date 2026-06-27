@@ -81,7 +81,7 @@ function ensureButton() {
     button.className = 'tool-btn icon-text';
     button.title = 'Origin Manager: review/apply proposed non-overlap model offsets';
     button.setAttribute('aria-expanded', 'false');
-    button.innerHTML = '<span aria-hidden="true">◎</span><span>Origins</span>';
+    button.innerHTML = '<span aria-hidden="true">â—Ž</span><span>Origins</span>';
     const anchor = byId('marqueeZoomBtn') || byId('fitSelectionBtn') || byId('resetCameraBtn');
     anchor?.insertAdjacentElement('afterend', button);
   }
@@ -99,7 +99,7 @@ function ensurePanel() {
   panel.innerHTML = `
     <div class="origin-manager-head">
       <div><h3>Origin Manager</h3><p>Multiple origin/model groups detected. Proposed display offsets are calculated to keep piping groups separated and non-overlapping.</p></div>
-      <button type="button" class="origin-manager-close" title="Close">×</button>
+      <button type="button" class="origin-manager-close" title="Close">Ã—</button>
     </div>
     <div class="origin-manager-actions">
       <button type="button" class="primary" data-origin-apply>Apply Proposed Layout</button>
@@ -260,7 +260,7 @@ function renderPanel() {
   }
   body.innerHTML = `
     <table class="origin-manager-table">
-      <thead><tr><th>Group</th><th>Current center</th><th>Proposed center</th><th>Δ display offset</th><th></th></tr></thead>
+      <thead><tr><th>Group</th><th>Current center</th><th>Proposed center</th><th>Î” display offset</th><th></th></tr></thead>
       <tbody>${state.groups.map((group) => `
         <tr>
           <td><div class="origin-key">${escapeHtml(group.label)}</div><div class="origin-sub">${group.count} objects / display-only</div></td>

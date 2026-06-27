@@ -4,9 +4,9 @@
 
 const VERSION = 'static-quick-export-core-menu-only-20260619';
 const EXPORTS = [
-  { id: 'quickDownloadGlbBtn', label: 'GLB ↓', title: 'Download GLB', target: 'downloadGlbBtn' },
-  { id: 'quickDownloadRvmBtn', label: 'RVM ↓', title: 'Download RVM', target: 'downloadRvmBtn' },
-  { id: 'quickDownloadAttBtn', label: 'ATT ↓', title: 'Download ATT attributes', target: 'downloadAttBtn' },
+  { id: 'quickDownloadGlbBtn', label: 'GLB â†“', title: 'Download GLB', target: 'downloadGlbBtn' },
+  { id: 'quickDownloadRvmBtn', label: 'RVM â†“', title: 'Download RVM', target: 'downloadRvmBtn' },
+  { id: 'quickDownloadAttBtn', label: 'ATT â†“', title: 'Download ATT attributes', target: 'downloadAttBtn' },
   { id: 'quickDownloadAuditBtn', label: 'QA', title: 'Download conversion audit JSON', target: 'downloadAuditBtn' }
 ];
 

@@ -90,7 +90,7 @@ function injectToolbarStyle() {
     }
 
     .main-ribbon #clipBtn::before {
-      content: '◩';
+      content: 'â—©';
       display: block;
       font-size: 18px;
       line-height: 18px;

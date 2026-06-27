@@ -1,7 +1,7 @@
 import {
   buildRvmValveFlangeCatalogueExport,
   RVM_CATALOGUE_SUPPORTED_PRIMITIVE_KINDS
-} from './rvm-catalogue-primitive-translator.js';
+} from './rvm-catalogue-primitive-translator.js?v=bust-cache-4';
 
 export const RVM_CATALOGUE_EXPORT_WIRING_SCHEMA = 'RvmCatalogueExportWiring.v1';
 
@@ -15,6 +15,14 @@ export const RVM_CATALOGUE_EXPORT_WIRING_SCHEMA = 'RvmCatalogueExportWiring.v1';
  */
 export function applyRvmCatalogueExportParity(exportModel, model, options = {}) {
   if (!exportModel?.root || !model?.elements?.length) return exportModel;
+  if (model.sourceKind === 'stagedJson') {
+    exportModel.audit = {
+      ...(exportModel.audit || {}),
+      rvmCatalogueParitySkipped: true,
+      rvmCatalogueParitySkipReason: 'stagedJson valve/flange review output uses low-budget cylinder recipes, not rich legacy catalogue visuals.'
+    };
+    return exportModel;
+  }
 
   const plant = findChild(exportModel.root, 'PLANT_GEOMETRY');
   if (!plant || !Array.isArray(plant.children)) return exportModel;

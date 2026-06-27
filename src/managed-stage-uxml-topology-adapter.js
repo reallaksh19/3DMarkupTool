@@ -1,5 +1,5 @@
-import { parseManagedStageProfile } from './managed-stage-profile-parser.js';
-import { resolveExplicitManagedStageBendDetails } from './managed-stage-explicit-bend-details.js';
+import { parseManagedStageProfile } from './managed-stage-profile-parser.js?v=bust-cache-4';
+import { resolveExplicitManagedStageBendDetails } from './managed-stage-explicit-bend-details.js?v=bust-cache-4';
 
 export const MANAGED_STAGE_UXML_TOPOLOGY_SCHEMA = 'managed-stage-uxml-topology/v1';
 export const MANAGED_STAGE_TOPOLOGY_AUDIT_SCHEMA = 'managed-stage-topology-audit/v1';
@@ -180,7 +180,20 @@ export function buildManagedStageUniversalTopoGraph(doc, options = {}) {
     out.ok = false;
     out.diagnostics.push(makeDiagnostic('ERROR', 'MST-UTG-SUPPORT-CONTINUITY-EDGE', 'Support continuity edge detected. Support must not participate in pipe continuity.'));
   }
-  if (out.disconnected.length) out.ok = false;
+  // Only set ok=false for internal disconnections: ports that share a topology node with at
+  // least one other component's port (i.e., something should connect there but doesn't).
+  // Open terminals â€” ports whose node has only a single port (genuine pipe end) â€” are
+  // expected in isometric piping systems and must not poison the ok flag.
+  const internalDisconnected = out.disconnected.filter((item) => {
+    const port = out.ports.find((p) => p.id === item.portId);
+    if (!port) return true;
+    const node = out.nodes.find((n) => n.id === port.nodeId);
+    return node && node.portIds.length > 1;
+  });
+  if (internalDisconnected.length > 0) {
+    out.ok = false;
+    out.diagnostics.push(makeDiagnostic('ERROR', 'MST-UTG-INTERNAL-DISCONNECTED', `${internalDisconnected.length} internal disconnected port(s) detected.`));
+  }
   return out;
 }
 

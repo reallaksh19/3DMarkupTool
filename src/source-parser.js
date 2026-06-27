@@ -1,9 +1,9 @@
-import { parseInputXml } from './parser.js?v=professional-viewer-3';
-import { isUxmlDocument, parseUxmlText, unwrapUxmlDocument } from './uxml-parser.js?v=20260618-uxml-source-1';
+import { parseInputXml } from './parser.js?v=bust-cache-4';
+import { isUxmlDocument, parseUxmlText, unwrapUxmlDocument } from './uxml-parser.js?v=bust-cache-4';
 import {
   looksLikeStagedJsonSource,
   parseStagedJsonSourceContract
-} from './stagedjson-source-contract.js';
+} from './stagedjson-source-contract.js?v=bust-cache-4';
 
 export function detectSourceType(text, filename = '') {
   const name = String(filename || '').toLowerCase();

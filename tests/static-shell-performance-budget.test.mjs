@@ -19,7 +19,7 @@ const staticShellImports = (bootstrap.match(/\.js\?v=\$\{SAFE_UI_VERSION\}/g) ||
 const startupScriptBlock = index.slice(index.indexOf('<script type="module"'));
 
 assert.ok(moduleScriptCount <= 3, `index.html should keep top-level module scripts bounded; found ${moduleScriptCount}.`);
-assert.match(index, /static-shell-performance\.css\?v=(input-persistent-root-card-20260626|input-root-owner-20260626|input-postbootstrap-reassert-20260626|input-load-controls-restored-20260626|workflow-input-expanded-load-controls-20260625|staged-json-review-ui-rvm-fix-20260625|app-boot-dialog-conversion-hotfix-20260623|support-ui-render-export-fix-20260623|tool-fixes-v2-20260620|perf-tdz-fix-20260620|perf-static-drawer-bundle-20260620|perf-idle-diagnostics-20260620|perf-static-shell-20260620)/);
+assert.match(index, /static-shell-performance\.css\?v=(input-persistent-root-card-20260629-c|input-root-owner-20260626|input-postbootstrap-reassert-20260626|input-load-controls-restored-20260626|workflow-input-expanded-load-controls-20260625|staged-json-review-ui-rvm-fix-20260625|app-boot-dialog-conversion-hotfix-20260623|support-ui-render-export-fix-20260623|tool-fixes-v2-20260620|perf-tdz-fix-20260620|perf-static-drawer-bundle-20260620|perf-idle-diagnostics-20260620|perf-static-shell-20260620)/);
 assert.match(index, /id="topReviewMenu"[\s\S]*review-top-menu-btn/);
 assert.match(index, /id="staticReviewRibbonGroup"/);
 assert.match(index, /id="workflowStatusInline"/);

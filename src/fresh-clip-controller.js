@@ -217,9 +217,9 @@ function ensureToolbar() {
 
   const clearSelection = document.getElementById('clearSelectionBtn');
   const insertBefore = clearSelection && clearSelection.parentElement === group ? clearSelection : null;
-  const planeButton = ensureToolbarButton(group, insertBefore, 'freshClipPlaneBtn', '◧', 'Plane', 'Clip selected geometry with a single adjustable plane');
-  const boxButton = ensureToolbarButton(group, insertBefore, 'freshClipBoxBtn', '▣', 'Box', 'Clip to selected geometry bounds with six renderer planes');
-  const clearButton = ensureToolbarButton(group, insertBefore, 'freshClipClearBtn', '×', 'Clear Clip', 'Clear renderer clipping planes');
+  const planeButton = ensureToolbarButton(group, insertBefore, 'freshClipPlaneBtn', 'â—§', 'Plane', 'Clip selected geometry with a single adjustable plane');
+  const boxButton = ensureToolbarButton(group, insertBefore, 'freshClipBoxBtn', 'â–£', 'Box', 'Clip to selected geometry bounds with six renderer planes');
+  const clearButton = ensureToolbarButton(group, insertBefore, 'freshClipClearBtn', 'Ã—', 'Clear Clip', 'Clear renderer clipping planes');
 
   bindOnce(planeButton, 'click', () => {
     openPanel();
@@ -270,7 +270,7 @@ function ensurePanel() {
     <div class="fresh-clip-head">
       <span class="fresh-clip-title">Fresh Clip</span>
       <span id="freshClipMode" class="fresh-clip-mode">Off</span>
-      <button id="freshClipCloseBtn" type="button" class="fresh-clip-close" title="Close fresh clip panel">×</button>
+      <button id="freshClipCloseBtn" type="button" class="fresh-clip-close" title="Close fresh clip panel">Ã—</button>
     </div>
     <div id="freshClipRef" class="fresh-clip-ref">Select one component, then use Plane or Box.</div>
     <div class="fresh-clip-actions">
@@ -295,7 +295,7 @@ function ensurePanel() {
     </div>
     <div class="fresh-clip-row">
       <span></span>
-      <button id="freshClipStepDownBtn" type="button" title="Move clip backward">−</button>
+      <button id="freshClipStepDownBtn" type="button" title="Move clip backward">âˆ’</button>
       <button id="freshClipStepUpBtn" type="button" title="Move clip forward">+</button>
     </div>
     <div id="freshClipReadout" class="fresh-clip-readout">No clipping active.</div>

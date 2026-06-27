@@ -110,8 +110,8 @@ function readDiagnosticsFromModelRoot(modelRoot) {
 function normalizeDiagnosticValue(value) {
   if (value === true) return 'true';
   if (value === false) return 'false';
-  if (value == null || value === '') return '—';
-  if (typeof value === 'number') return Number.isFinite(value) ? String(value) : '—';
+  if (value == null || value === '') return 'â€”';
+  if (typeof value === 'number') return Number.isFinite(value) ? String(value) : 'â€”';
   if (Array.isArray(value)) return issueListText(value);
   if (typeof value === 'object') return histogramText(value);
   return String(value);
@@ -119,17 +119,17 @@ function normalizeDiagnosticValue(value) {
 
 function histogramText(histogram = {}) {
   const entries = Object.entries(histogram || {}).filter(([, value]) => Number(value) !== 0);
-  if (!entries.length) return '—';
+  if (!entries.length) return 'â€”';
   return entries.map(([key, value]) => `${key}:${value}`).join(', ');
 }
 
 function issueListText(issues = []) {
-  if (!Array.isArray(issues) || !issues.length) return '—';
+  if (!Array.isArray(issues) || !issues.length) return 'â€”';
   return issues.map((issue) => `${issue.severity || 'warning'}:${issue.code || 'issue'}:${issue.supportTag || issue.node || 'support'}`).join('; ');
 }
 
 function supportRulePreviewText(rows = []) {
-  if (!Array.isArray(rows) || !rows.length) return '—';
+  if (!Array.isArray(rows) || !rows.length) return 'â€”';
   return rows.map((row) => `${row.supportTag || row.node || 'support'}:${row.family || 'UNKNOWN'}:${row.canvasAxis || 'auto'}:${row.graphicsRule || 'rule'}:${row.emittedSymbolCount ?? 0}`).join('; ');
 }
 
@@ -137,7 +137,7 @@ function renderPreflightIssueList(issues = []) {
   if (!Array.isArray(issues) || !issues.length) return '<p class="support-mapper-preflight-issues-empty">No mapper preflight issue details.</p>';
   const items = issues.map((issue) => {
     const title = `${issue.severity || 'warning'} / ${issue.code || 'mapper-preflight-issue'}`;
-    const context = [issue.sourceMode, issue.supportTag, issue.family, issue.node ? `node ${issue.node}` : '', issue.axis ? `axis ${issue.axis}` : ''].filter(Boolean).join(' · ');
+    const context = [issue.sourceMode, issue.supportTag, issue.family, issue.node ? `node ${issue.node}` : '', issue.axis ? `axis ${issue.axis}` : ''].filter(Boolean).join(' Â· ');
     return `<li><strong>${escapeHtml(title)}</strong><br><span>${escapeHtml(context || 'support')}</span><br><small>${escapeHtml(issue.message || '')}</small></li>`;
   }).join('');
   return `<div class="support-mapper-preflight-issues"><h4>Preflight issue details</h4><ol>${items}</ol></div>`;

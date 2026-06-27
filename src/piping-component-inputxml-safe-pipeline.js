@@ -2,7 +2,7 @@ import {
   buildPipingContractPipeline as buildBasePipingContractPipeline,
   buildRenderInstructions,
   createFallbackLegacyContract
-} from './piping-component-layer.js';
+} from './piping-component-layer.js?v=bust-cache-4';
 
 export const INPUTXML_SAFE_PIPELINE_SCHEMA = 'InputXmlSafePipingContractPipeline.v1';
 

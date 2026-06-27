@@ -93,7 +93,7 @@ function ensureStyles() {
   style.id = 'tagLiteHostStyles';
   style.textContent = `
     .tag-lite-host:empty::before {
-      content: 'Tags…';
+      content: 'Tagsâ€¦';
       padding: 8px 12px;
       border-radius: 10px;
       border: 1px dashed rgba(125, 172, 222, .25);
@@ -106,11 +106,11 @@ function ensureStyles() {
       min-width: 0;
       white-space: nowrap;
     }
-    .tag-lite-host #navisTagBtn::before { content: '↗ '; }
-    .tag-lite-host #navisImportTagsBtn::before { content: '⭳ '; }
-    .tag-lite-host #navisTagViewsBtn::before { content: '☰ '; }
-    .tag-lite-host #navisIsonoteBtn::before { content: '⌖ '; }
-    .tag-lite-host #navisExportTagsBtn::before { content: '⇩ '; }
+    .tag-lite-host #navisTagBtn::before { content: 'â†— '; }
+    .tag-lite-host #navisImportTagsBtn::before { content: 'â­³ '; }
+    .tag-lite-host #navisTagViewsBtn::before { content: 'â˜° '; }
+    .tag-lite-host #navisIsonoteBtn::before { content: 'âŒ– '; }
+    .tag-lite-host #navisExportTagsBtn::before { content: 'â‡© '; }
   `;
   document.head.appendChild(style);
 }

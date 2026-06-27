@@ -1,4 +1,4 @@
-import { normalizeManagedStageSupportGapAttributes } from './managed-stage-support-gap-mapper.js';
+import { normalizeManagedStageSupportGapAttributes } from './managed-stage-support-gap-mapper.js?v=bust-cache-4';
 
 export const MANAGED_STAGE_PROFILE_SCHEMA = 'inputxml-managed-stage/v1';
 export const MANAGED_STAGE_RVM_PROFILE = 'AVEVA_JSON_FOR_3D_RVM_VIEWER';

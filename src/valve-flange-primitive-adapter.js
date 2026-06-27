@@ -3,7 +3,7 @@ import {
   getValveFlangeVisualSpec,
   primitiveLocalSpan,
   validateLinearVisualPrimitiveContinuity
-} from './valve-flange-visual-catalog.js';
+} from './valve-flange-visual-catalog.js?v=bust-cache-4';
 
 export const VALVE_FLANGE_PRIMITIVE_ADAPTER_SCHEMA = 'ValveFlangePrimitiveAdapter.v1';
 export const VALVE_FLANGE_EXPORT_PRIMITIVE_SCHEMA = 'ValveFlangeExportPrimitive.v1';

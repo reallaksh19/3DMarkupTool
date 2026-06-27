@@ -348,8 +348,8 @@ function syncUi() {
 
   if (!state.active) {
     ui.readout.textContent = isValidBox(state.baselineBox)
-      ? `Clip plane ready — baseline: ${state.baselineLabel || 'selected geometry'}. Click Enable Clip.`
-      : 'Clip plane ready — click Enable Clip or use C.';
+      ? `Clip plane ready â€” baseline: ${state.baselineLabel || 'selected geometry'}. Click Enable Clip.`
+      : 'Clip plane ready â€” click Enable Clip or use C.';
     return;
   }
 

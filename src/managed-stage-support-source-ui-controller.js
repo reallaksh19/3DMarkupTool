@@ -8,7 +8,7 @@ import {
   mapManagedStageSupportAxisToCanvas,
   normalizeManagedStageSupportMapperPresetId,
   resolveManagedStageSupportMapperConfig
-} from './managed-stage-support-mapper-config.js';
+} from './managed-stage-support-mapper-config.js?v=bust-cache-4';
 
 export const MANAGED_STAGE_SUPPORT_SOURCE_UI_SCHEMA = 'ManagedStageSupportSourceUi.v1';
 export const MANAGED_STAGE_SUPPORT_MAPPER_EXPORT_SCHEMA = 'ManagedStageSupportMapperExport.v1';
@@ -373,7 +373,7 @@ function syncLegacySupportCheckboxes(doc, flags) {
 
 function supportSourceSummary(model) {
   if (model.sourceMode === MANAGED_STAGE_SUPPORT_SOURCE_MODES.OFF) return `Support symbols disabled. Mapper preset: ${model.mapperPresetLabel}.`;
-  return `Support source: ${model.legacyFlags.sourceLabel}; Mapper preset: ${model.mapperPresetLabel}; CAESAR +Y=UP, ${model.axisBasis.northSourceAxis}=NORTH → Canvas ${model.axisBasis.northCanvasAxis}. Mapper fields are editable, importable, exportable, resettable to preset, and persisted locally.`;
+  return `Support source: ${model.legacyFlags.sourceLabel}; Mapper preset: ${model.mapperPresetLabel}; CAESAR +Y=UP, ${model.axisBasis.northSourceAxis}=NORTH â†’ Canvas ${model.axisBasis.northCanvasAxis}. Mapper fields are editable, importable, exportable, resettable to preset, and persisted locally.`;
 }
 
 function renderMapperDetails(model) {

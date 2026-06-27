@@ -29,5 +29,5 @@ assert.match(staticShellCss, /conversion-options-compat-root\s*\{\s*display:\s*n
 assert.match(staticShellCss, /#inputDrawer \.workflow-card[\s\S]*display:\s*grid/, 'Non-input workflow cards must reserve stable first-paint layout.');
 assert.match(inputController, /classList\.remove\('workflow-card'/, 'Input controller must remove workflow-card from INPUT during stale DOM normalization.');
 
-assert.match(bootstrap, /input-persistent-root-card-20260626|phase4a-static-input-panel-cleanup-20260619|phase4-global-esc-lifecycle-20260619|esc-tools-export-icons-20260619|perf-static-shell-20260620/, 'Safe UI bootstrap version must remain cache-busted so browsers fetch fixed drawer, view-pad, ESC, export, icon, and static-shell controllers.');
+assert.match(bootstrap, /input-persistent-root-card-20260629-c|phase4a-static-input-panel-cleanup-20260619|phase4-global-esc-lifecycle-20260619|esc-tools-export-icons-20260619|perf-static-shell-20260620/, 'Safe UI bootstrap version must remain cache-busted so browsers fetch fixed drawer, view-pad, ESC, export, icon, and static-shell controllers.');
 console.log('input drawer persistent root-card contract passed');

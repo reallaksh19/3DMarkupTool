@@ -339,7 +339,7 @@ function applyExplode(mode = currentMode) {
     movedCount: originalPositions.size,
     active: explodeActive
   });
-  setStatus(`Exploded ${components.length} component(s) into ${groups.length} ${mode === 'line' ? 'line' : 'type'} group(s) — Esc or Reassemble restores`);
+  setStatus(`Exploded ${components.length} component(s) into ${groups.length} ${mode === 'line' ? 'line' : 'type'} group(s) â€” Esc or Reassemble restores`);
   renderPanel();
   return true;
 }

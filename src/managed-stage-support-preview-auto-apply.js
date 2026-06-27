@@ -1,4 +1,4 @@
-import { boostManagedStageSupportVisibility } from './managed-stage-support-visibility-boost.js?v=support-od-offset-human-scale-20260624';
+import { boostManagedStageSupportVisibility } from './managed-stage-support-visibility-boost.js?v=bust-cache-4';
 
 export const MANAGED_STAGE_SUPPORT_PREVIEW_AUTO_APPLY_SCHEMA = 'ManagedStageSupportPreviewAutoApply.v5';
 export const MANAGED_STAGE_SUPPORT_PREVIEW_AUTO_APPLY_CACHE_KEY = '20260624-support-preview-auto-apply-5-od-offset-human-scale';

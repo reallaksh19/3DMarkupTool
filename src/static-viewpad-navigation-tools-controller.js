@@ -1,4 +1,4 @@
-import { getAreaSelectedRoots, getModelRoot, objectId, resolveSafeHideTarget } from './static-selection-resolver.js';
+import { getAreaSelectedRoots, getModelRoot, objectId, resolveSafeHideTarget } from './static-selection-resolver.js?v=bust-cache-4';
 
 // Adds compact in-canvas view/navigation tools without touching src/app.js.
 // Tools: previous view, next view, isolate selected, hide selected, show all.
@@ -231,7 +231,7 @@ function isolateSelected() {
       touchedCount: visibilitySession.touched.size
     }
   }));
-  setStatus(`Isolated ${targets.length} selected component${targets.length === 1 ? '' : 's'} — Esc or Show All restores`);
+  setStatus(`Isolated ${targets.length} selected component${targets.length === 1 ? '' : 's'} â€” Esc or Show All restores`);
   return true;
 }
 
@@ -266,7 +266,7 @@ function hideSelected() {
       hiddenCount: visibilitySession.targets.size
     }
   }));
-  setStatus(`Hidden ${targets.length} selected component${targets.length === 1 ? '' : 's'} — Esc or Show All restores`);
+  setStatus(`Hidden ${targets.length} selected component${targets.length === 1 ? '' : 's'} â€” Esc or Show All restores`);
   return true;
 }
 

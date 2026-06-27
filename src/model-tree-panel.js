@@ -313,7 +313,7 @@ function ensurePanel() {
           <strong>Model Tree</strong>
           <span id="${COUNT_ID}">Load a model to populate tree.</span>
         </div>
-        <button type="button" class="model-tree-close" aria-label="Close model tree">×</button>
+        <button type="button" class="model-tree-close" aria-label="Close model tree">Ã—</button>
       </div>
       <div class="model-tree-search">
         <input id="${SEARCH_ID}" type="search" placeholder="Filter line, type, tag, node..." />
@@ -365,7 +365,7 @@ function collectObjects(root) {
     if (/RVM_PRIMITIVE/i.test(type)) return;
 
     const lineNo = normalizeText(data.lineNo || data.LINE_NO || data.lineNumber || data.LINE_NUMBER || 'No Line No');
-    const nodeText = normalizeText(data.node || data.NODE || [data.fromNode || data.FROM_NODE, data.toNode || data.TO_NODE].filter(Boolean).join(' → '));
+    const nodeText = normalizeText(data.node || data.NODE || [data.fromNode || data.FROM_NODE, data.toNode || data.TO_NODE].filter(Boolean).join(' â†’ '));
     const title = normalizeText(data.ID || data.id || data.REF_NO || data.refNo || data.LABEL || data.label || object.name || type);
     const source = normalizeText(data.source || data.SOURCE || data.sourceMode || data.SOURCE_MODE || '');
 

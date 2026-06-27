@@ -1,11 +1,11 @@
-import { auditRvmBinary } from './rvm-binary-audit.js';
-import { normalizeRvmMaterialId } from './rvm-material-layer-contract.js';
+import { auditRvmBinary } from './rvm-binary-audit.js?v=bust-cache-4';
+import { normalizeRvmMaterialId } from './rvm-material-layer-contract.js?v=bust-cache-4';
 import {
   RVM_COLR_BODY_VERSION,
   RVM_COLR_CHUNK_ID,
   RVM_COLR_PAYLOAD_LAYOUT,
   normalizeRvmPackedColor
-} from './rvm-colr-material-policy.js';
+} from './rvm-colr-material-policy.js?v=bust-cache-4';
 
 export const RVM_MATERIAL_TABLE_CONTRACT_SCHEMA = 'RvmMaterialTableContract.v2';
 

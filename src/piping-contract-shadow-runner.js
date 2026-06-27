@@ -1,4 +1,4 @@
-import { buildInputXmlSafePipingContractPipeline } from './piping-component-inputxml-safe-pipeline.js';
+import { buildInputXmlSafePipingContractPipeline } from './piping-component-inputxml-safe-pipeline.js?v=bust-cache-4';
 
 export const PIPING_CONTRACT_SHADOW_SCHEMA = 'PipingContractShadow.v1';
 

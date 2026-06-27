@@ -1,8 +1,8 @@
 import {
   RENDER_PLAN_SCHEMA,
   rejectRawSourcePayload
-} from './render-plan-adapter.js';
-import { PipingComponentContractError } from './piping-component-contract.js';
+} from './render-plan-adapter.js?v=bust-cache-4';
+import { PipingComponentContractError } from './piping-component-contract.js?v=bust-cache-4';
 
 export const EXPORT_PLAN_SCHEMA = 'ExportPlan.v1';
 export const EXPORT_TARGETS = Object.freeze(['GLB', 'RVM_ATT']);

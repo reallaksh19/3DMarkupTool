@@ -4,24 +4,32 @@
   display: none !important;
 }
 
-body:not(.conversion-expanded) #inputDrawer .panel-section:nth-of-type(2) > :not(h3) {
+body:not(.conversion-expanded) #inputDrawer .panel-section[data-section="conversion"] > .workflow-advanced-options {
   display: none !important;
 }
 
-#inputDrawer .panel-section:nth-of-type(2) > h3 {
+#inputDrawer .panel-section[data-section="conversion"] > h3 {
   cursor: pointer;
   user-select: none;
 }
 
-#inputDrawer .panel-section:nth-of-type(2) > h3::after {
+#inputDrawer .panel-section[data-section="conversion"] > h3::after {
   content: '▸';
   margin-left: auto;
   color: rgba(159, 179, 204, .9);
   font-size: 12px;
 }
 
-body.conversion-expanded #inputDrawer .panel-section:nth-of-type(2) > h3::after {
+body.conversion-expanded #inputDrawer .panel-section[data-section="conversion"] > h3::after {
   content: '▾';
+}
+
+#inputDrawer .panel-section[data-section="conversion"] > h3::after {
+  content: '\25B8';
+}
+
+body.conversion-expanded #inputDrawer .panel-section[data-section="conversion"] > h3::after {
+  content: '\25BE';
 }
 
 .clip-adjust-panel {

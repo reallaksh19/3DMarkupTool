@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { objectId, resolveSafeHideTarget } from './static-selection-resolver.js';
+import { objectId, resolveSafeHideTarget } from './static-selection-resolver.js?v=bust-cache-4';
 
 // Adds a compact in-canvas Section Box tool without touching src/app.js.
 // Tool: SB = Section Box from selected component. It writes renderer clipping planes

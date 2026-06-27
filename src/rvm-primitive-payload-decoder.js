@@ -6,7 +6,7 @@ import {
   UNEMITTED_RMSS_PRIMITIVE_CODES,
   UNEMITTED_RHBG_PRIMITIVE_CODES,
   UNEMITTED_REFERENCE_PRIMITIVE_CODES
-} from './rvm-primitive-kind-contract.js';
+} from './rvm-primitive-kind-contract.js?v=bust-cache-4';
 
 const COMMON_PRIMITIVE_BODY_BYTES = 80;
 const MATRIX_FLOAT_COUNT = 12;

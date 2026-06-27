@@ -1,4 +1,4 @@
-import { scanCntbRecords } from './rvm-cntb-bounds-policy.js';
+import { scanCntbRecords } from './rvm-cntb-bounds-policy.js?v=bust-cache-4';
 
 export const RVM_CHUNK_HIERARCHY_SCHEMA = 'RvmChunkHierarchyValidator.v2';
 

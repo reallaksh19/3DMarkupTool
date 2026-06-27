@@ -1,8 +1,8 @@
 import * as THREE from 'three';
 import { GLTFExporter } from 'three/addons/exporters/GLTFExporter.js';
-import { parseIsonoteExpectedRecords } from './parser.js?v=professional-viewer-3';
-import { parseMarkupSource } from './source-parser.js?v=20260618-uxml-source-1';
-import { buildLinearVisualPrimitivePlan, getValveFlangeVisualSpec } from './valve-flange-visual-catalog.js';
+import { parseIsonoteExpectedRecords } from './parser.js?v=bust-cache-4';
+import { parseMarkupSource } from './source-parser.js?v=bust-cache-4';
+import { buildLinearVisualPrimitivePlan, getValveFlangeVisualSpec } from './valve-flange-visual-catalog.js?v=bust-cache-4';
 import {
   COLORS,
   mat,
@@ -16,8 +16,13 @@ import {
   createSpringCoil,
   orthogonal,
   dominantAxis,
-  axisVector
-} from './geometry.js?v=professional-viewer-3';
+  axisVector,
+  installSupportRestraintCatalogueUserDataStamping
+} from './geometry.js?v=bust-cache-4';
+import {
+  SUPPORT_MARKER_PRIMITIVE_POLICY_SCHEMA,
+  buildSupportMarkerGlbObject
+} from './support-marker-primitive-policy.js?v=bust-cache-4';
 
 const SCALE = 0.01;
 const pipeMat = mat(COLORS.pipe, { roughness: 0.66, metalness: 0.08 });
@@ -71,8 +76,9 @@ export async function convertInputXmlToGlb(sourceText, options = {}) {
     options: { ...options }
   };
 
+  const renderOptions = { ...options, sourceKind };
   for (const element of model.elements) {
-    createElementGeometry(element, pipesGroup, options, elementByNode);
+    createElementGeometry(element, pipesGroup, renderOptions, elementByNode);
   }
 
   if (options.nodeLabels !== false) {
@@ -95,19 +101,32 @@ export async function convertInputXmlToGlb(sourceText, options = {}) {
     createIsonoteBoards(model, annGroup, elementByNode);
   }
 
-  const mode = options.supportMode || 'compare';
-  if (mode === 'inputxml-actual' || mode === 'compare') {
-    for (const rec of normalizeInputXmlRestraints(model)) {
-      const symbols = createSupportSymbols(model, rec, elementByNode, 'actual');
-      symbols.forEach(s => { supportGroup.add(s); audit.supportSymbols.push(s.userData); });
+  if (sourceKind === 'stagedJson' && Array.isArray(model.supports)) {
+    supportGroup.name = 'supports.markers';
+    audit.supportMarkerPolicy = SUPPORT_MARKER_PRIMITIVE_POLICY_SCHEMA;
+    audit.supportMarkerSource = 'contract.supports';
+    for (const support of model.supports) {
+      const marker = buildSupportMarkerGlbObject(support, { sceneScale: SCALE });
+      supportGroup.add(marker);
+      audit.supportSymbols.push(marker.userData);
     }
-  }
-  if (mode === 'isonote-expected' || mode === 'compare') {
-    const isonoteRecords = parseIsonoteExpectedRecords(model, options);
-    audit.isonoteRecords = isonoteRecords.length;
-    for (const rec of isonoteRecords) {
-      const symbols = createSupportSymbols(model, rec, elementByNode, 'expected');
-      symbols.forEach(s => { supportGroup.add(s); audit.supportSymbols.push(s.userData); });
+  } else {
+    const mode = options.supportMode || 'compare';
+    if (mode === 'inputxml-actual' || mode === 'compare') {
+      if (!(model.sourceKind === 'stagedJson' && model.contract?.supports)) {
+        for (const rec of normalizeInputXmlRestraints(model)) {
+          const symbols = createSupportSymbols(model, rec, elementByNode, 'actual');
+          symbols.forEach(s => { supportGroup.add(s); audit.supportSymbols.push(s.userData); });
+        }
+      }
+    }
+    if (mode === 'isonote-expected' || mode === 'compare') {
+      const isonoteRecords = parseIsonoteExpectedRecords(model, options);
+      audit.isonoteRecords = isonoteRecords.length;
+      for (const rec of isonoteRecords) {
+        const symbols = createSupportSymbols(model, rec, elementByNode, 'expected');
+        symbols.forEach(s => { supportGroup.add(s); audit.supportSymbols.push(s.userData); });
+      }
     }
   }
 
@@ -123,7 +142,7 @@ function createElementGeometry(element, group, options, elementByNode) {
   const radius = Math.max(0.04, (od / 2));
   const { a, b } = trimmedElementEndpoints(element, elementByNode, radius, fullA, fullB);
   const isRigid = element.rawType && element.rawType !== 'PIPE' && element.rawType !== 'BEND';
-  const visualSpec = getValveFlangeVisualSpec(element);
+  const visualSpec = options.sourceKind === 'stagedJson' ? null : getValveFlangeVisualSpec(element);
   const baseUserData = buildComponentUserData(element);
 
   if (visualSpec) {
@@ -135,7 +154,7 @@ function createElementGeometry(element, group, options, elementByNode) {
   }
 
   const isValve = visualSpec?.componentClass === 'VALVE' || (isRigid && /VALVE/i.test(element.rawType || element.props.rigidType || ''));
-  const isFlange = visualSpec?.componentClass === 'FLANGE';
+  const isFlange = visualSpec?.componentClass === 'FLANGE' || (isRigid && /FLANGE/i.test(element.rawType || element.props.rigidType || ''));
   const material = isValve ? valveMat : isFlange ? flangeMat : isRigid ? rigidMat : element.type === 'BEND' ? bendMat : pipeMat;
   const cyl = cylinderBetween(a, b, radius, material, options.compactMode === false ? 24 : 14, element.id);
   cyl.userData = baseUserData;
@@ -601,7 +620,7 @@ function normalizeInputXmlRestraints(model) {
       family,
       sourceMode: r.sourceMode || (model.sourceKind === 'UXML' ? 'ACTUAL_UXML' : 'ACTUAL_INPUTXML'),
       source: r.source || model.sourceKind || 'InputXML',
-      axis: r.axis || axisFromCosines(r) || 'PIPE_AXIAL_±',
+      axis: r.axis || axisFromCosines(r) || 'PIPE_AXIAL_Â±',
       sourceNoteName: r.sourceNoteName || ''
     };
   });
@@ -659,6 +678,7 @@ function createSupportSymbols(model, rec, elementByNode, sourceClass) {
       pointVec: [p.x, p.y, p.z],
       ...extra
     };
+    installSupportRestraintCatalogueUserDataStamping(obj);
     return obj;
   };
 

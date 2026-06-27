@@ -127,7 +127,7 @@ function ensureOriginButton() {
     button.className = 'tool-btn icon-text phase24b-attention';
     button.title = 'Origin Manager: review/apply display-only non-overlap offsets';
     button.setAttribute('aria-expanded', 'false');
-    button.innerHTML = '<span aria-hidden="true">◎</span><span>Origins</span>';
+    button.innerHTML = '<span aria-hidden="true">â—Ž</span><span>Origins</span>';
     button.addEventListener('click', () => {
       const panel = byId('originManagerPanel');
       if (panel) {
@@ -153,7 +153,7 @@ function ensureMarqueeButton() {
     button.className = 'tool-btn icon-text';
     button.title = 'Marquee Zoom: drag a rectangle (Z)';
     button.setAttribute('aria-pressed', 'false');
-    button.innerHTML = '<span aria-hidden="true">▣</span><span>Marquee</span>';
+    button.innerHTML = '<span aria-hidden="true">â–£</span><span>Marquee</span>';
   }
   appendOnce(ensureReviewGroup(), button);
   return button;

@@ -1,9 +1,9 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { createIcons, icons } from 'lucide';
-import { runAppConversionController } from './app-run-conversion-controller.js?v=professional-viewer-3';
-import { createTextPlane } from './geometry.js?v=professional-viewer-3';
-import { DEFAULT_ISONOTE, DEFAULT_LINE_NO } from './parser.js?v=professional-viewer-3';
+import { runAppConversionController } from './app-run-conversion-controller.js?v=bust-cache-4';
+import { createTextPlane } from './geometry.js?v=bust-cache-4';
+import { DEFAULT_ISONOTE, DEFAULT_LINE_NO } from './parser.js?v=bust-cache-4';
 
 const el = (id) => document.getElementById(id);
 const hasInputFocus = () => ['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement?.tagName);
@@ -159,7 +159,13 @@ function publishViewerRuntime(reason = 'app') {
       requestRender(renderReason);
     },
     getModelRoot() {
-      return modelRoot || state.scene || scene || null;
+      return window.__viewerApi?.getModelRoot() || modelRoot || state.scene || scene || null;
+    },
+    setModelRoot(root, options = {}) {
+      return window.__viewerApi?.setModelRoot(root, options);
+    },
+    clearModelRoot() {
+      return window.__viewerApi?.clearModelRoot();
     }
   });
 
@@ -212,14 +218,26 @@ function initUi() {
   el('isonoteText').value = DEFAULT_ISONOTE;
   el('lineNoText').value = DEFAULT_LINE_NO;
 
-  el('xmlFile').addEventListener('change', onFile);
-  el('loadSampleBtn').addEventListener('click', loadSample);
-  el('clearBtn').addEventListener('click', clearAll);
-  el('convertBtn').addEventListener('click', runConversion);
-  el('downloadGlbBtn').addEventListener('click', () => downloadBlob(state.glb, 'inputxml_converted.glb', 'model/gltf-binary'));
-  el('downloadRvmBtn').addEventListener('click', () => downloadBlob(state.rvm, 'inputxml_converted.rvm', 'application/octet-stream'));
-  el('downloadAttBtn').addEventListener('click', () => downloadBlob(state.att, 'inputxml_converted.att', 'text/plain'));
-  el('downloadAuditBtn').addEventListener('click', () => downloadBlob(JSON.stringify(state.audit, null, 2), 'inputxml_conversion_audit.json', 'application/json'));
+  const xmlFile = el('xmlFile');
+  if (xmlFile) xmlFile.addEventListener('change', onFile);
+  
+  const clearBtn = document.getElementById('clearBtn');
+  if (el('clearBtn')) el('clearBtn').addEventListener('click', clearAll);
+  
+  const convertBtn = el('convertBtn');
+  if (convertBtn) convertBtn.addEventListener('click', runConversion);
+  
+  const downloadGlbBtn = el('downloadGlbBtn');
+  if (downloadGlbBtn) downloadGlbBtn.addEventListener('click', () => downloadBlob(state.glb, 'inputxml_converted.glb', 'model/gltf-binary'));
+  
+  const downloadRvmBtn = el('downloadRvmBtn');
+  if (downloadRvmBtn) downloadRvmBtn.addEventListener('click', () => downloadBlob(state.rvm, 'inputxml_converted.rvm', 'application/octet-stream'));
+  
+  const downloadAttBtn = el('downloadAttBtn');
+  if (downloadAttBtn) downloadAttBtn.addEventListener('click', () => downloadBlob(state.att, 'inputxml_converted.att', 'text/plain'));
+  
+  const downloadAuditBtn = el('downloadAuditBtn');
+  if (downloadAuditBtn) downloadAuditBtn.addEventListener('click', () => downloadBlob(JSON.stringify(state.audit, null, 2), 'inputxml_conversion_audit.json', 'application/json'));
 
   el('previewGlbBtn').addEventListener('click', () => setModelScene(state.glbScene, 'glb'));
   el('previewRvmBtn').addEventListener('click', () => setModelScene(state.rvmScene, 'rvm'));
@@ -349,8 +367,14 @@ function setModelScene(newScene, mode) {
 }
 
 function fitView() {
-  if (!modelRoot) return;
+  if (!modelRoot) {
+    log('[3DMarkupTool:Debug] fitView called with NO modelRoot');
+    return;
+  }
+  const box = modelBox();
+  log(`[3DMarkupTool:Debug] fitView modelBox: min(${box.min.x.toFixed(2)}, ${box.min.y.toFixed(2)}, ${box.min.z.toFixed(2)}) max(${box.max.x.toFixed(2)}, ${box.max.y.toFixed(2)}, ${box.max.z.toFixed(2)})`);
   setCameraView(DEFAULT_VIEW);
+  log(`[3DMarkupTool:Debug] Camera after fitView: pos(${camera.position.x.toFixed(2)}, ${camera.position.y.toFixed(2)}, ${camera.position.z.toFixed(2)}) target(${controls.target.x.toFixed(2)}, ${controls.target.y.toFixed(2)}, ${controls.target.z.toFixed(2)}) near=${camera.near.toFixed(2)} far=${camera.far.toFixed(2)}`);
 }
 
 function fitSelection() {
@@ -510,8 +534,13 @@ function findSelectableObject(obj) {
   while (cur) {
     const data = cur.userData || {};
     if (Object.keys(data).length) {
-      if (data.TYPE && data.TYPE !== 'RVM_PRIMITIVE') return cur;
-      if (data.type && data.type !== 'RVM_PRIMITIVE') return cur;
+      if (data.TYPE === 'SUPPORT_MARKER_PART') {
+        // Skip parts, we want to select the parent SUPPORT_MARKER
+      } else if (data.TYPE && data.TYPE !== 'RVM_PRIMITIVE') {
+        return cur;
+      } else if (data.type && data.type !== 'RVM_PRIMITIVE') {
+        return cur;
+      }
     }
     cur = cur.parent;
   }
@@ -595,6 +624,7 @@ function normalizeDisplayData(data) {
 
 function displayTitle(data, type) {
   if (type === 'COMPONENT') return data.ID || data.id || data.REF_NO || 'Component';
+  if (type === 'SUPPORT_MARKER') return `${data.family || data.FAMILY || 'Support'} marker at node ${data.node || data.NODE || 'N/A'}`;
   if (type === 'SUPPORT_RESTRAINT') return `${data.family || data.FAMILY || 'Support'} at node ${data.node || data.NODE || 'N/A'}`;
   if (type === 'ISONOTE_NAME_PLATE') return 'ISONOTE Annotation';
   if (type === 'NODE') return `Node ${data.NODE || data.node || 'N/A'}`;
@@ -604,6 +634,7 @@ function displayTitle(data, type) {
 
 function displaySubtitle(data, type) {
   if (type === 'COMPONENT') return `${data.engineeringType || data.ENGINEERING_TYPE || 'N/A'} / ${data.meshRole || data.MESH_ROLE || 'geometry'}`;
+  if (type === 'SUPPORT_MARKER') return `${data.isonoteRawText || data.ISONOTE_RAW_TEXT || 'stagedJson support marker'}`;
   if (type === 'SUPPORT_RESTRAINT') return `${data.sourceClass || data.SOURCE_CLASS || 'N/A'} / ${data.sourceMode || data.SOURCE_MODE || 'N/A'}`;
   if (type === 'ISONOTE_NAME_PLATE') return data.sourceNoteName || data.SOURCE_NOTE_NAME || data.BOARD_TEXT || '';
   if (type === 'NODE') return data.LABEL || data.label || '';
@@ -615,6 +646,10 @@ function badgesFor(data, type) {
   if (type === 'SUPPORT_RESTRAINT') {
     badges.push(data.sourceClass || data.SOURCE_CLASS || 'Support');
     badges.push(data.source || data.SOURCE || 'Input');
+  }
+  if (type === 'SUPPORT_MARKER') {
+    badges.push('stagedJson');
+    badges.push(data.family || data.FAMILY || 'Support');
   }
   if (type === 'COMPONENT') {
     badges.push(data.source || data.SOURCE || 'InputXML');
@@ -696,6 +731,46 @@ function propertySections(info) {
     ];
   }
 
+  if (info.type === 'SUPPORT_MARKER') {
+    const axisTransform = data.axisTransform || parseJsonOrNull(data.AXIS_TRANSFORM_JSON) || {};
+    const sourceAttributes = data.sourceAttributes || parseJsonOrNull(data.SOURCE_ATTRIBUTES_JSON) || {};
+    const diagnostics = data.diagnostics || parseJsonOrNull(data.DIAGNOSTICS_JSON) || [];
+    return [
+      section('Summary', true, rows([
+        ['Marker ID', data.supportMarkerId || data.SUPPORT_MARKER_ID || data.ID],
+        ['Node', data.node || data.NODE],
+        ['Family', data.family || data.FAMILY],
+        ['Axis', data.axis || data.AXIS],
+        ['Matched Pipe', data.matchedPipeRef || data.MATCHED_PIPE_REF || 'N/A']
+      ])),
+      section('Matched ISONOTE', true, rows([
+        ['ISONOTE Text', data.isonoteText || data.ISONOTE_TEXT || 'N/A'],
+        ['Raw Text', data.isonoteRawText || data.ISONOTE_RAW_TEXT || 'N/A'],
+        ['Note Name', data.isonoteNoteName || data.ISONOTE_NOTE_NAME || 'N/A'],
+        ['Match Method', data.matchMethod || data.ISONOTE_MATCH_METHOD || 'none'],
+        ['Confidence', data.confidence ?? data.ISONOTE_MATCH_CONFIDENCE ?? '0']
+      ])),
+      section('stagedJson Source', true, rows([
+        ['Source Path', data.sourcePath || data.SOURCE_PATH || 'N/A'],
+        ['Source Kind', data.sourceKind || data.SOURCE_KIND || data.source || data.SOURCE || 'stagedJson'],
+        ['Attributes', jsonPreview(sourceAttributes)]
+      ])),
+      section('Axis Transform', true, rows([
+        ['Schema', axisTransform.schema || 'SupportAxisTransform.v1'],
+        ['Source Axis', data.axisRaw || data.AXIS_RAW || axisTransform.sourceAxis || 'N/A'],
+        ['Canvas Axis', data.axisCanvas || data.AXIS_CANVAS || axisTransform.canvasAxis || 'N/A'],
+        ['Vector', vectorPreview(axisTransform.axisVector)],
+        ['Applied', String(Boolean(data.axisTransformApplied || data.AXIS_TRANSFORM_APPLIED === 'TRUE' || axisTransform.axisTransformApplied))]
+      ])),
+      section('Diagnostics', false, rows([
+        ['Warnings', diagnosticsText(diagnostics)],
+        ['Warning Code', data.warningCode || data.WARNING_CODE || 'N/A'],
+        ['Warning Message', data.warningMessage || data.WARNING_MESSAGE || 'N/A']
+      ])),
+      section('Raw Metadata', false, rows(Object.entries(data)))
+    ];
+  }
+
   if (info.type === 'NODE') {
     return [
       section('Identity', true, rows([
@@ -740,6 +815,30 @@ function rows(items) {
 function chip(text) {
   if (!text) return '';
   return `<span class="chip">${escapeHtml(labelForSource(text))}</span>`;
+}
+
+function parseJsonOrNull(value) {
+  if (!value || value === 'N/A') return null;
+  try {
+    return typeof value === 'string' ? JSON.parse(value) : value;
+  } catch {
+    return null;
+  }
+}
+
+function jsonPreview(value) {
+  if (!value || typeof value !== 'object') return 'N/A';
+  return JSON.stringify(value);
+}
+
+function vectorPreview(value) {
+  if (!value || typeof value !== 'object') return 'N/A';
+  return [value.x, value.y, value.z].map((entry) => entry ?? 0).join(', ');
+}
+
+function diagnosticsText(value) {
+  if (!Array.isArray(value) || !value.length) return 'None';
+  return value.map((entry) => `${entry.code || 'diagnostic'}: ${entry.message || entry.severity || ''}`).join(' | ');
 }
 
 function labelForSource(text) {
@@ -794,13 +893,14 @@ function colorForData(data, mode) {
     if (componentType.includes('VALVE')) return MATERIAL_COLORS.valve;
     if (componentType.includes('BEND')) return MATERIAL_COLORS.bend;
     if (componentType.includes('RIGID') || componentType.includes('FLANGE')) return MATERIAL_COLORS.rigid;
-    if (type === 'SUPPORT_RESTRAINT') return MATERIAL_COLORS.supportExpected;
+    if (type === 'SUPPORT_RESTRAINT' || type === 'SUPPORT_MARKER') return MATERIAL_COLORS.supportExpected;
     return MATERIAL_COLORS.pipe;
   }
   if (mode === 'supportSource') {
     const sourceClass = String(data.sourceClass || data.SOURCE_CLASS || data.source || data.SOURCE || '').toUpperCase();
     if (sourceClass.includes('ACTUAL') || sourceClass.includes('INPUTXML')) return MATERIAL_COLORS.supportActual;
     if (sourceClass.includes('EXPECTED') || sourceClass.includes('ISONOTE')) return MATERIAL_COLORS.supportExpected;
+    if (type === 'SUPPORT_MARKER') return MATERIAL_COLORS.supportActual;
     return type === 'COMPONENT' ? MATERIAL_COLORS.pipe : MATERIAL_COLORS.unavailable;
   }
   if (mode === 'sourceMode') return colorFromString(data.sourceMode || data.SOURCE_MODE || data.source || data.SOURCE || type || 'source');
@@ -1035,17 +1135,44 @@ function formatNumber(value) {
 }
 
 function onResize() {
-  const rect = viewer.getBoundingClientRect();
-  renderer.setSize(rect.width, rect.height);
-  camera.aspect = rect.width / rect.height;
-  camera.updateProjectionMatrix();
-  publishViewerRuntime('resize');
+  if (!camera || !renderer || !viewer) return;
+  const width = viewer.clientWidth || window.innerWidth;
+  const height = viewer.clientHeight || window.innerHeight;
+  if (width === 0 || height === 0) return;
+  
+  if (camera.aspect !== width / height) {
+    camera.aspect = width / height;
+    camera.updateProjectionMatrix();
+    renderer.setSize(width, height);
+    publishViewerRuntime('resize');
+  }
 }
 
+// Ensure the viewer element is observed for resizes (e.g. late CSS loading)
+if (window.ResizeObserver && viewer) {
+  const resizeObserver = new ResizeObserver(() => onResize());
+  resizeObserver.observe(viewer);
+}
+
+var animateErrorLogged = false;
+var frameCounter = 0;
 function animate() {
   requestAnimationFrame(animate);
-  controls.update();
-  renderer.render(scene, camera);
+  try {
+    controls.update();
+    renderer.render(scene, camera);
+    
+    frameCounter++;
+    if (frameCounter % 300 === 0 && modelRoot) {
+      log(`[3DMarkupTool:FrameDebug] scene.children=${scene.children.length}, modelRoot.parent=${modelRoot.parent ? modelRoot.parent.type : 'null'}, camera=${camera.position.x.toFixed(0)},${camera.position.y.toFixed(0)},${camera.position.z.toFixed(0)}`);
+    }
+  } catch (err) {
+    if (!animateErrorLogged) {
+      animateErrorLogged = true;
+      console.error('[3DMarkupTool:Error] animate crashed:', err);
+      log(`[3DMarkupTool:Error] animate crashed: ${err.message}`);
+    }
+  }
 }
 
 function escapeHtml(value) {
@@ -1056,3 +1183,17 @@ function escapeHtml(value) {
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#039;');
 }
+
+window.__viewerApi = {
+  schema: '3DMarkupViewerApi.v1',
+  setModelRoot(root, options = {}) {
+    setModelScene(root, options.mode || 'api');
+  },
+  clearModelRoot() {
+    clearAll();
+  },
+  getModelRoot() {
+    return modelRoot || state.scene || scene || null;
+  }
+};
+window.__THREED_MARKUP_VIEWER__ = window.__viewerApi;

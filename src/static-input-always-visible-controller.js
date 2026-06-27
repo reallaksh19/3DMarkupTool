@@ -5,7 +5,7 @@
 // diagnostics. It does not inject style tags, poll, observe mutations, or touch
 // Three.js/model content.
 
-const VERSION = 'input-persistent-root-card-20260626';
+const VERSION = 'input-persistent-root-card-20260628';
 const INPUT_CONTENT_SELECTORS = [
   '.workflow-card-hint',
   '#inputFileStatus',
@@ -151,8 +151,22 @@ function ensureInputStatus(section) {
 }
 
 function ensureFileDrop(section) {
-  let fileDrop = section.querySelector(':scope > .file-drop');
-  if (!fileDrop) { fileDrop = document.createElement('label'); fileDrop.className = 'file-drop input-file-drop-visible'; }
+  let container = section.querySelector(':scope > .input-file-row');
+  if (!container) {
+    container = document.createElement('div');
+    container.className = 'input-file-row';
+    const actions = section.querySelector(':scope > .input-primary-actions, :scope > .button-row');
+    if (actions) section.insertBefore(container, actions);
+    else section.appendChild(container);
+  }
+
+  let fileDrop = container.querySelector('.file-drop');
+  if (!fileDrop) {
+     fileDrop = section.querySelector('.file-drop') || document.createElement('label');
+     fileDrop.className = 'file-drop input-file-drop-visible';
+     container.appendChild(fileDrop);
+  }
+
   let input = document.getElementById('xmlFile') || fileDrop.querySelector('input[type="file"]');
   if (!input) { input = document.createElement('input'); input.type = 'file'; }
   input.id = 'xmlFile';
@@ -164,24 +178,35 @@ function ensureFileDrop(section) {
   if (!label) { label = document.createElement('span'); fileDrop.appendChild(label); }
   label.textContent = 'Choose stagedJson';
   fileDrop.classList.add('input-file-drop-visible');
-  const actions = section.querySelector(':scope > .input-primary-actions, :scope > .button-row');
-  if (fileDrop.parentElement !== section) actions ? section.insertBefore(fileDrop, actions) : section.appendChild(fileDrop);
+
+  let loadSampleBtn = document.getElementById('loadSampleBtn');
+  if (!loadSampleBtn) {
+     loadSampleBtn = document.createElement('button');
+     loadSampleBtn.id = 'loadSampleBtn';
+  }
+  loadSampleBtn.className = 'primary icon-text managed-stage-json-sample-btn';
+  loadSampleBtn.title = 'Load bundled BM_CII_INPUT_managed_stage.json stagedJson sample';
+  loadSampleBtn.setAttribute('aria-label', 'Load BM_CII stagedJson sample');
+  if (!loadSampleBtn.querySelector('i') && !loadSampleBtn.querySelector('svg')) { const icon = document.createElement('i'); icon.setAttribute('data-lucide', 'folder-open'); loadSampleBtn.prepend(icon); }
+  let loadSampleLabel = loadSampleBtn.querySelector('span');
+  if (!loadSampleLabel) { loadSampleLabel = document.createElement('span'); loadSampleBtn.appendChild(loadSampleLabel); }
+  loadSampleLabel.textContent = 'Load BM_CII st...';
+  if (loadSampleBtn.parentElement !== container) container.appendChild(loadSampleBtn);
+
+  revealElement(container);
   revealElement(fileDrop);
+  revealElement(loadSampleBtn);
   return fileDrop;
 }
 
 function ensurePrimaryActions(section) {
   let actions = section.querySelector(':scope > .input-primary-actions') || section.querySelector(':scope > .button-row');
-  if (!actions) { actions = document.createElement('div'); actions.dataset.owner = 'source-html-fallback'; section.appendChild(actions); }
-  actions.className = 'button-row input-primary-actions';
-  ensureButton(actions, 'loadUnifiedModelFileBtn', 'ghost icon-text managed-stage-json-load-btn unified-model-load-btn', 'upload', 'Import stagedJson').title = 'Import stagedJson file';
-  const loadSampleBtn = ensureButton(actions, 'loadSampleBtn', 'primary icon-text managed-stage-json-sample-btn', 'folder-open', 'Load BM_CII stagedJson');
-  loadSampleBtn.title = 'Load bundled BM_CII_INPUT_managed_stage.json stagedJson sample';
-  loadSampleBtn.setAttribute('aria-label', 'Load BM_CII stagedJson sample');
-  const clearBtn = ensureButton(actions, 'clearBtn', 'ghost icon-text', 'folder-x', 'Clear All');
-  clearBtn.setAttribute('aria-label', 'Clear all input and sample data');
-  revealElement(actions);
-  return actions;
+  if (actions) actions.remove();
+  let clearBtn = document.getElementById('clearBtn');
+  if (clearBtn) clearBtn.remove();
+  let loadUnifiedModelFileBtn = document.getElementById('loadUnifiedModelFileBtn');
+  if (loadUnifiedModelFileBtn) loadUnifiedModelFileBtn.remove();
+  return null;
 }
 
 function ensureButton(parent, id, className, iconName, text) {
@@ -201,12 +226,8 @@ function ensureButton(parent, id, className, iconName, text) {
 function normalizeInputControlLabels(section) {
   const fileDrop = section.querySelector('.file-drop');
   if (fileDrop) fileDrop.querySelector('span') && (fileDrop.querySelector('span').textContent = 'Choose stagedJson');
-  const importBtn = document.getElementById('loadUnifiedModelFileBtn');
-  if (importBtn) { importBtn.setAttribute('aria-label', 'Import stagedJson file'); importBtn.querySelector('span') && (importBtn.querySelector('span').textContent = 'Import stagedJson'); }
   const loadSampleBtn = document.getElementById('loadSampleBtn');
-  if (loadSampleBtn) { loadSampleBtn.setAttribute('aria-label', 'Load BM_CII stagedJson sample'); loadSampleBtn.querySelector('span') && (loadSampleBtn.querySelector('span').textContent = 'Load BM_CII stagedJson'); }
-  const clearBtn = document.getElementById('clearBtn');
-  if (clearBtn) clearBtn.setAttribute('aria-label', 'Clear all input and sample data');
+  if (loadSampleBtn) { loadSampleBtn.setAttribute('aria-label', 'Load BM_CII stagedJson sample'); loadSampleBtn.querySelector('span') && (loadSampleBtn.querySelector('span').textContent = 'Load BM_CII st...'); }
   const closeInputBtn = document.getElementById('closeInputBtn');
   if (closeInputBtn) { closeInputBtn.hidden = true; closeInputBtn.setAttribute('aria-hidden', 'true'); closeInputBtn.tabIndex = -1; }
 }
@@ -234,14 +255,10 @@ function forceInputControlsExpanded(section) {
 
 function bindFileStatus() {
   const input = document.getElementById('xmlFile');
-  const importBtn = document.getElementById('loadUnifiedModelFileBtn');
   const loadSampleBtn = document.getElementById('loadSampleBtn');
-  const clearBtn = document.getElementById('clearBtn');
   updateStatusFromInput();
   if (input && input.dataset.inputAlwaysVisibleBound !== '1') { input.dataset.inputAlwaysVisibleBound = '1'; input.addEventListener('change', updateStatusFromInput); }
-  if (importBtn && importBtn.dataset.inputAlwaysVisibleBound !== '1') { importBtn.dataset.inputAlwaysVisibleBound = '1'; importBtn.addEventListener('click', () => input?.click()); }
   if (loadSampleBtn && loadSampleBtn.dataset.inputAlwaysVisibleBound !== '1') { loadSampleBtn.dataset.inputAlwaysVisibleBound = '1'; loadSampleBtn.addEventListener('click', () => setTimeout(updateStatusFromInput, 0)); }
-  if (clearBtn && clearBtn.dataset.inputAlwaysVisibleBound !== '1') { clearBtn.dataset.inputAlwaysVisibleBound = '1'; clearBtn.addEventListener('click', () => setTimeout(() => setStatus('No file chosen'), 0)); }
 }
 
 function updateStatusFromInput() {
@@ -271,10 +288,7 @@ function checklist() {
     statusVisible: Boolean(getStatusNode()),
     statusText: getStatusNode()?.textContent || '',
     chooseInputVisible: Boolean(fileDrop && fileDrop.hidden === false),
-    importVisible: Boolean(importBtn && importBtn.hidden === false),
     loadSampleVisible: Boolean(loadSampleBtn && loadSampleBtn.hidden === false),
-    clearAllVisible: Boolean(document.getElementById('clearBtn')),
-    actionRowVisible: Boolean(inputActions && inputActions.hidden === false),
     postBootstrapReassertions: true,
     postBootstrapEvents: POST_BOOTSTRAP_REASSERT_EVENTS.slice(),
     sampleStateSeparateFromFileStatus: true,

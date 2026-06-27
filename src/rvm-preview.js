@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { createNodeLabel, createTextPlane, cylinderBetween, mat } from './geometry.js?v=professional-viewer-3';
+import { createNodeLabel, createTextPlane, cylinderBetween, mat } from './geometry.js?v=bust-cache-4';
 
 const PREVIEW_COLORS = {
   pipe: 0xf0f4f8,
@@ -36,18 +36,20 @@ const MATERIAL_BY_RVM_ID = new Map([
  * Output: preview scene using the same RVM primitives written to disk.
  * Fallback: unsupported primitives throw errors so preview cannot drift from exported RVM content.
  */
-export function createRvmPreviewScene(exportModel) {
+export function createRvmPreviewScene(exportModel, options = {}) {
+  const recenter = options.recenter !== false;
   const scene = new THREE.Scene();
-  scene.name = 'InputXML_RVM_PREVIEW_SCENE';
+  scene.name = options.sceneName || 'InputXML_RVM_PREVIEW_SCENE';
   scene.userData = {
     app: 'inputxml-glb-standalone',
-    previewSource: 'generated-rvm-export-model'
+    previewSource: 'generated-rvm-export-model',
+    recentered: recenter
   };
   const root = new THREE.Group();
   root.name = 'RVM_PREVIEW_ROOT';
   scene.add(root);
   addNode(root, exportModel.root);
-  frameScene(scene);
+  if (recenter) frameScene(scene);
   return scene;
 }
 
@@ -165,7 +167,16 @@ function createBox(primitive, fallbackMaterialId) {
   );
   mesh.name = primitive.name;
   mesh.position.copy(v3(primitive.center));
-  mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), v3(primitive.direction || [0, 0, 1]).normalize());
+  if (primitive.basis?.x && primitive.basis?.y && primitive.basis?.z) {
+    const matrix = new THREE.Matrix4().makeBasis(
+      v3(primitive.basis.x).normalize(),
+      v3(primitive.basis.y).normalize(),
+      v3(primitive.basis.z).normalize()
+    );
+    mesh.setRotationFromMatrix(matrix);
+  } else {
+    mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), v3(primitive.direction || [0, 0, 1]).normalize());
+  }
   mesh.userData = { TYPE: 'RVM_PRIMITIVE', primitiveKind: primitive.kind, sourceName: primitive.name };
   return mesh;
 }
@@ -250,7 +261,38 @@ function normalizeUserData(attributes) {
     out.warningText = attributes.WARNING_TEXT;
     out.popupRequired = attributes.POPUP_REQUIRED === 'true';
   }
+  if (attributes.TYPE === 'SUPPORT_MARKER') {
+    out.supportMarkerId = attributes.SUPPORT_MARKER_ID || attributes.ID;
+    out.node = attributes.NODE;
+    out.family = attributes.FAMILY;
+    out.axis = attributes.AXIS;
+    out.axisRaw = attributes.AXIS_RAW;
+    out.axisCanvas = attributes.AXIS_CANVAS;
+    out.axisTransformApplied = attributes.AXIS_TRANSFORM_APPLIED === 'TRUE';
+    out.axisTransform = parseJsonAttribute(attributes.AXIS_TRANSFORM_JSON);
+    out.source = attributes.SOURCE;
+    out.sourceKind = attributes.SOURCE_KIND;
+    out.sourceMode = attributes.SOURCE_MODE;
+    out.sourcePath = attributes.SOURCE_PATH;
+    out.sourceAttributes = parseJsonAttribute(attributes.SOURCE_ATTRIBUTES_JSON);
+    out.isonoteRawText = attributes.ISONOTE_RAW_TEXT;
+    out.isonoteNoteName = attributes.ISONOTE_NOTE_NAME;
+    out.matchMethod = attributes.ISONOTE_MATCH_METHOD;
+    out.confidence = attributes.ISONOTE_MATCH_CONFIDENCE;
+    out.warningCode = attributes.WARNING_CODE;
+    out.warningMessage = attributes.WARNING_MESSAGE;
+    out.diagnostics = parseJsonAttribute(attributes.DIAGNOSTICS_JSON) || [];
+  }
   return out;
+}
+
+function parseJsonAttribute(value) {
+  if (!value || value === 'N/A') return null;
+  try {
+    return JSON.parse(value);
+  } catch {
+    return null;
+  }
 }
 
 function frameScene(scene) {

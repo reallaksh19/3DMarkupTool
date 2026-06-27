@@ -1,4 +1,4 @@
-import { normalizeRvmMaterialId } from './rvm-material-layer-contract.js';
+import { normalizeRvmMaterialId } from './rvm-material-layer-contract.js?v=bust-cache-4';
 
 export const RVM_MATERIAL_ASSIGNMENT_POLICY_SCHEMA = 'RvmMaterialAssignmentPolicy.v1';
 
@@ -101,7 +101,7 @@ export function classifyRvmNodeMaterial(node = {}) {
     return materialClassification(nodeName, 'RIGID_COMPONENT', RVM_STABLE_MATERIAL_IDS.RIGID_COMPONENT);
   }
 
-  if (type === 'SUPPORT_RESTRAINT') {
+  if (type === 'SUPPORT_RESTRAINT' || type === 'SUPPORT_MARKER') {
     return materialClassification(nodeName, `SUPPORT_${family || 'UNKNOWN'}`, supportFamilyMaterialId(family));
   }
 
@@ -116,7 +116,7 @@ export function supportFamilyMaterialId(family) {
   const value = String(family || '').toUpperCase();
   if (value === 'REST') return RVM_STABLE_MATERIAL_IDS.REST;
   if (value === 'GUIDE') return RVM_STABLE_MATERIAL_IDS.GUIDE;
-  if (value === 'LINE_STOP' || value === 'LIMIT' || value === 'LIMIT_STOP' || value === 'ANCHOR' || value === 'AXIS_RESTRAINT') return RVM_STABLE_MATERIAL_IDS.LINE_STOP;
+  if (value === 'LINE_STOP' || value === 'LINESTOP' || value === 'LIMIT' || value === 'LIMIT_STOP' || value === 'ANCHOR' || value === 'AXIS_RESTRAINT') return RVM_STABLE_MATERIAL_IDS.LINE_STOP;
   if (value === 'HOLDDOWN') return RVM_STABLE_MATERIAL_IDS.HOLDDOWN;
   if (value === 'SPRING' || value === 'SPRING_WARNING') return RVM_STABLE_MATERIAL_IDS.SPRING;
   return RVM_STABLE_MATERIAL_IDS.WARNING;

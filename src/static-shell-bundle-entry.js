@@ -30,5 +30,5 @@ import './static-global-tool-lifecycle-controller.js';
 
 window.__3D_MARKUP_STATIC_SHELL_BUNDLE_READY__ = true;
 window.dispatchEvent(new CustomEvent('viewer:static-shell-bundle-ready', {
-  detail: { version: 'input-persistent-root-card-20260626' }
+  detail: { version: 'input-persistent-root-card-20260628' }
 }));

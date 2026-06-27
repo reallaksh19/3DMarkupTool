@@ -10,8 +10,8 @@ const perfCss = readFileSync(new URL('../src/static-shell-performance.css', impo
 const checklist = readFileSync(new URL('../docs/post-pr133-recovery-checklist.md', import.meta.url), 'utf8');
 const pkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
 
-const activeKey = 'input-persistent-root-card-20260626';
-const staticKeyPattern = /input-persistent-root-card-20260626|input-root-owner-20260626|input-postbootstrap-reassert-20260626|input-load-controls-restored-20260626|workflow-input-expanded-load-controls-20260625|staged-json-review-ui-rvm-fix-20260625|app-boot-dialog-conversion-hotfix-20260623|support-ui-render-export-fix-20260623|tool-fixes-v2-20260620|perf-tdz-fix-20260620|perf-static-drawer-bundle-20260620|perf-idle-diagnostics-20260620|perf-static-shell-20260620|phase4a-static-input-panel-cleanup-20260619/;
+const activeKey = 'input-persistent-root-card-20260629-c';
+const staticKeyPattern = /input-persistent-root-card-20260629-c|input-root-owner-20260626|input-postbootstrap-reassert-20260626|input-load-controls-restored-20260626|workflow-input-expanded-load-controls-20260625|staged-json-review-ui-rvm-fix-20260625|app-boot-dialog-conversion-hotfix-20260623|support-ui-render-export-fix-20260623|tool-fixes-v2-20260620|perf-tdz-fix-20260620|perf-static-drawer-bundle-20260620|perf-idle-diagnostics-20260620|perf-static-shell-20260620|phase4a-static-input-panel-cleanup-20260619/;
 
 assert.match(index, /id="inputFileStatus"[\s\S]*No file chosen/);
 assert.match(index, /id="inputStatus"/);
@@ -34,7 +34,7 @@ assert.match(bootstrap, new RegExp(`SAFE_UI_VERSION = '(${staticKeyPattern.sourc
 assert.match(appLoader, new RegExp(activeKey));
 assert.match(appLoader, /import\(MANAGED_STAGE_JSON_UI_MODULE_URL\)[\s\S]*import\(MANAGED_STAGE_JSON_SAMPLE_MODULE_URL\)[\s\S]*loadManagedStageDecorators/);
 
-assert.match(controller, /const VERSION = 'input-persistent-root-card-20260626'/);
+assert.match(controller, /const VERSION = 'input-persistent-root-card-20260629-c'/);
 assert.match(controller, /POST_BOOTSTRAP_REASSERT_EVENTS/);
 assert.match(controller, /viewer:static-shell-bundle-loaded/);
 assert.match(controller, /viewer:svg-icons-refreshed/);

@@ -1,10 +1,16 @@
-import { parseManagedStageProfile } from './managed-stage-profile-parser.js';
+import { parseManagedStageProfile } from './managed-stage-profile-parser.js?v=bust-cache-4';
 import {
   MANAGED_STAGE_SUPPORT_SOURCE_MODES,
   normalizeManagedStageSupportMapperRecord
-} from './managed-stage-support-mapper-config.js';
-import { parseManagedStageIsonoteSupportRecords } from './managed-stage-isonote-support-mapper.js';
-import { resolveManagedStageSupportVisual } from './managed-stage-support-visual-resolver.js';
+} from './managed-stage-support-mapper-config.js?v=bust-cache-4';
+import { parseManagedStageIsonoteSupportRecords } from './managed-stage-isonote-support-mapper.js?v=bust-cache-4';
+import { resolveManagedStageSupportVisual } from './managed-stage-support-visual-resolver.js?v=bust-cache-4';
+import { resolveSupportAxisTransform } from './support-axis-transform.js?v=bust-cache-4';
+import {
+  SUPPORT_MARKER_CONTRACT_SCHEMA,
+  SUPPORT_MARKER_TYPE,
+  buildSupportMarkerId
+} from './support-marker-primitive-policy.js?v=bust-cache-4';
 
 export const STAGEDJSON_SOURCE_CONTRACT_SCHEMA = 'StagedJsonSourceContract.v1';
 export const STAGEDJSON_SOURCE_KIND = 'stagedJson';
@@ -14,15 +20,19 @@ const SUPPORT_FAMILY_MAP = Object.freeze({
   GUIDE: 'GUIDE',
   LINE_STOP: 'LINESTOP',
   LINESTOP: 'LINESTOP',
-  LIMIT_STOP: 'LIMIT',
+  LIMIT_STOP: 'LINESTOP',
   LIMIT: 'LIMIT',
   HOLDDOWN: 'HOLDDOWN',
   HOLD_DOWN: 'HOLDDOWN',
   ANCHOR: 'ANCHOR',
   SPRING: 'SPRING',
-  SPRING_CAN: 'SPRING',
-  CAN: 'SPRING',
-  HANGER: 'SPRING',
+  SPRING_CAN: 'SPRING_CAN',
+  CAN: 'CAN',
+  HANGER: 'HANGER',
+  SPRING_HANGER: 'SPRING_HANGER',
+  U_BOLT: 'U_BOLT',
+  TRUNNION: 'TRUNNION',
+  SHOE: 'SHOE',
   SINGLE_AXIS_WARNING: 'UNKNOWN',
   UNKNOWN_RESTRAINT: 'UNKNOWN'
 });
@@ -35,6 +45,13 @@ const LEGACY_FAMILY_MAP = Object.freeze({
   HOLDDOWN: 'HOLDDOWN',
   ANCHOR: 'ANCHOR',
   SPRING: 'SPRING',
+  SPRING_CAN: 'SPRING_CAN',
+  CAN: 'CAN',
+  HANGER: 'HANGER',
+  SPRING_HANGER: 'SPRING_HANGER',
+  U_BOLT: 'U_BOLT',
+  TRUNNION: 'TRUNNION',
+  SHOE: 'SHOE',
   UNKNOWN: 'AXIS_RESTRAINT_UNRESOLVED'
 });
 
@@ -99,14 +116,15 @@ export function assertStagedJsonSourceContract(contract) {
   }
   for (const support of contract.supports || []) {
     for (const field of [
-      'supportId', 'sourceKind', 'sourcePath', 'nodeNumber', 'supportKindRaw',
+      'supportMarkerSchema', 'supportMarkerId', 'type', 'supportId', 'sourceKind', 'sourcePath', 'sourceAttributes', 'nodeNumber', 'supportKindRaw',
       'supportKindNormalized', 'supportFamily', 'axisRaw', 'axisCanvas',
-      'axisTransformApplied', 'gapMm', 'pipeOdMm', 'pipeRadiusMm', 'pipeAxis',
+      'axisTransform', 'axisVector', 'axisTransformApplied', 'gapMm', 'pipeOdMm', 'pipeRadiusMm', 'pipeAxis',
       'positionMm', 'matchedPipeRef', 'matchedIsonoteRecord', 'isonoteRawText',
-      'isonoteNoteName', 'warningCode', 'warningMessage'
+      'isonoteNoteName', 'isonoteMatch', 'warningCode', 'warningMessage', 'diagnostics'
     ]) {
       if (!(field in support)) throw new Error(`stagedJson support ${support.supportId || '(unknown)'} missing ${field}`);
     }
+    if (support.type !== SUPPORT_MARKER_TYPE) throw new Error(`stagedJson support ${support.supportId || '(unknown)'} must be ${SUPPORT_MARKER_TYPE}`);
   }
   return true;
 }
@@ -120,22 +138,43 @@ function toSupportContractRecord(record, index, adaptedRecords, isonoteRecords) 
   const supportTag = mapperRecord.supportTag || mapperRecord.attrs.SUPPORT_TAG_MAPPED || mapperRecord.attrs.NAME || record.name || '';
   const matchedIsonoteRecord = matchIsonoteRecord({ nodeNumber, supportTag, normalizedFamily, isonoteRecords });
   const positionMm = pointOrNull(adapted.source.supportCoord || adapted.source.pos || adapted.source.bpos || adapted.source.apos || adapted.source.lpos);
+  const axisTransform = resolveSupportAxisTransform({
+    sourceAxis: mapperRecord.axis?.sourceAxis || visual.sourceAxis || '',
+    canvasAxis: mapperRecord.axis?.canvasAxis || visual.canvasAxis || '',
+    pipeAxis: visual.pipeAxis || '',
+    axisBasis: mapperRecord.config?.axisBasis || null,
+    basisPreset: mapperRecord.mapperPresetId || ''
+  });
   const warningCode = mapperRecord.preflight?.issues?.[0]?.code || (visual.popupRequired ? 'popup-required' : '');
   const warningMessage = mapperRecord.preflight?.issues?.[0]?.message || visual.popupReason || '';
-
-  return {
+  const isonoteMatch = {
+    matched: Boolean(matchedIsonoteRecord),
+    matchMethod: matchedIsonoteRecord ? 'node-family' : 'none',
+    confidence: matchedIsonoteRecord ? 1 : 0,
+    rawText: matchedIsonoteRecord?.rawText || '',
+    noteName: matchedIsonoteRecord?.supportTag || matchedIsonoteRecord?.nodeId || '',
+    matchedFields: matchedIsonoteRecord ? ['nodeNumber', 'supportFamily'] : []
+  };
+  const draft = {
+    supportMarkerSchema: SUPPORT_MARKER_CONTRACT_SCHEMA,
+    type: SUPPORT_MARKER_TYPE,
+    markerType: SUPPORT_MARKER_TYPE,
     supportId: supportTag || `SUPPORT_${index + 1}`,
     sourceKind: STAGEDJSON_SOURCE_KIND,
     sourcePath: record.path || '',
+    sourceAttributes: { ...(adapted.attrs || {}) },
     nodeNumber,
     supportName: supportTag,
     psTag: supportTag,
     supportKindRaw: mapperRecord.rawKind || visual.rawKind || record.type || '',
     supportKindNormalized: mapperRecord.family || visual.family || 'UNKNOWN',
     supportFamily: normalizedFamily,
-    axisRaw: mapperRecord.axis?.sourceAxis || visual.sourceAxis || '',
-    axisCanvas: mapperRecord.axis?.canvasAxis || visual.canvasAxis || '',
-    axisTransformApplied: Boolean(String(mapperRecord.attrs.SUPPORT_AXIS_CANVAS_APPLIED || '').toUpperCase() === 'TRUE' || visual.axisTransformApplied),
+    axisRaw: axisTransform.sourceAxis || mapperRecord.axis?.sourceAxis || visual.sourceAxis || '',
+    axisCanvas: axisTransform.canvasAxis || mapperRecord.axis?.canvasAxis || visual.canvasAxis || '',
+    axisVector: axisTransform.axisVector,
+    sign: axisTransform.sign,
+    axisTransform,
+    axisTransformApplied: Boolean(String(mapperRecord.attrs.SUPPORT_AXIS_CANVAS_APPLIED || '').toUpperCase() === 'TRUE' || visual.axisTransformApplied || axisTransform.axisTransformApplied),
     gapMm: finiteNumber(visual.gapMm, 0),
     pipeOdMm: finiteNumber(visual.pipeDiameterMm, 0),
     pipeRadiusMm: finiteNumber(visual.pipeRadiusMm, 0),
@@ -145,16 +184,28 @@ function toSupportContractRecord(record, index, adaptedRecords, isonoteRecords) 
     matchedIsonoteRecord,
     isonoteRawText: matchedIsonoteRecord?.rawText || '',
     isonoteNoteName: matchedIsonoteRecord?.supportTag || matchedIsonoteRecord?.nodeId || '',
+    isonoteMatch,
     warningCode,
     warningMessage,
     popupRequired: Boolean(visual.popupRequired || mapperRecord.preflight?.popupRequired),
-    matchMethod: matchedIsonoteRecord ? 'node-family' : 'none',
-    confidence: matchedIsonoteRecord ? 1 : 0,
+    matchMethod: isonoteMatch.matchMethod,
+    confidence: isonoteMatch.confidence,
     sourceMode: MANAGED_STAGE_SUPPORT_SOURCE_MODES.STAGED_JSON,
     rawType: record.type || '',
     ref: adapted.attrs.REF || adapted.attrs.SOURCE_RESTRAINT_ID || '',
     name: record.name || '',
+    rawStagedJson: {
+      name: record.name || '',
+      type: record.type || '',
+      path: record.path || '',
+      attributes: { ...(record.attributes || {}) }
+    },
+    diagnostics: supportDiagnostics(mapperRecord, visual, axisTransform),
     visual
+  };
+  return {
+    ...draft,
+    supportMarkerId: buildSupportMarkerId(draft)
   };
 }
 
@@ -259,7 +310,7 @@ function buildCompatibilityModel(geometryRecords, supports) {
       typeCode: support.supportKindNormalized,
       rawType: support.supportKindRaw,
       family: LEGACY_FAMILY_MAP[support.supportFamily] || 'AXIS_RESTRAINT_UNRESOLVED',
-      axis: support.axisCanvas || support.axisRaw || 'PIPE_AXIAL_±',
+      axis: support.axisCanvas || support.axisRaw || 'PIPE_AXIAL_Â±',
       sign: support.axisCanvas?.startsWith('-') ? '-' : support.axisCanvas?.startsWith('+') ? '+' : 'UNKNOWN',
       gapMm: support.gapMm,
       sourceNoteName: support.isonoteNoteName || '',
@@ -320,6 +371,26 @@ function matchIsonoteRecord({ nodeNumber, supportTag, normalizedFamily, isonoteR
     const recordTag = normalizeText(record.supportTag || record.attrs?.SUPPORT_TAG || '');
     return !tag || !recordTag || tag.includes(recordTag) || recordTag.includes(tag);
   }) || null;
+}
+
+function supportDiagnostics(mapperRecord, visual, axisTransform) {
+  const diagnostics = [];
+  for (const issue of mapperRecord.preflight?.issues || []) {
+    diagnostics.push({
+      code: issue.code || 'mapper-preflight-issue',
+      severity: issue.severity || 'warning',
+      message: issue.message || ''
+    });
+  }
+  for (const issue of axisTransform.diagnostics || []) diagnostics.push(issue);
+  if (visual.popupRequired && !diagnostics.some((entry) => entry.code === 'popup-required')) {
+    diagnostics.push({
+      code: 'popup-required',
+      severity: 'warning',
+      message: visual.popupReason || 'Support mapper requires review.'
+    });
+  }
+  return diagnostics;
 }
 
 function normalizeContractFamily(value) {

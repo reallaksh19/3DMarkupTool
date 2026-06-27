@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { createTextPlane } from './geometry.js?v=professional-viewer-3';
+import { createTextPlane } from './geometry.js?v=bust-cache-4';
 
 const runtime = window.__3D_MARKUP_CLIP_RUNTIME__ || null;
 const RAYCASTER = new THREE.Raycaster();
@@ -421,7 +421,7 @@ function ensureViewpointPanel() {
         <strong>Tag Viewpoints</strong>
         <span class="navis-tag-view-count">0 viewpoints</span>
       </div>
-      <button type="button" class="navis-tag-view-close" title="Close tag viewpoints">×</button>
+      <button type="button" class="navis-tag-view-close" title="Close tag viewpoints">Ã—</button>
     </div>
     <div class="navis-tag-view-hint">Click a tag to select and fit/zoom.</div>
     <div class="navis-tag-view-list"></div>

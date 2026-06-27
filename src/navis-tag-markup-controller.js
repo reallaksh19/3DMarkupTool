@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { createTextPlane } from './geometry.js?v=professional-viewer-3';
+import { createTextPlane } from './geometry.js?v=bust-cache-4';
 
 const runtime = window.__3D_MARKUP_CLIP_RUNTIME__ || null;
 const RAYCASTER = new THREE.Raycaster();

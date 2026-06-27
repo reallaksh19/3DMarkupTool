@@ -1,6 +1,6 @@
-import { resolveSupportRestraintVisualSpec } from './support-restraint-visual-catalog.js';
-import { ALLOWED_RVM_PRIMITIVE_KINDS } from './rvm-primitive-kind-contract.js';
-import { assertSafeApproximationPrimitives } from './rvm-safe-primitive-approximation-policy.js';
+import { resolveSupportRestraintVisualSpec } from './support-restraint-visual-catalog.js?v=bust-cache-4';
+import { ALLOWED_RVM_PRIMITIVE_KINDS } from './rvm-primitive-kind-contract.js?v=bust-cache-4';
+import { assertSafeApproximationPrimitives } from './rvm-safe-primitive-approximation-policy.js?v=bust-cache-4';
 
 const WRITER_SAFE_KINDS = new Set(ALLOWED_RVM_PRIMITIVE_KINDS);
 

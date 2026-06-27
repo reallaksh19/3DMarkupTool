@@ -12,37 +12,37 @@ const GROUPS = [
   {
     id: 'staticTagGroup',
     label: 'Tag',
-    icon: '🏷',
+    icon: 'ðŸ·',
     title: 'Tag-related review tools',
     note: 'Tag tools only. Advanced leader authoring remains deferred.',
     tools: [
-      { id: 'staticTagBtn', label: 'Tag', icon: '↗', action: manualTag, title: 'Manual leader tag placeholder. Full leader authoring remains in advanced mode.' },
-      { id: 'staticTagViewsBtn', label: 'Tag Views', icon: '☰', action: togglePanel, title: 'Show imported, ISONOTE, and exported static tag viewpoints.' }
+      { id: 'staticTagBtn', label: 'Tag', icon: 'â†—', action: manualTag, title: 'Manual leader tag placeholder. Full leader authoring remains in advanced mode.' },
+      { id: 'staticTagViewsBtn', label: 'Tag Views', icon: 'â˜°', action: togglePanel, title: 'Show imported, ISONOTE, and exported static tag viewpoints.' }
     ]
   },
   {
     id: 'staticXmlGroup',
     label: 'XML',
-    icon: '⌘',
+    icon: 'âŒ˜',
     title: 'XML-related import, QA, and export tools',
     note: 'XML tools use the static tag/session buffer and do not change GLB/RVM export contracts.',
     tools: [
-      { id: 'staticIsonoteXmlBtn', label: 'ISONOTE XML', icon: '⌖', action: openIsonoteSummary, title: 'Summarize ISONOTE/name-plate data available in the current scene.' },
-      { id: 'staticImportXmlBtn', label: 'Import XML', icon: '⇣', action: importTagXml, title: 'Import Navis tag XML text into the static session buffer.' },
-      { id: 'staticXmlQaBtn', label: 'XML QA', icon: '☑', action: runXmlQa, title: 'Run a lightweight QA summary of static tag XML data.' },
-      { id: 'staticExportXmlBtn', label: 'Export XML', icon: '⇩', action: exportXml, title: 'Export a lightweight static tag XML snapshot. Not an RVM/Navis certification feature.' }
+      { id: 'staticIsonoteXmlBtn', label: 'ISONOTE XML', icon: 'âŒ–', action: openIsonoteSummary, title: 'Summarize ISONOTE/name-plate data available in the current scene.' },
+      { id: 'staticImportXmlBtn', label: 'Import XML', icon: 'â‡£', action: importTagXml, title: 'Import Navis tag XML text into the static session buffer.' },
+      { id: 'staticXmlQaBtn', label: 'XML QA', icon: 'â˜‘', action: runXmlQa, title: 'Run a lightweight QA summary of static tag XML data.' },
+      { id: 'staticExportXmlBtn', label: 'Export XML', icon: 'â‡©', action: exportXml, title: 'Export a lightweight static tag XML snapshot. Not an RVM/Navis certification feature.' }
     ]
   },
   {
     id: 'staticSessionGroup',
     label: 'Session',
-    icon: '▣',
+    icon: 'â–£',
     title: 'Browser session tools for static markup/XML state',
     note: 'Session tools are local to this browser.',
     tools: [
-      { id: 'staticSaveSessionBtn', label: 'Save Session', icon: '▣', action: saveSession, title: 'Save the static tag XML/session buffer in this browser.' },
-      { id: 'staticRestoreSessionBtn', label: 'Restore', icon: '⟲', action: restoreSession, title: 'Restore static tag XML/session buffer from this browser.' },
-      { id: 'staticClearSessionBtn', label: 'Clear Session', icon: '⌫', action: clearSession, title: 'Clear static tag XML/session buffer.' }
+      { id: 'staticSaveSessionBtn', label: 'Save Session', icon: 'â–£', action: saveSession, title: 'Save the static tag XML/session buffer in this browser.' },
+      { id: 'staticRestoreSessionBtn', label: 'Restore', icon: 'âŸ²', action: restoreSession, title: 'Restore static tag XML/session buffer from this browser.' },
+      { id: 'staticClearSessionBtn', label: 'Clear Session', icon: 'âŒ«', action: clearSession, title: 'Clear static tag XML/session buffer.' }
     ]
   }
 ];
@@ -302,7 +302,7 @@ function refreshPanel(forceRender) {
   panel.innerHTML = `
     <div class="static-markup-head">
       <strong>Markup / XML</strong>
-      <button type="button" data-static-markup-close aria-label="Close Markup XML panel">×</button>
+      <button type="button" data-static-markup-close aria-label="Close Markup XML panel">Ã—</button>
     </div>
     <div class="static-markup-kpis">
       <span>Total <b>${tags.length}</b></span>

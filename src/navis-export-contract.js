@@ -2,7 +2,7 @@ import {
   ALLOWED_RVM_PRIMITIVE_KINDS,
   isRvmPrimitiveKindSupported,
   rvmPrimitiveKindCompatibilityReport
-} from './rvm-primitive-kind-contract.js';
+} from './rvm-primitive-kind-contract.js?v=bust-cache-4';
 
 /**
  * Validates the renderer-neutral export tree before Navisworks RVM/ATT serialization.

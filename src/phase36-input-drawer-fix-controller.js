@@ -53,7 +53,7 @@ function normalizeDrawerChrome(drawer) {
   const close = document.getElementById('closeInputBtn');
   if (close && !close.dataset.phase36CloseIcon) {
     close.dataset.phase36CloseIcon = '1';
-    close.innerHTML = '<span aria-hidden="true">×</span>';
+    close.innerHTML = '<span aria-hidden="true">Ã—</span>';
     close.setAttribute('aria-label', 'Close input panel');
   }
 }
@@ -81,7 +81,7 @@ function ensureOptionsDetails(section) {
     details.className = 'phase36-options-details';
 
     const summary = document.createElement('summary');
-    summary.innerHTML = '<span>Options</span><b aria-hidden="true">›</b>';
+    summary.innerHTML = '<span>Options</span><b aria-hidden="true">â€º</b>';
     details.appendChild(summary);
 
     const body = document.createElement('div');
@@ -114,7 +114,7 @@ function ensureOptionsDetails(section) {
 function normalizeOptionsSummary(details) {
   const summary = details.querySelector('summary');
   if (!summary) return;
-  if (!summary.querySelector('b')) summary.innerHTML = '<span>Options</span><b aria-hidden="true">›</b>';
+  if (!summary.querySelector('b')) summary.innerHTML = '<span>Options</span><b aria-hidden="true">â€º</b>';
 }
 
 function moveConversionDetails(section, optionsBody, details) {

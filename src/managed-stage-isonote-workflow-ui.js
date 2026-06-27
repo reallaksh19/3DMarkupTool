@@ -1,11 +1,11 @@
-import { parseIsonoteRows, parseManagedStageIsonoteSupportRecords } from './managed-stage-isonote-support-mapper.js';
+import { parseIsonoteRows, parseManagedStageIsonoteSupportRecords } from './managed-stage-isonote-support-mapper.js?v=bust-cache-4';
 import {
   MANAGED_STAGE_SUPPORT_MAPPER_PRESET_IDS,
   MANAGED_STAGE_SUPPORT_SOURCE_MODES,
   getManagedStageSupportMapperPresetProfile,
   normalizeManagedStageSupportMapperPresetId,
   resolveManagedStageSupportMapperConfig
-} from './managed-stage-support-mapper-config.js';
+} from './managed-stage-support-mapper-config.js?v=bust-cache-4';
 
 export const MANAGED_STAGE_ISONOTE_TEXT_WORKFLOW_SCHEMA = 'ManagedStageIsonoteTextWorkflow.v1';
 export const MANAGED_STAGE_ISONOTE_TEXT_WORKFLOW_CACHE_KEY = '20260623-isonote-text-workflow-1';

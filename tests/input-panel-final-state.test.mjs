@@ -36,7 +36,7 @@ assert.match(staticShellCss, /input-root-card\[data-section="input"\][\s\S]*file
 assert.match(staticShellCss, /input-root-card\[data-section="input"\][\s\S]*input-primary-actions[\s\S]*display:\s*flex\s*!important/);
 assert.match(staticShellCss, /conversion-options-compat-root\s*\{\s*display:\s*none\s*!important/);
 
-assert.match(inputController, /const VERSION = 'input-persistent-root-card-20260626'/);
+assert.match(inputController, /const VERSION = 'input-persistent-root-card-20260629-c'/);
 assert.match(inputController, /dataset\.inputRoot = 'persistent'/);
 assert.match(inputController, /classList\.remove\('workflow-card'/);
 assert.match(inputController, /inputIsNotWorkflowCard:/);
@@ -55,7 +55,7 @@ assert.match(appLoader, /import\(MANAGED_STAGE_JSON_UI_MODULE_URL\)[\s\S]*import
 assert.doesNotMatch(bootstrap, /early static shell source parity/);
 assert.doesNotMatch(collapseController, /sections\s*\[\s*1\s*\]/);
 assert.match(collapseController, /setSectionExpanded\('conversion', false\)/);
-assert.match(bootstrap, /input-persistent-root-card-20260626/);
+assert.match(bootstrap, /input-persistent-root-card-20260629-c/);
 assert.match(bootstrap, /static-input-always-visible-controller\.js\?v=\$\{SAFE_UI_VERSION\}/);
 assert.match(pkg.scripts.test, /input-panel-final-state\.test\.mjs/);
 

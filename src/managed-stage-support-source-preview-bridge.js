@@ -1,7 +1,7 @@
 import * as THREE from 'three';
-import { createManagedStageSupportPreviewObject } from './managed-stage-support-visual-resolver.js';
-import { parseManagedStageIsonoteSupportRecords } from './managed-stage-isonote-support-mapper.js';
-import { MANAGED_STAGE_SUPPORT_SOURCE_MODES, normalizeManagedStageSupportMapperRecord } from './managed-stage-support-mapper-config.js';
+import { createManagedStageSupportPreviewObject } from './managed-stage-support-visual-resolver.js?v=bust-cache-4';
+import { parseManagedStageIsonoteSupportRecords } from './managed-stage-isonote-support-mapper.js?v=bust-cache-4';
+import { MANAGED_STAGE_SUPPORT_SOURCE_MODES, normalizeManagedStageSupportMapperRecord } from './managed-stage-support-mapper-config.js?v=bust-cache-4';
 
 export const MANAGED_STAGE_SUPPORT_SOURCE_PREVIEW_BRIDGE_SCHEMA = 'ManagedStageSupportSourcePreviewBridge.v2';
 export const MANAGED_STAGE_SUPPORT_SOURCE_PREVIEW_DIAGNOSTICS_SCHEMA = 'ManagedStageSupportSourcePreviewDiagnostics.v1';

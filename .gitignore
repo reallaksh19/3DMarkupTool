@@ -7,3 +7,10 @@ package-lock.json
 
 # Coverage
 /coverage/
+ 
+# Scratch and Backups
+*.cjs
+*.py
+src_backup.zip
+src_fresh_restore/
+src_backup_restore/

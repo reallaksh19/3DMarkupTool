@@ -1,5 +1,5 @@
-import { buildEndpointLockedCylinderPrimitive } from './rvm-cylinder-primitive-builder.js';
-import { resolveManagedStageSupportVisual } from './managed-stage-support-visual-resolver.js';
+import { buildEndpointLockedCylinderPrimitive } from './rvm-cylinder-primitive-builder.js?v=bust-cache-4';
+import { resolveManagedStageSupportVisual } from './managed-stage-support-visual-resolver.js?v=bust-cache-4';
 
 const SUPPORT_MATERIAL_ID = 9;
 const EPS_MM = 0.001;
@@ -73,6 +73,8 @@ export function buildManagedStageSupportRvmExportNodes(profile, options = {}) {
     materialId: options.materialId || SUPPORT_MATERIAL_ID,
     supportRecordCount: supportRecords.length,
     supportNodeCount: supportNodes.length,
+    supportRecordsExported: supportNodes.filter(n => n.primitives && n.primitives.length > 0).length,
+    supportRecordsSkipped: supportNodes.filter(n => !n.primitives || n.primitives.length === 0).length,
     supportPrimitiveCount: primitiveCount,
     supportConePrimitiveCount: conePrimitiveCount,
     supportDirectionalGlyphPrimitiveCount: glyphPrimitiveCount,

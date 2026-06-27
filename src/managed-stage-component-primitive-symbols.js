@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { cylinderBetween, mat } from './geometry.js?v=professional-viewer-3';
+import { cylinderBetween, mat } from './geometry.js?v=bust-cache-4';
 
 const VERSION = 'managed-stage-component-primitive-symbols-20260623c';
 const FLANGE_COLOR = 0xb7b7b7;

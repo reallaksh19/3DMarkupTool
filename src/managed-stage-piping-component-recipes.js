@@ -1,4 +1,4 @@
-import { buildContractCylinderPrimitive } from './rvm-cylinder-primitive-builder.js';
+import { buildContractCylinderPrimitive } from './rvm-cylinder-primitive-builder.js?v=bust-cache-4';
 
 export const MANAGED_STAGE_COMPONENT_RECIPE_SCHEMA = 'ManagedStagePipingComponentRecipe.v1';
 
@@ -137,7 +137,8 @@ function isPrimitiveSymbolRecipe(recipeName) {
 
 function primitiveBudgetLimit(recipeName) {
   if (recipeName === 'weldneck-flange-contiguous-2part') return 2;
-  if (recipeName === 'ball-valve-contiguous-5part' || recipeName === 'flanged-ball-valve-contiguous-5part') return 6;
+  if (recipeName === 'ball-valve-contiguous-5part') return 5;
+  if (recipeName === 'flanged-ball-valve-contiguous-5part') return 6;
   return null;
 }
 

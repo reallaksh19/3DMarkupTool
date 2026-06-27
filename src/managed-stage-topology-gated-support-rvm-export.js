@@ -1,5 +1,5 @@
-import { buildManagedStageSupportRvmExportNodes } from './managed-stage-support-rvm-export.js';
-import { resolveManagedStageSupportTopologyGate, summarizeManagedStageSupportTopologyGates } from './managed-stage-topology-gated-support-preview.js';
+import { buildManagedStageSupportRvmExportNodes } from './managed-stage-support-rvm-export.js?v=bust-cache-4';
+import { resolveManagedStageSupportTopologyGate, summarizeManagedStageSupportTopologyGates } from './managed-stage-topology-gated-support-preview.js?v=bust-cache-4';
 
 export const MANAGED_STAGE_TOPOLOGY_GATED_SUPPORT_RVM_SCHEMA = 'ManagedStageTopologyGatedSupportRvmExport.v1';
 

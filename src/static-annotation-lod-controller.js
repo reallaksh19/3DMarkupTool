@@ -462,10 +462,10 @@ function wrapCanvasText(ctx, text, maxWidth, maxLines) {
 
 function ellipsizeLine(ctx, line, maxWidth) {
   let text = String(line || '').trim();
-  while (text.length > 1 && ctx.measureText(`${text} …`).width > maxWidth) {
+  while (text.length > 1 && ctx.measureText(`${text} â€¦`).width > maxWidth) {
     text = text.replace(/\s*\S+$/, '').trim() || text.slice(0, -1).trim();
   }
-  return `${text || line} …`;
+  return `${text || line} â€¦`;
 }
 
 function drawRoundRect(ctx, x, y, w, h, r, fill, stroke, lineWidth) {

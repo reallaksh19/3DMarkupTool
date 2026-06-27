@@ -1,0 +1,255 @@
+RCAcodex.txt
+
+Scope
+-----
+This RCA is based on static source-level inspection of the current workspace at F:\CODE-4\3DMarkupTool.
+No implementation changes, runtime browser test, or export artifact validation were performed for this RCA.
+
+Validation summary
+------------------
+I agree with the core RCA: the support-marker failure is not one bad renderer. It is a data-flow and contract split across GLB preview, managed-stage overlays, RVM preview, RVM export, ATT metadata, and property-panel selection.
+
+The main source-level root cause is that support marker intent is not owned by one canonical contract. The repo has a stagedJson source contract, but downstream rendering/export paths still consume compatibility fields, legacy restraints, hidden userData mutation, and separate preview/export marker policies.
+
+One correction to the pasted RCA:
+- The BM_CII sample button is currently ambiguous rather than purely XML-only. index.html and managed-stage-bm-cii-json-sample-controller.js point the button at BM_CII_INPUT_managed_stage.json, but app.js still binds the same loadSampleBtn to samples/BM_CII_Enriched_v8_lite.XML. The managed-stage sample controller uses capture-phase stopImmediatePropagation after it installs, but the old XML handler is still present in core app.js.
+
+RCA summary
+-----------
+The current failure is not one bad support renderer. It is a data-flow split between at least three support-graphics paths:
+
+1. Main GLB conversion path still renders support restraints through legacy arrow/stem geometry in src/converter.js.
+2. Managed-stage support preview bridge renders newer cone/can overlays, but those overlays are preview-only, non-raycast, and not the canonical conversion/export path.
+3. RVM/ATT export path builds support nodes from legacy compatibility restraints and then rewrites them through a support catalogue adapter that still emits arrow-like cylinder+pyramid primitives and unknown boxes.
+
+That explains the strange graphics: rings, arrow stems, pyramids, boxes, and large glyphs are coming from different layers, not from one resolver.
+
+Current architecture findings
+-----------------------------
+1. stagedJson loading
+
+The UI labels the flow as stagedJson-oriented and accepts .json, .jscon, and application/json in index.html.
+
+app-loader.js loads app.js first, then lazily imports managed-stage controllers and bridges. Several managed-stage behaviors are post-bootstrap overlays/controllers rather than the initial core conversion contract.
+
+The sample button is split:
+- index.html labels loadSampleBtn as "Load BM_CII stagedJson".
+- managed-stage-bm-cii-json-sample-controller.js loads BM_CII_INPUT_managed_stage.json through createBmCiiManagedStageSampleJson().
+- app.js still binds loadSampleBtn to loadSample(), which fetches samples/BM_CII_Enriched_v8_lite.XML plus ISONOTE and line-number CSV files.
+
+2. Is stagedJson parsed by the main path or only by bridges?
+
+The issue is partly resolved on current main: source-parser.js detects exact managed-stage stagedJson and routes it through parseStagedJsonSourceContract() in the main parseMarkupSource() path. It is not bridge-only anymore for valid managed-stage JSON.
+
+The detection remains strict. looksLikeStagedJsonSource() only accepts JSON with:
+- schema === "inputxml-managed-stage/v1"
+- profile === "AVEVA_JSON_FOR_3D_RVM_VIEWER"
+
+Generic JSON is still rejected as unsupported.
+
+The deeper problem is that the source contract is converted into compatibility fields such as elements, nodes, and restraints, and active GLB/RVM render/export paths continue to use those legacy compatibility restraints instead of contract.supports as the canonical marker contract.
+
+3. How stagedJson support records are collected
+
+managed-stage-profile-parser.js recursively walks hierarchy[].children, filters support-like records by type/tokens such as ATTA, ANCI, SUPPORT, GUIDE, LINE_STOP, HOLDDOWN, and SPRING_CAN, and normalizes support coordinates from fields such as SUPPORTCOORD, SUPPORT_COORD, POS, and BPOS.
+
+stagedjson-source-contract.js maps profile support records into support contract records with fields close to the requested contract:
+- supportId
+- sourceKind
+- sourcePath
+- nodeNumber
+- raw and normalized support kind
+- family
+- raw and canvas axis
+- axis transform flag
+- gap
+- pipe OD/radius
+- pipe axis
+- position
+- matched pipe ref
+- matched ISONOTE
+- warning code/message
+- related source metadata
+
+4. How ISONOTE records are parsed and linked
+
+ISONOTE side-load text is parsed by parseManagedStageIsonoteSupportRecords(). It supports CSV-style NODE,ISONOTE rows, splits note text into segments, detects REST, GUIDE, LINE STOP, HOLDDOWN, SPRING CAN, single-axis, gap, axis, and sign, then normalizes each segment through the same support mapper.
+
+Linking in the stagedJson contract is currently node + normalized family + optional tag containment. If matched, it sets matchMethod: "node-family" and confidence: 1; otherwise confidence is 0.
+
+This is deterministic but basic. It does not yet preserve all matched field names requested for property-panel diagnostics.
+
+5. Which renderer currently produces support graphics
+
+The main GLB renderer is converter.js:createSupportSymbols(). It uses coneArrow() and arrowToward() for REST, GUIDE, HOLDDOWN, LINE STOP/LIMIT, and AXIS restraints.
+
+The managed-stage support-source preview overlay uses createManagedStageSupportPreviewObject() from managed-stage-support-visual-resolver.js. This is the newer cone/can resolver, but its own policy marks overlays as preview-only, exportedRvmGeometry false, and raycast-disabled.
+
+The RVM preview renders the generated export tree, not the GLB scene or the managed-stage overlay. It supports cylinder, elbow, sphere, box, and pyramid primitives from the RVM export model.
+
+6. Which path creates arrows, rings, plates, or large geometry
+
+The normal GLB path creates arrows through coneArrow() / arrowToward(): a cylinder stem plus a cone head.
+
+The RVM export model creates support arrows as cylinder stems plus pyramid heads, and unresolved support cases become boxes.
+
+The support-restraint catalogue adapter also emits arrow records as cylinder + pyramid, and unknown restraints become box primitives. It has minimum sizes but no single canonical max clamp for all export/preview paths, so incorrect pipe OD or inferred OD can still inflate glyphs.
+
+geometry.js installs a global THREE.Object3D.prototype.userData setter hook. When an object receives TYPE: "SUPPORT_RESTRAINT", metadata assignment stamps support catalogue metadata and can replace object geometry through buildSupportRestraintPrimitiveRecords(). This hidden mutation layer is a major architectural risk because assigning metadata can change geometry.
+
+7. Axis transformation status
+
+Axis transformation is not centralized.
+
+There is one mapper path in managed-stage-support-mapper-config.js using mapManagedStageSupportAxisToCanvas(). It maps signed source axes to canvas axes and writes SUPPORT_AXIS_SOURCE, SUPPORT_AXIS_CANVAS, and SUPPORT_AXIS_CANVAS_APPLIED.
+
+There is a second independent axis parser/transform decision in managed-stage-support-visual-resolver.js. It parses source/canvas axes again and decides axisTransformApplied locally.
+
+Then GLB and RVM legacy paths independently infer axes from cosines/tangents and local axisVector() helpers.
+
+This confirms the instability: every renderer/exporter can reinterpret axis independently.
+
+8. Property panel selection and userData
+
+Selection raycasts into the current model root, climbs from primitive child to parent userData, and ignores child objects marked TYPE: "RVM_PRIMITIVE". That allows RVM primitive children to resolve to parent group metadata.
+
+Managed-stage cone overlays explicitly disable raycasting, so those support markers are not clickable even though userData exists.
+
+The property panel currently has a basic SUPPORT_RESTRAINT section: node, family, source, source class, axis, sign, load, gap, source note, warning, popup, and raw metadata.
+
+It does not render the requested ordered support summary -> ISONOTE data -> stagedJson source -> diagnostics structure.
+
+9. GLB preview vs RVM preview
+
+GLB preview is built directly in Three.js by converter.js, including plant geometry, node labels, ISONOTE boards, and support symbols.
+
+RVM preview is built from the generated RVM export tree after convertInputXmlToRvmAtt() or convertManagedStageJsonToRvmAtt(). It renders primitive records intended for RVM, not the GLB scene and not the post-load managed-stage support overlay.
+
+Therefore GLB preview and RVM preview do not currently share one support marker data/geometry contract.
+
+10. Are support markers exported to RVM/ATT?
+
+The managed-stage cone overlay markers are explicitly preview-only and exportedRvmGeometry: false.
+
+RVM/ATT export does export support/restraint nodes, but they are built from compatibility model.restraints, then rewritten by applySupportRestraintCatalogueExportParity() through the support-restraint primitive adapter. That exported path still uses arrow/pyramid/box-style support primitives, not the requested small marker policy.
+
+The current RVM support group/name pattern is not the requested stable SUPPORT_MARKER/<source>/<node>/<supportKind>/<supportId> form. It currently creates names like ${sourceClass}_${node}_${family}_${index} under SUPPORTS_RESTRAINTS.
+
+Valve/flange baseline
+---------------------
+GLB has a valve/flange visual catalogue and converter.js uses it before legacy fallback geometry.
+
+The catalogue currently contains more visual complexity than the target policy:
+- valve profiles include bonnet, handwheel, lever, flow-arrow, and actuator style data
+- flange profiles include raised face, bolt circle, bolt count, neck, and blind cap cues
+
+Managed-stage component primitive symbols already move closer to the target with compact additive primitive symbols and no boxes/handwheels/stems in that overlay path, but the broader catalogue/tests do not enforce the requested low-primitive contract everywhere.
+
+Acceptance gap against requested phases
+---------------------------------------
+Current main does not meet the requested acceptance criteria yet:
+
+- No arrows for support markers: not met. GLB and RVM export still emit arrows/stems/pyramid heads.
+- No plates/boxes: not met. Unknown/unresolved support paths still emit boxes.
+- No gigantic geometry: not guaranteed. Some paths clamp sizes, but the adapter/export paths do not have one canonical max clamp.
+- Support marker click shows ISONOTE data: not met for managed-stage cone overlays because raycast is disabled; legacy support userData lacks full ISONOTE raw/matched-field diagnostics.
+- stagedJson source-level path: mostly met for exact managed-stage schema/profile, not for generic JSON.
+- Centralized axis transform: not met.
+- GLB preview and RVM preview share the same support marker contract: not met.
+- RVM/ATT support marker policy: not met.
+- Valve/flange low primitive budget: not enforced by current catalogue/tests.
+
+Additional Codex validation points
+----------------------------------
+1. Hidden geometry mutation is confirmed.
+
+src/geometry.js defines a userData setter on THREE.Object3D.prototype and calls replaceSupportRestraintGeometryWithCatalogueAdapter() when TYPE is SUPPORT_RESTRAINT. This means metadata writes can trigger geometry replacement. That should not be part of the normal support marker path.
+
+2. Managed-stage overlays are not selectable by design.
+
+src/managed-stage-support-visual-resolver.js creates MANAGED_STAGE_SUPPORT_RESTRAINT_PREVIEW objects, stamps preview-only metadata, and disables raycasting. That directly conflicts with the requested click-to-property-panel behavior.
+
+3. Tests encode behavior that conflicts with the requested acceptance criteria.
+
+Existing tests assert or preserve:
+- managed-stage support preview raycast disabled
+- GUIDE support export has pyramid arrow heads
+- unknown support export uses boxes
+- legacy support catalogue scene adapter parity
+
+Those tests must be changed after the canonical marker contract is introduced, otherwise the old behavior will keep being protected.
+
+4. Managed-stage RVM support export is a separate policy, not the preview marker policy.
+
+src/managed-stage-support-rvm-export.js exports topology-gated code-8 cylinder bar glyphs. That is cleaner than the legacy arrow path, but it still does not mean GLB preview, RVM preview, RVM export, ATT, and property panel are sharing one support marker contract.
+
+5. ATT metadata is generic, not yet support-marker contract-grade.
+
+ATT writing carries node attributes, but the support-marker identity and property-panel fields are not currently shaped as a stable SUPPORT_MARKER contract with raw stagedJson, matched ISONOTE, diagnostics, and axis transform provenance.
+
+6. There is a misleading audit risk in managed-stage export status.
+
+The managed-stage RVM conversion audit separates exported and skipped support records, but source-level inspection indicates the status fields can imply geometryEmitted/rvmExported even where records are skipped or policy-blocked. That should be audited before using the audit file as acceptance evidence.
+
+Recommended next implementation direction
+-----------------------------------------
+Do not patch the visual output directly.
+
+The correct next step is to make contract.supports the only support marker source for:
+- GLB preview
+- RVM preview
+- RVM export
+- ATT
+- property panel
+
+Then remove or bypass the hidden Object3D.userData geometry mutation hook for normal support markers.
+
+The first real implementation branch should target these files:
+- src/stagedjson-source-contract.js
+- src/support-axis-transform.js
+- src/support-marker-primitive-policy.js
+- src/converter.js
+- src/export-model.js
+- src/rvm-support-restraint-export-wiring.js
+- src/rvm-preview.js
+- src/app.js
+
+Implementation invariants for that branch
+-----------------------------------------
+1. contract.supports is canonical.
+
+No GLB/RVM support marker renderer should infer support intent from legacy compatibility restraints when a stagedJson support contract is available.
+
+2. Axis transform is single-source.
+
+All stagedJson support records should pass through one support-axis-transform utility before rendering/export/property display. Renderers should receive already-resolved source axis, canvas axis, sign, transform-applied flag, and diagnostics.
+
+3. Marker geometry is policy-owned.
+
+Support marker primitives should be produced by one support-marker-primitive-policy module. The policy should reject arrows, boxes, large plates, and unbounded glyph dimensions for normal support markers.
+
+4. Metadata does not mutate geometry.
+
+Setting userData should never replace support geometry. Marker creation should be explicit and traceable.
+
+5. Property panel fields are contract-owned.
+
+Clicking a marker should show support summary, matched ISONOTE data, stagedJson source data, axis transform provenance, and diagnostics from the canonical marker record.
+
+6. Preview and export differ only by serialization.
+
+GLB preview, RVM preview, RVM export, and ATT may use different primitive encodings, but they must come from the same marker contract, marker identity, axis transform, and diagnostics.
+
+Suggested acceptance checks for the next branch
+-----------------------------------------------
+1. Parse the BM_CII managed-stage sample through parseMarkupSource() and assert contract.supports is populated.
+2. Render GLB preview from contract.supports and assert no support marker child has arrow, pyramid, or box primitive roles.
+3. Build RVM export from the same contract.supports records and assert no support marker primitive kind is box or pyramid.
+4. Build RVM preview and assert support marker count, support IDs, node numbers, support families, and ISONOTE linkage match GLB preview.
+5. Raycast a managed-stage support marker and assert the selected property data includes raw stagedJson support data and matched ISONOTE data.
+6. Verify ATT contains stable support marker identity names matching SUPPORT_MARKER/<source>/<node>/<supportKind>/<supportId>.
+7. Verify valve/flange primitive counts are enforced by tests and not just by visual intent.
+
+Conclusion
+----------
+The current repository is close enough to start the requested phased repair, but not from the renderer outward. The stable fix is contract-first: canonical support records, centralized axis transform, one marker primitive policy, explicit marker metadata, and shared preview/export identity.

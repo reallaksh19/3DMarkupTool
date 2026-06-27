@@ -1,4 +1,4 @@
-import { COMPONENT_CLASSES, GEOMETRY_KINDS, RESTRAINT_TYPES } from './piping-component-contract.js';
+import { COMPONENT_CLASSES, GEOMETRY_KINDS, RESTRAINT_TYPES } from './piping-component-contract.js?v=bust-cache-4';
 
 export const PIPING_COMPONENT_CATALOG_SCHEMA = 'piping-component-catalog/v1';
 

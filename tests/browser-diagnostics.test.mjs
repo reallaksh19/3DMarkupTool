@@ -7,7 +7,7 @@ const controller = readFileSync(new URL('../src/static-browser-diagnostics-contr
 const checklist = readFileSync(new URL('../docs/post-pr133-recovery-checklist.md', import.meta.url), 'utf8');
 const pkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
 
-const activeCacheKey = 'input-persistent-root-card-20260626';
+const activeCacheKey = 'input-persistent-root-card-20260629-c';
 const allowedShellKeys = [activeCacheKey, 'input-root-owner-20260626', 'input-postbootstrap-reassert-20260626', 'input-load-controls-restored-20260626', 'workflow-input-expanded-load-controls-20260625', 'input-always-visible-20260619', 'phase4-global-esc-lifecycle-20260619', 'phase4a-static-input-panel-cleanup-20260619', 'perf-static-shell-20260620', 'perf-lcp-deferred-app-20260620', 'perf-idle-diagnostics-20260620', 'perf-tdz-fix-20260620', 'canvas-tool-manager-20260620', 'tool-fixes-v2-20260620'];
 
 assert.match(index, new RegExp(activeCacheKey));

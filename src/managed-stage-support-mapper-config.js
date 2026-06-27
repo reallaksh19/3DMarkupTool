@@ -1,4 +1,4 @@
-import { normalizeManagedStageSupportGapAttributes } from './managed-stage-support-gap-mapper.js';
+import { normalizeManagedStageSupportGapAttributes } from './managed-stage-support-gap-mapper.js?v=bust-cache-4';
 
 export const MANAGED_STAGE_SUPPORT_MAPPER_CONFIG_SCHEMA = 'ManagedStageSupportMapperConfig.v1';
 export const MANAGED_STAGE_SUPPORT_MAPPER_PREFLIGHT_SCHEMA = 'ManagedStageSupportMapperPreflight.v1';
@@ -353,13 +353,20 @@ function normalizeSourceMode(value) {
 }
 
 function normalizeSupportFamily(value) {
-  const raw = normalizeText(value).replace(/[\s\-]+/g, '_');
-  if (!raw) return '';
+  const raw = String(value || '').trim().toUpperCase().replace(/[\s\-]+/g, '_');
   if (/(CAN.*SPRING|SPRING.*CAN|SPRING_CAN)/.test(raw)) return 'SPRING_CAN';
+  if (raw.includes('HANGER')) return 'HANGER';
+  if (/^CAN$|_CAN$|^CAN_/.test(raw)) return 'CAN';
   if (raw.includes('HOLDDOWN') || (raw.includes('HOLD') && raw.includes('DOWN'))) return 'HOLDDOWN';
   if (raw.includes('GUIDE')) return 'GUIDE';
   if (raw.includes('LINE_STOP') || raw.includes('LINESTOP') || raw.includes('LIMIT') || /(^|_)LIM($|_)/.test(raw)) return 'LINE_STOP';
   if (raw.includes('REST')) return 'REST';
+  
+  const exactAllowed = ['U_BOLT', 'TRUNNION', 'SHOE', 'ANCHOR', 'SPRING_HANGER'];
+  if (exactAllowed.includes(raw)) return raw;
+  
+  if (/^[+-]?[XYZ]$/.test(raw)) return raw;
+
   return '';
 }
 

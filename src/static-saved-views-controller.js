@@ -146,7 +146,7 @@ function viewRow(view) {
   remove.type = 'button';
   remove.className = 'saved-views-panel__delete';
   remove.title = `Delete ${view.name}`;
-  remove.textContent = '×';
+  remove.textContent = 'Ã—';
   remove.addEventListener('click', (event) => {
     event.stopPropagation();
     deleteSavedView(view.id);

@@ -1,7 +1,7 @@
-import { assertRvmPrimitiveKindSupported } from './rvm-primitive-kind-contract.js';
-import { buildRvmPrimitiveTransform } from './rvm-axis-basis-policy.js';
-import { normalizeRvmMaterialId, rvmLayerNameForNode, rvmMaterialIdForNode } from './rvm-material-layer-contract.js';
-import { assertSafeApproximationPrimitives } from './rvm-safe-primitive-approximation-policy.js';
+import { assertRvmPrimitiveKindSupported } from './rvm-primitive-kind-contract.js?v=bust-cache-4';
+import { buildRvmPrimitiveTransform } from './rvm-axis-basis-policy.js?v=bust-cache-4';
+import { normalizeRvmMaterialId, rvmLayerNameForNode, rvmMaterialIdForNode } from './rvm-material-layer-contract.js?v=bust-cache-4';
+import { assertSafeApproximationPrimitives } from './rvm-safe-primitive-approximation-policy.js?v=bust-cache-4';
 
 export const RVM_EXPORT_MODEL_PREFLIGHT_SCHEMA = 'RvmExportModelPreflight.v1';
 

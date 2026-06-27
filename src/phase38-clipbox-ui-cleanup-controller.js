@@ -140,7 +140,7 @@ function ensureClipBoxMenu() {
 function clipBoxMenuMarkup() {
   return `
     <button type="button" class="two-row-menu-trigger phase38-clipbox-trigger" data-menu-key="clipBox" aria-haspopup="menu" aria-expanded="false">
-      ${boxIconMarkup()}<span>Box</span><b aria-hidden="true">›</b>
+      ${boxIconMarkup()}<span>Box</span><b aria-hidden="true">â€º</b>
     </button>
     <div class="two-row-menu-popover phase38-clipbox-popover" role="menu">
       <div class="phase38-clipbox-title">3D Clip Box</div>

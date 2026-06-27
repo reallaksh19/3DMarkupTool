@@ -69,6 +69,10 @@ function resolveReviewName(node, context) {
     return `/${toReviewToken(node.name, 'GROUP')}`;
   }
 
+  if (node.attributes?.TYPE === 'SUPPORT_MARKER' && node.attributes?.SUPPORT_MARKER_ID) {
+    return node.attributes.SUPPORT_MARKER_ID;
+  }
+
   const label = reviewLabel(node);
   const parent = context.parentReviewName || context.rootName;
   const counterKey = `${parent}::${label}`;

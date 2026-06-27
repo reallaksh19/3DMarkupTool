@@ -83,7 +83,7 @@ function ensureOptionsDetails(section) {
   details.className = 'phase35-options-details';
 
   const summary = document.createElement('summary');
-  summary.innerHTML = '<span>Options</span><b aria-hidden="true">›</b>';
+  summary.innerHTML = '<span>Options</span><b aria-hidden="true">â€º</b>';
   details.appendChild(summary);
 
   const body = document.createElement('div');

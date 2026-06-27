@@ -1,7 +1,7 @@
 import {
   MANAGED_STAGE_SUPPORT_SOURCE_MODES,
   normalizeManagedStageSupportMapperRecord
-} from './managed-stage-support-mapper-config.js';
+} from './managed-stage-support-mapper-config.js?v=bust-cache-4';
 
 export const MANAGED_STAGE_ISONOTE_SUPPORT_MAPPER_SCHEMA = 'ManagedStageIsonoteSupportMapper.v1';
 

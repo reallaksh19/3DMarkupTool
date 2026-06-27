@@ -3,7 +3,7 @@
 // not by DOM position, because the workflow summary card is also a <section>.
 // Layout and default collapsed state are owned by static HTML/CSS to avoid startup layout shifts.
 //
-// CSS contract — rules live in static-shell-performance.css, listed here to document the coupling:
+// CSS contract â€” rules live in static-shell-performance.css, listed here to document the coupling:
 //
 //   #inputDrawer [data-section="input"] > .file-drop { display: grid !important; }
 //

@@ -1,7 +1,7 @@
-import { convertInputXmlToGlb as defaultConvertInputXmlToGlb } from './converter.js?v=professional-viewer-3';
-import { convertInputXmlToRvmAtt as defaultConvertInputXmlToRvmAtt } from './rvm-converter.js?v=professional-viewer-3';
-import { createRvmPreviewScene as defaultCreateRvmPreviewScene } from './rvm-preview.js?v=professional-viewer-3';
-import { convertInputXmlToGlbWithPipingShadow } from './converter-shadow-diagnostics.js';
+import { convertInputXmlToGlb as defaultConvertInputXmlToGlb } from './converter.js?v=bust-cache-4';
+import { convertInputXmlToRvmAtt as defaultConvertInputXmlToRvmAtt } from './rvm-converter.js?v=bust-cache-4';
+import { createRvmPreviewScene as defaultCreateRvmPreviewScene } from './rvm-preview.js?v=bust-cache-4';
+import { convertInputXmlToGlbWithPipingShadow } from './converter-shadow-diagnostics.js?v=bust-cache-4';
 
 export const APP_CONVERSION_PIPELINE_SCHEMA = 'AppConversionPipeline.v1';
 

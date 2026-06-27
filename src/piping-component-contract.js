@@ -127,7 +127,7 @@ export function assertPipingComponent(component, options = {}) {
 }
 
 export function validateComponentMapping(sourceRecords, components) {
-  const report = createReport('SourceRecord→PipingComponent mapping');
+  const report = createReport('SourceRecordâ†’PipingComponent mapping');
 
   if (!Array.isArray(sourceRecords)) {
     addError(report, '$.sourceRecords', 'sourceRecords must be an array', 'mapping.sourceRecords');

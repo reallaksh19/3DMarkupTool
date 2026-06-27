@@ -1,19 +1,19 @@
-import { parseMarkupSource } from './source-parser.js?v=20260618-uxml-source-1';
-import { buildRvmExportModel } from './export-model.js?v=professional-viewer-3';
-import { applyRvmCatalogueExportParity } from './rvm-catalogue-export-wiring.js?v=rvm-catalogue-c3b-1';
-import { applySupportRestraintCatalogueExportParity } from './rvm-support-restraint-export-wiring.js?v=support-restraint-c15-1';
-import { normalizeNavisExportModelNames } from './navis-safe-export-model.js?v=navis-safe-names-1';
-import { applyReviewStyleNodeNames } from './rvm-review-node-names.js?v=rhbg-review-names-1';
-import { assertNavisExportModel } from './navis-export-contract.js?v=navis-contract-1';
-import { assertRvmMaterialAssignmentPolicy } from './rvm-material-assignment-policy.js?v=rvm-material-assignment-1';
-import { assertRvmMaterialLayerContract } from './rvm-material-layer-contract.js?v=rvm-material-layer-1';
-import { assertRvmMaterialTableContract } from './rvm-material-table-contract.js?v=rvm-material-table-1';
-import { assertRvmCntbBoundsPolicy } from './rvm-cntb-bounds-policy.js?v=rvm-cntb-bounds-1';
-import { assertRvmChunkHierarchy } from './rvm-chunk-hierarchy-validator.js?v=rvm-chunk-hierarchy-1';
-import { assertRvmExportModelPreflight } from './rvm-export-model-preflight.js?v=rvm-export-model-preflight-1';
-import { writeRvm } from './rvm-writer.js?v=professional-viewer-3';
-import { writeAtt } from './att-writer.js?v=professional-viewer-3';
-import { scanRvmPrimitivePayloads } from './rvm-primitive-payload-decoder.js?v=rvm-payload-contract-1';
+import { parseMarkupSource } from './source-parser.js?v=bust-cache-4';
+import { buildRvmExportModel } from './export-model.js?v=bust-cache-4';
+import { applyRvmCatalogueExportParity } from './rvm-catalogue-export-wiring.js?v=bust-cache-4';
+import { applySupportRestraintCatalogueExportParity } from './rvm-support-restraint-export-wiring.js?v=bust-cache-4';
+import { normalizeNavisExportModelNames } from './navis-safe-export-model.js?v=bust-cache-4';
+import { applyReviewStyleNodeNames } from './rvm-review-node-names.js?v=bust-cache-4';
+import { assertNavisExportModel } from './navis-export-contract.js?v=bust-cache-4';
+import { assertRvmMaterialAssignmentPolicy } from './rvm-material-assignment-policy.js?v=bust-cache-4';
+import { assertRvmMaterialLayerContract } from './rvm-material-layer-contract.js?v=bust-cache-4';
+import { assertRvmMaterialTableContract } from './rvm-material-table-contract.js?v=bust-cache-4';
+import { assertRvmCntbBoundsPolicy } from './rvm-cntb-bounds-policy.js?v=bust-cache-4';
+import { assertRvmChunkHierarchy } from './rvm-chunk-hierarchy-validator.js?v=bust-cache-4';
+import { assertRvmExportModelPreflight } from './rvm-export-model-preflight.js?v=bust-cache-4';
+import { writeRvm } from './rvm-writer.js?v=bust-cache-4';
+import { writeAtt } from './att-writer.js?v=bust-cache-4';
+import { scanRvmPrimitivePayloads } from './rvm-primitive-payload-decoder.js?v=bust-cache-4';
 
 /**
  * Converts supported source text into a Navisworks-oriented RVM+ATT pair.

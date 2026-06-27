@@ -1,5 +1,5 @@
-import { assertComponentMapping, assertGeometryContract, assertPipingComponent, assertRenderInstruction, buildContractDiagnostics, validateGeometryContract } from './piping-component-contract.js';
-import { classifyInputXmlElementRecord, classifyInputXmlRestraintRecord, getCatalogEntry, normalizeType } from './piping-component-catalog.js';
+import { assertComponentMapping, assertGeometryContract, assertPipingComponent, assertRenderInstruction, buildContractDiagnostics, validateGeometryContract } from './piping-component-contract.js?v=bust-cache-4';
+import { classifyInputXmlElementRecord, classifyInputXmlRestraintRecord, getCatalogEntry, normalizeType } from './piping-component-catalog.js?v=bust-cache-4';
 
 export const PIPING_GRAPH_SCHEMA = 'PipingGraph.v1';
 export const SOURCE_RECORD_SCHEMA = 'SourceRecord.v1';

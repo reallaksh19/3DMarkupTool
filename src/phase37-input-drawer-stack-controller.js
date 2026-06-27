@@ -55,7 +55,7 @@ function normalizeDrawerTitle(drawer) {
 
   const close = document.getElementById('closeInputBtn');
   if (close) {
-    close.innerHTML = '<span aria-hidden="true">×</span>';
+    close.innerHTML = '<span aria-hidden="true">Ã—</span>';
     close.setAttribute('aria-label', 'Close input panel');
   }
 }

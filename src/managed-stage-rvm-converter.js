@@ -1,20 +1,21 @@
-import { writeAtt } from './att-writer.js';
-import { assertRvmChunkHierarchy } from './rvm-chunk-hierarchy-validator.js';
-import { buildRvmAxisBasis, normalizeRvmAxisBasis } from './rvm-axis-basis-policy.js';
-import { assertRvmMaterialLayerContract } from './rvm-material-layer-contract.js';
-import { assertRvmMaterialTableContract } from './rvm-material-table-contract.js';
-import { scanRvmPrimitivePayloads } from './rvm-primitive-payload-decoder.js';
-import { writeRvm } from './rvm-writer.js';
-import { evaluateRvmCode4ElbowEmissionCandidate } from './rvm-code4-elbow-emission-candidate-policy.js';
-import { assertManagedStageRvmAuditGate } from './managed-stage-rvm-audit-gate.js';
-import { assertManagedStageTopologyProofGate } from './managed-stage-topology-audit-gate.js';
-import { buildManagedStageRvmExportModel } from './managed-stage-rvm-export-model.js';
-import { parseManagedStageProfile } from './managed-stage-profile-parser.js';
-import { auditManagedStageTopology } from './managed-stage-topology-audit.js';
+import { writeAtt } from './att-writer.js?v=bust-cache-4';
+import { assertRvmChunkHierarchy } from './rvm-chunk-hierarchy-validator.js?v=bust-cache-4';
+import { buildRvmAxisBasis, normalizeRvmAxisBasis } from './rvm-axis-basis-policy.js?v=bust-cache-4';
+import { assertRvmMaterialLayerContract } from './rvm-material-layer-contract.js?v=bust-cache-4';
+import { assertRvmMaterialTableContract } from './rvm-material-table-contract.js?v=bust-cache-4';
+import { scanRvmPrimitivePayloads } from './rvm-primitive-payload-decoder.js?v=bust-cache-4';
+import { writeRvm } from './rvm-writer.js?v=bust-cache-4';
+import { evaluateRvmCode4ElbowEmissionCandidate } from './rvm-code4-elbow-emission-candidate-policy.js?v=bust-cache-4';
+import { assertManagedStageRvmAuditGate } from './managed-stage-rvm-audit-gate.js?v=bust-cache-4';
+import { assertManagedStageTopologyProofGate } from './managed-stage-topology-audit-gate.js?v=bust-cache-4';
+import { buildManagedStageRvmExportModel } from './managed-stage-rvm-export-model.js?v=bust-cache-4';
+import { parseManagedStageProfile } from './managed-stage-profile-parser.js?v=bust-cache-4';
+import { parseStagedJsonSourceContract } from './stagedjson-source-contract.js?v=bust-cache-4';
+import { auditManagedStageTopology } from './managed-stage-topology-audit.js?v=bust-cache-4';
 import {
   assertManagedStageRvmStitchManifest,
   buildManagedStageRvmStitchManifest
-} from './managed-stage-rvm-stitch-manifest.js';
+} from './managed-stage-rvm-stitch-manifest.js?v=bust-cache-4';
 
 export const MANAGED_STAGE_CODE4_RVM_OPTIONS = Object.freeze({
   experimentalRvmPrimitiveCodes: ['code4-elbow'],
@@ -24,11 +25,17 @@ export const MANAGED_STAGE_CODE4_RVM_OPTIONS = Object.freeze({
 
 export function convertManagedStageJsonToRvmAtt(sourceText, options = {}) {
   const profile = parseManagedStageProfile(sourceText);
+  const sourceContract = parseStagedJsonSourceContract(sourceText, {
+    filename: options.filename || options.sourceName || profile.source || '',
+    isonoteText: options.isonoteText || '',
+    supportMapperConfig: options.supportMapperConfig || {}
+  });
   const topology = auditManagedStageTopology(profile.geometryRecords);
   const writerOptions = {
     ...MANAGED_STAGE_CODE4_RVM_OPTIONS,
     warningOnlyManagedStageGates: true,
     nonBlockingGeometryGates: true,
+    sourceContract,
     ...options
   };
   const exportModel = buildManagedStageRvmExportModel(profile, writerOptions);
@@ -58,7 +65,10 @@ export function convertManagedStageJsonToRvmAtt(sourceText, options = {}) {
       supportRecordsSkippedFromGeometry: profile.supportRecords.length,
       supportRecordsEmittedToRvm: supportRvmExportAudit?.supportRecordCount || 0,
       stats: profile.inputStats,
-      statsRestraintsMismatch: Number(profile.inputStats?.restraints || 0) !== profile.supportRecords.length
+      // Compare validRestraints (not the total restraintRows which includes blank placeholder rows)
+      // against the emitted support record count. A mismatch here is only noteworthy when the
+      // converter filtered something unexpected â€” blank CAESAR II rows are never a mismatch.
+      statsRestraintsMismatch: Number(profile.inputStats?.validRestraints ?? profile.inputStats?.restraints ?? 0) !== profile.supportRecords.length
     },
     topology,
     supportTopologyAudit,
@@ -84,13 +94,8 @@ export function convertManagedStageJsonToRvmAtt(sourceText, options = {}) {
       geometryEmitted: true,
       rvmExported: true
     })),
-    skippedSupportRecords: profile.supportRecords.map((record) => ({
-      name: record.name,
-      type: record.type,
-      supportKind: record.attributes?.SUPPORT_KIND || record.attributes?.SUPPORT_TYPE || '',
-      geometryEmitted: true,
-      rvmExported: true
-    })),
+    // No support records were skipped â€” all emitted supports are exported to RVM as SUPPORT_MARKER nodes.
+    skippedSupportRecords: [],
     materialLayerContract,
     materialTableContract,
     boundingExtentsMm,
@@ -112,7 +117,7 @@ export function convertManagedStageJsonToRvmAtt(sourceText, options = {}) {
     () => assertManagedStageRvmAuditGate(audit, options.strictAuditExpectations || {}),
     writerOptions
   );
-  return { profile, exportModel, rvm, att, audit };
+  return { profile, sourceContract, exportModel, rvm, att, audit };
 }
 
 export function assertManagedStagePrimitivePayloadCompatibility(primitives = [], options = MANAGED_STAGE_CODE4_RVM_OPTIONS) {

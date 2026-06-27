@@ -2,7 +2,7 @@ import {
   assertGeometryContract,
   assertRenderInstruction,
   PipingComponentContractError
-} from './piping-component-contract.js';
+} from './piping-component-contract.js?v=bust-cache-4';
 
 export const RENDER_PLAN_SCHEMA = 'RenderPlan.v1';
 

@@ -140,8 +140,8 @@ function ensurePanel() {
   panel.setAttribute('aria-label', 'Color By legend');
   panel.innerHTML = `
     <div class="color-legend-head" id="colorLegendDragHandle" title="Drag legend inside canvas">
-      <span class="color-legend-title-wrap"><span class="color-legend-drag-dot">⋮⋮</span><span id="colorLegendTitle">Color Legend</span></span>
-      <button id="colorLegendCloseBtn" type="button" class="color-legend-close" title="Close legend">×</button>
+      <span class="color-legend-title-wrap"><span class="color-legend-drag-dot">â‹®â‹®</span><span id="colorLegendTitle">Color Legend</span></span>
+      <button id="colorLegendCloseBtn" type="button" class="color-legend-close" title="Close legend">Ã—</button>
     </div>
     <div id="colorLegendBody"></div>
     <div class="color-legend-note">Legend follows the active Color By mode. Drag this panel by its header.</div>

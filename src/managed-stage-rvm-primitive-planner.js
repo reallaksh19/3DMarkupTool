@@ -1,7 +1,7 @@
-import { createManagedStageGeometryContract, normalizeManagedStageGeometryDtxr } from './managed-stage-geometry-contract.js';
-import { buildEndpointLockedCylinderPrimitive } from './rvm-cylinder-primitive-builder.js';
-import { solveCode4ElbowGeometry } from './rvm-code4-elbow-geometry-solver.js';
-import { planManagedStagePipingComponentRecipe } from './managed-stage-piping-component-recipes.js';
+import { createManagedStageGeometryContract, normalizeManagedStageGeometryDtxr } from './managed-stage-geometry-contract.js?v=bust-cache-4';
+import { buildEndpointLockedCylinderPrimitive } from './rvm-cylinder-primitive-builder.js?v=bust-cache-4';
+import { solveCode4ElbowGeometry } from './rvm-code4-elbow-geometry-solver.js?v=bust-cache-4';
+import { planManagedStagePipingComponentRecipe } from './managed-stage-piping-component-recipes.js?v=bust-cache-4';
 
 export const MANAGED_STAGE_RVM_MATERIALS = Object.freeze({
   ROOT: 1,

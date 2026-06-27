@@ -1,6 +1,6 @@
 import * as THREE from 'three';
-import { resolveSupportRestraintVisualSpec } from './support-restraint-visual-catalog.js';
-import { buildSupportRestraintPrimitiveRecords, assertSupportRestraintWriterSafePrimitives } from './support-restraint-primitive-adapter.js';
+import { resolveSupportRestraintVisualSpec } from './support-restraint-visual-catalog.js?v=bust-cache-4';
+import { buildSupportRestraintPrimitiveRecords, assertSupportRestraintWriterSafePrimitives } from './support-restraint-primitive-adapter.js?v=bust-cache-4';
 
 export const COLORS = { pipe: 0xf0f4f8, rigid: 0x8fb2d8, valve: 0x21d4c4, bend: 0x67d4ef, rest: 0xf8c34a, guide: 0x18d5c0, lineStop: 0xf2a93b, holddown: 0xf05ab9, spring: 0xd273ff, warning: 0xff8c73, isonote: 0x211b2e, node: 0x66c8ff, text: 0xffffff };
 
@@ -168,28 +168,15 @@ const supportUserDataStore = new WeakMap();
 const supportCatalogueGeometryFlag = Symbol.for('3DMarkupTool.supportRestraintCatalogueGeometryAdapter.v1');
 const supportUserDataStampFlag = Symbol.for('3DMarkupTool.supportRestraintCatalogueUserDataStamp.v1');
 
-function installSupportRestraintCatalogueUserDataStamping() {
-  const proto = THREE.Object3D?.prototype;
-  if (!proto || proto[supportUserDataStampFlag]) return;
-  const descriptor = Object.getOwnPropertyDescriptor(proto, 'userData');
-  if (descriptor && descriptor.configurable === false) return;
-  Object.defineProperty(proto, 'userData', {
-    configurable: true,
-    enumerable: true,
-    get() {
-      if (!supportUserDataStore.has(this)) supportUserDataStore.set(this, {});
-      return supportUserDataStore.get(this);
-    },
-    set(value) {
-      const stamped = stampSupportRestraintCatalogueUserData(value);
-      supportUserDataStore.set(this, stamped);
-      replaceSupportRestraintGeometryWithCatalogueAdapter(this, stamped);
-    }
-  });
-  Object.defineProperty(proto, supportUserDataStampFlag, { configurable: false, value: true });
+export function installSupportRestraintCatalogueUserDataStamping(object) {
+  if (!object || !object.userData) return;
+  const stamped = stampSupportRestraintCatalogueUserData(object.userData);
+  object.userData = stamped;
+  replaceSupportRestraintGeometryWithCatalogueAdapter(object, stamped);
 }
 
 function stampSupportRestraintCatalogueUserData(value) {
+  if (value?.TYPE === 'SUPPORT_MARKER') return value;
   if (!value || typeof value !== 'object' || value.TYPE !== 'SUPPORT_RESTRAINT') return value;
   const spec = resolveSupportRestraintVisualSpec({ family: value.family || value.FAMILY || value.axis });
   return {
@@ -215,6 +202,7 @@ function stampSupportRestraintCatalogueUserData(value) {
 }
 
 function replaceSupportRestraintGeometryWithCatalogueAdapter(object, userData) {
+  if (userData?.TYPE === 'SUPPORT_MARKER') return;
   if (!object || object[supportCatalogueGeometryFlag] || !userData || userData.TYPE !== 'SUPPORT_RESTRAINT') return;
   const spec = resolveSupportRestraintVisualSpec({ family: userData.family || userData.FAMILY || userData.axis });
   const context = inferSupportCatalogueSceneContext(object, userData, spec);
@@ -223,7 +211,7 @@ function replaceSupportRestraintGeometryWithCatalogueAdapter(object, userData) {
     primitives = buildSupportRestraintPrimitiveRecords(userData, context);
     assertSupportRestraintWriterSafePrimitives(primitives);
   } catch (error) {
-    supportUserDataStore.set(object, { ...userData, supportCatalogueSceneGeometryAdapterError: String(error?.message || error) });
+    object.userData = { ...userData, supportCatalogueSceneGeometryAdapterError: String(error?.message || error) };
     return;
   }
   if (!primitives.length) return;
@@ -353,4 +341,3 @@ function finiteNumber(value, fallback) {
   return Number.isFinite(number) ? number : fallback;
 }
 
-installSupportRestraintCatalogueUserDataStamping();

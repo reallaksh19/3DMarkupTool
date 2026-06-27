@@ -1,4 +1,4 @@
-import { appendManagedStageVisibleFallback } from './managed-stage-visible-fallback.js';
+import { appendManagedStageVisibleFallback } from './managed-stage-visible-fallback.js?v=bust-cache-4';
 
 const PATCH_SCHEMA = 'ManagedStageVisibleFallbackPatch.v1';
 let lastJsonSourcePromise = null;

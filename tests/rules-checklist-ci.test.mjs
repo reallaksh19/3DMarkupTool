@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
-const ACTIVE_CACHE_KEY = 'input-persistent-root-card-20260626';
-const SOURCE_INDEX_CACHE_KEY = 'input-persistent-root-card-20260626';
+const ACTIVE_CACHE_KEY = 'input-persistent-root-card-20260629-c';
+const SOURCE_INDEX_CACHE_KEY = 'input-persistent-root-card-20260629-c';
 const LEGACY_FIRST_PAINT_CACHE_KEY = 'tool-fixes-v2-20260620';
 
 const read = (path) => readFileSync(new URL('../' + path, import.meta.url), 'utf8');
@@ -22,7 +22,7 @@ const htmlKeys = extractActiveQueryKeys(index);
 assert.ok(htmlKeys.length >= 4);
 assert.deepEqual([...new Set(htmlKeys)], [SOURCE_INDEX_CACHE_KEY]);
 assert.ok(!index.includes(LEGACY_FIRST_PAINT_CACHE_KEY));
-for (const key of [ACTIVE_CACHE_KEY, SOURCE_INDEX_CACHE_KEY, LEGACY_FIRST_PAINT_CACHE_KEY]) assert.match(key, /^[a-z0-9-]+-20\d{6}$/);
+for (const key of [ACTIVE_CACHE_KEY, SOURCE_INDEX_CACHE_KEY, LEGACY_FIRST_PAINT_CACHE_KEY]) assert.match(key, /^[a-z0-9-]+-20\d{6}(?:-[a-z])?$/);
 for (const [name, source] of [['build-pages.mjs', buildScript], ['app-loader.js', appLoader]]) {
   assert.ok(source.includes(ACTIVE_CACHE_KEY), name + ' must use the active persistent INPUT root-card cache key');
   assert.ok(!source.includes('perf-static-drawer-bundle-20260620'));

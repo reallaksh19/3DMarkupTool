@@ -5,10 +5,10 @@ if (typeof installGuard === 'function') {
   installGuard({ source: 'app-bundle' });
 }
 
-await import('./app.js');
+await import('./app.js?v=bust-cache-4');
 
 try {
-  await import('./fresh-clip-controller.js');
+  await import('./fresh-clip-controller.js?v=bust-cache-4');
 } catch (error) {
   console.warn('[3DMarkupTool] Fresh clip controller skipped inside app bundle.', error);
   window.dispatchEvent(new CustomEvent('viewer:fresh-clip-module-skipped', {

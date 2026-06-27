@@ -67,7 +67,7 @@ function ensureToggle(group) {
     toggle.title = 'Open Navis tag/XML tools';
     toggle.setAttribute('aria-haspopup', 'true');
     toggle.setAttribute('aria-expanded', 'false');
-    toggle.innerHTML = '<span class="navis-tags-menu-icon">🏷</span><span>Tags</span><span class="navis-tags-menu-caret">▾</span>';
+    toggle.innerHTML = '<span class="navis-tags-menu-icon">ðŸ·</span><span>Tags</span><span class="navis-tags-menu-caret">â–¾</span>';
     toggle.addEventListener('click', (event) => {
       event.preventDefault();
       event.stopPropagation();

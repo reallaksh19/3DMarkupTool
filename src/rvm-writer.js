@@ -1,13 +1,13 @@
-import { normalizeRvmMaterialId, rvmMaterialIdForNode } from './rvm-material-layer-contract.js';
-import { rvmPrimitiveCodeForKind } from './rvm-primitive-kind-contract.js';
-import { buildRvmPrimitiveTransform } from './rvm-axis-basis-policy.js';
-import { resolveRvmCntbPosition } from './rvm-cntb-coordinate-policy.js';
-import { RVM_COLR_BODY_VERSION, collectRvmColrMaterialRecords } from './rvm-colr-material-policy.js';
+import { normalizeRvmMaterialId, rvmMaterialIdForNode } from './rvm-material-layer-contract.js?v=bust-cache-4';
+import { rvmPrimitiveCodeForKind } from './rvm-primitive-kind-contract.js?v=bust-cache-4';
+import { buildRvmPrimitiveTransform } from './rvm-axis-basis-policy.js?v=bust-cache-4';
+import { resolveRvmCntbPosition } from './rvm-cntb-coordinate-policy.js?v=bust-cache-4';
+import { RVM_COLR_BODY_VERSION, collectRvmColrMaterialRecords } from './rvm-colr-material-policy.js?v=bust-cache-4';
 import {
   RVM_CODE4_ELBOW_PRIMITIVE_CODE,
   assertExperimentalRvmCode4ElbowWriterCandidate,
   buildRvmCode4ElbowLocalBbox
-} from './rvm-experimental-code4-elbow-writer-policy.js';
+} from './rvm-experimental-code4-elbow-writer-policy.js?v=bust-cache-4';
 
 /**
  * Writes a compact binary AVEVA Review Model tree for Navisworks import.
@@ -138,7 +138,9 @@ function primitiveBody(primitive, options = {}) {
   }
 
   if (primitive.kind === 'sphere') {
-    return concatBuffers(common.concat([float32Body(positiveNumber(primitive.diameter, 'diameter'))]));
+    // PDMS Code 11 takes Radius
+    const radius = positiveNumber(primitive.diameter, 'diameter') / 2;
+    return concatBuffers(common.concat([float32Body(radius)]));
   }
 
   throw new Error(`Unsupported RVM primitive kind: ${primitive.kind}`);

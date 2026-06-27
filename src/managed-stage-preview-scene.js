@@ -1,6 +1,6 @@
 import * as THREE from 'three';
-import { cylinderBetween, mat } from './geometry.js?v=professional-viewer-3';
-import { createManagedStageSupportPreviewObject, MANAGED_STAGE_SUPPORT_VISUAL_POLICY } from './managed-stage-support-visual-resolver.js';
+import { cylinderBetween, mat } from './geometry.js?v=bust-cache-4';
+import { createManagedStageSupportPreviewObject, MANAGED_STAGE_SUPPORT_VISUAL_POLICY } from './managed-stage-support-visual-resolver.js?v=bust-cache-4';
 
 const PREVIEW_SCHEMA = 'ManagedStageRawPreview.v1';
 const COORDINATE_AUDIT_SCHEMA = 'ManagedStageCoordinateAudit.v1';
@@ -55,10 +55,11 @@ export function createManagedStagePreviewScene(sourceTextOrJson, options = {}) {
   const renderRows = [];
   const endpointIndex = buildEndpointNodeIndex(records);
   const elbowPlan = createOrthogonalElbowPreviewPlan(endpointIndex, sourceRadius);
+  const supportOptions = { records, pointRadius, fallbackRadius: sourceRadius, processedNodes: new Map() };
 
   for (const record of records) {
     const trimInfo = elbowPlan.trimsByPath.get(record.path);
-    const meshInfo = createRecordPreviewObject(record, sourceRadius, pointRadius, trimInfo, records);
+    const meshInfo = createRecordPreviewObject(record, sourceRadius, pointRadius, trimInfo, supportOptions);
     if (meshInfo.object) root.add(meshInfo.object);
     renderRows.push(createAuditRow(record, meshInfo, trimInfo));
   }
@@ -98,9 +99,6 @@ export function createManagedStagePreviewScene(sourceTextOrJson, options = {}) {
     units: 'mm',
     axisBasis: 'source x/y/z preserved; no recenter, no scale conversion',
     managedStageCoordinateAudit: audit,
-    // The old visible fallback patch is intentionally disabled for this scene.
-    // This preview already contains every raw staged APOS/LPOS/POS record, and
-    // duplicating the fallback overlay would make supports and centerlines appear twice.
     managedStageVisibleFallback: {
       schema: 'ManagedStageVisibleFallback.v1',
       candidateCount: records.length,
@@ -109,6 +107,15 @@ export function createManagedStagePreviewScene(sourceTextOrJson, options = {}) {
     }
   };
   scene.add(root);
+
+  if (typeof window !== 'undefined' && window.__3D_MARKUP_MANAGED_STAGE_JSON_UI__) {
+    window.__3D_MARKUP_MANAGED_STAGE_JSON_UI__.activeArtifact = {
+      sourceName,
+      previewScene: scene,
+      previewCoordinateAudit: audit
+    };
+  }
+
   return scene;
 }
 
@@ -151,7 +158,8 @@ export function assertManagedStagePreviewCoordinatePreservation(audit) {
   return { ok: true, maxUnexplainedNonBendDeltaMm: audit.maxUnexplainedNonBendDeltaMm, rowCount: audit.rowCount };
 }
 
-function createRecordPreviewObject(record, radius, pointRadius, trimInfo = null, records = []) {
+function createRecordPreviewObject(record, radius, pointRadius, trimInfo = null, supportOptions = { records: [] }) {
+  const records = supportOptions.records || [];
   if (record.source.start && record.source.end && pointDistance(record.source.start, record.source.end) > EPS_MM) {
     const originalStart = record.source.start;
     const originalEnd = record.source.end;
@@ -164,6 +172,7 @@ function createRecordPreviewObject(record, radius, pointRadius, trimInfo = null,
       previewSourceGeometry: 'APOS_LPOS',
       sourceStartMm: clonePoint(originalStart),
       sourceEndMm: clonePoint(originalEnd),
+      sourcePosMm: clonePoint(record.source.pos || record.source.bpos),
       previewStartMm: clonePoint(rendered.start),
       previewEndMm: clonePoint(rendered.end),
       previewOnly: isSupportLike(record),
@@ -189,7 +198,7 @@ function createRecordPreviewObject(record, radius, pointRadius, trimInfo = null,
   if (!pos) return { object: null, renderedStart: null, renderedEnd: null, renderedPos: null, intentionalPreviewTrim: false, previewTrim: null, supportVisual: null };
 
   if (isSupportLike(record)) {
-    const supportPreview = createManagedStageSupportPreviewObject(record, { records, pointRadius, fallbackRadius: radius });
+    const supportPreview = createManagedStageSupportPreviewObject(record, supportOptions);
     if (supportPreview?.object) {
       stampSourceUserData(supportPreview.object, record, {
         primitiveKind: 'managed-stage-support-symbol',

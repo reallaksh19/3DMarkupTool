@@ -1,7 +1,7 @@
 import * as THREE from 'three';
-import { cylinderBetween, mat } from './geometry.js?v=professional-viewer-3';
-import { createManagedStagePreviewScene as createRawManagedStagePreviewScene } from './managed-stage-preview-scene.js';
-import { resolveExplicitManagedStageBendDetails, summarizeExplicitBendRows } from './managed-stage-explicit-bend-details.js';
+import { cylinderBetween, mat } from './geometry.js?v=bust-cache-4';
+import { createManagedStagePreviewScene as createRawManagedStagePreviewScene } from './managed-stage-preview-scene.js?v=bust-cache-4';
+import { resolveExplicitManagedStageBendDetails, summarizeExplicitBendRows } from './managed-stage-explicit-bend-details.js?v=bust-cache-4';
 
 export function createManagedStagePreviewScene(sourceTextOrJson, options = {}) {
   const json = parseManagedStageJson(sourceTextOrJson);
@@ -42,35 +42,105 @@ function removeSyntheticBendCues(scene, explicitBendPathSet) {
 }
 
 function restoreExplicitBendMeshes(scene, detailsByPath) {
+  // First, map objects by their TO and FROM nodes
+  const objectsByNode = new Map();
+  scene.traverse?.((object) => {
+    if (!object.isMesh || !object.userData?.sourcePath) return;
+    const toNode = object.userData.sourceToNode;
+    const fromNode = object.userData.sourceFromNode;
+    if (toNode) {
+      if (!objectsByNode.has(toNode)) objectsByNode.set(toNode, []);
+      objectsByNode.get(toNode).push(object);
+    }
+    if (fromNode) {
+      if (!objectsByNode.has(fromNode)) objectsByNode.set(fromNode, []);
+      objectsByNode.get(fromNode).push(object);
+    }
+  });
+
+  const newMeshes = [];
   scene.traverse?.((object) => {
     const path = object?.userData?.sourcePath;
     const details = detailsByPath.get(path);
     if (!details || !object.isMesh) return;
-    const start = object.userData.sourceStartMm || object.userData.sourceAposMm;
-    const end = object.userData.sourceEndMm || object.userData.sourceLposMm;
-    if (!start || !end) return;
-    const replacement = cylinderBetween(toVec(start), toVec(end), inferRadius(object), object.material || mat(0xaa55aa), 18, object.name || path);
-    object.geometry?.dispose?.();
-    object.geometry = replacement.geometry;
-    object.position.copy(replacement.position);
-    object.quaternion.copy(replacement.quaternion);
+    
+    // Do NOT replace the geometry of the straight pipe!
+    // Instead, tag it.
     object.userData = {
       ...object.userData,
-      primitiveKind: 'explicit-staged-bend-source-route',
-      previewSourceGeometry: 'BEND_APOS_LPOS',
-      previewStartMm: clonePoint(start),
-      previewEndMm: clonePoint(end),
-      previewTrimmedForOrthogonalElbow: false,
-      previewTrim: null,
       explicitBendRecord: true,
       explicitBendDetailsPresent: details.hasExplicitBendDetails,
       bendRadiusMm: details.bendRadiusMm,
       bendAngleDeg: details.bendAngleDeg,
       bendSource: details.bendSource,
-      synthetic1p5DTrimBlocked: true,
-      coordinatePolicy: 'explicit stagedJson BEND_RADIUS/BEND_ANGLE retained; no synthetic 1.5D corner trim applied to this BEND source route'
+      synthetic1p5DTrimBlocked: true
     };
+    
+    // Check both TO and FROM nodes to find the connecting sibling
+    const toNode = object.userData.sourceToNode;
+    const fromNode = object.userData.sourceFromNode;
+    let siblings = [];
+    
+    if (toNode && objectsByNode.has(toNode)) {
+      siblings = objectsByNode.get(toNode).filter(sib => sib !== object);
+    }
+    if (siblings.length === 0 && fromNode && objectsByNode.has(fromNode)) {
+      siblings = objectsByNode.get(fromNode).filter(sib => sib !== object);
+    }
+    if (siblings.length === 0) return;
+    
+    const sibling = siblings[0];
+    
+    const start = new THREE.Vector3().copy(object.userData.sourceStartMm || object.userData.sourceAposMm || {x:0, y:0, z:0});
+    const end = new THREE.Vector3().copy(object.userData.sourceEndMm || object.userData.sourceLposMm || {x:0, y:0, z:0});
+    const sibStart = new THREE.Vector3().copy(sibling.userData.sourceStartMm || sibling.userData.sourceAposMm || {x:0, y:0, z:0});
+    const sibEnd = new THREE.Vector3().copy(sibling.userData.sourceEndMm || sibling.userData.sourceLposMm || {x:0, y:0, z:0});
+    
+    const dStartStart = start.distanceToSq(sibStart);
+    const dStartEnd = start.distanceToSq(sibEnd);
+    const dEndStart = end.distanceToSq(sibStart);
+    const dEndEnd = end.distanceToSq(sibEnd);
+    
+    const minD = Math.min(dStartStart, dStartEnd, dEndStart, dEndEnd);
+    
+    let intersectionPoint, oppositePoint, sibOppositePoint;
+    if (minD === dStartStart) {
+      intersectionPoint = start.clone().add(sibStart).multiplyScalar(0.5);
+      oppositePoint = end;
+      sibOppositePoint = sibEnd;
+    } else if (minD === dStartEnd) {
+      intersectionPoint = start.clone().add(sibEnd).multiplyScalar(0.5);
+      oppositePoint = end;
+      sibOppositePoint = sibStart;
+    } else if (minD === dEndStart) {
+      intersectionPoint = end.clone().add(sibStart).multiplyScalar(0.5);
+      oppositePoint = start;
+      sibOppositePoint = sibEnd;
+    } else {
+      intersectionPoint = end.clone().add(sibEnd).multiplyScalar(0.5);
+      oppositePoint = start;
+      sibOppositePoint = sibStart;
+    }
+    
+    const dirA = oppositePoint.clone().sub(intersectionPoint).normalize();
+    const dirB = sibOppositePoint.clone().sub(intersectionPoint).normalize();
+    const radiusMm = details.bendRadiusMm || 100;
+    
+    const tangentA = intersectionPoint.clone().add(dirA.clone().multiplyScalar(radiusMm));
+    const tangentB = intersectionPoint.clone().add(dirB.clone().multiplyScalar(radiusMm));
+    
+    const radius = inferRadius(object);
+    const curve = new THREE.QuadraticBezierCurve3(tangentA, intersectionPoint, tangentB);
+    const tubeGeom = new THREE.TubeGeometry(curve, 24, radius, 14, false);
+    const bendMesh = new THREE.Mesh(tubeGeom, object.material || mat(0xaa55aa));
+    bendMesh.name = `${object.name || path}_EXPLICIT_CORNER`;
+    bendMesh.userData = { ...object.userData, TYPE: 'MANAGED_STAGE_PREVIEW_CUE', cueKind: 'bend' };
+    newMeshes.push(bendMesh);
   });
+  
+  for (const mesh of newMeshes) {
+    scene.add(mesh);
+  }
 }
 
 function patchExplicitBendAuditRows(audit, detailsByPath) {

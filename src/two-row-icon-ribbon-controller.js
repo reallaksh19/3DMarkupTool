@@ -223,7 +223,7 @@ function buildMenuGroup(ribbon, menu) {
     trigger.setAttribute('aria-expanded', 'false');
     wrapper.prepend(trigger);
   }
-  trigger.innerHTML = `${icon(menu.icon)}<span>${escapeHtml(menu.label)}</span><b aria-hidden="true">›</b>`;
+  trigger.innerHTML = `${icon(menu.icon)}<span>${escapeHtml(menu.label)}</span><b aria-hidden="true">â€º</b>`;
 
   const popover = ensureMenuPopover(wrapper);
   menu.items.forEach((item) => {

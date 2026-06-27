@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { createTextPlane } from './geometry.js?v=professional-viewer-3';
+import { createTextPlane } from './geometry.js?v=bust-cache-4';
 
 const runtime = window.__3D_MARKUP_CLIP_RUNTIME__ || null;
 const TAG_YELLOW = 0xffd166;
@@ -137,7 +137,7 @@ function updateDetailPanel(tag) {
     return;
   }
   const override = state.overrides.get(tagKey(tag));
-  detail.textContent = `${override?.name || tag.name || 'Tag View'} — ${override?.body || tag.body || ''}`;
+  detail.textContent = `${override?.name || tag.name || 'Tag View'} â€” ${override?.body || tag.body || ''}`;
 }
 
 function fitTag(row, tag) {

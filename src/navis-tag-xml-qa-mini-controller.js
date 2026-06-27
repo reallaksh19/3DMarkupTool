@@ -328,7 +328,7 @@ function injectStyles() {
     .qa-mini-actions { display: flex; gap: 7px; flex-wrap: wrap; }
     .qa-mini-actions button { border: 1px solid rgba(120, 170, 220, .45); border-radius: 9px; background: rgba(28, 60, 96, .8); color: #e8f3ff; padding: 6px 9px; font-weight: 800; cursor: pointer; }
     .qa-mini-preview textarea { width: 100%; height: 160px; margin-top: 8px; resize: vertical; border-radius: 8px; background: #06111f; color: #dcecff; border: 1px solid rgba(120, 170, 220, .4); font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 11px; }
-    #navisXmlQaBtn::before { content: '✓ '; }
+    #navisXmlQaBtn::before { content: 'âœ“ '; }
   `;
   document.head.appendChild(style);
 }

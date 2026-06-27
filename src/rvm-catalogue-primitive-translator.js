@@ -1,5 +1,5 @@
-import { assertSafeApproximationPrimitives, safeApproximationPolicyForIntent } from './rvm-safe-primitive-approximation-policy.js';
-import { buildValveFlangePrimitiveAdapterPlan } from './valve-flange-primitive-adapter.js';
+import { assertSafeApproximationPrimitives, safeApproximationPolicyForIntent } from './rvm-safe-primitive-approximation-policy.js?v=bust-cache-4';
+import { buildValveFlangePrimitiveAdapterPlan } from './valve-flange-primitive-adapter.js?v=bust-cache-4';
 
 export const RVM_CATALOGUE_PRIMITIVE_TRANSLATOR_SCHEMA = 'RvmCataloguePrimitiveTranslator.v1';
 export const RVM_CATALOGUE_SUPPORTED_PRIMITIVE_KINDS = Object.freeze(['cylinder', 'box', 'pyramid', 'sphere']);

@@ -1,9 +1,9 @@
 import {
   buildPipingContractPipeline,
   buildRenderInstructions
-} from './piping-component-layer.js';
-import { buildRenderPlans, rejectRawSourcePayload } from './render-plan-adapter.js';
-import { buildExportPlans, assertExportPlan } from './export-plan-adapter.js';
+} from './piping-component-layer.js?v=bust-cache-4';
+import { buildRenderPlans, rejectRawSourcePayload } from './render-plan-adapter.js?v=bust-cache-4';
+import { buildExportPlans, assertExportPlan } from './export-plan-adapter.js?v=bust-cache-4';
 
 export const CONTRACT_DRY_RUN_SCHEMA = 'ContractDryRun.v1';
 export const DEFAULT_RENDER_TARGETS = Object.freeze(['VIEWER', 'GLB', 'RVM_ATT']);

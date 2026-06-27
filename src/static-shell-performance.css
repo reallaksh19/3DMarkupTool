@@ -80,12 +80,14 @@
 #inputDrawer > .input-root-card[data-section="input"] > .workflow-card-hint,
 #inputDrawer > .input-root-card[data-section="input"] > #inputFileStatus,
 #inputDrawer > .input-root-card[data-section="input"] > .input-file-status,
-#inputDrawer > .input-root-card[data-section="input"] > .file-drop,
+#inputDrawer > .input-root-card[data-section="input"] .file-drop,
+#inputDrawer > .input-root-card[data-section="input"] > .input-file-row,
 #inputDrawer > .input-root-card[data-section="input"] > .input-primary-actions,
 #inputDrawer > [data-input-root="persistent"] > .workflow-card-hint,
 #inputDrawer > [data-input-root="persistent"] > #inputFileStatus,
 #inputDrawer > [data-input-root="persistent"] > .input-file-status,
-#inputDrawer > [data-input-root="persistent"] > .file-drop,
+#inputDrawer > [data-input-root="persistent"] .file-drop,
+#inputDrawer > [data-input-root="persistent"] > .input-file-row,
 #inputDrawer > [data-input-root="persistent"] > .input-primary-actions {
   display: revert !important;
   visibility: visible !important;
@@ -117,8 +119,8 @@
   white-space: nowrap;
 }
 
-#inputDrawer > .input-root-card[data-section="input"] > .file-drop,
-#inputDrawer > [data-input-root="persistent"] > .file-drop {
+#inputDrawer > .input-root-card[data-section="input"] .file-drop,
+#inputDrawer > [data-input-root="persistent"] .file-drop {
   display: grid !important;
   grid-auto-flow: column;
   place-items: center;
@@ -129,14 +131,18 @@
   padding: 6px 10px;
   line-height: 1;
   border-radius: 9px;
+  flex: 1 1 0;
+  min-width: 0;
 }
 
-#inputDrawer > .input-root-card[data-section="input"] > .file-drop .lucide,
-#inputDrawer > .input-root-card[data-section="input"] > .file-drop i,
-#inputDrawer > [data-input-root="persistent"] > .file-drop .lucide,
-#inputDrawer > [data-input-root="persistent"] > .file-drop i { width: 15px; height: 15px; }
+#inputDrawer > .input-root-card[data-section="input"] .file-drop .lucide,
+#inputDrawer > .input-root-card[data-section="input"] .file-drop i,
+#inputDrawer > [data-input-root="persistent"] .file-drop .lucide,
+#inputDrawer > [data-input-root="persistent"] .file-drop i { width: 15px; height: 15px; }
 
+#inputDrawer > .input-root-card[data-section="input"] > .input-file-row,
 #inputDrawer > .input-root-card[data-section="input"] > .input-primary-actions,
+#inputDrawer > [data-input-root="persistent"] > .input-file-row,
 #inputDrawer > [data-input-root="persistent"] > .input-primary-actions,
 .workflow-primary-row {
   display: flex !important;

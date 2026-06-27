@@ -1,4 +1,4 @@
-import { normalizeRvmMaterialId, rvmMaterialIdForNode } from './rvm-material-layer-contract.js';
+import { normalizeRvmMaterialId, rvmMaterialIdForNode } from './rvm-material-layer-contract.js?v=bust-cache-4';
 
 export const RVM_COLR_MATERIAL_POLICY_SCHEMA = 'RvmColrMaterialPolicy.v1';
 export const RVM_COLR_BODY_VERSION = 1;

@@ -1,8 +1,21 @@
-import './managed-stage-viewer-api-bridge.js';
-import { BM_CII_MANAGED_STAGE_SAMPLE_NAME, createBmCiiManagedStageSampleJson } from './managed-stage-bm-cii-json-sample-data.js';
+/**
+ * BM_CII managed-stage JSON sample controller.
+ *
+ * Wires the "Load BM_CII stagedJson" button to fetch the canonical rich
+ * benchmark file served as a static asset. The sample contains:
+ *   - 40 piping components (7 elbows, 8 flanges, 6 valves, 19 pipes)
+ *   - 12 support / restraint records with ISONOTE references
+ *   - Full bend geometry: BEND_RADIUS_MM, BEND_ANGLE_DEG, ELBOW_ARC_LENGTH_MM
+ */
 
-const SAMPLE_CONTROLLER_SCHEMA = 'ManagedStageBmCiiJsonSampleController.v3';
-const SAMPLE_SOURCE_NAME = BM_CII_MANAGED_STAGE_SAMPLE_NAME;
+const SAMPLE_CONTROLLER_SCHEMA = 'ManagedStageBmCiiJsonSampleController.v5';
+const SAMPLE_SOURCE_NAME = 'BM_CII_INPUT_managed_stage.json';
+
+/**
+ * Path relative to the server root (python http.server at project root).
+ * Resolves to http://localhost:5173/src/BM_CII_INPUT_managed_stage.json
+ */
+const BENCHMARK_JSON_URL = '/src/BM_CII_INPUT_managed_stage.json';
 
 installManagedStageBmCiiJsonSampleButton();
 
@@ -12,22 +25,22 @@ export function installManagedStageBmCiiJsonSampleButton() {
   }
 
   const sampleButton = ensureSampleButton();
-  if (sampleButton.dataset.managedStageJsonSampleBound !== '1') {
-    sampleButton.dataset.managedStageJsonSampleBound = '1';
-    sampleButton.addEventListener('click', (event) => {
-      event.preventDefault?.();
-      event.stopImmediatePropagation?.();
-      loadBundledManagedStageJsonSample().catch((error) => {
-        log(`ERROR loading ${SAMPLE_SOURCE_NAME}: ${error.message}`);
-        setStatus('BM_CII stagedJson sample load failed');
-      });
-    }, true);
-  }
+  // Remove any stale binding flag so the new handler can attach cleanly.
+  delete sampleButton.dataset.managedStageJsonSampleBound;
+  sampleButton.dataset.managedStageJsonSampleBound = '1';
+  sampleButton.addEventListener('click', (event) => {
+    event.preventDefault?.();
+    event.stopImmediatePropagation?.();
+    loadBenchmarkJson().catch((error) => {
+      log(`ERROR loading ${SAMPLE_SOURCE_NAME}: ${error.message}`);
+      setStatus('BM_CII benchmark load failed');
+    });
+  }, true);
 
   const api = {
     schema: SAMPLE_CONTROLLER_SCHEMA,
     sampleSourceName: SAMPLE_SOURCE_NAME,
-    loadSample: loadBundledManagedStageJsonSample
+    loadSample: loadBenchmarkJson
   };
   window.__3D_MARKUP_MANAGED_STAGE_BM_CII_JSON_SAMPLE__ = api;
   window.dispatchEvent(new CustomEvent('viewer:managed-stage-bm-cii-json-sample-ready', {
@@ -71,15 +84,21 @@ function ensureSampleButton() {
   return button;
 }
 
-async function loadBundledManagedStageJsonSample() {
+async function loadBenchmarkJson() {
   const managedStageApi = await ensureManagedStageJsonApi();
   if (typeof managedStageApi?.loadText !== 'function') {
     throw new Error('managed-stage JSON UI is not ready');
   }
 
-  setStatus('Loading BM_CII stagedJson sample');
-  const sourceText = createBmCiiManagedStageSampleJson();
-  log(`Loaded bundled ${SAMPLE_SOURCE_NAME} (${sourceText.length.toLocaleString()} chars)`);
+  setStatus('Fetching BM_CII benchmark...');
+  log(`Fetching ${BENCHMARK_JSON_URL}`);
+  const response = await fetch(BENCHMARK_JSON_URL);
+  if (!response.ok) {
+    throw new Error(`Fetch failed: ${response.status} ${response.statusText} (${BENCHMARK_JSON_URL})`);
+  }
+  const sourceText = await response.text();
+  log(`Fetched ${SAMPLE_SOURCE_NAME} (${sourceText.length.toLocaleString()} chars) - 40 components, 7 elbows, 12 supports`);
+  setStatus('Loaded BM_CII benchmark - rendering...');
   return managedStageApi.loadText(sourceText, SAMPLE_SOURCE_NAME);
 }
 
@@ -87,7 +106,7 @@ async function ensureManagedStageJsonApi() {
   if (typeof window.__3D_MARKUP_MANAGED_STAGE_JSON_UI__?.loadText === 'function') {
     return window.__3D_MARKUP_MANAGED_STAGE_JSON_UI__;
   }
-  const module = await import('./managed-stage-json-ui-controller.js');
+  const module = await import('./managed-stage-json-ui-controller.js?v=bust-cache-4');
   if (typeof module.installManagedStageJsonUi === 'function') return module.installManagedStageJsonUi();
   return window.__3D_MARKUP_MANAGED_STAGE_JSON_UI__;
 }

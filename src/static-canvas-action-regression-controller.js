@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { getModelRoot, objectId, resolveSafeHideTarget } from './static-selection-resolver.js';
+import { getModelRoot, objectId, resolveSafeHideTarget } from './static-selection-resolver.js?v=bust-cache-4';
 
 // Phase 15: regression repair for canvas-owning review actions.
 // This controller does not touch model/parser/export data. It repairs UI action
@@ -162,7 +162,7 @@ async function launchManualLeaderTool() {
     return true;
   }
   try {
-    await import('./navis-manual-tag-safe-controller.js?v=canvas-action-regression-phase15-20260620');
+    await import('./navis-manual-tag-safe-controller.js?v=bust-cache-4');
     const button = document.getElementById('navisTagBtn');
     if (button) {
       button.click();
@@ -466,7 +466,7 @@ function applyVisibility(mode, targets, source = 'visibility') {
       touchedCount: state.visibilityTouched.size
     }
   }));
-  setStatus(`${mode === 'hide' ? 'Hidden' : 'Isolated'} ${safeTargets.length} selected component${safeTargets.length === 1 ? '' : 's'} — Esc or Show All restores`);
+  setStatus(`${mode === 'hide' ? 'Hidden' : 'Isolated'} ${safeTargets.length} selected component${safeTargets.length === 1 ? '' : 's'} â€” Esc or Show All restores`);
   return true;
 }
 

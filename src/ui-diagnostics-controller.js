@@ -49,7 +49,7 @@ function ensurePanel() {
         <h2>UI Diagnostics</h2>
         <p>Safe-loader status and recovery tools.</p>
       </div>
-      <button type="button" class="ui-diagnostics-close" data-ui-diag="close">×</button>
+      <button type="button" class="ui-diagnostics-close" data-ui-diag="close">Ã—</button>
     </header>
     <div class="ui-diagnostics-summary" data-ui-diag="summary"></div>
     <div class="ui-diagnostics-actions">

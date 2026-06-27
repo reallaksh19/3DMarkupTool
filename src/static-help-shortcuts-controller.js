@@ -211,7 +211,7 @@ function ensurePanel() {
         <strong>Help / Shortcuts</strong>
         <span>Quick reference for review, selection, display, export, and session tools.</span>
       </div>
-      <button id="staticHelpCloseBtn" type="button" class="static-help-close" title="Close help">×</button>
+      <button id="staticHelpCloseBtn" type="button" class="static-help-close" title="Close help">Ã—</button>
     </div>
     <div class="static-help-body">
       <div class="static-help-grid">

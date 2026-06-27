@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { createTextPlane } from './geometry.js?v=professional-viewer-3';
+import { createTextPlane } from './geometry.js?v=bust-cache-4';
 
 const STORAGE_KEY = '3dmarkup.navisTagSession.safe.v1';
 const SESSION_LAYER_NAME = 'NAVIS_TAG_SESSION_SAFE_LAYER';

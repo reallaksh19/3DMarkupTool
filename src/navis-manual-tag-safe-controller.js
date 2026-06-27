@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { createTextPlane } from './geometry.js?v=professional-viewer-3';
+import { createTextPlane } from './geometry.js?v=bust-cache-4';
 
 const TAG_RED = 0xff2b2b;
 const TAG_YELLOW = 0xffd166;
@@ -300,7 +300,7 @@ function cancelManualTagMode(options = {}) {
 function setButtonActive(active) {
   const btn = document.getElementById('navisTagBtn');
   btn?.classList.toggle('tool-active', Boolean(active));
-  if (btn) btn.textContent = active ? 'Tag…' : 'Tag';
+  if (btn) btn.textContent = active ? 'Tagâ€¦' : 'Tag';
 }
 
 function getContext() {

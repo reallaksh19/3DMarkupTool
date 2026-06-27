@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
-const activeKey = 'input-persistent-root-card-20260626';
+const activeKey = 'input-persistent-root-card-20260629-c';
 const previousKey = 'input-root-owner-20260626';
 const buildScript = readFileSync(new URL('../scripts/build-pages.mjs', import.meta.url), 'utf8');
 const appLoader = readFileSync(new URL('../src/app-loader.js', import.meta.url), 'utf8');

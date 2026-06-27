@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { getModelRoot, objectId, resolveSafeHideTarget } from './static-selection-resolver.js';
+import { getModelRoot, objectId, resolveSafeHideTarget } from './static-selection-resolver.js?v=bust-cache-4';
 
 const VERSION = 'canvas-tool-manager-20260620';
 const AREA_CLASS = 'area-select-active';
@@ -257,7 +257,7 @@ async function startRealManualTag() {
   refresh('manual-tag');
   let realButton = document.getElementById('navisTagBtn');
   if (!realButton) {
-    try { await import('./navis-manual-tag-safe-controller.js?v=canvas-tool-manager-20260620'); }
+    try { await import('./navis-manual-tag-safe-controller.js?v=bust-cache-4'); }
     catch (error) { console.warn('[3DMarkupTool] Manual tag controller import failed', error); }
     realButton = document.getElementById('navisTagBtn');
   }
@@ -479,7 +479,7 @@ function finishAreaDrag(event) {
   removeOverlay();
   if (modeSnapshot === 'sectionBoxDrag') {
     if (rect.right - rect.left < MIN_DRAG_PX || rect.bottom - rect.top < MIN_DRAG_PX) {
-      deactivateSectionBoxDrag('Section Box: drag too small — try again');
+      deactivateSectionBoxDrag('Section Box: drag too small â€” try again');
       return false;
     }
     const selected = selectSafeComponentsInClientRect(rect, { source: 'section-box-drag' });
@@ -769,7 +769,7 @@ function applyVisibility(mode, targets, source = 'visibility') {
   }
   rt.renderOnce?.(mode === 'hide' ? 'hide-selected-manager' : 'isolate-selected-manager');
   window.dispatchEvent(new CustomEvent('viewer:visibility-tools', { detail: { action: mode, source, resolver: 'canvas-tool-manager', selectedIds: safeTargets.map(objectId).filter(Boolean), selectedCount: safeTargets.length, active: true } }));
-  setStatus(`${mode === 'hide' ? 'Hidden' : 'Isolated'} ${safeTargets.length} selected component${safeTargets.length === 1 ? '' : 's'} — Esc or Show All restores`);
+  setStatus(`${mode === 'hide' ? 'Hidden' : 'Isolated'} ${safeTargets.length} selected component${safeTargets.length === 1 ? '' : 's'} â€” Esc or Show All restores`);
   return true;
 }
 

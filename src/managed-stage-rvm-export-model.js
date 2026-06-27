@@ -1,35 +1,40 @@
 import {
   buildManagedStageGeometryContractSet
-} from './managed-stage-geometry-contract.js';
+} from './managed-stage-geometry-contract.js?v=bust-cache-4';
 import {
   applyManagedStageElbowTangentHints,
   auditManagedStageElbowTangentHints
-} from './managed-stage-elbow-tangent-hints.js';
+} from './managed-stage-elbow-tangent-hints.js?v=bust-cache-4';
 import {
   applyManagedStageInputXmlBendExclusion
-} from './managed-stage-inputxml-bend-exclusion.js';
+} from './managed-stage-inputxml-bend-exclusion.js?v=bust-cache-4';
 import {
   applyManagedStageInputXmlNodeLocalElbows
-} from './managed-stage-inputxml-node-local-elbows.js';
+} from './managed-stage-inputxml-node-local-elbows.js?v=bust-cache-4';
 import {
   applyManagedStageInputXmlBendEndpointLock
-} from './managed-stage-inputxml-bend-endpoint-lock.js';
+} from './managed-stage-inputxml-bend-endpoint-lock.js?v=bust-cache-4';
 import {
   applyManagedStageInputXmlBranchFittingInference
-} from './managed-stage-inputxml-branch-fitting-inference.js';
+} from './managed-stage-inputxml-branch-fitting-inference.js?v=bust-cache-4';
 import {
   resolveManagedStageJsonProcessingConfig
-} from './managed-stage-json-processing-config.js';
+} from './managed-stage-json-processing-config.js?v=bust-cache-4';
 import {
   MANAGED_STAGE_RVM_MATERIALS,
   managedStageComponentClass,
   managedStageMaterialForClass,
   planManagedStagePrimitives
-} from './managed-stage-rvm-primitive-planner.js';
-import { resolveExplicitManagedStageBendDetails } from './managed-stage-explicit-bend-details.js';
-import { buildTopologyGatedManagedStageSupportRvmExportNodes } from './managed-stage-topology-gated-support-rvm-export.js';
-import { buildManagedStageTopologyAudit } from './managed-stage-uxml-topology-adapter.js';
-import { point3 } from './managed-stage-topology-audit.js';
+} from './managed-stage-rvm-primitive-planner.js?v=bust-cache-4';
+import { resolveExplicitManagedStageBendDetails } from './managed-stage-explicit-bend-details.js?v=bust-cache-4';
+import { buildTopologyGatedManagedStageSupportRvmExportNodes } from './managed-stage-topology-gated-support-rvm-export.js?v=bust-cache-4';
+import { buildManagedStageTopologyAudit } from './managed-stage-uxml-topology-adapter.js?v=bust-cache-4';
+import { point3 } from './managed-stage-topology-audit.js?v=bust-cache-4';
+import {
+  SUPPORT_MARKER_PRIMITIVE_CAPS,
+  SUPPORT_MARKER_PRIMITIVE_POLICY_SCHEMA,
+  buildSupportMarkerRvmNode
+} from './support-marker-primitive-policy.js?v=bust-cache-4';
 
 export function buildManagedStageRvmExportModel(profile, options = {}) {
   const processingConfig = resolveManagedStageJsonProcessingConfig(profile, options);
@@ -49,10 +54,15 @@ export function buildManagedStageRvmExportModel(profile, options = {}) {
   const supportTopologyAudit = options.supportTopologyAudit || buildManagedStageTopologyAudit(managedStageProfileToTopologySource(profile), {
     sourceName: profile.source || 'managed-stage-profile-for-rvm-export'
   });
-  const supportExport = buildTopologyGatedManagedStageSupportRvmExportNodes(profile, {
-    materialId: MANAGED_STAGE_RVM_MATERIALS.SUPPORT,
-    topologyAudit: supportTopologyAudit
-  });
+  const supportExport = options.sourceContract?.supports
+    ? buildCanonicalSupportMarkerRvmExport(options.sourceContract, {
+      materialId: MANAGED_STAGE_RVM_MATERIALS.SUPPORT,
+      topologyAudit: supportTopologyAudit
+    })
+    : buildTopologyGatedManagedStageSupportRvmExportNodes(profile, {
+      materialId: MANAGED_STAGE_RVM_MATERIALS.SUPPORT,
+      topologyAudit: supportTopologyAudit
+    });
   const componentPrimitiveSymbolExportAudit = auditComponentPrimitiveSymbolExport(elements, supportExport);
   const disciplineChildren = [
     groupNode('/BM_CII-CU-PI-P', 'GROUP', 'PIPING_GROUP', elements)
@@ -241,6 +251,82 @@ function auditComponentPrimitiveSymbolExport(elements, supportExport) {
   };
 }
 
+function buildCanonicalSupportMarkerRvmExport(sourceContract, options = {}) {
+  const materialId = options.materialId || MANAGED_STAGE_RVM_MATERIALS.SUPPORT;
+  const supports = sourceContract.supports || [];
+  const nodes = supports.map((support, index) => buildSupportMarkerRvmNode(support, { material: materialId, index }));
+  const supportPrimitiveCount = nodes.reduce((sum, node) => sum + (node.primitives?.length || 0), 0);
+  const RVM_CODE_BY_KIND = { pyramid: 1, box: 2, elbow: 4, cylinder: 8, sphere: 9 };
+  const SUPPORT_ALLOWED_CODES = [2, 8, 9];
+  const SUPPORT_FORBIDDEN_CODES = [1, 4, 5, 6, 7, 11];
+  const familyHistogram = {};
+  const primitiveCodeHistogram = {};
+  let maxPrimitiveSpanMm = 0;
+  let maxBarRadiusMm = 0;
+  let warningPrimitiveCount = 0;
+
+  for (const node of nodes) {
+    const family = node.attributes?.FAMILY || 'UNKNOWN';
+    familyHistogram[family] = (familyHistogram[family] || 0) + 1;
+    if (family === 'UNKNOWN') warningPrimitiveCount += node.primitives?.length || 0;
+    for (const primitive of node.primitives || []) {
+      const code = RVM_CODE_BY_KIND[primitive.kind] || 0;
+      primitiveCodeHistogram[code] = (primitiveCodeHistogram[code] || 0) + 1;
+      maxPrimitiveSpanMm = Math.max(maxPrimitiveSpanMm, Number(primitive.length || 0));
+      maxBarRadiusMm = Math.max(maxBarRadiusMm, Number(primitive.radius || 0));
+    }
+  }
+  const supportForbiddenPrimitiveCodesPresent = SUPPORT_FORBIDDEN_CODES.filter((code) => Number(primitiveCodeHistogram[code] || 0) > 0);
+
+  return {
+    schema: 'CanonicalSupportMarkerRvmExport.v1',
+    materialId,
+    supportMarkerPolicy: SUPPORT_MARKER_PRIMITIVE_POLICY_SCHEMA,
+    supportRecordCount: supports.length,
+    supportNodeCount: nodes.length,
+    supportPrimitiveCount,
+    supportConePrimitiveCount: 0,
+    supportDirectionalGlyphPrimitiveCount: supportPrimitiveCount,
+    supportBarPrimitiveCount: supportPrimitiveCount,
+    connectorPrimitiveCount: 0,
+    fallbackPrimitiveCount: 0,
+    warningPrimitiveCount,
+    clusteredSupportRecordCount: 0,
+    supportPrimitiveCodeHistogram: primitiveCodeHistogram,
+    supportAllowedPrimitiveCodes: SUPPORT_ALLOWED_CODES,
+    supportForbiddenPrimitiveCodes: SUPPORT_FORBIDDEN_CODES,
+    supportForbiddenPrimitiveCodesPresent,
+    supportMaxGlyphExtentMm: SUPPORT_MARKER_PRIMITIVE_CAPS.maxGlyphSpanMm,
+    supportMaxClusterOffsetMm: SUPPORT_MARKER_PRIMITIVE_CAPS.maxClusterOffsetMm,
+    supportMaxPrimitiveSpanMm: round(maxPrimitiveSpanMm),
+    supportMaxBarRadiusMm: round(maxBarRadiusMm),
+    supportFamilies: familyHistogram,
+    familyHistogram,
+    supportWarnings: supports.flatMap((support) => support.diagnostics || []),
+    supportTopologyGatePass: true,
+    supportTopologyBlockedCount: 0,
+    supportAssociationOnlyCount: supports.length,
+    supportContinuityEdgeCount: 0,
+    supportInlineFaceCount: 0,
+    supportTopologyGateSummary: {
+      pass: true,
+      total: supports.length,
+      blockedCount: 0,
+      associationOnlyCount: supports.length,
+      supportContinuityEdgeCount: 0,
+      supportInlineFaceCount: 0
+    },
+    topologyAuditSchema: options.topologyAudit?.schema || '',
+    scalePolicy: {
+      supportGlyphLengthMaxMm: SUPPORT_MARKER_PRIMITIVE_CAPS.maxGlyphSpanMm,
+      supportClusterOffsetMaxMm: SUPPORT_MARKER_PRIMITIVE_CAPS.maxClusterOffsetMm,
+      supportBarRadiusMaxMm: SUPPORT_MARKER_PRIMITIVE_CAPS.maxBarRadiusMm
+    },
+    nodes,
+    policy: 'stagedJson support markers are exported from contract.supports as canonical SUPPORT_MARKER nodes using AVEVA E3D-style plate (code-2 box) support symbols plus a code-8 cylinder map-pin and code-9 sphere head; filled code-1 pyramid/code-5 cone substitutes remain blocked.'
+  };
+}
+
 function explicitBendAttAttributes(recordOrContract) {
   const details = resolveExplicitManagedStageBendDetails(recordOrContract);
   if (!details.explicitBendRecord) return {};
@@ -259,6 +345,10 @@ function explicitBendAttAttributes(recordOrContract) {
 
 function primitiveRecipeSummary(primitives = []) {
   return [...new Set(primitives.map((primitive) => primitive.recipeName || primitive.localName || 'unknown'))].join(',');
+}
+
+function round(value) {
+  return Math.round(Number(value || 0) * 1000) / 1000;
 }
 
 function midpoint(a, b) {

@@ -3,7 +3,7 @@ const EXPECTED_SHELL_VERSION = 'tool-fixes-v2-20260620';
 const STALE_SHELL_VERSION = 'perf-static-drawer-bundle-20260620';
 const DISMISS_SESSION_KEY = '3dmarkup.browserDiagnostics.dismissedSession';
 const FORCE_LOCAL_KEY = '3dmarkup.showBrowserDiagnostics';
-const JANK_LONG_TASK_MS_THRESHOLD = 200;
+const JANK_LONG_TASK_MS_THRESHOLD = 500;
 const SLOW_FRAME_COUNT_THRESHOLD = 8;
 const SLOW_FRAME_P95_THRESHOLD_MS = 80;
 
@@ -67,7 +67,7 @@ function onReady() {
     recordRuntimeWarning({
       type: 'stale-shell-asset',
       title,
-      message: `This page still references ${STALE_SHELL_VERSION}. Use Ctrl+F5. In Chrome, open DevTools → Network → Disable cache and reload, or clear site data for reallaksh19.github.io/3DMarkupTool.`,
+      message: `This page still references ${STALE_SHELL_VERSION}. Use Ctrl+F5. In Chrome, open DevTools â†’ Network â†’ Disable cache and reload, or clear site data for reallaksh19.github.io/3DMarkupTool.`,
       detail: staleAssetUrls.slice(0, 4).map(basename).join(', ')
     });
     return;
@@ -221,7 +221,7 @@ function interpretFrameSample(sample, longTasks) {
     if (longTasks.totalMs >= JANK_LONG_TASK_MS_THRESHOLD) {
       return `main-thread-blocking (${longTasks.count} long tasks, ${longTasks.totalMs}ms total during sample)`;
     }
-    return 'raf-throttle-or-vsync (slow frame cadence but main thread idle — suspect power-save, occlusion, DevTools overhead, or capped refresh rate)';
+    return 'raf-throttle-or-vsync (slow frame cadence but main thread idle â€” suspect power-save, occlusion, DevTools overhead, or capped refresh rate)';
   }
   return 'indeterminate (long-task API unavailable; suppressing warning because real main-thread jank is unproven)';
 }
@@ -240,7 +240,7 @@ function recordModuleFailure(detail) {
     showHelp({
       level: 'warning',
       title: 'Chrome cache/module issue detected',
-      message: `A UI module failed to load in Chrome: ${basename(normalized.url)}. Use Ctrl+F5 first. If it persists, clear site data for this app or enable DevTools → Network → Disable cache, then reload.`,
+      message: `A UI module failed to load in Chrome: ${basename(normalized.url)}. Use Ctrl+F5 first. If it persists, clear site data for this app or enable DevTools â†’ Network â†’ Disable cache, then reload.`,
       detail: normalized.reason
     });
   }
@@ -354,7 +354,7 @@ function sampleFrameTime() {
       recordRuntimeWarning({
         type: 'frame-lag',
         title: 'Chrome frame-time lag detected',
-        message: 'Chrome is reporting slow frames while the viewer was focused and the main thread accumulated long tasks. Try Ctrl+F5, then Chrome DevTools → Network → Disable cache and reload. If it persists, disable Chrome hardware acceleration or test Edge for GPU-driver comparison.',
+        message: 'Chrome is reporting slow frames while the viewer was focused and the main thread accumulated long tasks. Try Ctrl+F5, then Chrome DevTools â†’ Network â†’ Disable cache and reload. If it persists, disable Chrome hardware acceleration or test Edge for GPU-driver comparison.',
         detail: `p95=${frameSample.p95Ms}ms, max=${frameSample.maxMs}ms, slowFrames=${slowFrames}, longTasks=${frameSample.longTasksDuringSample} (${frameSample.longTaskMsDuringSample}ms), renderer=${rendererName}`
       });
     } else if (slowFrames >= SLOW_FRAME_COUNT_THRESHOLD || p95 > SLOW_FRAME_P95_THRESHOLD_MS) {
@@ -453,11 +453,11 @@ function ensureBanner() {
     const action = event.target && event.target.dataset ? event.target.dataset.action : '';
     if (action === 'dismiss') hide();
     if (action === 'reload') {
-      console.info('[3DMarkupTool:browser-diagnostics] Hard refresh help: Ctrl+F5. For Chrome cache testing, open DevTools → Network → Disable cache, then reload. To reset this app, clear site data for reallaksh19.github.io.');
+      console.info('[3DMarkupTool:browser-diagnostics] Hard refresh help: Ctrl+F5. For Chrome cache testing, open DevTools â†’ Network â†’ Disable cache, then reload. To reset this app, clear site data for reallaksh19.github.io.');
       showHelp({
         level: 'info',
         title: 'Hard refresh / Chrome cache help',
-        message: 'Press Ctrl+F5. If the issue remains, open DevTools → Network → Disable cache and reload, or clear site data for reallaksh19.github.io/3DMarkupTool.',
+        message: 'Press Ctrl+F5. If the issue remains, open DevTools â†’ Network â†’ Disable cache and reload, or clear site data for reallaksh19.github.io/3DMarkupTool.',
         detail: moduleFailures[0] ? `${basename(moduleFailures[0].url)}: ${moduleFailures[0].reason}` : staleAssetUrls[0] ? basename(staleAssetUrls[0]) : ''
       });
     }

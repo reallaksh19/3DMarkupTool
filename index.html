@@ -7,18 +7,18 @@
   <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
   <link rel="shortcut icon" href="./favicon.ico" />
   <link rel="preconnect" href="https://unpkg.com" crossorigin />
-  <link rel="stylesheet" href="./src/styles.css?v=input-persistent-root-card-20260626" />
-  <link rel="stylesheet" href="./src/static-shell-performance.css?v=input-persistent-root-card-20260626" />
-  <link rel="preload" href="./src/clip-adjuster.css?v=input-persistent-root-card-20260626" as="style" onload="this.onload=null;this.rel='stylesheet'" />
-  <noscript><link rel="stylesheet" href="./src/clip-adjuster.css?v=input-persistent-root-card-20260626" /></noscript>
-  <link rel="preload" href="./src/clip-visual-overlays.css?v=input-persistent-root-card-20260626" as="style" onload="this.onload=null;this.rel='stylesheet'" />
-  <noscript><link rel="stylesheet" href="./src/clip-visual-overlays.css?v=input-persistent-root-card-20260626" /></noscript>
+  <link rel="stylesheet" href="./src/styles.css?v=input-persistent-root-card-20260629-c" />
+  <link rel="stylesheet" href="./src/static-shell-performance.css?v=input-persistent-root-card-20260629-c" />
+  <link rel="preload" href="./src/clip-adjuster.css?v=input-persistent-root-card-20260629-c" as="style" onload="this.onload=null;this.rel='stylesheet'" />
+  <noscript><link rel="stylesheet" href="./src/clip-adjuster.css?v=input-persistent-root-card-20260629-c" /></noscript>
+  <link rel="preload" href="./src/clip-visual-overlays.css?v=input-persistent-root-card-20260629-c" as="style" onload="this.onload=null;this.rel='stylesheet'" />
+  <noscript><link rel="stylesheet" href="./src/clip-visual-overlays.css?v=input-persistent-root-card-20260629-c" /></noscript>
   <script type="importmap">
     {
       "imports": {
         "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
         "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/",
-        "lucide": "./src/lucide-safe.js?v=input-persistent-root-card-20260626"
+        "lucide": "./src/lucide-safe.js?v=input-persistent-root-card-20260629-c"
       }
     }
   </script>
@@ -57,7 +57,7 @@
         <p class="workflow-card-hint">Choose a stagedJson file or load the bundled BM_CII stagedJson sample.</p>
         <div id="inputFileStatus" class="input-file-status" aria-live="polite">Status: <span id="inputStatus">No file chosen</span></div>
         <label class="file-drop input-file-drop-visible"><input type="file" id="xmlFile" accept=".json,.jscon,application/json" /><i data-lucide="upload"></i><span>Choose stagedJson</span></label>
-        <div class="button-row input-primary-actions" data-owner="source-html"><button id="loadUnifiedModelFileBtn" type="button" class="ghost icon-text managed-stage-json-load-btn unified-model-load-btn" title="Import stagedJson file" aria-label="Import stagedJson file"><i data-lucide="upload"></i><span>Import stagedJson</span></button><button id="loadSampleBtn" type="button" class="primary icon-text managed-stage-json-sample-btn" title="Load bundled BM_CII_INPUT_managed_stage.json stagedJson sample" aria-label="Load BM_CII stagedJson sample"><i data-lucide="folder-open"></i><span>Load BM_CII stagedJson</span></button><button id="clearBtn" type="button" class="ghost icon-text" aria-label="Clear all input and sample data"><i data-lucide="folder-x"></i><span>Clear All</span></button></div>
+        <div class="button-row input-primary-actions" data-owner="source-html"><button id="loadSampleBtn" type="button" class="primary icon-text managed-stage-json-sample-btn" title="Load bundled BM_CII_INPUT_managed_stage.json stagedJson sample" aria-label="Load BM_CII stagedJson sample"><i data-lucide="folder-open"></i><span>Load BM_CII stagedJson</span></button></div>
       </section>
       <section class="panel-section workflow-card support-workflow-card" data-section="support-mapping"><h3><span class="section-no">2</span> Support Mapping</h3><p class="workflow-card-hint">Configure stagedJson / ISONOTE source, CAESAR axis basis, mapper fields, and support diagnostics.</p><div id="supportMappingSettingsShell" class="support-mapping-settings-shell" aria-label="Support mapping and ISONOTE launcher"></div></section>
       <section class="panel-section workflow-card" data-section="conversion"><h3><span class="section-no">3</span> Convert</h3><p class="workflow-card-hint">Run the managed-stage conversion after the input and support mapping are ready.</p><div id="conversionStatus" class="conversion-status" role="status" aria-live="polite">Idle — load stagedJson or BM_CII stagedJson sample.</div><div class="button-row workflow-primary-row"><button id="convertBtn" type="button" class="primary icon-text"><i data-lucide="refresh-cw"></i><span>Run Conversion</span></button><button id="viewRulesBtn" type="button" class="ghost">Mapping Rules</button></div><details class="workflow-advanced-options"><summary>Advanced conversion settings</summary><label class="field"><span>RVM / GLB scale</span><input id="scaleInput" type="number" value="0.001" step="0.0001" /></label><label class="field"><span>Support visual scale</span><input id="supportScaleInput" type="number" value="1" step="0.1" min="0.1" /></label><label class="field"><span>Board width</span><input id="boardWidthInput" type="number" value="2.8" step="0.1" min="0.5" /></label><label class="field"><span>RVM version</span><input id="rvmVersion" type="text" value="3.0" /></label></details></section>
@@ -69,7 +69,7 @@
     <aside class="property-drawer" id="propertyDrawer" aria-label="Selection properties"><div class="drawer-head"><div><h2><i data-lucide="list-tree"></i> Selection</h2><p>Click an item in the model to inspect component data.</p></div><button id="closePropsBtn" type="button" class="icon-btn" title="Close properties"><i data-lucide="chevrons-right"></i></button></div><div id="propertiesBody" class="properties-body empty-state" data-legacy-id="propertiesContent"><p>No selection yet.</p></div></aside>
   </main>
   <dialog id="rulesDialog" class="rules-dialog" aria-label="Mapping rules"><div class="rules-dialog-card"><div class="rules-dialog-head"><h3>Mapping Rules</h3><button id="closeRulesBtn" type="button" aria-label="Close mapping rules">×</button></div><div id="rulesContent"></div></div></dialog>
-  <script type="module" src="./src/safe-ui-bootstrap.js?v=input-persistent-root-card-20260626"></script>
-  <script type="module" src="./src/app-loader.js?v=input-persistent-root-card-20260626"></script>
+  <script type="module" src="./src/safe-ui-bootstrap.js?v=input-persistent-root-card-20260629-c"></script>
+  <script type="module" src="./src/app-loader.js?v=input-persistent-root-card-20260629-c"></script>
 </body>
 </html>

@@ -1,4 +1,4 @@
-import { runAppConversionPipeline } from './app-conversion-pipeline.js';
+import { runAppConversionPipeline } from './app-conversion-pipeline.js?v=bust-cache-4';
 
 export const APP_CONVERSION_STATE_BRIDGE_SCHEMA = 'AppConversionStateBridge.v1';
 

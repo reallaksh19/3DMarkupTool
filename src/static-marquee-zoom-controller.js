@@ -48,7 +48,7 @@ function ensureButton() {
     button.title = 'Marquee Zoom: drag a window to zoom into that area';
     button.setAttribute('aria-label', 'Marquee zoom');
     button.setAttribute('aria-pressed', 'false');
-    button.innerHTML = '<span class="marquee-zoom-icon" aria-hidden="true">▢</span><span>MZ</span>';
+    button.innerHTML = '<span class="marquee-zoom-icon" aria-hidden="true">â–¢</span><span>MZ</span>';
 
     const zoomButton = pad.querySelector('[data-view="zoom"]');
     pad.insertBefore(button, zoomButton || null);

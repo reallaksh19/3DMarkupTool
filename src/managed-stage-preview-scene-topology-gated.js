@@ -1,9 +1,9 @@
-import { createManagedStagePreviewScene as createExplicitBendPreviewScene } from './managed-stage-preview-scene-explicit-bend-v2.js';
-import { buildManagedStageTopologyAudit } from './managed-stage-uxml-topology-adapter.js';
+import { createManagedStagePreviewScene as createExplicitBendPreviewScene } from './managed-stage-preview-scene-explicit-bend-v2.js?v=bust-cache-4';
+import { buildManagedStageTopologyAudit } from './managed-stage-uxml-topology-adapter.js?v=bust-cache-4';
 import {
   resolveManagedStageSupportTopologyGate,
   summarizeManagedStageSupportTopologyGates
-} from './managed-stage-topology-gated-support-preview.js';
+} from './managed-stage-topology-gated-support-preview.js?v=bust-cache-4';
 
 export const MANAGED_STAGE_TOPOLOGY_GATED_PREVIEW_SCHEMA = 'ManagedStageTopologyGatedPreview.v1';
 

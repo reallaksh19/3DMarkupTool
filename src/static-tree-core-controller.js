@@ -162,7 +162,7 @@ function ensureTreePanel() {
   panel.innerHTML = `
     <div class="static-tree-head">
       <span>Model Tree</span>
-      <button type="button" class="static-tree-close" id="staticTreeCloseBtn" title="Close tree">×</button>
+      <button type="button" class="static-tree-close" id="staticTreeCloseBtn" title="Close tree">Ã—</button>
     </div>
     <div class="static-tree-tools">
       <input id="staticTreeSearch" class="static-tree-search" type="search" placeholder="Filter components" />

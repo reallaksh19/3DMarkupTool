@@ -1,4 +1,4 @@
-import { runAppConversionIntoState } from './app-conversion-state-bridge.js';
+import { runAppConversionIntoState } from './app-conversion-state-bridge.js?v=bust-cache-4';
 
 export const APP_RUN_CONVERSION_CONTROLLER_SCHEMA = 'AppRunConversionController.v1';
 export const LEGACY_FALLBACK_RENDERER = 'LEGACY_FALLBACK_ONLY';

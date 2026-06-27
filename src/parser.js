@@ -239,13 +239,13 @@ export function parseIsonoteExpectedRecords(model, options = {}) {
         records.push(baseRec(node, note, 'GUIDE', 'LATERAL_DERIVED', loadFromClause(clause), gapMm));
       }
       if (/LINE\s*STOP/.test(c) && !negLineStop) {
-        records.push(baseRec(node, note, 'LINE_STOP', 'PIPE_AXIAL_±', loadFromClause(clause), gapMm));
+        records.push(baseRec(node, note, 'LINE_STOP', 'PIPE_AXIAL_Â±', loadFromClause(clause), gapMm));
       }
       if (/\bLIM\b|\bLIMIT\b/.test(c)) {
-        records.push(baseRec(node, note, 'LIMIT', 'PIPE_AXIAL_±', loadFromClause(clause), gapMm));
+        records.push(baseRec(node, note, 'LIMIT', 'PIPE_AXIAL_Â±', loadFromClause(clause), gapMm));
       }
       if (/HOLD\s*DOWN|HOLDDOWN/.test(c)) {
-        records.push(baseRec(node, note, 'HOLDDOWN', '±Y', loadFromClause(clause), gapMm));
+        records.push(baseRec(node, note, 'HOLDDOWN', 'Â±Y', loadFromClause(clause), gapMm));
       }
       const single = c.match(/SINGLE\s+AXIS\s+([XYZ])/);
       if (single) {
@@ -268,7 +268,7 @@ function baseRec(node, note, family, axis, loadText, gapMm) {
     node: String(Number(node)),
     family,
     axis,
-    sign: axis.includes('±') ? '±' : axis.startsWith('+') ? '+' : axis.startsWith('-') ? '-' : 'UNKNOWN',
+    sign: axis.includes('Â±') ? 'Â±' : axis.startsWith('+') ? '+' : axis.startsWith('-') ? '-' : 'UNKNOWN',
     loadText: loadText || null,
     gapMm: gapMm ?? null,
     sourceNoteName: note

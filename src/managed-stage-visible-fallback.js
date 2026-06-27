@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { cylinderBetween, mat } from './geometry.js?v=professional-viewer-3';
+import { cylinderBetween, mat } from './geometry.js?v=bust-cache-4';
 
 const FALLBACK_GROUP_NAME = 'MANAGED_STAGE_VISIBLE_FALLBACK';
 const MAX_FALLBACK_OBJECTS = 6000;

@@ -1,5 +1,5 @@
-import { RVM_PRIMITIVE_KIND_CODES } from './rvm-primitive-kind-contract.js';
-import { RVM_PRIMITIVE_PAYLOAD_LAYOUTS } from './rvm-primitive-payload-decoder.js';
+import { RVM_PRIMITIVE_KIND_CODES } from './rvm-primitive-kind-contract.js?v=bust-cache-4';
+import { RVM_PRIMITIVE_PAYLOAD_LAYOUTS } from './rvm-primitive-payload-decoder.js?v=bust-cache-4';
 
 export const RVM_CODE4_ELBOW_EMISSION_CANDIDATE_POLICY_SCHEMA = 'RvmCode4ElbowEmissionCandidatePolicy.v1';
 export const RVM_CODE4_ELBOW_PRIMITIVE_CODE = 4;

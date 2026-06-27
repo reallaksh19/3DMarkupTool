@@ -3,55 +3,7 @@ import * as THREE from 'three';
 export const MANAGED_STAGE_SUPPORT_UI_VISUAL_CLEANUP_SCHEMA = 'ManagedStageSupportUiVisualCleanup.v3';
 export const MANAGED_STAGE_SUPPORT_UI_VISUAL_CLEANUP_CACHE_KEY = '20260624-support-ringless-input-panel-1';
 
-export const SUPPORT_MAPPING_POPUP_POLISH_CSS = `
-  .support-mapping-settings-popup {
-    width: min(1560px, calc(100vw - 28px)) !important;
-    max-width: calc(100vw - 28px) !important;
-    max-height: min(92vh, 980px) !important;
-    padding: 18px !important;
-  }
-  .support-mapping-settings-popup-header {
-    margin: -18px -18px 16px !important;
-    padding: 16px 18px !important;
-  }
-  .support-mapping-settings-popup-header h3 {
-    font-size: 18px !important;
-  }
-  .support-mapping-settings-popup-header small {
-    display: block !important;
-    max-width: 1320px !important;
-    line-height: 1.45 !important;
-    color: #dbeafe !important;
-  }
-  .support-mapping-settings-popup-grid {
-    grid-template-columns: minmax(280px, .72fr) minmax(460px, 1.25fr) minmax(560px, 1.6fr) !important;
-    gap: 16px !important;
-  }
-  .support-mapping-settings-popup-grid > section {
-    padding: 14px !important;
-  }
-  .support-mapping-settings-popup-grid textarea {
-    min-height: 150px !important;
-  }
-  [data-support-settings-mapper-host] details,
-  [data-support-settings-mapper-host] pre,
-  [data-support-settings-mapper-host] table,
-  [data-support-settings-isonote-host] table {
-    max-width: 100% !important;
-    overflow: auto !important;
-  }
-  [data-support-settings-isonote-host] table,
-  [data-support-settings-mapper-host] table {
-    font-size: 12px !important;
-  }
-  @media (max-width: 1180px) {
-    .support-mapping-settings-popup-grid {
-      grid-template-columns: 1fr !important;
-    }
-  }
-`;
 
-const NOOP_RAYCAST = function supportPreviewRaycastDisabled() {};
 
 installManagedStageSupportUiVisualCleanup();
 
@@ -63,12 +15,9 @@ export function installManagedStageSupportUiVisualCleanup({ win = globalThis.win
   const api = {
     schema: MANAGED_STAGE_SUPPORT_UI_VISUAL_CLEANUP_SCHEMA,
     cacheKey: MANAGED_STAGE_SUPPORT_UI_VISUAL_CLEANUP_CACHE_KEY,
-    cleanup: (modelRoot = null, reason = 'manual') => cleanupAndPublish({ win, doc, modelRoot, reason }),
-    polishPopup: () => installSupportPopupPolishStyles(doc)
+    cleanup: (modelRoot = null, reason = 'manual') => cleanupAndPublish({ win, doc, modelRoot, reason })
   };
   win.__3D_MARKUP_SUPPORT_UI_VISUAL_CLEANUP__ = api;
-
-  installSupportPopupPolishStyles(doc);
 
   const scheduleCleanup = (reason, modelRoot = null) => {
     win.clearTimeout?.(api.pendingTimer);
@@ -78,8 +27,6 @@ export function installManagedStageSupportUiVisualCleanup({ win = globalThis.win
   win.addEventListener?.('managed-stage:support-preview-auto-apply-result', (event) => scheduleCleanup('support-preview-auto-apply-result', event?.detail?.modelRoot));
   win.addEventListener?.('viewer:managed-stage-json-loaded', (event) => scheduleCleanup('viewer-managed-stage-json-loaded', event?.detail?.modelRoot));
   win.addEventListener?.('viewer:model-loaded', (event) => scheduleCleanup('viewer-model-loaded', event?.detail?.modelRoot));
-  win.addEventListener?.('managed-stage:support-settings-popup-ready', () => installSupportPopupPolishStyles(doc));
-  win.addEventListener?.('markup:app-ready', () => installSupportPopupPolishStyles(doc));
 
   scheduleCleanup('install');
   return api;
@@ -106,18 +53,12 @@ export function cleanupManagedStageSupportPreview(modelRoot, options = {}) {
     if (isSupportRoot) supportRootCount += 1;
     if (isSupportPart) supportPartCount += 1;
 
-    if (disableSupportPicking(object)) raycastDisabledCount += 1;
-
     if (isSupportPart && object?.isMesh && isSupportConeMesh(object)) {
       if (replaceSupportConeWithFacetedOpenCone(object)) coneFacetedOpenReplacedCount += 1;
     }
 
     if (isSupportPart && object?.isMesh && isSupportRoundCylinderMesh(object)) {
       if (replaceSupportCylinderWithBoxPrism(object)) cylinderBoxPrismReplacedCount += 1;
-    }
-
-    if (isSupportPart && data.supportSpringCanCylinder === true && disableSupportPicking(object)) {
-      canCapPickDisabledCount += 1;
     }
   });
 
@@ -135,7 +76,7 @@ export function cleanupManagedStageSupportPreview(modelRoot, options = {}) {
     canCapPickDisabledCount,
     whiteDiscCapPolicy: 'support preview cones are converted to faceted open cones and support preview round cylinders are converted to box prisms; circular disc and annular ring artifacts are not rendered',
     ringArtifactPolicy: 'normal REST/GUIDE/HOLDDOWN/LINE_STOP support glyphs must not use circular cap/rim geometry; spring coils are allowed only for SPRING_CAN below pipe',
-    pickingPolicy: 'preview-only support overlays have raycast disabled so pipe/canvas clicks pass through'
+    pickingPolicy: 'support markers are raycast-enabled for property panel selection'
   });
 
   modelRoot.userData = {
@@ -145,14 +86,7 @@ export function cleanupManagedStageSupportPreview(modelRoot, options = {}) {
   return result;
 }
 
-export function installSupportPopupPolishStyles(doc = globalThis.document) {
-  if (!doc?.head || doc.getElementById('supportPopupPolishStyle')) return false;
-  const style = doc.createElement('style');
-  style.id = 'supportPopupPolishStyle';
-  style.textContent = SUPPORT_MAPPING_POPUP_POLISH_CSS;
-  doc.head.appendChild(style);
-  return true;
-}
+
 
 function cleanupAndPublish({ win, doc, modelRoot = null, reason = 'manual' } = {}) {
   const root = modelRoot || resolveModelRoot(win);
@@ -229,19 +163,6 @@ function replaceSupportCylinderWithBoxPrism(mesh) {
     supportNoCircularCylinderRim: true
   };
   return true;
-}
-
-function disableSupportPicking(object) {
-  if (!object) return false;
-  const alreadyDisabled = object.userData?.supportPreviewPickingDisabled === true;
-  object.raycast = NOOP_RAYCAST;
-  object.userData = {
-    ...(object.userData || {}),
-    supportPreviewPickingDisabled: true,
-    supportPreviewClickThrough: true,
-    supportPreviewRaycastPolicy: 'disabled for preview-only support overlay; click should pass to canvas/model objects'
-  };
-  return !alreadyDisabled;
 }
 
 function isSupportConeMesh(mesh) {

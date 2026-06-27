@@ -187,7 +187,7 @@ function ensurePanel() {
   panel.innerHTML = `
     <div class="static-clipbox-head">
       <span>3D Clip Box</span>
-      <button id="staticClipBoxCloseBtn" type="button" class="static-clipbox-close" title="Close clip box">×</button>
+      <button id="staticClipBoxCloseBtn" type="button" class="static-clipbox-close" title="Close clip box">Ã—</button>
     </div>
     ${axisRow('x', 'X')}
     ${axisRow('y', 'Y')}

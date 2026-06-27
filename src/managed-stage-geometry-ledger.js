@@ -5,14 +5,14 @@ const BRANCH_COLLINEAR_DOT = -0.92;
 
 const COMPONENT_ORDER = ['PIPE', 'BEND', 'TEE', 'OLET_BRANCH', 'FLANGE', 'VALVE', 'RIGID'];
 const COMPONENT_ICONS = Object.freeze({
-  PIPE: '🟦',
-  BEND: '🟡',
-  TEE: '🔱',
-  OLET_BRANCH: '🟣',
-  FLANGE: '⏸️',
-  VALVE: '◀▶',
-  RIGID: '⬛',
-  UNKNOWN: '❓'
+  PIPE: 'ðŸŸ¦',
+  BEND: 'ðŸŸ¡',
+  TEE: 'ðŸ”±',
+  OLET_BRANCH: 'ðŸŸ£',
+  FLANGE: 'â¸ï¸',
+  VALVE: 'â—€â–¶',
+  RIGID: 'â¬›',
+  UNKNOWN: 'â“'
 });
 const COMPONENT_LABELS = Object.freeze({
   PIPE: 'PIPE',
@@ -334,7 +334,7 @@ function buildPasteableComponentBreakdown({ componentSummary, sourceRows, branch
   const totalSources = sourceRows.length;
   const totalCanvas = sourceRows.filter((row) => row.canvasSourceFound).length;
   const lines = [
-    '🧾 BM_CII CANVAS GEOMETRY LEDGER',
+    'ðŸ§¾ BM_CII CANVAS GEOMETRY LEDGER',
     'Focus: Pipe / Bends / Tees / Flanges / Olet / Valves / Rigids',
     '',
     'Icon  Component     JSON Source  Canvas Source  Canvas Cue  Status'
@@ -347,7 +347,7 @@ function buildPasteableComponentBreakdown({ componentSummary, sourceRows, branch
   lines.push(`TOTAL CANVAS SOURCE ROWS FOUND = ${totalCanvas}`);
   lines.push(`INFERRED OLET / BRANCH NODES = ${branchNodes.length}`);
   for (const node of branchNodes) {
-    lines.push(`🟣 Node ${node.nodeId}: main=${node.mainRun.join(' + ') || 'UNRESOLVED'}; branch=${node.branchLegs.join(' + ') || 'none'}; cue=${node.hasBranchCue ? 'yes' : 'missing'}; status=${node.status}`);
+    lines.push(`ðŸŸ£ Node ${node.nodeId}: main=${node.mainRun.join(' + ') || 'UNRESOLVED'}; branch=${node.branchLegs.join(' + ') || 'none'}; cue=${node.hasBranchCue ? 'yes' : 'missing'}; status=${node.status}`);
   }
   return lines.join('\n');
 }

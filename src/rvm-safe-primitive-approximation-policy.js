@@ -2,7 +2,7 @@ import {
   ALLOWED_RVM_PRIMITIVE_KINDS,
   UNEMITTED_RHBG_PRIMITIVE_CODES,
   isRvmPrimitiveKindSupported
-} from './rvm-primitive-kind-contract.js';
+} from './rvm-primitive-kind-contract.js?v=bust-cache-4';
 
 export const RVM_SAFE_PRIMITIVE_APPROXIMATION_POLICY_SCHEMA = 'RvmSafePrimitiveApproximationPolicy.v1';
 export const BLOCKED_DIRECT_RHBG_APPROXIMATION_CODES = Object.freeze([5, 7]);

@@ -82,7 +82,7 @@ function ensureButton() {
   button.className = 'tool-btn icon-text';
   button.title = 'Marquee zoom: drag a rectangle (Z)';
   button.setAttribute('aria-pressed', 'false');
-  button.innerHTML = '<span aria-hidden="true">▣</span><span>Marquee</span>';
+  button.innerHTML = '<span aria-hidden="true">â–£</span><span>Marquee</span>';
 
   const anchor = byId('fitSelectionBtn') || byId('resetCameraBtn');
   anchor?.insertAdjacentElement('afterend', button);

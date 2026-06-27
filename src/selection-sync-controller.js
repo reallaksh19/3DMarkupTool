@@ -246,7 +246,18 @@ function showProperties(data, object) {
     ['Source', normalized.source]
   ];
 
-  const rawRows = Object.entries(data || {}).slice(0, 80);
+  const displayData = { ...(data || {}) };
+  if (displayData.rawSupport) {
+    Object.assign(displayData, displayData.rawSupport);
+    delete displayData.rawSupport;
+  }
+  if (displayData.sourceAttributes) {
+    Object.assign(displayData, displayData.sourceAttributes);
+    delete displayData.sourceAttributes;
+  }
+  delete displayData.sourceAttributesJson;
+  delete displayData.diagnosticsJson;
+  const rawRows = Object.entries(displayData).slice(0, 80);
   body.innerHTML = `
     <div class="selected-card">
       <div class="selected-card-title">
@@ -262,11 +273,21 @@ function showProperties(data, object) {
 
 function normalizeProperties(data, object) {
   const type = valueOf(data, ['TYPE', 'type', 'engineeringType', 'ENGINEERING_TYPE']) || object?.type || 'Object';
-  const id = valueOf(data, ['ID', 'id', 'REF_NO', 'refNo', 'LABEL', 'label']) || object?.name || type;
+  const id = valueOf(data, ['SUPPORT_MARKER_ID', 'supportMarkerId', 'ID', 'id', 'REF_NO', 'refNo', 'LABEL', 'label']) || object?.name || type;
   const lineNo = valueOf(data, ['lineNo', 'LINE_NO', 'lineNumber', 'LINE_NUMBER']) || 'N/A';
   const fromNode = valueOf(data, ['fromNode', 'FROM_NODE', 'node', 'NODE']) || 'N/A';
   const toNode = valueOf(data, ['toNode', 'TO_NODE']) || 'N/A';
-  const source = valueOf(data, ['source', 'SOURCE', 'sourceMode', 'SOURCE_MODE']) || 'N/A';
+  const source = valueOf(data, ['sourceKind', 'SOURCE_KIND', 'source', 'SOURCE', 'sourceMode', 'SOURCE_MODE']) || 'N/A';
+  const title = type === 'SUPPORT_MARKER'
+    ? `${valueOf(data, ['family', 'FAMILY']) || 'Support'} marker at node ${fromNode}`
+    : id;
+  const subtitle = type === 'SUPPORT_MARKER'
+    ? valueOf(data, ['isonoteRawText', 'ISONOTE_RAW_TEXT']) || source
+    : [fromNode !== 'N/A' || toNode !== 'N/A' ? `Node ${fromNode}${toNode !== 'N/A' ? ` -> ${toNode}` : ''}` : '', source].filter(Boolean).join(' / ');
+
+  if (type === 'SUPPORT_MARKER') {
+    return { id, type, lineNo, fromNode, toNode, source, title, subtitle };
+  }
 
   return {
     id,
@@ -275,8 +296,8 @@ function normalizeProperties(data, object) {
     fromNode,
     toNode,
     source,
-    title: id,
-    subtitle: [fromNode !== 'N/A' || toNode !== 'N/A' ? `Node ${fromNode}${toNode !== 'N/A' ? ` → ${toNode}` : ''}` : '', source].filter(Boolean).join(' / ')
+    title,
+    subtitle: [fromNode !== 'N/A' || toNode !== 'N/A' ? `Node ${fromNode}${toNode !== 'N/A' ? ` â†’ ${toNode}` : ''}` : '', source].filter(Boolean).join(' / ')
   };
 }
 

@@ -264,7 +264,7 @@ function readoutText() {
 function menuMarkup() {
   return `
     <button type="button" class="two-row-menu-trigger viewer-clipbox-trigger" data-menu-key="clipBox" aria-haspopup="menu" aria-expanded="false">
-      ${boxIconMarkup()}<span>Box</span><b aria-hidden="true">›</b>
+      ${boxIconMarkup()}<span>Box</span><b aria-hidden="true">â€º</b>
     </button>
     <div class="two-row-menu-popover viewer-clipbox-popover" role="menu">
       <div class="viewer-clipbox-title">3D Clip Box</div>

@@ -70,7 +70,7 @@ function injectStyles() {
       white-space: nowrap;
     }
     .top-menu-btn svg { width: 16px; height: 16px; }
-    .top-menu-btn::after { content: '▾'; font-size: 10px; opacity: .75; margin-left: 2px; }
+    .top-menu-btn::after { content: 'â–¾'; font-size: 10px; opacity: .75; margin-left: 2px; }
     .top-menu-popover {
       position: absolute;
       top: calc(100% + 8px);
@@ -206,7 +206,7 @@ function ensureMenu(id, label, icon, itemIds, note) {
 }
 
 function menuItemHtml(source, id) {
-  const sourceIcon = source?.querySelector('svg, i')?.outerHTML || '<span aria-hidden="true">•</span>';
+  const sourceIcon = source?.querySelector('svg, i')?.outerHTML || '<span aria-hidden="true">â€¢</span>';
   const label = source?.querySelector('span')?.textContent?.trim()
     || source?.textContent?.replace(/\s+/g, ' ').trim()
     || id.replace(/^static|Btn$|download/gi, '');
@@ -298,14 +298,14 @@ function refreshHealth() {
     pct = Math.min(uiPct, 45);
   } else if (exportsReady) {
     state = 'Review ready';
-    detail = `Exports ready · ${enabled}/${loaded || '?'} UI`;
+    detail = `Exports ready Â· ${enabled}/${loaded || '?'} UI`;
   } else if (modelReady) {
     state = 'Model ready';
-    detail = `Inspect / select · ${enabled}/${loaded || '?'} UI`;
+    detail = `Inspect / select Â· ${enabled}/${loaded || '?'} UI`;
     pct = Math.max(pct, 70);
   } else if (/ready|converted/i.test(runtimeText)) {
     state = 'App ready';
-    detail = `Load or convert · ${enabled}/${loaded || '?'} UI`;
+    detail = `Load or convert Â· ${enabled}/${loaded || '?'} UI`;
     pct = Math.max(pct, 55);
   } else {
     state = 'Starting';

@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { createTextPlane } from './geometry.js?v=professional-viewer-3';
+import { createTextPlane } from './geometry.js?v=bust-cache-4';
 
 const STORAGE_KEY = '3dmarkup.navisTagSession.v1';
 const SESSION_LAYER_NAME = 'NAVIS_TAG_SESSION_DISPLAY_LAYER';
@@ -389,7 +389,7 @@ function updateSessionPanel(force = false) {
   state.lastPanelSignature = signature;
   const status = box.querySelector('.navis-tag-session-status');
   if (status) {
-    status.innerHTML = `Active: <b>${activeCount}</b> · Saved: <b>${savedCount}</b> · Restored: <b>${state.restoredTags.length}</b><br><span>Saved at: ${escapeHtml(savedAt)}</span>`;
+    status.innerHTML = `Active: <b>${activeCount}</b> Â· Saved: <b>${savedCount}</b> Â· Restored: <b>${state.restoredTags.length}</b><br><span>Saved at: ${escapeHtml(savedAt)}</span>`;
   }
 }
 

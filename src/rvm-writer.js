@@ -156,9 +156,7 @@ function pyramidPrimitiveBody(primitive, common) {
 }
 
 function spherePrimitiveBody(primitive, common) {
-  // PDMS Code 11 takes Radius
-  const radius = positiveNumber(primitive.diameter, 'diameter') / 2;
-  return concatBuffers(common.concat([float32Body(radius)]));
+  return concatBuffers(common.concat([float32Body(positiveNumber(primitive.diameter, 'diameter'))]));
 }
 
 function assertPrimitiveMaterial(primitive) {

@@ -27,7 +27,8 @@ export const RVM_WRITER_PRIMITIVE_BODY_BUILDERS = new Map([
   ['box', boxPrimitiveBody],
   ['pyramid', pyramidPrimitiveBody],
   ['sphere', spherePrimitiveBody],
-  ['elbow', elbowPrimitiveBody]
+  ['elbow', elbowPrimitiveBody],
+  ['snout', snoutPrimitiveBody]
 ]);
 
 export const RVM_WRITER_PRIMITIVE_LOCAL_BBOX_BUILDERS = new Map([
@@ -35,7 +36,8 @@ export const RVM_WRITER_PRIMITIVE_LOCAL_BBOX_BUILDERS = new Map([
   ['box', boxLocalBbox],
   ['pyramid', pyramidLocalBbox],
   ['sphere', sphereLocalBbox],
-  ['elbow', elbowLocalBbox]
+  ['elbow', elbowLocalBbox],
+  ['snout', snoutLocalBbox]
 ]);
 
 export function writeRvm(exportModel, options = {}) {
@@ -159,6 +161,20 @@ function spherePrimitiveBody(primitive, common) {
   return concatBuffers(common.concat([float32Body(positiveNumber(primitive.diameter, 'diameter'))]));
 }
 
+function snoutPrimitiveBody(primitive, common) {
+  return concatBuffers(common.concat([
+    float32Body(nonNegativeNumber(primitive.radiusBottom, 'radiusBottom')),
+    float32Body(nonNegativeNumber(primitive.radiusTop, 'radiusTop')),
+    float32Body(positiveNumber(primitive.height, 'height')),
+    float32Body(finiteNumberOrDefault(primitive.offsetX, 0, 'offsetX')),
+    float32Body(finiteNumberOrDefault(primitive.offsetY, 0, 'offsetY')),
+    float32Body(0),
+    float32Body(0),
+    float32Body(0),
+    float32Body(0)
+  ]));
+}
+
 function assertPrimitiveMaterial(primitive) {
   if (primitive.material !== undefined && primitive.material !== null && primitive.material !== '') {
     normalizeRvmMaterialId(primitive.material, `RVM primitive material for ${primitive.name || 'UNNAMED_PRIMITIVE'}`);
@@ -202,6 +218,25 @@ function pyramidLocalBbox(primitive) {
 function sphereLocalBbox(primitive) {
   const radius = positiveNumber(primitive.diameter, 'diameter') / 2;
   return [-radius, -radius, -radius, radius, radius, radius];
+}
+
+function snoutLocalBbox(primitive) {
+  const radiusBottom = nonNegativeNumber(primitive.radiusBottom, 'radiusBottom');
+  const radiusTop = nonNegativeNumber(primitive.radiusTop, 'radiusTop');
+  if (radiusBottom <= 0 && radiusTop <= 0) {
+    throw new Error('Invalid RVM snout radii: at least one radius must be positive');
+  }
+  const height = positiveNumber(primitive.height, 'height');
+  const offsetX = finiteNumberOrDefault(primitive.offsetX, 0, 'offsetX');
+  const offsetY = finiteNumberOrDefault(primitive.offsetY, 0, 'offsetY');
+  return [
+    Math.min(-radiusBottom, offsetX - radiusTop),
+    Math.min(-radiusBottom, offsetY - radiusTop),
+    -height / 2,
+    Math.max(radiusBottom, offsetX + radiusTop),
+    Math.max(radiusBottom, offsetY + radiusTop),
+    height / 2
+  ];
 }
 
 function createChunkWriter() {
@@ -315,6 +350,23 @@ function positiveNumber(value, fieldName) {
   const parsed = Number(value);
   if (!Number.isFinite(parsed) || parsed <= 0) {
     throw new Error(`Invalid RVM ${fieldName}: expected positive number`);
+  }
+  return parsed;
+}
+
+function nonNegativeNumber(value, fieldName) {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed < 0) {
+    throw new Error(`Invalid RVM ${fieldName}: expected non-negative number`);
+  }
+  return parsed;
+}
+
+function finiteNumberOrDefault(value, defaultValue, fieldName) {
+  if (value === undefined || value === null || value === '') return defaultValue;
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) {
+    throw new Error(`Invalid RVM ${fieldName}: expected finite number`);
   }
   return parsed;
 }

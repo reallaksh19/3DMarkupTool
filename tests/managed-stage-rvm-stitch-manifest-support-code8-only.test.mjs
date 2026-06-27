@@ -10,10 +10,12 @@ const result = convertManagedStageJsonToRvmAtt(JSON.stringify(createBmCiiManaged
     supportRecordsEmittedToRvm: 12,
     supportRvmPrimitiveCount: 42,
     code1: 0,
-    code4: 0,
-    code8: 157,
+    code4: 7,
+    code7: 6,
+    code8: 110,
+    code9: 6,
     cntbCount: 56,
-    primCount: 157,
+    primCount: 129,
     supportMaxGlyphExtentMm: 100,
     supportMaxClusterOffsetMm: 30,
     supportMaxPrimitiveSpanMm: 60,
@@ -29,7 +31,7 @@ assert.equal(manifest.supportOverlayPrimitives.filter((primitive) => primitive.e
 assert.equal(manifest.supportOverlayPrimitives.filter((primitive) => primitive.kind === 'pyramid').length, 0);
 assert.equal(manifest.supportOverlayPrimitives.filter((primitive) => primitive.emittedCode === 8).length, 42);
 assert.ok(manifest.supportOverlayPrimitives.every((primitive) => primitive.expectedCode === primitive.emittedCode));
-assert.deepEqual(result.audit.primitiveHistogram, { 8: 157 });
+assert.deepEqual(result.audit.primitiveHistogram, { 4: 7, 7: 6, 8: 110, 9: 6 });
 assert.deepEqual(result.audit.supportRvmExportAudit.supportPrimitiveCodeHistogram, { 8: 42 });
 assert.deepEqual(result.audit.supportRvmExportAudit.supportForbiddenPrimitiveCodesPresent, []);
 assert.equal(result.audit.supportRvmExportAudit.supportConePrimitiveCount, 0);
@@ -46,8 +48,8 @@ assert.ok(componentAudit.flangeNodeCount >= 8, 'BM_CII fixture must keep flange/
 assert.equal(componentAudit.valveNodeCount, 6);
 assert.ok(componentAudit.weldNeckFlangePrimitiveCount >= 12, 'BM_CII fixture must keep weld-neck flange primitive coverage');
 assert.equal(componentAudit.ballValvePrimitiveCount, 30);
-assert.equal(manifest.geometryPrimitiveCount, 115);
-assert.equal(manifest.primitiveCount, 157);
+assert.equal(manifest.geometryPrimitiveCount, 87);
+assert.equal(manifest.primitiveCount, 129);
 
 const supportPrimitives = result.exportModel.audit.supportRvmExportAudit.nodes.flatMap((node) => node.primitives);
 assert.equal(supportPrimitives.filter((primitive) => primitive.supportConeFanBlocked === true).length, 34);
@@ -57,4 +59,4 @@ assert.ok(supportPrimitives.every((primitive) => primitive.kind === 'cylinder'))
 assert.ok(supportPrimitives.every((primitive) => primitive.supportPointCone === false));
 assert.ok(supportPrimitives.every((primitive) => primitive.supportPrimitiveCode === 8));
 
-console.log('managed-stage stitch manifest emits support overlays and component symbols as code-8 RVM primitives');
+console.log('managed-stage stitch manifest keeps support overlays code-8 while geometry uses richer RVM primitive codes');

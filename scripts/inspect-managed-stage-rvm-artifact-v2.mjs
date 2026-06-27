@@ -56,7 +56,7 @@ function parseArgs(values) {
   return out;
 }
 function bmCiiExpectations() {
-  return { geometryComponents: 40, supportRecordsSkippedFromGeometry: 12, supportRecordsEmittedToRvm: 12, supportRvmPrimitiveCount: 42, code1: 0, code4: 0, code8: 157, cntbCount: 56, primCount: 157, supportMaxGlyphExtentMm: 100, supportMaxClusterOffsetMm: 30, supportMaxPrimitiveSpanMm: 60, supportMaxBarRadiusMm: 3 };
+  return { geometryComponents: 40, supportRecordsSkippedFromGeometry: 12, supportRecordsEmittedToRvm: 12, supportRvmPrimitiveCount: 42, code1: 0, code4: 7, code7: 6, code8: 110, code9: 6, cntbCount: 56, primCount: 129, supportMaxGlyphExtentMm: 100, supportMaxClusterOffsetMm: 30, supportMaxPrimitiveSpanMm: 60, supportMaxBarRadiusMm: 3 };
 }
 function renderCsv(rows) {
   if (!rows.length) return '';

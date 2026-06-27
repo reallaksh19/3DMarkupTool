@@ -3,31 +3,12 @@ import { distance, point3 } from './managed-stage-topology-audit.js?v=bust-cache
 const EPS_MM = 0.001;
 const SUPPORTED_DTXR = new Set(['PIPE', 'UNSPECIFIED', 'BEND', 'FLANGE', 'FLANGE_PAIR', 'REDUCER', 'VALVE', 'FLANGED_VALVE']);
 const DTXR_ALIASES = new Map([
-  ['FLAN', 'FLANGE'],
-  ['FLG', 'FLANGE'],
-  ['FLNG', 'FLANGE'],
-  ['WN', 'FLANGE'],
-  ['WNF', 'FLANGE'],
-  ['WELDNECK', 'FLANGE'],
-  ['WELD_NECK', 'FLANGE'],
-  ['WELDNECK_FLANGE', 'FLANGE'],
-  ['WELD_NECK_FLANGE', 'FLANGE'],
-  ['RED', 'REDUCER'],
-  ['REDUC', 'REDUCER'],
-  ['REDUCER', 'REDUCER'],
-  ['CONCENTRIC_REDUCER', 'REDUCER'],
-  ['ECCENTRIC_REDUCER', 'REDUCER'],
-  ['CONC_REDUCER', 'REDUCER'],
-  ['ECC_REDUCER', 'REDUCER'],
-  ['VALV', 'VALVE'],
-  ['BV', 'VALVE'],
-  ['BALL', 'VALVE'],
-  ['BALLVALVE', 'VALVE'],
-  ['BALL_VALVE', 'VALVE'],
-  ['FLANGEDVALVE', 'FLANGED_VALVE'],
-  ['FLANGED_VALVE', 'FLANGED_VALVE'],
-  ['FLANGEDBALLVALVE', 'FLANGED_VALVE'],
-  ['FLANGED_BALL_VALVE', 'FLANGED_VALVE']
+  ['FLAN', 'FLANGE'], ['FLG', 'FLANGE'], ['FLNG', 'FLANGE'], ['WN', 'FLANGE'], ['WNF', 'FLANGE'],
+  ['WELDNECK', 'FLANGE'], ['WELD_NECK', 'FLANGE'], ['WELDNECK_FLANGE', 'FLANGE'], ['WELD_NECK_FLANGE', 'FLANGE'],
+  ['RED', 'REDUCER'], ['REDUC', 'REDUCER'], ['REDUCER', 'REDUCER'], ['CONCENTRIC_REDUCER', 'REDUCER'],
+  ['ECCENTRIC_REDUCER', 'REDUCER'], ['CONC_REDUCER', 'REDUCER'], ['ECC_REDUCER', 'REDUCER'],
+  ['VALV', 'VALVE'], ['BV', 'VALVE'], ['BALL', 'VALVE'], ['BALLVALVE', 'VALVE'], ['BALL_VALVE', 'VALVE'],
+  ['FLANGEDVALVE', 'FLANGED_VALVE'], ['FLANGED_VALVE', 'FLANGED_VALVE'], ['FLANGEDBALLVALVE', 'FLANGED_VALVE'], ['FLANGED_BALL_VALVE', 'FLANGED_VALVE']
 ]);
 
 export function buildManagedStageGeometryContractSet(profileOrRecords, options = {}) {
@@ -49,12 +30,6 @@ export function buildManagedStageGeometryContractSet(profileOrRecords, options =
       skippedContracts.push(warning);
     }
   }
-  const audit = auditManagedStageGeometryContracts(contracts, {
-    sourceGeometryRecordCount: geometryRecords.length,
-    supportRecordsSkippedFromGeometry: supportRecords.length,
-    nonBlockingWarnings: warnings,
-    skippedContracts
-  });
   return {
     schema: 'ManagedStageGeometryContractSet.v1',
     units: 'mm',
@@ -62,15 +37,18 @@ export function buildManagedStageGeometryContractSet(profileOrRecords, options =
     sourceGeometryRecordCount: geometryRecords.length,
     supportRecordsSkippedFromGeometry: supportRecords.length,
     contracts,
-    audit
+    audit: auditManagedStageGeometryContracts(contracts, {
+      sourceGeometryRecordCount: geometryRecords.length,
+      supportRecordsSkippedFromGeometry: supportRecords.length,
+      nonBlockingWarnings: warnings,
+      skippedContracts
+    })
   };
 }
 
 export function createManagedStageGeometryContract(record, elementIndex = 0, options = {}) {
   const a = record.attributes || {};
-  if (record.type === 'ATTA' || a.TYPE === 'ATTA') {
-    throw new Error(`Support/restraint record is not a geometry contract: ${record.name || a.NAME || 'UNNAMED'}`);
-  }
+  if (record.type === 'ATTA' || a.TYPE === 'ATTA') throw new Error(`Support/restraint record is not a geometry contract: ${record.name || a.NAME || 'UNNAMED'}`);
   const sourceDtxr = a.DTXR || a.RAW_TYPE || record.type || 'UNKNOWN';
   let dtxr = normalizeManagedStageGeometryDtxr(sourceDtxr);
   const warnings = [];
@@ -134,7 +112,7 @@ export function createManagedStageGeometryContract(record, elementIndex = 0, opt
     if (!(bendRadiusMm > 0)) bendIssues.push(`Missing/invalid bend radius for ${contract.name}`);
     if (!(bendAngleDeg > 0)) bendIssues.push(`Missing/invalid bend angle for ${contract.name}`);
     if (bendIssues.length) {
-      if (!warningOnly(options)) throw error;
+      if (!warningOnly(options)) throw new Error(bendIssues[0]);
       for (const issue of bendIssues) warnings.push(geometryWarning('bend-arc-degraded-to-source-route', contract.name, issue));
       contract.centerlineKind = 'line';
       contract.excludeCode4Bend = true;
@@ -150,7 +128,6 @@ export function createManagedStageGeometryContract(record, elementIndex = 0, opt
       };
     }
   }
-
   return contract;
 }
 
@@ -164,7 +141,6 @@ export function auditManagedStageGeometryContracts(contracts = [], options = {})
   const missingNodes = [];
   const degradedBends = [];
   let maxAxisLengthError = 0;
-
   for (const contract of contracts) {
     dtxrHistogram[contract.dtxr] = (dtxrHistogram[contract.dtxr] || 0) + 1;
     classHistogram[contract.componentClass] = (classHistogram[contract.componentClass] || 0) + 1;
@@ -178,7 +154,6 @@ export function auditManagedStageGeometryContracts(contracts = [], options = {})
     maxAxisLengthError = Math.max(maxAxisLengthError, axisError);
     if (axisError > EPS_MM) invalidAxis.push(contract.name);
   }
-
   return {
     schema: 'ManagedStageGeometryContractAudit.v1',
     toleranceMm: EPS_MM,
@@ -211,19 +186,12 @@ export function assertManagedStageGeometryContractAudit(audit, expectations = {}
   if (audit.missingNodes?.length) throw new Error(`Geometry contract missing nodes: ${audit.missingNodes.join(', ')}`);
   if (audit.allEndpointLocked !== true) throw new Error('Geometry contracts must be endpoint locked');
   if (audit.allEmitGeometry !== true) throw new Error('Geometry contracts must all emit geometry');
-  if (expectations.contractCount !== undefined && audit.contractCount !== expectations.contractCount) {
-    throw new Error(`Geometry contract count mismatch: expected ${expectations.contractCount}, got ${audit.contractCount}`);
-  }
-  if (expectations.supportRecordsSkippedFromGeometry !== undefined && audit.supportRecordsSkippedFromGeometry !== expectations.supportRecordsSkippedFromGeometry) {
-    throw new Error(`Support skip count mismatch: expected ${expectations.supportRecordsSkippedFromGeometry}, got ${audit.supportRecordsSkippedFromGeometry}`);
-  }
+  if (expectations.contractCount !== undefined && audit.contractCount !== expectations.contractCount) throw new Error(`Geometry contract count mismatch: expected ${expectations.contractCount}, got ${audit.contractCount}`);
+  if (expectations.supportRecordsSkippedFromGeometry !== undefined && audit.supportRecordsSkippedFromGeometry !== expectations.supportRecordsSkippedFromGeometry) throw new Error(`Support skip count mismatch: expected ${expectations.supportRecordsSkippedFromGeometry}, got ${audit.supportRecordsSkippedFromGeometry}`);
   return { ok: true, contractCount: audit.contractCount, dtxrHistogram: audit.dtxrHistogram };
 }
 
-export function normalizeManagedStageGeometryDtxr(value) {
-  const token = normalizeDtxrToken(value);
-  return DTXR_ALIASES.get(token) || token;
-}
+export function normalizeManagedStageGeometryDtxr(value) { return DTXR_ALIASES.get(normalizeDtxrToken(value)) || normalizeDtxrToken(value); }
 
 export function componentClassForDtxr(dtxr) {
   const normalized = normalizeManagedStageGeometryDtxr(dtxr);
@@ -238,55 +206,13 @@ export function componentClassForDtxr(dtxr) {
   return 'UNKNOWN';
 }
 
-function normalizeDtxrToken(value) {
-  return String(value || 'UNKNOWN')
-    .trim()
-    .toUpperCase()
-    .replace(/[^A-Z0-9]+/g, '_')
-    .replace(/^_+|_+$/g, '') || 'UNKNOWN';
-}
-
-function warningOnly(options = {}) {
-  return options.nonBlockingGeometryGates === true || options.warningOnlyManagedStageGates === true;
-}
-
-function geometryWarning(code, elementName, message) {
-  return { code, severity: 'warning', elementName, message };
-}
-
-function parseMm(value) {
-  const parsed = parseOptionalMm(value);
-  if (!(parsed > 0)) return NaN;
-  return parsed;
-}
-
-function parseOptionalMm(value) {
-  if (value === undefined || value === null || value === '') return null;
-  const match = String(value).match(/-?\d+(?:\.\d+)?/);
-  if (!match) return null;
-  return Number(match[0]);
-}
-
-function parseOptionalNumber(value) {
-  if (value === undefined || value === null || value === '') return null;
-  const number = Number(String(value).replace(/[^0-9.+-]/g, ''));
-  return Number.isFinite(number) ? number : null;
-}
-
-function normalize(vector) {
-  const length = Math.hypot(vector[0], vector[1], vector[2]);
-  if (!(length > 0)) throw new Error('Cannot normalize zero-length vector');
-  return vector.map((entry) => entry / length);
-}
-
-function vsub(a, b) {
-  return [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
-}
-
-function midpoint(a, b) {
-  return [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2, (a[2] + b[2]) / 2];
-}
-
-function round(value) {
-  return Math.round(Number(value || 0) * 1000) / 1000;
-}
+function normalizeDtxrToken(value) { return String(value || 'UNKNOWN').trim().toUpperCase().replace(/[^A-Z0-9]+/g, '_').replace(/^_+|_+$/g, '') || 'UNKNOWN'; }
+function warningOnly(options = {}) { return options.nonBlockingGeometryGates === true || options.warningOnlyManagedStageGates === true; }
+function geometryWarning(code, elementName, message) { return { code, severity: 'warning', elementName, message }; }
+function parseMm(value) { const parsed = parseOptionalMm(value); return parsed > 0 ? parsed : NaN; }
+function parseOptionalMm(value) { if (value === undefined || value === null || value === '') return null; const match = String(value).match(/-?\d+(?:\.\d+)?/); return match ? Number(match[0]) : null; }
+function parseOptionalNumber(value) { if (value === undefined || value === null || value === '') return null; const number = Number(String(value).replace(/[^0-9.+-]/g, '')); return Number.isFinite(number) ? number : null; }
+function normalize(vector) { const length = Math.hypot(vector[0], vector[1], vector[2]); if (!(length > 0)) throw new Error('Cannot normalize zero-length vector'); return vector.map((entry) => entry / length); }
+function vsub(a, b) { return [a[0] - b[0], a[1] - b[1], a[2] - b[2]]; }
+function midpoint(a, b) { return [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2, (a[2] + b[2]) / 2]; }
+function round(value) { return Math.round(Number(value || 0) * 1000) / 1000; }

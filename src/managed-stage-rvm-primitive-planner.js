@@ -4,6 +4,7 @@ import { solveCode4ElbowGeometry } from './rvm-code4-elbow-geometry-solver.js?v=
 import { planManagedStagePipingComponentRecipe } from './managed-stage-piping-component-recipes.js?v=bust-cache-4';
 
 const CODE4_RADIUS_INFLATION_TOLERANCE_MM = 0.001;
+const CODE4_PAYLOAD_TOLERANCE_MM = 0.001;
 
 export const MANAGED_STAGE_RVM_MATERIALS = Object.freeze({
   ROOT: 1,
@@ -101,6 +102,26 @@ function planManagedStageExplicitCode4Bend(contract, pipeRadius) {
     }
   };
   const solved = solveCode4ElbowGeometry(synthetic, { preserveDeclaredRadius: true });
+  if (!isValidCode4PayloadGeometry(solved)) {
+    const degraded = {
+      ...contract,
+      excludeCode4Bend: true,
+      code4BendExclusionReason: `Recovered code-4 bend plan is not payload-safe: bendRadius=${solved.bendRadiusMm} mm, tubeRadius=${solved.tubeRadiusMm} mm`,
+      genericInputXmlBend: contract.genericInputXmlBend || {
+        mode: 'code8-source-route-cylinder',
+        segments: [{ role: 'source-route', startMm: contract.startMm, endMm: contract.endMm }],
+        originalBendRadiusMm: contract.arc?.bendRadiusMm || null
+      }
+    };
+    return planGenericInputXmlBendCylinders(degraded, pipeRadius).map((primitive) => ({
+      ...primitive,
+      managedStageCode4BendPlan: true,
+      code4BendPlanNode: plan.node,
+      code4BendPlanAdjacentName: plan.adjacentName,
+      code4BendPlanDegraded: true,
+      code4BendPlanDegradationReason: degraded.code4BendExclusionReason
+    }));
+  }
   return [{
     ...code4ElbowPrimitiveFromSolved(synthetic, pipeRadius, solved),
     name: `${contract.name}_STRUCTURAL_CODE4_BEND`,
@@ -303,6 +324,7 @@ function planCode4ElbowOrSourceRoute(contract, pipeRadius, options = {}) {
 }
 
 function code4ElbowPrimitiveFromSolved(contract, pipeRadius, solved) {
+  const tubeRadius = Number(solved.tubeRadiusMm ?? pipeRadius);
   return {
     kind: 'elbow',
     name: `${contract.name}_BEND`,
@@ -313,7 +335,7 @@ function code4ElbowPrimitiveFromSolved(contract, pipeRadius, solved) {
     direction: solved.direction,
     basis: solved.basis,
     bendRadius: solved.bendRadiusMm,
-    tubeRadius: pipeRadius,
+    tubeRadius,
     sweepAngleRad: solved.sweepAngleRad,
     material: MANAGED_STAGE_RVM_MATERIALS.FITTING,
     localBbox: solved.localBbox,
@@ -335,6 +357,13 @@ function code4ElbowPrimitiveFromSolved(contract, pipeRadius, solved) {
     sourceElementId: contract.sourceElementId || contract.elementId || '',
     orientationAssumption: solved.orientationAssumption
   };
+}
+
+function isValidCode4PayloadGeometry(solved = {}) {
+  const bendRadius = Number(solved.bendRadiusMm);
+  const tubeRadius = Number(solved.tubeRadiusMm);
+  const sweepAngle = Number(solved.sweepAngleRad);
+  return Number.isFinite(bendRadius) && Number.isFinite(tubeRadius) && Number.isFinite(sweepAngle) && bendRadius + CODE4_PAYLOAD_TOLERANCE_MM >= tubeRadius && bendRadius > 0 && tubeRadius > 0 && sweepAngle > 0;
 }
 
 function asGeometryContract(recordOrContract, elementIndex) {

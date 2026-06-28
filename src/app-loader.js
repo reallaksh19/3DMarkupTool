@@ -1,5 +1,6 @@
 const APP_LOADER_VERSION = 'input-persistent-root-card-20260628';
 const APP_MODULE_URL = `./app.js?v=${APP_LOADER_VERSION}`;
+const LOG_COPY_MODULE_URL = `./log-copy-controller.js?v=${APP_LOADER_VERSION}`;
 const CLIP_HOOK_MODULE_URL = `./clip-render-hook.js?v=${APP_LOADER_VERSION}`;
 const FRESH_CLIP_MODULE_URL = `./fresh-clip-controller.js?v=${APP_LOADER_VERSION}`;
 const CANVAS_TOOL_MODE_GUARD_MODULE_URL = `./canvas-tool-mode-guard.js?v=${APP_LOADER_VERSION}`;
@@ -31,6 +32,7 @@ scheduleAfterFirstPaint(startViewerApp);
 async function startViewerApp() {
   if (window.__3D_MARKUP_APP_BOOT_STARTED__) return;
   window.__3D_MARKUP_APP_BOOT_STARTED__ = true;
+  scheduleIdle(loadLogCopyController, 40);
   if (APP_BUNDLE_URL) { loadBundledApp(); return; }
   await loadClipRenderHook();
   const installGuard = window.__3D_MARKUP_INSTALL_STARTUP_FREEZE_GUARD__;
@@ -41,6 +43,7 @@ async function startViewerApp() {
 function loadBundledApp() { setRuntimeStatus('Viewer Loading'); window.__3D_MARKUP_BUNDLED_APP_IMPORT_STARTED__ = true; import(APP_BUNDLE_URL).then(() => { markAppLoaded({ bundled: true }); scheduleIdle(loadCanvasToolModeGuard, 50); scheduleIdle(loadManagedStageJsonUiController, 100); }).catch(handleAppBootError); }
 function markAppLoaded({ bundled }) { window.__3D_MARKUP_APP_BOOT_COMPLETE__ = true; window.__3D_MARKUP_APP_BOOT_BUNDLED__ = Boolean(bundled); window.dispatchEvent(new CustomEvent('viewer:app-module-loaded', { detail: { version: APP_LOADER_VERSION, deferred: true, bundled: Boolean(bundled) } })); }
 function handleAppBootError(error) { console.error('[3DMarkupTool] Deferred app module failed.', error); window.__3D_MARKUP_APP_BOOT_FAILED__ = true; setRuntimeStatus('Viewer Failed'); window.dispatchEvent(new CustomEvent('viewer:app-module-failed', { detail: { version: APP_LOADER_VERSION, bundled: Boolean(APP_BUNDLE_URL), reason: error && (error.message || String(error)) } })); }
+function loadLogCopyController() { if (window.__3D_MARKUP_LOG_COPY_IMPORT_STARTED__) return; window.__3D_MARKUP_LOG_COPY_IMPORT_STARTED__ = true; import(LOG_COPY_MODULE_URL).catch((error) => { console.warn('[3DMarkupTool] Log copy controller skipped.', error); }); }
 function loadClipRenderHook() { if (window.__3D_MARKUP_CLIP_RENDER_HOOK_READY__) return Promise.resolve(true); if (window.__3D_MARKUP_CLIP_RENDER_HOOK_IMPORT__) return window.__3D_MARKUP_CLIP_RENDER_HOOK_IMPORT__; window.__3D_MARKUP_CLIP_RENDER_HOOK_IMPORT__ = import(CLIP_HOOK_MODULE_URL).then(() => { window.__3D_MARKUP_CLIP_RENDER_HOOK_READY__ = true; return true; }).catch((error) => { console.warn('[3DMarkupTool] Clip render hook skipped before app boot.', error); window.dispatchEvent(new CustomEvent('viewer:clip-render-hook-skipped', { detail: { version: APP_LOADER_VERSION, reason: error && (error.message || String(error)) } })); return false; }); return window.__3D_MARKUP_CLIP_RENDER_HOOK_IMPORT__; }
 function loadCanvasToolModeGuard() { if (window.__3D_MARKUP_CANVAS_TOOL_MODE_GUARD_IMPORT_STARTED__) return; window.__3D_MARKUP_CANVAS_TOOL_MODE_GUARD_IMPORT_STARTED__ = true; import(CANVAS_TOOL_MODE_GUARD_MODULE_URL).catch((error) => { console.warn('[3DMarkupTool] Canvas tool mode guard skipped.', error); }); }
 function loadFreshClipController() { if (window.__3D_MARKUP_FRESH_CLIP_CONTROLLER_IMPORT_STARTED__) return; window.__3D_MARKUP_FRESH_CLIP_CONTROLLER_IMPORT_STARTED__ = true; import(FRESH_CLIP_MODULE_URL).catch((error) => { console.warn('[3DMarkupTool] Fresh clip controller skipped.', error); }); }

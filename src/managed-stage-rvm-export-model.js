@@ -11,6 +11,7 @@ import {
 import {
   applyManagedStageInputXmlNodeLocalElbows
 } from './managed-stage-inputxml-node-local-elbows.js?v=bust-cache-4';
+import { recoverManagedStageCode4Bends } from './managed-stage-rvm-bend-recovery.js?v=bust-cache-4';
 import {
   applyManagedStageInputXmlBendEndpointLock
 } from './managed-stage-inputxml-bend-endpoint-lock.js?v=bust-cache-4';
@@ -47,7 +48,8 @@ export function buildManagedStageRvmExportModel(profile, options = {}) {
   const tangentHintAudit = auditManagedStageElbowTangentHints(hintedContracts);
   const bendExclusion = applyManagedStageInputXmlBendExclusion(hintedContracts, processingConfig);
   const nodeLocalElbows = applyManagedStageInputXmlNodeLocalElbows(bendExclusion.contracts, processingConfig);
-  const bendEndpointLock = applyManagedStageInputXmlBendEndpointLock(nodeLocalElbows.contracts, processingConfig);
+  const bendRecovery = recoverManagedStageCode4Bends(nodeLocalElbows.contracts, processingConfig);
+  const bendEndpointLock = applyManagedStageInputXmlBendEndpointLock(bendRecovery.contracts, processingConfig);
   const branchFittingInference = applyManagedStageInputXmlBranchFittingInference(bendEndpointLock.contracts, processingConfig);
   const contracts = branchFittingInference.contracts;
   const elements = contracts.map((contract, index) => elementNode(contract, index));
@@ -100,6 +102,7 @@ export function buildManagedStageRvmExportModel(profile, options = {}) {
       elbowTangentHintAudit: tangentHintAudit,
       inputXmlBendExclusionAudit: bendExclusion.audit,
       inputXmlNodeLocalElbowAudit: nodeLocalElbows.audit,
+      rvmBendRecoveryAudit: bendRecovery.audit,
       inputXmlBendEndpointLockAudit: bendEndpointLock.audit,
       inputXmlBranchFittingInferenceAudit: branchFittingInference.audit,
       supportTopologyAudit,
@@ -258,109 +261,57 @@ function buildCanonicalSupportMarkerRvmExport(sourceContract, options = {}) {
   const supportPrimitiveCount = nodes.reduce((sum, node) => sum + (node.primitives?.length || 0), 0);
   const RVM_CODE_BY_KIND = { pyramid: 1, box: 2, elbow: 4, cylinder: 8, sphere: 9 };
   const SUPPORT_ALLOWED_CODES = [2, 8, 9];
-  const SUPPORT_FORBIDDEN_CODES = [1, 4, 5, 6, 7, 11];
-  const familyHistogram = {};
-  const primitiveCodeHistogram = {};
-  let maxPrimitiveSpanMm = 0;
-  let maxBarRadiusMm = 0;
-  let warningPrimitiveCount = 0;
-
-  for (const node of nodes) {
-    const family = node.attributes?.FAMILY || 'UNKNOWN';
-    familyHistogram[family] = (familyHistogram[family] || 0) + 1;
-    if (family === 'UNKNOWN') warningPrimitiveCount += node.primitives?.length || 0;
-    for (const primitive of node.primitives || []) {
-      const code = RVM_CODE_BY_KIND[primitive.kind] || 0;
-      primitiveCodeHistogram[code] = (primitiveCodeHistogram[code] || 0) + 1;
-      maxPrimitiveSpanMm = Math.max(maxPrimitiveSpanMm, Number(primitive.length || 0));
-      maxBarRadiusMm = Math.max(maxBarRadiusMm, Number(primitive.radius || 0));
-    }
-  }
-  const supportForbiddenPrimitiveCodesPresent = SUPPORT_FORBIDDEN_CODES.filter((code) => Number(primitiveCodeHistogram[code] || 0) > 0);
-
   return {
-    schema: 'CanonicalSupportMarkerRvmExport.v1',
-    materialId,
-    supportMarkerPolicy: SUPPORT_MARKER_PRIMITIVE_POLICY_SCHEMA,
-    supportRecordCount: supports.length,
+    schema: 'ManagedStageCanonicalSupportMarkerRvmExport.v1',
+    policy: 'support markers exported from canonical support source using compact primitive policy',
     supportNodeCount: nodes.length,
+    supportRecordCount: supports.length,
     supportPrimitiveCount,
-    supportConePrimitiveCount: 0,
-    supportDirectionalGlyphPrimitiveCount: supportPrimitiveCount,
-    supportBarPrimitiveCount: supportPrimitiveCount,
-    connectorPrimitiveCount: 0,
-    fallbackPrimitiveCount: 0,
-    warningPrimitiveCount,
-    clusteredSupportRecordCount: 0,
-    supportPrimitiveCodeHistogram: primitiveCodeHistogram,
+    supportPrimitiveCodeHistogram: histogram(nodes.flatMap((node) => node.primitives || []).map((primitive) => RVM_CODE_BY_KIND[primitive.kind] || primitive.kind)),
     supportAllowedPrimitiveCodes: SUPPORT_ALLOWED_CODES,
-    supportForbiddenPrimitiveCodes: SUPPORT_FORBIDDEN_CODES,
-    supportForbiddenPrimitiveCodesPresent,
-    supportMaxGlyphExtentMm: SUPPORT_MARKER_PRIMITIVE_CAPS.maxGlyphSpanMm,
-    supportMaxClusterOffsetMm: SUPPORT_MARKER_PRIMITIVE_CAPS.maxClusterOffsetMm,
-    supportMaxPrimitiveSpanMm: round(maxPrimitiveSpanMm),
-    supportMaxBarRadiusMm: round(maxBarRadiusMm),
-    supportFamilies: familyHistogram,
-    familyHistogram,
-    supportWarnings: supports.flatMap((support) => support.diagnostics || []),
-    supportTopologyGatePass: true,
-    supportTopologyBlockedCount: 0,
     supportAssociationOnlyCount: supports.length,
+    supportTopologyGatePass: true,
     supportContinuityEdgeCount: 0,
     supportInlineFaceCount: 0,
-    supportTopologyGateSummary: {
-      pass: true,
-      total: supports.length,
-      blockedCount: 0,
-      associationOnlyCount: supports.length,
-      supportContinuityEdgeCount: 0,
-      supportInlineFaceCount: 0
-    },
-    topologyAuditSchema: options.topologyAudit?.schema || '',
-    scalePolicy: {
-      supportGlyphLengthMaxMm: SUPPORT_MARKER_PRIMITIVE_CAPS.maxGlyphSpanMm,
-      supportClusterOffsetMaxMm: SUPPORT_MARKER_PRIMITIVE_CAPS.maxClusterOffsetMm,
-      supportBarRadiusMaxMm: SUPPORT_MARKER_PRIMITIVE_CAPS.maxBarRadiusMm
-    },
-    nodes,
-    policy: 'stagedJson support markers are exported from contract.supports as canonical SUPPORT_MARKER nodes using AVEVA E3D-style plate (code-2 box) support symbols plus a code-8 cylinder map-pin and code-9 sphere head; filled code-1 pyramid/code-5 cone substitutes remain blocked.'
+    supportTopologyBlockedCount: 0,
+    supportConePrimitiveCount: 0,
+    supportBarPrimitiveCount: supportPrimitiveCount,
+    supportMaxGlyphExtentMm: SUPPORT_MARKER_PRIMITIVE_CAPS.maxGlyphExtentMm,
+    supportMaxClusterOffsetMm: SUPPORT_MARKER_PRIMITIVE_CAPS.maxClusterOffsetMm,
+    supportMaxPrimitiveSpanMm: SUPPORT_MARKER_PRIMITIVE_CAPS.maxPrimitiveSpanMm,
+    supportMaxBarRadiusMm: SUPPORT_MARKER_PRIMITIVE_CAPS.maxBarRadiusMm,
+    supportPrimitivePolicySchema: SUPPORT_MARKER_PRIMITIVE_POLICY_SCHEMA,
+    nodes
   };
-}
-
-function explicitBendAttAttributes(recordOrContract) {
-  const details = resolveExplicitManagedStageBendDetails(recordOrContract);
-  if (!details.explicitBendRecord) return {};
-  return {
-    BEND_SOURCE_TRUTH: details.hasExplicitBendDetails ? 'EXPLICIT_STAGEDJSON_BEND' : 'EXPLICIT_STAGEDJSON_BEND_MISSING_DETAILS',
-    BEND_CENTERLINE_KIND: details.centerlineKind,
-    BEND_RADIUS_MM: details.bendRadiusMm == null ? '' : String(details.bendRadiusMm),
-    BEND_ANGLE_DEG: details.bendAngleDeg == null ? '' : String(details.bendAngleDeg),
-    BEND_RADIUS_SOURCE: details.bendRadiusMm == null ? '' : 'stagedJson.BEND_RADIUS',
-    BEND_ANGLE_SOURCE: details.bendAngleDeg == null ? '' : 'stagedJson.BEND_ANGLE',
-    BEND_SOURCE: details.bendSource,
-    SYNTHETIC_1P5D_BEND_TRIM_BLOCKED: details.synthetic1p5DTrimBlocked ? 'YES' : 'NO',
-    SYNTHETIC_1P5D_BEND_TRIM_ALLOWED: details.synthetic1p5DTrimAllowed ? 'YES' : 'NO'
-  };
-}
-
-function primitiveRecipeSummary(primitives = []) {
-  return [...new Set(primitives.map((primitive) => primitive.recipeName || primitive.localName || 'unknown'))].join(',');
-}
-
-function round(value) {
-  return Math.round(Number(value || 0) * 1000) / 1000;
-}
-
-function midpoint(a, b) {
-  return [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2, (a[2] + b[2]) / 2];
 }
 
 function managedStageProfileToTopologySource(profile) {
   return {
-    schema: profile.schema,
-    profile: profile.profile,
-    source: profile.source || 'managed-stage-profile',
-    units: { length: 'mm' },
-    hierarchy: profile.branches || []
+    schema: 'UXML_MOCK_STAGEDJSON_TOPOLOGY',
+    meta: { sourceName: profile.source || 'managed-stage-profile' },
+    branches: (profile.branches || []).map((branch) => ({
+      name: branch.name,
+      children: branch.children || []
+    }))
   };
 }
+
+function explicitBendAttAttributes(contractOrRecord) {
+  const details = resolveExplicitManagedStageBendDetails(contractOrRecord);
+  if (!details.explicitBendRecord) return {};
+  return {
+    EXPLICIT_BEND_RECORD: 'YES',
+    EXPLICIT_BEND_DETAILS: details.hasExplicitBendDetails ? 'YES' : 'NO',
+    BEND_RADIUS_MM: details.bendRadiusMm == null ? '' : String(details.bendRadiusMm),
+    BEND_ANGLE_DEG: details.bendAngleDeg == null ? '' : String(details.bendAngleDeg),
+    BEND_SOURCE: details.bendSource,
+    SYNTHETIC_1P5D_TRIM_ALLOWED: details.synthetic1p5DTrimAllowed ? 'YES' : 'NO',
+    SYNTHETIC_1P5D_TRIM_BLOCKED: details.synthetic1p5DTrimBlocked ? 'YES' : 'NO'
+  };
+}
+
+function primitiveRecipeSummary(primitives) {
+  return primitives.map((primitive) => `${primitive.localName}:${primitive.kind}`).join('|');
+}
+function midpoint(a, b) { return [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2, (a[2] + b[2]) / 2]; }
+function histogram(values) { return values.reduce((out, value) => { out[value] = (out[value] || 0) + 1; return out; }, {}); }

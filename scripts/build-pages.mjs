@@ -6,7 +6,7 @@ import { rollup } from 'rollup';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const SITE_DIR = path.join(ROOT, '_site');
 const ASSET_DIR = path.join(SITE_DIR, 'assets');
-const VERSION = 'input-persistent-root-card-20260629-c';
+const VERSION = 'input-persistent-root-card-20260629-d';
 const LEGACY_CACHE_KEYS = Object.freeze([
   'tool-fixes-v2-20260620',
   'support-ui-render-export-fix-20260623',
@@ -28,7 +28,8 @@ const LEGACY_CACHE_KEYS = Object.freeze([
   'input-postbootstrap-reassert-20260626',
   'input-panel-critical-controls-20260626',
   'input-root-owner-20260626',
-  'input-persistent-root-card-20260629-c'
+  'input-persistent-root-card-20260629-c',
+  'input-persistent-root-card-20260629-d'
 ]);
 
 await rm(SITE_DIR, { recursive: true, force: true });
@@ -49,7 +50,7 @@ async function copyStaticSite(from, to) {
   for (const entry of entries) {
     const src = path.join(from, entry.name);
     const dest = path.join(to, entry.name);
-    const rel = path.relative(ROOT, src).replace(/\\/g, '/');
+    const rel = path.relative(ROOT, src).replace(/\/g, '/');
     if (rel === '.git' || rel.startsWith('.git/') || rel === '.github' || rel.startsWith('.github/') || rel === 'node_modules' || rel.startsWith('node_modules/') || rel === '_site' || rel.startsWith('_site/') || rel === 'coverage' || rel.startsWith('coverage/')) continue;
     if (entry.isDirectory()) await copyStaticSite(src, dest); else await copyFile(src, dest);
   }

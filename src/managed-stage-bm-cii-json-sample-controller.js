@@ -1,21 +1,18 @@
 /**
  * BM_CII managed-stage JSON sample controller.
  *
- * Wires the "Load BM_CII stagedJson" button to fetch the canonical rich
- * benchmark file served as a static asset. The sample contains:
- *   - 40 piping components (7 elbows, 8 flanges, 6 valves, 19 pipes)
- *   - 12 support / restraint records with ISONOTE references
- *   - Full bend geometry: BEND_RADIUS_MM, BEND_ANGLE_DEG, ELBOW_ARC_LENGTH_MM
+ * Wires the "Load BM_CII stagedJson" button to the bundled BM_CII
+ * benchmark data module. This avoids fetching /src/*.json from GitHub Pages,
+ * where the standalone JSON file may not exist in deployed builds.
  */
 
-const SAMPLE_CONTROLLER_SCHEMA = 'ManagedStageBmCiiJsonSampleController.v5';
-const SAMPLE_SOURCE_NAME = 'BM_CII_INPUT_managed_stage.json';
+import {
+  BM_CII_MANAGED_STAGE_SAMPLE_NAME,
+  createBmCiiManagedStageSampleJson
+} from './managed-stage-bm-cii-json-sample-data.js?v=bust-cache-4';
 
-/**
- * Path relative to the server root (python http.server at project root).
- * Resolves to http://localhost:5173/src/BM_CII_INPUT_managed_stage.json
- */
-const BENCHMARK_JSON_URL = '/src/BM_CII_INPUT_managed_stage.json';
+const SAMPLE_CONTROLLER_SCHEMA = 'ManagedStageBmCiiJsonSampleController.v6';
+const SAMPLE_SOURCE_NAME = BM_CII_MANAGED_STAGE_SAMPLE_NAME;
 
 installManagedStageBmCiiJsonSampleButton();
 
@@ -25,7 +22,6 @@ export function installManagedStageBmCiiJsonSampleButton() {
   }
 
   const sampleButton = ensureSampleButton();
-  // Remove any stale binding flag so the new handler can attach cleanly.
   delete sampleButton.dataset.managedStageJsonSampleBound;
   sampleButton.dataset.managedStageJsonSampleBound = '1';
   sampleButton.addEventListener('click', (event) => {
@@ -90,14 +86,9 @@ async function loadBenchmarkJson() {
     throw new Error('managed-stage JSON UI is not ready');
   }
 
-  setStatus('Fetching BM_CII benchmark...');
-  log(`Fetching ${BENCHMARK_JSON_URL}`);
-  const response = await fetch(BENCHMARK_JSON_URL);
-  if (!response.ok) {
-    throw new Error(`Fetch failed: ${response.status} ${response.statusText} (${BENCHMARK_JSON_URL})`);
-  }
-  const sourceText = await response.text();
-  log(`Fetched ${SAMPLE_SOURCE_NAME} (${sourceText.length.toLocaleString()} chars) - 40 components, 7 elbows, 12 supports`);
+  setStatus('Loading bundled BM_CII benchmark...');
+  const sourceText = createBmCiiManagedStageSampleJson();
+  log(`Loaded bundled ${SAMPLE_SOURCE_NAME} (${sourceText.length.toLocaleString()} chars) - 40 components, 7 elbows, 12 supports`);
   setStatus('Loaded BM_CII benchmark - rendering...');
   return managedStageApi.loadText(sourceText, SAMPLE_SOURCE_NAME);
 }

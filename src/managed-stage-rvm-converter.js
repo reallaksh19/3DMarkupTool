@@ -7,6 +7,7 @@ import { scanRvmPrimitivePayloads } from './rvm-primitive-payload-decoder.js?v=b
 import { auditManagedStageRvmPayloadSemantics } from './managed-stage-rvm-payload-semantics-audit.js?v=bust-cache-4';
 import { auditManagedStageRvmGeometry } from './managed-stage-rvm-geometry-audit.js?v=bust-cache-4';
 import { auditManagedStageRvmElbows } from './managed-stage-rvm-elbow-audit.js?v=bust-cache-4';
+import { auditManagedStageRvmVisualGapWarnings } from './managed-stage-rvm-visual-gap-warning-audit.js?v=bust-cache-4';
 import { summarizeManagedStageRvmAudit } from './managed-stage-rvm-audit-summary.js?v=bust-cache-4';
 import { writeRvm } from './rvm-writer.js?v=bust-cache-4';
 import { evaluateRvmCode4ElbowEmissionCandidate } from './rvm-code4-elbow-emission-candidate-policy.js?v=bust-cache-4';
@@ -57,6 +58,7 @@ export function convertManagedStageJsonToRvmAtt(sourceText, options = {}) {
   const rvmGeometryAudit = auditManagedStageRvmGeometry(stitchManifest, primitivePayloadSemanticsAudit);
   const torusOrientationAssumptions = collectTorusAssumptions(exportModel.root);
   const rvmCode4ElbowAudit = auditManagedStageRvmElbows(torusOrientationAssumptions, primitivePayloadSemanticsAudit);
+  const rvmVisualGapWarningAudit = auditManagedStageRvmVisualGapWarnings(exportModel, primitivePayloads);
   const stitchManifestGate = warningOnlyGate('ManagedStageRvmStitchManifest', () => assertManagedStageRvmStitchManifest(stitchManifest), writerOptions);
   const supportRvmExportAudit = exportModel.audit?.supportRvmExportAudit || null;
   const supportTopologyAudit = exportModel.audit?.supportTopologyAudit || null;
@@ -92,6 +94,7 @@ export function convertManagedStageJsonToRvmAtt(sourceText, options = {}) {
     rvmPrimitivePayloadSemanticsAudit: primitivePayloadSemanticsAudit,
     rvmGeometryAudit,
     rvmCode4ElbowAudit,
+    rvmVisualGapWarningAudit,
     torusOrientationAssumptions,
     genericInputXmlBendAssumptions: collectGenericInputXmlBendAssumptions(exportModel.root),
     genericInputXmlNodeLocalElbowAssumptions: collectGenericInputXmlNodeLocalElbowAssumptions(exportModel.root),

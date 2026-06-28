@@ -1,4 +1,5 @@
 const EPS = 1e-9;
+const CODE4_PAYLOAD_RADIUS_CLEARANCE_MM = 0.001;
 
 export function recoverManagedStageCode4Bends(contracts = [], config = {}) {
   const explicitBends = contracts.filter((contract) => contract?.dtxr === 'BEND');
@@ -40,7 +41,7 @@ export function recoverManagedStageCode4Bends(contracts = [], config = {}) {
   return {
     contracts: adjusted,
     audit: {
-      schema: 'ManagedStageRvmBendRecoveryAudit.v2',
+      schema: 'ManagedStageRvmBendRecoveryAudit.v3',
       mode: 'explicit-bend-contract-code4-plan',
       explicitBendCount: explicitBends.length,
       plannedCode4BendCount: plans.length,
@@ -78,11 +79,23 @@ function makePlan(bend, bendSide, node, nodeConnectionCount, corner, bendOut, ad
   if (!(pipeRadiusMm > EPS)) return null;
   const requestedRadiusMm = Number(bend.arc?.bendRadiusMm || bend.diameterMm * Number(config.genericInputXmlBendRadiusMultiplier || 1.5));
   const maxFraction = Number(config.inputXmlBendTrimMaxContractFraction || 0.35);
-  const requestedTrimMm = requestedRadiusMm * Math.tan(turnAngleRad / 2);
-  const trimMm = Math.min(requestedTrimMm, Number(bend.lengthMm || 0) * maxFraction, Number(adjacent.lengthMm || 0) * maxFraction);
+  const tangentFactor = Math.tan(turnAngleRad / 2);
+  if (!(tangentFactor > EPS)) return null;
+  const requestedTrimMm = requestedRadiusMm * tangentFactor;
+  const maxFractionTrimMm = Math.min(Number(bend.lengthMm || 0) * maxFraction, Number(adjacent.lengthMm || 0) * maxFraction);
+  const maxPhysicalTrimMm = Math.min(Number(bend.lengthMm || 0), Number(adjacent.lengthMm || 0));
+  let trimMm = Math.min(requestedTrimMm, maxFractionTrimMm);
+
+  const payloadSafeRadiusMm = pipeRadiusMm + CODE4_PAYLOAD_RADIUS_CLEARANCE_MM;
+  const payloadSafeTrimMm = payloadSafeRadiusMm * tangentFactor;
+  const trimWasRaisedForPayloadSafety = trimMm + EPS < payloadSafeTrimMm && payloadSafeTrimMm <= requestedTrimMm + EPS && payloadSafeTrimMm <= maxPhysicalTrimMm + EPS;
+  if (trimWasRaisedForPayloadSafety) trimMm = payloadSafeTrimMm;
+
   if (!(trimMm > EPS)) return null;
-  const bendRadiusMm = trimMm / Math.tan(turnAngleRad / 2);
+  const bendRadiusMm = trimMm / tangentFactor;
   if (!(bendRadiusMm > EPS)) return null;
+
+  const payloadSafe = bendRadiusMm + CODE4_PAYLOAD_RADIUS_CLEARANCE_MM >= pipeRadiusMm;
 
   const startMm = add(corner, scale(bendOut, trimMm));
   const endMm = add(corner, scale(adjacentOut, trimMm));
@@ -91,7 +104,7 @@ function makePlan(bend, bendSide, node, nodeConnectionCount, corner, bendOut, ad
   const planeNormal = unit(cross(startTangent, endTangent));
 
   return {
-    schema: 'ManagedStageExplicitCode4BendPlan.v1',
+    schema: 'ManagedStageExplicitCode4BendPlan.v2',
     bendName: bend.name,
     node,
     nodeConnectionCount,
@@ -105,6 +118,12 @@ function makePlan(bend, bendSide, node, nodeConnectionCount, corner, bendOut, ad
     bendRadiusMm: round(bendRadiusMm),
     pipeRadiusMm: round(pipeRadiusMm),
     trimMm: round(trimMm),
+    requestedTrimMm: round(requestedTrimMm),
+    maxFractionTrimMm: round(maxFractionTrimMm),
+    maxPhysicalTrimMm: round(maxPhysicalTrimMm),
+    payloadSafeTrimMm: round(payloadSafeTrimMm),
+    payloadSafe,
+    trimWasRaisedForPayloadSafety,
     radiusCappedByTrim: Math.abs(bendRadiusMm - requestedRadiusMm) > 0.001,
     startMm: startMm.map(round),
     endMm: endMm.map(round),
@@ -112,7 +131,7 @@ function makePlan(bend, bendSide, node, nodeConnectionCount, corner, bendOut, ad
     endTangent: endTangent.map(round),
     planeNormal: planeNormal.map(round),
     sourceElementId: bend.sourceElementId || bend.elementId || bend.name,
-    policy: 'explicit BEND owns one code4 primitive; APOS/LPOS source-route cylinder is trimmed to tangent point for continuity'
+    policy: 'explicit BEND owns one code4 primitive; APOS/LPOS source-route cylinder is trimmed to tangent point for continuity; trim may exceed the generic fraction cap only to satisfy code-4 bendRadius >= tubeRadius payload semantics when it remains physically inside both legs'
   };
 }
 
@@ -170,10 +189,13 @@ function trimmedSourceRouteBend(contract) {
 
 function scorePlan(plan) {
   let score = 0;
+  if (plan.payloadSafe === true) score += 100000;
+  else score -= 100000;
   if (plan.nodeConnectionCount === 2) score += 10000;
   else score -= plan.nodeConnectionCount * 100;
   if (plan.adjacentDtxr === 'PIPE' || plan.adjacentDtxr === 'UNSPECIFIED') score += 1000;
   if (plan.adjacentDtxr === 'BEND') score += 500;
+  if (plan.trimWasRaisedForPayloadSafety) score -= 25;
   score += plan.trimMm;
   return score;
 }

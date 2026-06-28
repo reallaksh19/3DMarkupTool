@@ -32,7 +32,7 @@ export function recoverManagedStageCode4Bends(contracts = [], config = {}) {
       rvmTrimEndOffsetMm: Math.max(Number(contract.rvmTrimEndOffsetMm || 0), Number(trims.end || 0))
     };
     if (plan) next.managedStageCode4BendPlan = plan;
-    if (next.dtxr === 'BEND' && next.genericInputXmlBend?.mode === 'code8-source-route-cylinder') {
+    if (next.dtxr === 'BEND' && (plan || next.genericInputXmlBend?.mode === 'code8-source-route-cylinder')) {
       next.genericInputXmlBend = trimmedSourceRouteBend(next);
     }
     return next;
@@ -41,7 +41,7 @@ export function recoverManagedStageCode4Bends(contracts = [], config = {}) {
   return {
     contracts: adjusted,
     audit: {
-      schema: 'ManagedStageRvmBendRecoveryAudit.v3',
+      schema: 'ManagedStageRvmBendRecoveryAudit.v4',
       mode: 'explicit-bend-contract-code4-plan',
       explicitBendCount: explicitBends.length,
       plannedCode4BendCount: plans.length,

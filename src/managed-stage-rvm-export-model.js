@@ -287,10 +287,16 @@ function buildCanonicalSupportMarkerRvmExport(sourceContract, options = {}) {
 
 function managedStageProfileToTopologySource(profile) {
   return {
-    schema: 'UXML_MOCK_STAGEDJSON_TOPOLOGY',
-    meta: { sourceName: profile.source || 'managed-stage-profile' },
-    branches: (profile.branches || []).map((branch) => ({
-      name: branch.name,
+    schema: 'inputxml-managed-stage/v1',
+    profile: 'AVEVA_JSON_FOR_3D_RVM_VIEWER',
+    source: profile.source || 'managed-stage-profile',
+    converter: profile.converter || '',
+    generatedAt: profile.generatedAt || '',
+    units: { length: 'mm' },
+    stats: profile.inputStats || {},
+    hierarchy: (profile.branches || []).map((branch) => ({
+      name: branch.name || '',
+      type: branch.type || 'BRANCH',
       children: branch.children || []
     }))
   };

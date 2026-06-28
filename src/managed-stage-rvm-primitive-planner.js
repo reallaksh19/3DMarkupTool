@@ -106,7 +106,7 @@ function planGenericInputXmlBendCylinders(contract, pipeRadius) {
       sourceRouteStartTrimMm: segment.startTrimMm || 0,
       sourceRouteEndTrimMm: segment.endTrimMm || 0,
       orientationAssumption: sourceRouteSegment
-        ? 'InputXML-derived JSON BEND APOS/LPOS preserved as source-route code-8 cylinder; bounded code-4 marker may be emitted separately when declared arc cannot fit endpoints'
+        ? 'InputXML-derived JSON BEND APOS/LPOS preserved as source-route code-8 cylinder; code-4 emission is used only when declared radius/sweep can fit the endpoints without radius inflation'
         : 'InputXML-derived JSON bend excluded; emitted as reconstructed generic 1.5D code-8 arc cylinders'
     };
   });
@@ -190,37 +190,16 @@ function planCode4ElbowOrSourceRoute(contract, pipeRadius, options = {}) {
     const blocked = {
       ...contract,
       excludeCode4Bend: true,
-      code4BendExclusionReason: `Code-4 endpoint-fit bend blocked: APOS/LPOS chord requires radius inflation ${radiusInflationMm} mm from declared ${solved.declaredBendRadiusMm} mm to endpoint-fit ${solved.bendRadiusMm} mm`,
+      code4BendExclusionReason: `Code-4 bend blocked: APOS/LPOS chord requires radius inflation ${radiusInflationMm} mm from declared ${solved.declaredBendRadiusMm} mm to emitted ${solved.bendRadiusMm} mm`,
       genericInputXmlBend: {
         mode: 'code8-source-route-cylinder',
         segments: [{ role: 'source-route', startMm: contract.startMm, endMm: contract.endMm }],
         originalBendRadiusMm: contract.arc?.bendRadiusMm || null
       }
     };
-    const sourceRoute = planGenericInputXmlBendCylinders(blocked, pipeRadius);
-    if (options.disableCode4VisualBendMarkers === true) return sourceRoute;
-    return [code4ElbowPrimitiveFromSolved(contract, pipeRadius, boundedVisualCode4Solution(contract, pipeRadius, solved)), ...sourceRoute];
+    return planGenericInputXmlBendCylinders(blocked, pipeRadius);
   }
   return [code4ElbowPrimitiveFromSolved(contract, pipeRadius, solved)];
-}
-
-function boundedVisualCode4Solution(contract, pipeRadius, solved) {
-  const declaredRadius = Number(solved.declaredBendRadiusMm || contract.arc?.bendRadiusMm || pipeRadius * 1.5);
-  const tubeRadius = Number(solved.tubeRadiusMm || pipeRadius);
-  const center = midpoint(contract.startMm, contract.endMm);
-  const outer = declaredRadius + tubeRadius;
-  return {
-    ...solved,
-    solverState: 'declared-radius-visual-marker-v1',
-    centerMm: roundVector(center),
-    bendRadiusMm: round(declaredRadius),
-    tubeRadiusMm: round(tubeRadius),
-    localBbox: [0, 0, -tubeRadius, outer, outer, tubeRadius].map(round),
-    endpointLocked: false,
-    endpointFitErrorMm: round(Number(solved.radiusInflatedMm || 0)),
-    visualMarkerOnly: true,
-    orientationAssumption: 'bounded declared-radius code4 marker retained for visible elbow identity; source-route cylinder preserves APOS/LPOS continuity because declared radius cannot endpoint-fit the staged chord'
-  };
 }
 
 function code4ElbowPrimitiveFromSolved(contract, pipeRadius, solved) {
@@ -228,8 +207,8 @@ function code4ElbowPrimitiveFromSolved(contract, pipeRadius, solved) {
     kind: 'elbow',
     name: `${contract.name}_BEND`,
     localName: 'bend',
-    primitiveRole: solved.visualMarkerOnly ? 'inputxml-code4-bend-visual-marker' : 'inputxml-code4-bend-elbow',
-    primitiveRoleTag: solved.visualMarkerOnly ? 'bendCode4VisualMarker' : 'bendCode4Elbow',
+    primitiveRole: 'inputxml-code4-bend-elbow',
+    primitiveRoleTag: 'bendCode4Elbow',
     center: solved.centerMm,
     direction: solved.direction,
     basis: solved.basis,
@@ -248,7 +227,6 @@ function code4ElbowPrimitiveFromSolved(contract, pipeRadius, solved) {
     radiusInflatedMm: solved.radiusInflatedMm,
     endpointFitErrorMm: solved.endpointFitErrorMm,
     solverState: solved.solverState,
-    visualMarkerOnly: Boolean(solved.visualMarkerOnly),
     tangentHintState: solved.tangentHintState,
     tangentHintSources: solved.tangentHintSources,
     startTangent: solved.startTangent,
@@ -262,16 +240,4 @@ function code4ElbowPrimitiveFromSolved(contract, pipeRadius, solved) {
 function asGeometryContract(recordOrContract, elementIndex) {
   if (recordOrContract?.schema === 'ManagedStageGeometryContract.v1') return recordOrContract;
   return createManagedStageGeometryContract(recordOrContract, elementIndex);
-}
-
-function midpoint(a, b) {
-  return [(Number(a?.[0]) + Number(b?.[0])) / 2, (Number(a?.[1]) + Number(b?.[1])) / 2, (Number(a?.[2]) + Number(b?.[2])) / 2];
-}
-
-function roundVector(vector) {
-  return vector.map(round);
-}
-
-function round(value) {
-  return Number(Number(value || 0).toFixed(9));
 }

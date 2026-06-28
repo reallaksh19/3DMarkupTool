@@ -19,6 +19,7 @@ export function assertManagedStageRvmAuditGate(audit = {}, expectations = {}) {
   const supportExport = audit.supportRvmExportAudit || {};
   const topologyProofGate = audit.managedStageTopologyProofGate || {};
   const topologyQualityGate = topologyProofGate.topologyQualityGate || {};
+  const explicitCode4BendInvariant = audit.explicitCode4BendInvariantAudit || {};
   const toleranceMm = Number(expectations.maxCenterlineGapMm ?? DEFAULT_GAP_TOLERANCE_MM);
 
   requireEqual(audit.generationMode, 'managed-stage-cylinder-torus', 'generationMode', issues);
@@ -37,6 +38,8 @@ export function assertManagedStageRvmAuditGate(audit = {}, expectations = {}) {
   for (const code of FORBIDDEN_CODES) {
     if ((primitiveHistogram[code] || 0) !== 0) issues.push(`forbidden primitive code ${code} was emitted`);
   }
+
+  requireExplicitCode4BendInvariant(explicitCode4BendInvariant, primitiveHistogram, issues);
 
   requireEqual(chunkHierarchy.headCount, 1, 'chunkHierarchy.headCount', issues);
   requireEqual(chunkHierarchy.modlCount, 1, 'chunkHierarchy.modlCount', issues);
@@ -99,6 +102,11 @@ export function assertManagedStageRvmAuditGate(audit = {}, expectations = {}) {
     highDegreeTopologyNodeCount: Number(topologyQualityGate.highDegreeTopologyNodeCount || 0),
     nodeCoordinateConflictCount: Number(topologyQualityGate.nodeCoordinateConflictCount || 0),
     invalidBranchNodeDegreeCount: Number(topologyQualityGate.invalidBranchNodeDegreeCount || 0),
+    explicitCode4BendInvariantOk: explicitCode4BendInvariant.ok === true,
+    plannedCode4BendCount: Number(explicitCode4BendInvariant.plannedCode4BendCount || 0),
+    emittedCode4PrimitiveCount: Number(explicitCode4BendInvariant.emittedCode4PrimitiveCount || 0),
+    missingCode4BendPlanCount: Number(explicitCode4BendInvariant.missingCode4BendPlanCount || 0),
+    missingCode4PrimitiveCount: Number(explicitCode4BendInvariant.missingCode4PrimitiveCount || 0),
     allowedPrimitiveCodes: [...ALLOWED_CODES],
     forbiddenPrimitiveCodes: [...FORBIDDEN_CODES],
     supportAllowedPrimitiveCodes: [...SUPPORT_ALLOWED_CODES],
@@ -124,6 +132,19 @@ export function assertManagedStageRvmAuditGate(audit = {}, expectations = {}) {
       'END:': chunkHierarchy.endCount || 0
     }
   };
+}
+
+function requireExplicitCode4BendInvariant(invariant = {}, primitiveHistogram = {}, issues = []) {
+  const explicitBendCount = Number(invariant.explicitBendRecordCount || 0);
+  if (explicitBendCount <= 0) return;
+  requireEqual(invariant.schema, 'ManagedStageExplicitCode4BendInvariantAudit.v1', 'explicitCode4BendInvariantAudit.schema', issues);
+  requireEqual(invariant.ok, true, 'explicitCode4BendInvariantAudit.ok', issues);
+  requireEqual(invariant.missingCode4BendPlanCount || 0, 0, 'explicitCode4BendInvariantAudit.missingCode4BendPlanCount', issues);
+  requireEqual(invariant.missingCode4PrimitiveCount || 0, 0, 'explicitCode4BendInvariantAudit.missingCode4PrimitiveCount', issues);
+  requireEqual(invariant.duplicateCode4PrimitiveCount || 0, 0, 'explicitCode4BendInvariantAudit.duplicateCode4PrimitiveCount', issues);
+  requireEqual(invariant.plannedCode4BendCount || 0, explicitBendCount, 'explicitCode4BendInvariantAudit.plannedCode4BendCount', issues);
+  requireEqual(invariant.emittedCode4PrimitiveCount || 0, invariant.plannedCode4BendCount || 0, 'explicitCode4BendInvariantAudit.emittedCode4PrimitiveCount', issues);
+  requireEqual(primitiveHistogram[4] || 0, invariant.emittedCode4PrimitiveCount || 0, 'primitiveHistogram code4 vs explicit code4 invariant', issues);
 }
 
 function assertSupportOverlayContract(supportExport = {}, stitchManifest = {}, expectations = {}, issues = []) {
@@ -180,5 +201,5 @@ function requireEqual(actual, expected, label, issues) { if (actual !== expected
 function requireTruthy(value, label, issues) { if (!value) issues.push(`${label}: expected truthy value`); }
 function requirePositive(value, label, issues) { if (!(Number(value) > 0)) issues.push(`${label}: expected positive number, got ${value}`); }
 function requireAtLeast(value, min, label, issues) { if (!(Number(value) >= min)) issues.push(`${label}: expected >= ${min}, got ${value}`); }
-function requireMax(value, max, label, issues) { if (Number(value) > Number(max)) issues.push(`${label}: expected <= ${max}, got ${value}`); }
+function requireMax(value, max, label, issues) { if (Number(value) > Number(max)) issues.push(`${label}: expected <= ${max}`); }
 function requireArrayEmpty(value, label, issues) { if (Array.isArray(value) && value.length) issues.push(`${label}: expected empty array`); }

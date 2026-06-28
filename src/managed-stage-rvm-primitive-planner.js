@@ -25,7 +25,7 @@ export function planManagedStagePrimitives(recordOrContract, options = {}) {
       return [
         ...planManagedStageExplicitCode4Bend(contract, pipeRadius),
         ...planGenericInputXmlBendCylinders(contract, pipeRadius),
-        ...planGenericInputXmlNodeLocalElbows(contract, pipeRadius)
+        ...(contract.managedStageCode4BendPlan ? [] : planGenericInputXmlNodeLocalElbows(contract, pipeRadius))
       ];
     }
     return planCode4ElbowOrSourceRoute(contract, pipeRadius, options);

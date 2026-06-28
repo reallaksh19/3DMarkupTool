@@ -58,21 +58,22 @@ function buildExplicitBendCode4Plan(bend, byNode, config) {
   for (const side of ['start', 'end']) {
     const node = side === 'start' ? bend.fromNode : bend.toNode;
     const corner = side === 'start' ? bend.startMm : bend.endMm;
+    const nodeConnections = byNode.get(String(node)) || [];
     const bendOut = side === 'start' ? unit(bend.axis) : scale(unit(bend.axis), -1);
-    const adjacent = (byNode.get(String(node)) || []).filter((entry) => entry.contract.name !== bend.name && isCenterline(entry.contract));
+    const adjacent = nodeConnections.filter((entry) => entry.contract.name !== bend.name && isCenterline(entry.contract));
     for (const entry of adjacent) {
       const dot = clamp(dotProduct(bendOut, entry.directionOut), -1, 1);
       const turnAngleRad = Math.acos(dot);
       const turnAngleDeg = turnAngleRad * 180 / Math.PI;
       if (turnAngleDeg < 5 || turnAngleDeg > 175) continue;
-      const candidate = makePlan(bend, side, String(node), corner, bendOut, entry.contract, entry.side, entry.directionOut, turnAngleRad, turnAngleDeg, config);
+      const candidate = makePlan(bend, side, String(node), nodeConnections.length, corner, bendOut, entry.contract, entry.side, entry.directionOut, turnAngleRad, turnAngleDeg, config);
       if (candidate) candidates.push(candidate);
     }
   }
   return candidates.sort((a, b) => scorePlan(b) - scorePlan(a))[0] || null;
 }
 
-function makePlan(bend, bendSide, node, corner, bendOut, adjacent, adjacentSide, adjacentOut, turnAngleRad, turnAngleDeg, config) {
+function makePlan(bend, bendSide, node, nodeConnectionCount, corner, bendOut, adjacent, adjacentSide, adjacentOut, turnAngleRad, turnAngleDeg, config) {
   const pipeRadiusMm = Math.min(Number(bend.radiusMm || 0), Number(adjacent.radiusMm || bend.radiusMm || 0));
   if (!(pipeRadiusMm > EPS)) return null;
   const requestedRadiusMm = Number(bend.arc?.bendRadiusMm || bend.diameterMm * Number(config.genericInputXmlBendRadiusMultiplier || 1.5));
@@ -93,6 +94,7 @@ function makePlan(bend, bendSide, node, corner, bendOut, adjacent, adjacentSide,
     schema: 'ManagedStageExplicitCode4BendPlan.v1',
     bendName: bend.name,
     node,
+    nodeConnectionCount,
     bendSide,
     adjacentName: adjacent.name,
     adjacentSide,
@@ -168,6 +170,8 @@ function trimmedSourceRouteBend(contract) {
 
 function scorePlan(plan) {
   let score = 0;
+  if (plan.nodeConnectionCount === 2) score += 10000;
+  else score -= plan.nodeConnectionCount * 100;
   if (plan.adjacentDtxr === 'PIPE' || plan.adjacentDtxr === 'UNSPECIFIED') score += 1000;
   if (plan.adjacentDtxr === 'BEND') score += 500;
   score += plan.trimMm;

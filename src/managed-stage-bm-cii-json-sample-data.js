@@ -93,8 +93,8 @@ function component([type, dtxr, name, from, to, diameter, bendRadius = '', bendA
 
 function supports(nodes) {
   const specs = [
-    ['10', 'REST'], ['35', 'REST'], ['35', 'GUIDE'], ['35', 'LINESTOP'], ['130', 'LINESTOP'], ['190', 'REST'],
-    ['205', 'LINESTOP'], ['205', 'REST'], ['205', 'REST'], ['240', 'REST'], ['255', 'REST'], ['255', 'GUIDE']
+    ['35', 'REST'], ['35', 'GUIDE'], ['35', 'LINESTOP'], ['130', 'LINESTOP'], ['190', 'REST'],
+    ['205', 'LINESTOP'], ['205', 'REST'], ['205', 'HOLDDOWN'], ['205', 'SPRING_CAN'], ['240', 'REST'], ['255', 'REST'], ['255', 'GUIDE']
   ];
   return specs.map(([node, kind], index) => ({ name: `SUPPORT INPUTXML-${node}-${kind}`, type: 'ATTA', attributes: {
     TYPE: 'ATTA', RAW_TYPE: 'ATTA', NAME: `INPUTXML-${node}-${kind}-${index}`, REF: `INPUTXML_RESTRAINT_${index + 1}`,

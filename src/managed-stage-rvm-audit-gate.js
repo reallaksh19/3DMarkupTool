@@ -1,6 +1,6 @@
 const FORBIDDEN_CODES = Object.freeze([2, 5, 6, 11]);
 const ALLOWED_CODES = Object.freeze([1, 4, 7, 8, 9]);
-const SUPPORT_ALLOWED_CODES = Object.freeze([8]);
+const SUPPORT_ALLOWED_CODES = Object.freeze([8, 9]);
 const SUPPORT_FORBIDDEN_CODES = Object.freeze([1, 5, 6, 7, 11]);
 const DEFAULT_GAP_TOLERANCE_MM = 0.001;
 const DEFAULT_SUPPORT_MAX_GLYPH_EXTENT_MM = 100;
@@ -155,7 +155,7 @@ function assertSupportOverlayContract(supportExport = {}, stitchManifest = {}, e
   if (supportPrimitiveCount > 0) {
     requireEqual(sumHistogram(supportHistogram), supportPrimitiveCount, 'support primitive histogram sum', issues);
     for (const code of Object.keys(supportHistogram).map(Number)) {
-      if (!SUPPORT_ALLOWED_CODES.includes(code)) issues.push(`support overlay contains non-code8 primitive code ${code}`);
+      if (!SUPPORT_ALLOWED_CODES.includes(code)) issues.push(`support overlay contains unsupported primitive code ${code}`);
     }
     for (const code of SUPPORT_FORBIDDEN_CODES) {
       if ((supportHistogram[code] || 0) !== 0) issues.push(`support overlay emitted forbidden primitive code ${code}`);
@@ -201,5 +201,5 @@ function requireEqual(actual, expected, label, issues) { if (actual !== expected
 function requireTruthy(value, label, issues) { if (!value) issues.push(`${label}: expected truthy value`); }
 function requirePositive(value, label, issues) { if (!(Number(value) > 0)) issues.push(`${label}: expected positive number, got ${value}`); }
 function requireAtLeast(value, min, label, issues) { if (!(Number(value) >= min)) issues.push(`${label}: expected >= ${min}, got ${value}`); }
-function requireMax(value, max, label, issues) { if (Number(value) > Number(max)) issues.push(`${label}: expected <= ${max}`); }
-function requireArrayEmpty(value, label, issues) { if (Array.isArray(value) && value.length) issues.push(`${label}: expected empty array`); }
+function requireMax(value, max, label, issues) { if (!(Number(value) <= max)) issues.push(`${label}: expected <= ${max}`); }
+function requireArrayEmpty(value, label, issues) { if (!Array.isArray(value) || value.length) issues.push(`${label}: expected empty array, got ${Array.isArray(value) ? value.length : typeof value}`); }

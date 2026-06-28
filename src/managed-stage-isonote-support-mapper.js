@@ -3,7 +3,7 @@ import {
   normalizeManagedStageSupportMapperRecord
 } from './managed-stage-support-mapper-config.js?v=bust-cache-4';
 
-export const MANAGED_STAGE_ISONOTE_SUPPORT_MAPPER_SCHEMA = 'ManagedStageIsonoteSupportMapper.v1';
+export const MANAGED_STAGE_ISONOTE_SUPPORT_MAPPER_SCHEMA = 'ManagedStageIsonoteSupportMapper.v2';
 
 export function parseManagedStageIsonoteSupportRecords(text = '', config = {}) {
   const rows = parseIsonoteRows(text);
@@ -73,8 +73,14 @@ function segmentToSupportAttrs(segment, context = {}) {
 
   if (singleAxis) {
     supportKind = 'SINGLE AXIS';
+  } else if (/(HANGER\s*[\/\- ]*\s*SPRING|SPRING\s*[\/\- ]*\s*HANGER|SPRING_HANGER)/i.test(raw)) {
+    supportKind = 'SPRING HANGER';
   } else if (/(CAN\s*SPRING|SPRING\s*CAN|SPRING_CAN)/i.test(raw)) {
     supportKind = 'SPRING CAN';
+  } else if (/\bSPRING\b/i.test(raw)) {
+    supportKind = 'SPRING';
+  } else if (/\bHANGER\b/i.test(raw)) {
+    supportKind = 'HANGER';
   } else if (/HOLDDOWN|HOLD\s*DOWN/i.test(raw)) {
     supportKind = 'HOLDDOWN';
   } else if (/LINE\s*STOP|LINESTOP|LIMIT|\bLIM\b/i.test(raw)) {

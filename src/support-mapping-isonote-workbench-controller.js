@@ -1,4 +1,4 @@
-const WORKBENCH_SCHEMA = 'SupportMappingIsonoteWorkbench.v1';
+const WORKBENCH_SCHEMA = 'SupportMappingIsonoteWorkbench.v2';
 const BASIS = Object.freeze({ INPUTXML: 'stagedJson', ISONOTE: 'isonote' });
 const FIELD_KEYS = Object.freeze({
   supportTag: 'supportTagFields',
@@ -115,24 +115,24 @@ function render() {
 function renderInputXmlTab(sourceContract = {}, audit = {}) {
   const rows = supportRows(sourceContract, audit).filter((row) => row.activeBasis !== BASIS.ISONOTE);
   return `
-    <div class="smw-intro"><strong>InputXML basis</strong><span>Node-wise restraints detected from staged InputXML, normalized family, and app symbology resolution.</span></div>
+    <div class="smw-intro"><strong>InputXML basis</strong><span>Node-wise restraints detected from staged InputXML, normalized family, pipe axis, axis resolution, and app symbology.</span></div>
     ${supportTable(rows, 'No InputXML support rows detected yet.')}`;
 }
 
 function renderIsonoteTab(sourceContract = {}, audit = {}) {
-  const rows = supportRows(sourceContract, audit).filter((row) => row.activeBasis === BASIS.ISONOTE || row.isonoteRawText);
+  const rows = isonoteRows(sourceContract, audit);
   const currentText = escapeHtml(document.getElementById('isonoteText')?.value || '');
   return `
-    <div class="smw-intro"><strong>Load ISONOTE</strong><span>Paste or edit ISONOTE data, then click Apply as per ISONOTE to re-run support modules using ISONOTE Basis.</span></div>
+    <div class="smw-intro"><strong>Load ISONOTE</strong><span>Paste/edit ISONOTE data, then click Apply as per ISONOTE. This table shows every parsed ISONOTE support row, including unmatched rows.</span></div>
     <textarea id="smwIsonoteText" rows="7" spellcheck="false" placeholder="NODE, ISONOTE">${currentText}</textarea>
-    ${supportTable(rows, 'No ISONOTE-matched rows yet. Load ISONOTE text and click Apply as per ISONOTE.')}`;
+    ${supportTable(rows, 'No ISONOTE rows parsed yet. Load ISONOTE text and click Apply as per ISONOTE.')}`;
 }
 
 function renderRulesTab() {
   const model = window.__3D_MARKUP_SUPPORT_SOURCE_UI__ || {};
   const rows = Array.isArray(model.mapperRows) ? model.mapperRows : [];
   return `
-    <div class="smw-intro"><strong>Support Mapping rules</strong><span>Edit the field candidates used to map, normalize, and resolve support symbology. Save, then apply InputXML or ISONOTE basis.</span></div>
+    <div class="smw-intro"><strong>Support Mapping rules</strong><span>Edit field candidates used to map, normalize, and resolve support symbology. Save, then apply InputXML or ISONOTE basis.</span></div>
     <table class="smw-table"><thead><tr><th>Purpose</th><th>User editable source fields</th><th>Normalized output</th><th>Current resolving rule</th></tr></thead><tbody>
     ${rows.map((row) => `<tr><td>${escapeHtml(row.label || row.fieldPurpose)}</td><td><input data-smw-rule="${escapeAttr(row.fieldPurpose)}" value="${escapeAttr((row.sourceFieldCandidates || []).join(', '))}"></td><td>${escapeHtml(row.normalizedOutput || '')}</td><td>${escapeHtml(row.graphicsRule || row.axisBasis || '')}</td></tr>`).join('') || '<tr><td colspan="4">Support mapper UI not ready yet.</td></tr>'}
     </tbody></table>
@@ -143,18 +143,21 @@ function supportRows(sourceContract = {}, audit = {}) {
   const supports = Array.isArray(sourceContract.supports) ? sourceContract.supports : [];
   const completenessRows = audit.supportRvmExportAudit?.supportCompletenessRows || audit.rvmAtt?.supportRvmExportAudit?.supportCompletenessRows || [];
   if (supports.length) {
-    return supports.map((support, index) => {
-      const match = completenessRows.find((row) => sameNode(row.node, support.nodeNumber) && sameFamily(row.family, support.supportFamily)) || {};
+    return supports.map((support) => {
+      const displayFamily = inferredFamilyLabel(support.supportFamily || support.supportKindNormalized || '', support.supportKindRaw || support.rawType || support.sourceAttributes?.SUPPORT_KIND || '');
+      const match = completenessRows.find((row) => sameNode(row.node, support.nodeNumber) && sameFamily(row.family, displayFamily)) || {};
       return {
         node: support.nodeNumber || match.node || '',
         tag: support.supportName || support.supportId || support.psTag || '',
-        raw: support.supportKindRaw || support.rawType || '',
-        family: support.supportFamily || support.supportKindNormalized || match.family || 'UNKNOWN',
+        raw: support.supportKindRaw || support.rawType || support.sourceAttributes?.SUPPORT_KIND || '',
+        family: displayFamily || match.family || 'UNKNOWN',
+        pipeAxis: support.pipeAxis || support.visual?.pipeAxis || support.axisTransform?.pipeAxis || match.matchedPipeAxis || '',
         sourceAxis: support.axisRaw || match.sourceAxis || '',
         canvasAxis: support.axisCanvas || match.mappedCanvasAxis || '',
         actionAxis: (support.axisTransform?.supportActionAxes || support.visual?.supportActionAxes || match.supportActionAxes || []).join(' / ') || support.axisCanvas || '',
         symbology: symbologyLabel(support, match),
         rendered: match.rendered !== false,
+        statusLabel: match.rendered === false ? 'Missing / suppressed' : 'Rendered',
         activeBasis: support.activeBasis || support.sourceMode || sourceContract.supportSourceBasis?.activeBasis || BASIS.INPUTXML,
         isonoteRawText: support.isonoteRawText || ''
       };
@@ -165,20 +168,52 @@ function supportRows(sourceContract = {}, audit = {}) {
     tag: row.supportTag,
     raw: row.sourcePath,
     family: row.family,
+    pipeAxis: row.matchedPipeAxis || '',
     sourceAxis: row.sourceAxis,
     canvasAxis: row.mappedCanvasAxis,
     actionAxis: (row.supportActionAxes || []).join(' / '),
     symbology: row.xFallback ? 'X blocking-flow fallback' : row.exactAxisRepair ? 'Exact-axis code-8 glyph' : row.family,
     rendered: row.rendered,
+    statusLabel: row.rendered ? 'Rendered' : 'Missing / suppressed',
     activeBasis: row.activeBasis || BASIS.INPUTXML,
     isonoteRawText: row.isonoteRawText || ''
   }));
 }
 
+function isonoteRows(sourceContract = {}, audit = {}) {
+  const activeRows = supportRows(sourceContract, audit).filter((row) => row.activeBasis === BASIS.ISONOTE || row.isonoteRawText);
+  const parsed = Array.isArray(sourceContract.isonoteRecords) ? sourceContract.isonoteRecords : [];
+  const rows = parsed.map((record) => {
+    const family = inferredFamilyLabel(record.mapperRecord?.family || record.attrs?.SUPPORT_KIND_MAPPED || record.attrs?.SUPPORT_KIND || '', record.rawText || '');
+    const matched = activeRows.find((row) => sameNode(row.node, record.nodeId || record.attrs?.NODE) && (sameFamily(row.family, family) || axisMatches(row, record)));
+    return {
+      node: record.nodeId || record.attrs?.NODE || '',
+      tag: record.supportTag || '',
+      raw: record.rawText || record.attrs?.ISONOTE_SEGMENT || '',
+      family,
+      pipeAxis: matched?.pipeAxis || '',
+      sourceAxis: record.mapperRecord?.axis?.sourceAxis || record.attrs?.SUPPORT_AXIS || '',
+      canvasAxis: record.mapperRecord?.axis?.canvasAxis || record.attrs?.AXIS || '',
+      actionAxis: matched?.actionAxis || record.mapperRecord?.axis?.canvasAxis || record.mapperRecord?.axis?.sourceAxis || '',
+      symbology: matched?.symbology || family || 'Parsed ISONOTE row',
+      rendered: Boolean(matched),
+      statusLabel: matched ? 'Matched / rendered by ISONOTE basis' : 'Parsed from ISONOTE; no staged node/family/axis match yet',
+      activeBasis: BASIS.ISONOTE,
+      isonoteRawText: record.rawText || ''
+    };
+  });
+  const parsedKeys = new Set(rows.map((row) => `${normalNode(row.node)}:${normalizeFamily(row.family)}:${row.raw}`));
+  for (const row of activeRows) {
+    const key = `${normalNode(row.node)}:${normalizeFamily(row.family)}:${row.isonoteRawText || row.raw}`;
+    if (!parsedKeys.has(key)) rows.push(row);
+  }
+  return rows;
+}
+
 function supportTable(rows, emptyMessage) {
   const grouped = [...rows].sort((a, b) => Number(a.node) - Number(b.node));
-  return `<table class="smw-table"><thead><tr><th>Node</th><th>Detected restraint</th><th>Normalized support</th><th>Axis resolution</th><th>App symbology</th><th>Status</th></tr></thead><tbody>
-    ${grouped.map((row) => `<tr><td>${escapeHtml(row.node)}</td><td>${escapeHtml(row.raw || row.tag)}</td><td>${escapeHtml(row.family)}</td><td>source ${escapeHtml(row.sourceAxis || 'N/A')} → canvas ${escapeHtml(row.canvasAxis || 'N/A')} / action ${escapeHtml(row.actionAxis || 'N/A')}</td><td>${escapeHtml(row.symbology)}</td><td>${row.rendered ? 'Rendered' : 'Missing / suppressed'}</td></tr>`).join('') || `<tr><td colspan="6">${escapeHtml(emptyMessage)}</td></tr>`}
+  return `<table class="smw-table"><thead><tr><th>Node</th><th>Detected restraint</th><th>Normalized support</th><th>Pipe Axis</th><th>Axis resolution</th><th>App symbology</th><th>Status</th></tr></thead><tbody>
+    ${grouped.map((row) => `<tr><td>${escapeHtml(row.node)}</td><td>${escapeHtml(row.raw || row.tag)}</td><td>${escapeHtml(row.family)}</td><td>${escapeHtml(row.pipeAxis || 'N/A')}</td><td>source ${escapeHtml(row.sourceAxis || 'N/A')} → canvas ${escapeHtml(row.canvasAxis || 'N/A')} / action ${escapeHtml(row.actionAxis || 'N/A')}</td><td>${escapeHtml(row.symbology)}</td><td>${escapeHtml(row.statusLabel || (row.rendered ? 'Rendered' : 'Missing / suppressed'))}</td></tr>`).join('') || `<tr><td colspan="7">${escapeHtml(emptyMessage)}</td></tr>`}
   </tbody></table>`;
 }
 
@@ -200,6 +235,7 @@ async function applyBasis(mode) {
   } else {
     document.getElementById('convertBtn')?.click();
   }
+  setTab(supportMode === BASIS.ISONOTE ? 'isonote' : 'inputxml');
   setStatus(`${supportMode === BASIS.ISONOTE ? 'ISONOTE' : 'InputXML'} Basis applied`);
 }
 
@@ -246,6 +282,21 @@ function symbologyLabel(support, row = {}) {
   return support.supportFamily || row.family || 'Resolved support marker';
 }
 
+function inferredFamilyLabel(family, raw) {
+  const normalized = normalizeFamily(family);
+  const text = String(raw || '').toUpperCase();
+  if (/SPRING.*HANGER|HANGER.*SPRING|HANGER\s*[\/\- ]*\s*SPRING|SPRING\s*[\/\- ]*\s*HANGER/.test(text)) return 'SPRING_HANGER';
+  if (/CAN.*SPRING|SPRING.*CAN/.test(text)) return 'SPRING_CAN';
+  if (/\bSPRING\b/.test(text) && normalized === 'HANGER') return 'SPRING_HANGER';
+  return normalized || 'UNKNOWN';
+}
+
+function axisMatches(row, record) {
+  const rowAxis = normalizeAxis(row.canvasAxis || row.sourceAxis || row.actionAxis || '');
+  const recordAxis = normalizeAxis(record.mapperRecord?.axis?.canvasAxis || record.mapperRecord?.axis?.sourceAxis || record.attrs?.SUPPORT_AXIS || '');
+  return Boolean(rowAxis && recordAxis && rowAxis.replace('+', '') === recordAxis.replace('+', ''));
+}
+
 function setStatus(message) {
   const el = document.getElementById('smwStatus');
   if (el) el.textContent = message;
@@ -253,8 +304,26 @@ function setStatus(message) {
   if (log) log.textContent += `[${new Date().toLocaleTimeString()}] ${message}\n`;
 }
 
-function sameNode(a, b) { return String(Number(a || 0)) === String(Number(b || 0)); }
-function sameFamily(a, b) { return String(a || '').toUpperCase().replace(/[\s-]+/g, '_') === String(b || '').toUpperCase().replace(/[\s-]+/g, '_'); }
+function sameNode(a, b) { return normalNode(a) === normalNode(b); }
+function normalNode(value) { return String(Number(value || 0)); }
+function sameFamily(a, b) {
+  const fa = normalizeFamily(a);
+  const fb = normalizeFamily(b);
+  if (fa === fb) return true;
+  const spring = new Set(['SPRING', 'HANGER', 'SPRING_CAN', 'SPRING_HANGER', 'CAN']);
+  return spring.has(fa) && spring.has(fb);
+}
+function normalizeFamily(value) {
+  const text = String(value || '').toUpperCase().replace(/[\s-]+/g, '_');
+  if (/SPRING.*HANGER|HANGER.*SPRING/.test(text)) return 'SPRING_HANGER';
+  if (/CAN.*SPRING|SPRING.*CAN|SPRING_CAN/.test(text)) return 'SPRING_CAN';
+  if (text === 'LINE_STOP') return 'LINESTOP';
+  return text;
+}
+function normalizeAxis(value) {
+  const match = String(value || '').toUpperCase().match(/([+-]?)(X|Y|Z)/);
+  return match ? `${match[1] || '+'}${match[2]}` : '';
+}
 function escapeHtml(value) { return String(value ?? '').replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char])); }
 function escapeAttr(value) { return escapeHtml(value).replace(/`/g, '&#96;'); }
 
@@ -263,7 +332,7 @@ function injectStyles() {
   const style = document.createElement('style');
   style.id = 'supportMappingIsonoteWorkbenchStyles';
   style.textContent = `
-    .support-map-workbench{width:min(1180px,94vw);max-height:88vh;border:1px solid rgba(148,163,184,.35);border-radius:16px;background:#111827;color:#e5e7eb;padding:0;box-shadow:0 24px 80px rgba(0,0,0,.45)}
+    .support-map-workbench{width:min(1240px,96vw);max-height:88vh;border:1px solid rgba(148,163,184,.35);border-radius:16px;background:#111827;color:#e5e7eb;padding:0;box-shadow:0 24px 80px rgba(0,0,0,.45)}
     .support-map-workbench::backdrop{background:rgba(2,6,23,.62)}
     .smw-head{display:flex;justify-content:space-between;gap:16px;padding:18px 20px;border-bottom:1px solid rgba(148,163,184,.22)}
     .smw-head h2{margin:0;font-size:20px}.smw-head p{margin:4px 0 0;color:#94a3b8}.smw-close{font-size:26px;background:transparent;color:#e5e7eb;border:0;cursor:pointer}

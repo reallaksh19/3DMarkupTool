@@ -5,7 +5,7 @@ import { MANAGED_STAGE_SUPPORT_SOURCE_MODES, normalizeManagedStageSupportMapperR
 
 export const MANAGED_STAGE_SUPPORT_SOURCE_PREVIEW_BRIDGE_SCHEMA = 'ManagedStageSupportSourcePreviewBridge.v2';
 export const MANAGED_STAGE_SUPPORT_SOURCE_PREVIEW_DIAGNOSTICS_SCHEMA = 'ManagedStageSupportSourcePreviewDiagnostics.v1';
-export const MANAGED_STAGE_SUPPORT_SOURCE_PREVIEW_BRIDGE_CACHE_KEY = '20260623-staged-json-support-source-preview-10-source-records';
+export const MANAGED_STAGE_SUPPORT_SOURCE_PREVIEW_BRIDGE_CACHE_KEY = '20260628-support-basis-exclusive-source-records';
 export const ISONOTE_SUPPORT_SOURCE_OVERLAY_ROOT = 'MANAGED_STAGE_SUPPORT_SOURCE_OVERLAY_ISONOTE';
 export const STAGED_JSON_SUPPORT_SOURCE_OVERLAY_ROOT = 'MANAGED_STAGE_SUPPORT_SOURCE_OVERLAY_STAGED_JSON';
 const MAX_PREFLIGHT_ISSUES = 50;
@@ -29,9 +29,19 @@ export function applyManagedStageSupportSourcePreview(modelRoot, options = {}) {
   if (!modelRoot?.traverse) return bridgeResult('skipped', { reason: 'missing modelRoot' });
   const sourceMode = normalizeSupportSourceMode(options.sourceMode);
   const mapperConfigApplied = hasMapperConfig(options.mapperConfig);
+
+  // Remove generated support-source overlays before collecting raw source records.
+  // This prevents STAGED_JSON_* preview symbols from being re-ingested as if they
+  // were original InputXML/stagedJson supports, and keeps stagedJson vs ISONOTE
+  // basis exclusive at the overlay layer.
+  const removed = removeGeneratedSupportPreviewObjects(modelRoot, {
+    removeStagedJsonSymbols: false,
+    removeStagedOverlay: true,
+    removeIsonoteOverlay: true
+  });
+
   const pipeRecords = sourceMode === MANAGED_STAGE_SUPPORT_SOURCE_MODES.OFF ? [] : collectPreviewPipeRecordsFromScene(modelRoot);
   const stagedRecords = sourceMode === MANAGED_STAGE_SUPPORT_SOURCE_MODES.STAGED_JSON ? collectStagedJsonSupportPreviewRecords(modelRoot, options) : [];
-  const removed = removeGeneratedSupportPreviewObjects(modelRoot, { removeStagedJsonSymbols: sourceMode !== MANAGED_STAGE_SUPPORT_SOURCE_MODES.STAGED_JSON || mapperConfigApplied, removeStagedOverlay: true, removeIsonoteOverlay: true });
 
   if (sourceMode === MANAGED_STAGE_SUPPORT_SOURCE_MODES.OFF) {
     stampBridgeAudit(modelRoot, bridgeResult('off', { sourceMode, removed, mapperConfigApplied }));
@@ -39,13 +49,19 @@ export function applyManagedStageSupportSourcePreview(modelRoot, options = {}) {
   }
 
   if (sourceMode === MANAGED_STAGE_SUPPORT_SOURCE_MODES.STAGED_JSON) {
-    let overlayPrimitiveGroupCount = 0;
-    if (stagedRecords.length) {
-      const overlay = createSupportOverlay(STAGED_JSON_SUPPORT_SOURCE_OVERLAY_ROOT, MANAGED_STAGE_SUPPORT_SOURCE_MODES.STAGED_JSON, stagedRecords, pipeRecords, options);
-      overlayPrimitiveGroupCount = overlay.children.length;
-      if (overlay.children.length) modelRoot.add(overlay);
-    }
-    stampBridgeAudit(modelRoot, bridgeResult('stagedJson', { sourceMode, removed, mapperConfigApplied, pipeRecordCount: pipeRecords.length, stagedJsonSupportRecordCount: stagedRecords.length, overlayPrimitiveGroupCount }));
+    // stagedJson/InputXML basis uses the canonical grey SUPPORT_MARKER layer that
+    // is already part of the converted model. Do not add a second green preview
+    // overlay such as STAGED_JSON_10_REST_1.
+    stampBridgeAudit(modelRoot, bridgeResult('stagedJson', {
+      sourceMode,
+      removed,
+      mapperConfigApplied,
+      pipeRecordCount: pipeRecords.length,
+      stagedJsonSupportRecordCount: stagedRecords.length,
+      overlayPrimitiveGroupCount: 0,
+      canonicalSupportMarkerLayer: true,
+      stagedJsonPreviewOverlaySuppressed: true
+    }));
     return modelRoot.userData.managedStageSupportSourcePreview;
   }
 
@@ -105,7 +121,7 @@ export function buildIsonoteSupportPreviewRecords(isonoteText = '', pipeRecords 
 }
 
 export function collectManagedStageSupportSourcePreviewDiagnostics(modelRoot, result = {}) {
-  const diagnostics = { schema: MANAGED_STAGE_SUPPORT_SOURCE_PREVIEW_DIAGNOSTICS_SCHEMA, sourceMode: result.sourceMode || '', status: result.status || '', removed: Number(result.removed || 0), mapperConfigApplied: Boolean(result.mapperConfigApplied), pipeRecordCount: Number(result.pipeRecordCount || 0), stagedJsonSupportRecordCount: Number(result.stagedJsonSupportRecordCount || 0), isonoteSupportRecordCount: Number(result.isonoteSupportRecordCount || 0), overlayPrimitiveGroupCount: Number(result.overlayPrimitiveGroupCount || 0), stagedJsonOverlayRootCount: 0, isonoteOverlayRootCount: 0, supportSymbolCount: 0, stagedJsonSymbolCount: 0, isonoteSymbolCount: 0, supportVisualPartCount: 0, supportFamilyHistogram: {}, supportCanvasAxisHistogram: {}, axisBasisAppliedCount: 0, popupRequiredCount: 0, warningCount: 0, gapRecordScopedCount: 0, gapCarryForwardViolationCount: 0, mapperPreflightIssueCount: 0, mapperPreflightWarningCount: 0, mapperPreflightErrorCount: 0, mapperPreflightPopupRequiredCount: 0, mapperPreflightIssues: [], supportRulePreviewRows: [], maxGlyphLengthMm: 0, maxClusterOffsetMm: 0, maxGapVisualSeparationMm: 0, activeSourceExclusive: true, pass: true };
+  const diagnostics = { schema: MANAGED_STAGE_SUPPORT_SOURCE_PREVIEW_DIAGNOSTICS_SCHEMA, sourceMode: result.sourceMode || '', status: result.status || '', removed: Number(result.removed || 0), mapperConfigApplied: Boolean(result.mapperConfigApplied), pipeRecordCount: Number(result.pipeRecordCount || 0), stagedJsonSupportRecordCount: Number(result.stagedJsonSupportRecordCount || 0), isonoteSupportRecordCount: Number(result.isonoteSupportRecordCount || 0), overlayPrimitiveGroupCount: Number(result.overlayPrimitiveGroupCount || 0), stagedJsonPreviewOverlaySuppressed: Boolean(result.stagedJsonPreviewOverlaySuppressed), canonicalSupportMarkerLayer: Boolean(result.canonicalSupportMarkerLayer), stagedJsonOverlayRootCount: 0, isonoteOverlayRootCount: 0, supportSymbolCount: 0, stagedJsonSymbolCount: 0, isonoteSymbolCount: 0, supportVisualPartCount: 0, supportFamilyHistogram: {}, supportActionAxisHistogram: {}, supportCanvasAxisHistogram: {}, matchedPipeAxisHistogram: {}, axisBasisAppliedCount: 0, popupRequiredCount: 0, warningCount: 0, gapRecordScopedCount: 0, gapCarryForwardViolationCount: 0, mapperPreflightIssueCount: 0, mapperPreflightWarningCount: 0, mapperPreflightErrorCount: 0, mapperPreflightPopupRequiredCount: 0, mapperPreflightIssues: [], supportRulePreviewRows: [], maxGlyphLengthMm: 0, maxClusterOffsetMm: 0, maxGapVisualSeparationMm: 0, activeSourceExclusive: true, pass: true };
   modelRoot?.traverse?.((object) => {
     const data = object?.userData || {};
     if (object?.name === STAGED_JSON_SUPPORT_SOURCE_OVERLAY_ROOT) diagnostics.stagedJsonOverlayRootCount += 1;
@@ -121,15 +137,19 @@ export function collectManagedStageSupportSourcePreviewDiagnostics(modelRoot, re
     const family = String(visual.family || data.supportFamily || 'UNKNOWN').trim() || 'UNKNOWN';
     const itemMode = data.supportSourceMode || (data.isonoteSupportOverlay ? MANAGED_STAGE_SUPPORT_SOURCE_MODES.ISONOTE : MANAGED_STAGE_SUPPORT_SOURCE_MODES.STAGED_JSON);
     const mapperRecord = data.stagedJsonMapperRecord || data.isonoteMapperRecord || null;
-    const canvasAxis = mapperRecord?.axis?.canvasAxis || explicitAxisText(visual.explicitAxis);
+    const supportActionAxes = Array.isArray(visual.supportActionAxes) && visual.supportActionAxes.length ? visual.supportActionAxes : (visual.coneSides || []).map((side) => side?.axis).filter(Boolean);
+    const canvasAxis = mapperRecord?.axis?.canvasAxis || visual.canvasAxis || explicitAxisText(visual.explicitAxis);
+    const matchedPipeAxis = visual.pipeAxisSigned || visual.pipeAxis || '';
     diagnostics.supportSymbolCount += 1;
     if (itemMode === MANAGED_STAGE_SUPPORT_SOURCE_MODES.ISONOTE) diagnostics.isonoteSymbolCount += 1;
     else diagnostics.stagedJsonSymbolCount += 1;
     diagnostics.supportFamilyHistogram[family] = (diagnostics.supportFamilyHistogram[family] || 0) + 1;
+    for (const axis of supportActionAxes) diagnostics.supportActionAxisHistogram[axis] = (diagnostics.supportActionAxisHistogram[axis] || 0) + 1;
     if (canvasAxis) diagnostics.supportCanvasAxisHistogram[canvasAxis] = (diagnostics.supportCanvasAxisHistogram[canvasAxis] || 0) + 1;
+    if (matchedPipeAxis) diagnostics.matchedPipeAxisHistogram[matchedPipeAxis] = (diagnostics.matchedPipeAxisHistogram[matchedPipeAxis] || 0) + 1;
     if (mapperRecord?.attrs?.SUPPORT_AXIS_CANVAS_APPLIED === 'TRUE') diagnostics.axisBasisAppliedCount += 1;
     if (diagnostics.supportRulePreviewRows.length < MAX_RULE_PREVIEW_ROWS) {
-      diagnostics.supportRulePreviewRows.push(buildSupportRulePreviewRow(object, data, visual, mapperRecord, { itemMode, family, canvasAxis }));
+      diagnostics.supportRulePreviewRows.push(buildSupportRulePreviewRow(object, data, visual, mapperRecord, { itemMode, family, canvasAxis, supportActionAxes, matchedPipeAxis }));
     }
     const preflight = mapperRecord?.preflight || null;
     if (preflight) {
@@ -160,15 +180,7 @@ function collectStagedJsonSupportPreviewRecords(modelRoot, options = {}) {
   const seen = new Set();
   modelRoot?.traverse?.((object) => {
     const data = object?.userData || {};
-    if (data.isonoteSupportOverlay) return;
-    if (data.managedStageSupportVisual && data.primitiveKind === 'managed-stage-support-symbol') {
-      const pos = clonePoint(data.previewPosMm || data.sourcePosMm);
-      if (!pos) return;
-      const visual = data.supportVisual || {};
-      const baseAttrs = buildStagedJsonSupportMapperAttrs(data, visual, pos);
-      pushStagedJsonSupportRecord(records, seen, data, visual, baseAttrs, pos, options);
-      return;
-    }
+    if (data.isonoteSupportOverlay || data.stagedJsonSupportOverlay || data.managedStageSupportVisual) return;
     if (!isStagedJsonSupportSourceCandidate(data)) return;
     const pos = supportRecordPositionFromData(data);
     if (!pos) return;
@@ -327,9 +339,13 @@ function mappedAxisOverrideAttrs(mapperRecord) {
 
 function buildSupportRulePreviewRow(object, data, visual, mapperRecord, context = {}) {
   const explicitAxis = visual.explicitAxis || null;
-  const sourceAxis = mapperRecord?.axis?.sourceAxis || data?.SUPPORT_AXIS_SOURCE_ORIGINAL || explicitAxisText(explicitAxis) || '';
-  const canvasAxis = context.canvasAxis || mapperRecord?.axis?.canvasAxis || explicitAxisText(explicitAxis) || '';
-  const sign = axisSign(canvasAxis) || mapperRecord?.attrs?.SUPPORT_SIGN_MAPPED || explicitAxis?.sign || (visual.explicitSignApplied ? explicitAxis?.sign : '');
+  const supportActionAxes = Array.isArray(context.supportActionAxes) && context.supportActionAxes.length
+    ? context.supportActionAxes
+    : (visual.supportActionAxes || (visual.coneSides || []).map((side) => side?.axis).filter(Boolean));
+  const sourceAxis = mapperRecord?.axis?.sourceAxis || data?.SUPPORT_AXIS_SOURCE_ORIGINAL || visual.sourceAxis || '';
+  const canvasAxis = context.canvasAxis || mapperRecord?.axis?.canvasAxis || visual.canvasAxis || explicitAxisText(explicitAxis) || '';
+  const matchedPipeAxis = context.matchedPipeAxis || visual.pipeAxisSigned || visual.pipeAxis || '';
+  const sign = axisSign(canvasAxis || supportActionAxes[0]) || mapperRecord?.attrs?.SUPPORT_SIGN_MAPPED || explicitAxis?.sign || (visual.explicitSignApplied ? explicitAxis?.sign : '');
   const emittedSymbolCount = countSupportVisualParts(object);
   return {
     sourceMode: context.itemMode || data.supportSourceMode || '',
@@ -339,6 +355,8 @@ function buildSupportRulePreviewRow(object, data, visual, mapperRecord, context 
     node: String(visual.node || data.fromNode || data.toNode || mapperRecord?.attrs?.NODE || ''),
     sourceAxis,
     canvasAxis,
+    supportActionAxes,
+    matchedPipeAxis,
     sign,
     gapMm: round(visual.gapMm),
     gapVisualSeparationMm: round(visual.gapVisualSeparationMm),

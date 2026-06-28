@@ -6,6 +6,7 @@ if (typeof installGuard === 'function') {
 }
 
 await import('./app.js?v=bust-cache-4');
+await import('./disable-click-zoom-controller.js?v=bust-cache-4');
 
 try {
   await import('./fresh-clip-controller.js?v=bust-cache-4');
@@ -22,5 +23,5 @@ try {
 
 window.__3D_MARKUP_APP_BUNDLE_READY__ = true;
 window.dispatchEvent(new CustomEvent('viewer:app-bundle-ready', {
-  detail: { version: 'perf-static-drawer-bundle-20260620' }
+  detail: { version: 'select-click-camera-policy-bundle-20260628' }
 }));

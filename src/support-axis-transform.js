@@ -1,4 +1,4 @@
-export const SUPPORT_AXIS_TRANSFORM_SCHEMA = 'SupportAxisTransform.v1';
+export const SUPPORT_AXIS_TRANSFORM_SCHEMA = 'SupportAxisTransform.v2';
 
 const DEFAULT_AXIS_BASIS = Object.freeze({
   schema: 'ManagedStageSupportAxisBasis.v1',
@@ -15,9 +15,15 @@ const DEFAULT_AXIS_BASIS = Object.freeze({
 
 /**
  * Normalizes stagedJson support axes into one canonical canvas-space contract.
- * Parameters: raw/source axis text, optional mapper basis, optional resolved canvas axis, and pipe axis fallback.
- * Output: SupportAxisTransform.v1 with source/canvas signed axes, vector, sign, basis, and diagnostics.
- * Fallback: missing support axes use the signed pipe axis when available, then +X with a diagnostic.
+ * Parameters: raw/source axis text, optional mapper basis, optional resolved canvas axis, support family,
+ * optional support action axes, and pipe axis fallback.
+ * Output: SupportAxisTransform.v2 with source/canvas signed axes, action axes, matched pipe axis,
+ * vector, sign, basis, and diagnostics.
+ * Fallback rules:
+ *   - REST uses family-rule +Y when no explicit source/canvas axis exists.
+ *   - HOLDDOWN uses family-rule +Y/-Y and reports +Y as the primary display axis.
+ *   - GUIDE/LINESTOP/LIMIT/ANCHOR may use pipe axis fallback when no explicit source/canvas axis exists.
+ *   - Missing everything falls back to +X with a diagnostic.
  */
 export function resolveSupportAxisTransform(input) {
   const options = input && typeof input === 'object' ? input : {};
@@ -26,8 +32,12 @@ export function resolveSupportAxisTransform(input) {
   const rawSourceAxis = options.sourceAxis || options.rawAxis || options.axis || '';
   const explicitCanvasAxis = normalizeSupportAxisToken(options.canvasAxis || '');
   const sourceAxis = normalizeSupportAxisToken(rawSourceAxis, options.sign || options.sourceSign || '');
+  const family = normalizeSupportFamily(options.supportFamily || options.family || '');
+  const requestedActionAxes = normalizeAxisList(options.supportActionAxes || options.actionAxes || []);
+  const familyActionAxes = requestedActionAxes.length ? requestedActionAxes : supportFamilyActionAxes(family);
   let canvasAxis = explicitCanvasAxis;
   let axisTransformApplied = false;
+  let fallbackReason = '';
 
   if (!canvasAxis && sourceAxis) {
     const entry = basis.axes[sourceAxis] || {};
@@ -39,14 +49,22 @@ export function resolveSupportAxisTransform(input) {
     axisTransformApplied = true;
   }
 
+  if (!canvasAxis && familyActionAxes.length && (family === 'REST' || family === 'HOLDDOWN')) {
+    canvasAxis = familyActionAxes[0];
+    fallbackReason = 'family-rule-axis';
+    diagnostics.push(axisDiagnostic('family-rule-axis', 'info', `${family} uses a family-rule support action axis.`));
+  }
+
   const pipeFallback = normalizePipeAxis(options.pipeAxis || '');
   if (!canvasAxis && pipeFallback) {
     canvasAxis = pipeFallback;
+    fallbackReason = 'pipe-axis-fallback';
     diagnostics.push(axisDiagnostic('pipe-axis-fallback', 'warning', 'Support axis was missing; pipe axis fallback was used.'));
   }
 
   if (!canvasAxis) {
     canvasAxis = '+X';
+    fallbackReason = 'default-axis-fallback';
     diagnostics.push(axisDiagnostic('default-axis-fallback', 'warning', 'Support axis and pipe axis were missing; +X fallback was used.'));
   }
 
@@ -54,15 +72,20 @@ export function resolveSupportAxisTransform(input) {
     diagnostics.push(axisDiagnostic('unparsed-source-axis', 'warning', `Support axis could not be parsed: ${String(rawSourceAxis)}`));
   }
 
+  const supportActionAxes = familyActionAxes.length ? familyActionAxes : [canvasAxis];
   const vector = supportAxisVector(canvasAxis);
   return {
     schema: SUPPORT_AXIS_TRANSFORM_SCHEMA,
     sourceAxis,
     canvasAxis,
+    supportActionAxes,
+    primarySupportActionAxis: supportActionAxes[0] || canvasAxis,
+    matchedPipeAxis: pipeFallback,
     axisVector: vector,
     sign: canvasAxis.startsWith('-') ? '-' : '+',
     basisPreset: options.basisPreset || options.mapperPresetId || basis.name || '',
     axisTransformApplied,
+    fallbackReason,
     diagnostics
   };
 }
@@ -94,6 +117,37 @@ export function supportAxisVector(axisToken) {
 export function invertSupportAxis(axisToken) {
   const axis = normalizeSupportAxisToken(axisToken) || '+X';
   return `${axis.startsWith('-') ? '+' : '-'}${axis.replace(/[+-]/g, '')}`;
+}
+
+function supportFamilyActionAxes(family) {
+  if (family === 'REST' || family === 'SHOE' || family === 'CAN' || family === 'SPRING_CAN') return ['+Y'];
+  if (family === 'HOLDDOWN' || family === 'U_BOLT') return ['+Y', '-Y'];
+  if (family === 'HANGER' || family === 'SPRING_HANGER') return ['-Y'];
+  return [];
+}
+
+function normalizeAxisList(value) {
+  const entries = Array.isArray(value) ? value : String(value || '').split(/[|,\s]+/);
+  const out = [];
+  for (const entry of entries) {
+    const axis = normalizeSupportAxisToken(entry);
+    if (axis && !out.includes(axis)) out.push(axis);
+  }
+  return out;
+}
+
+function normalizeSupportFamily(value) {
+  const raw = String(value || '').trim().toUpperCase().replace(/[\s\-]+/g, '_');
+  if (!raw) return '';
+  if (raw.includes('LINE_STOP') || raw.includes('LINESTOP')) return 'LINESTOP';
+  if (raw.includes('LIMIT')) return 'LIMIT';
+  if (raw.includes('HOLD') && raw.includes('DOWN')) return 'HOLDDOWN';
+  if (raw.includes('SPRING_CAN') || /CAN.*SPRING|SPRING.*CAN/.test(raw)) return 'SPRING_CAN';
+  if (raw.includes('SPRING_HANGER')) return 'SPRING_HANGER';
+  if (raw.includes('HANGER')) return 'HANGER';
+  if (raw.includes('GUIDE')) return 'GUIDE';
+  if (raw.includes('REST')) return 'REST';
+  return raw;
 }
 
 function normalizePipeAxis(pipeAxis) {

@@ -3,6 +3,8 @@ import { buildEndpointLockedCylinderPrimitive } from './rvm-cylinder-primitive-b
 import { solveCode4ElbowGeometry } from './rvm-code4-elbow-geometry-solver.js?v=bust-cache-4';
 import { planManagedStagePipingComponentRecipe } from './managed-stage-piping-component-recipes.js?v=bust-cache-4';
 
+const CODE4_RADIUS_INFLATION_TOLERANCE_MM = 0.001;
+
 export const MANAGED_STAGE_RVM_MATERIALS = Object.freeze({
   ROOT: 1,
   PIPE: 4,
@@ -25,7 +27,7 @@ export function planManagedStagePrimitives(recordOrContract, options = {}) {
         ...planGenericInputXmlNodeLocalElbowCylinders(contract)
       ];
     }
-    return [planCode4Elbow(contract, pipeRadius, options)];
+    return planCode4ElbowOrSourceRoute(contract, pipeRadius, options);
   }
 
   const recipe = planManagedStagePipingComponentRecipe(contract, {
@@ -83,6 +85,7 @@ function planGenericInputXmlBendCylinders(contract, pipeRadius) {
       primitiveRole: sourceRouteSegment
         ? 'inputxml-source-route-bend-cylinder'
         : `inputxml-generic-1p5d-bend-${segment.role || index + 1}`,
+      primitiveRoleTag: sourceRouteSegment ? 'bendSourceRouteCylinder' : 'bendGenericArcCylinder',
       parentStartMm: contract.startMm,
       parentEndMm: contract.endMm,
       startOffsetMm: 0,
@@ -94,6 +97,7 @@ function planGenericInputXmlBendCylinders(contract, pipeRadius) {
       genericInputXmlBend: true,
       inputXmlSourceRouteBend: sourceRouteSegment,
       code4BendExcluded: true,
+      code4BendExclusionReason: contract.code4BendExclusionReason || contract.bendArcDegradationReason || '',
       genericInputXmlBendSegmentRole: segment.role || '',
       genericBendRadiusMm: contract.genericInputXmlBend?.genericBendRadiusMm || null,
       genericBendTrimLengthMm: contract.genericInputXmlBend?.trimLengthMm || null,
@@ -102,7 +106,7 @@ function planGenericInputXmlBendCylinders(contract, pipeRadius) {
       sourceRouteStartTrimMm: segment.startTrimMm || 0,
       sourceRouteEndTrimMm: segment.endTrimMm || 0,
       orientationAssumption: sourceRouteSegment
-        ? 'InputXML-derived JSON BEND APOS/LPOS preserved as source-route code-8 cylinder; trimmed only where endpoint-locked node-local elbows are inserted'
+        ? 'InputXML-derived JSON BEND APOS/LPOS preserved as source-route code-8 cylinder; code-4 emission is used only when declared radius/sweep can fit the endpoints without radius inflation'
         : 'InputXML-derived JSON bend excluded; emitted as reconstructed generic 1.5D code-8 arc cylinders'
     };
   });
@@ -178,12 +182,33 @@ function planGenericInputXmlNodeLocalElbowCylinders(contract) {
   return primitives;
 }
 
-function planCode4Elbow(contract, pipeRadius, options = {}) {
+function planCode4ElbowOrSourceRoute(contract, pipeRadius, options = {}) {
   const solved = solveCode4ElbowGeometry(contract, options.code4ElbowSolver || {});
+  const radiusInflationMm = Number(solved.radiusInflatedMm || 0);
+  const toleranceMm = Number(options.maxCode4BendRadiusInflationMm ?? CODE4_RADIUS_INFLATION_TOLERANCE_MM);
+  if (radiusInflationMm > toleranceMm && options.allowCode4BendRadiusInflation !== true) {
+    const blocked = {
+      ...contract,
+      excludeCode4Bend: true,
+      code4BendExclusionReason: `Code-4 bend blocked: APOS/LPOS chord requires radius inflation ${radiusInflationMm} mm from declared ${solved.declaredBendRadiusMm} mm to emitted ${solved.bendRadiusMm} mm`,
+      genericInputXmlBend: {
+        mode: 'code8-source-route-cylinder',
+        segments: [{ role: 'source-route', startMm: contract.startMm, endMm: contract.endMm }],
+        originalBendRadiusMm: contract.arc?.bendRadiusMm || null
+      }
+    };
+    return planGenericInputXmlBendCylinders(blocked, pipeRadius);
+  }
+  return [code4ElbowPrimitiveFromSolved(contract, pipeRadius, solved)];
+}
+
+function code4ElbowPrimitiveFromSolved(contract, pipeRadius, solved) {
   return {
     kind: 'elbow',
     name: `${contract.name}_BEND`,
     localName: 'bend',
+    primitiveRole: 'inputxml-code4-bend-elbow',
+    primitiveRoleTag: 'bendCode4Elbow',
     center: solved.centerMm,
     direction: solved.direction,
     basis: solved.basis,

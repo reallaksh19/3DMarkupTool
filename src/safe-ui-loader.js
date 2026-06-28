@@ -1,4 +1,4 @@
-const SAFE_UI_VERSION = window.__3D_MARKUP_SAFE_UI_VERSION__ || 'static-shell-support-mapping-workbench-20260628';
+const SAFE_UI_VERSION = window.__3D_MARKUP_SAFE_UI_VERSION__ || 'static-shell-support-workbench-isonote-axis-click-20260628';
 
 // index.html owns the shell. Default startup must stay small and deterministic.
 // Heavy/retry-based extras are opt-in until browser acceptance proves they are safe.

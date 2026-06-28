@@ -18,6 +18,10 @@ import { parseManagedStageProfile } from './managed-stage-profile-parser.js?v=bu
 import { parseStagedJsonSourceContract } from './stagedjson-source-contract.js?v=bust-cache-4';
 import { auditManagedStageTopology } from './managed-stage-topology-audit.js?v=bust-cache-4';
 import {
+  applyManagedStageSupportBasisToContract,
+  resolveManagedStageSupportBasisOptions
+} from './managed-stage-support-basis-contract.js?v=bust-cache-4';
+import {
   assertManagedStageRvmStitchManifest,
   buildManagedStageRvmStitchManifest
 } from './managed-stage-rvm-stitch-manifest.js?v=bust-cache-4';
@@ -31,16 +35,21 @@ export const MANAGED_STAGE_CODE4_RVM_OPTIONS = Object.freeze({
 
 export function convertManagedStageJsonToRvmAtt(sourceText, options = {}) {
   const profile = parseManagedStageProfile(sourceText);
-  const sourceContract = parseStagedJsonSourceContract(sourceText, {
+  const supportBasisOptions = resolveManagedStageSupportBasisOptions(options);
+  const rawSourceContract = parseStagedJsonSourceContract(sourceText, {
     filename: options.filename || options.sourceName || profile.source || '',
-    isonoteText: options.isonoteText || '',
-    supportMapperConfig: options.supportMapperConfig || {}
+    isonoteText: supportBasisOptions.isonoteText || '',
+    supportMapperConfig: supportBasisOptions.supportMapperConfig || {}
   });
+  const sourceContract = applyManagedStageSupportBasisToContract(rawSourceContract, supportBasisOptions);
   const topology = auditManagedStageTopology(profile.geometryRecords);
   const writerOptions = {
     ...MANAGED_STAGE_CODE4_RVM_OPTIONS,
     warningOnlyManagedStageGates: true,
     nonBlockingGeometryGates: true,
+    supportSourceMode: supportBasisOptions.supportSourceMode,
+    supportMapperConfig: supportBasisOptions.supportMapperConfig,
+    isonoteText: supportBasisOptions.isonoteText,
     sourceContract,
     ...options
   };
@@ -70,12 +79,14 @@ export function convertManagedStageJsonToRvmAtt(sourceText, options = {}) {
     profile: profile.profile,
     units: profile.units,
     generationMode: 'managed-stage-cylinder-torus',
+    supportSourceBasis: sourceContract.supportSourceBasis || null,
     inputCounts: {
       geometryComponents: profile.geometryRecords.length,
       geometryContractsEmitted: exportModel.audit?.componentCount || profile.geometryRecords.length,
       geometryContractsSkipped: exportModel.audit?.skippedGeometryContractCount || 0,
       supportRecordsSkippedFromGeometry: profile.supportRecords.length,
-      supportRecordsEmittedToRvm: supportRvmExportAudit?.supportRecordCount || 0,
+      supportRecordsEmittedToRvm: supportRvmExportAudit?.supportRecordCount || sourceContract.supports?.length || 0,
+      supportSourceBasis: sourceContract.supportSourceBasis || null,
       stats: profile.inputStats,
       statsRestraintsMismatch: Number(profile.inputStats?.validRestraints ?? profile.inputStats?.restraints ?? 0) !== profile.supportRecords.length
     },
@@ -102,8 +113,8 @@ export function convertManagedStageJsonToRvmAtt(sourceText, options = {}) {
     genericInputXmlBendAssumptions: collectGenericInputXmlBendAssumptions(exportModel.root),
     genericInputXmlNodeLocalElbowAssumptions: collectGenericInputXmlNodeLocalElbowAssumptions(exportModel.root),
     genericInputXmlBranchFittingAssumptions: collectGenericInputXmlBranchFittingAssumptions(exportModel.root),
-    exportedSupportRecords: profile.supportRecords.map((record) => ({ name: record.name, type: record.type, supportKind: record.attributes?.SUPPORT_KIND || record.attributes?.SUPPORT_TYPE || '', geometryEmitted: true, rvmExported: true })),
-    skippedSupportRecords: [],
+    exportedSupportRecords: sourceContract.supports.map((support) => ({ name: support.supportName || support.name || support.supportId, type: support.type, supportKind: support.supportFamily || support.supportKindNormalized || '', sourceMode: support.sourceMode || '', activeBasis: support.activeBasis || '', geometryEmitted: true, rvmExported: true })),
+    skippedSupportRecords: skippedSupportRecordsForBasis(profile, sourceContract),
     materialLayerContract,
     materialTableContract,
     boundingExtentsMm,
@@ -201,6 +212,17 @@ function collectTorusAssumptions(root) {
 function collectGenericInputXmlBendAssumptions(root) { const assumptions = []; visit(root, (node) => { for (const primitive of node.primitives || []) if (primitive.genericInputXmlBend) assumptions.push({ element: node.reviewName || node.name, primitive: primitive.name, primitiveCode: 8, segmentRole: primitive.genericInputXmlBendSegmentRole || '', genericBendRadiusMm: primitive.genericBendRadiusMm, genericBendTrimLengthMm: primitive.genericBendTrimLengthMm, originalBendRadiusMm: primitive.originalBendRadiusMm, startMm: primitive.startMm, endMm: primitive.endMm, sourceRouteTrimmedForNodeLocalElbow: primitive.sourceRouteTrimmedForNodeLocalElbow || false, orientationAssumption: primitive.orientationAssumption }); }); return assumptions; }
 function collectGenericInputXmlNodeLocalElbowAssumptions(root) { const assumptions = []; visit(root, (node) => { for (const primitive of node.primitives || []) if (primitive.genericInputXmlNodeLocalElbow) assumptions.push({ element: node.reviewName || node.name, primitive: primitive.name, primitiveCode: 8, node: primitive.nodeLocalElbowNode, segmentIndex: primitive.nodeLocalElbowSegmentIndex, segmentCount: primitive.nodeLocalElbowSegmentCount, parentSourceContractNames: primitive.nodeLocalElbowParentSourceContractNames, startMm: primitive.startMm, endMm: primitive.endMm, orientationAssumption: primitive.orientationAssumption }); }); return assumptions; }
 function collectGenericInputXmlBranchFittingAssumptions(root) { const assumptions = []; visit(root, (node) => { for (const primitive of node.primitives || []) if (primitive.genericInputXmlBranchFitting) assumptions.push({ element: node.reviewName || node.name, primitive: primitive.name, primitiveCode: 8, branchFittingClass: primitive.branchFittingClass, branchFittingNode: primitive.branchFittingNode, hostContractName: primitive.branchFittingHostContractName, startMm: primitive.startMm, endMm: primitive.endMm, orientationAssumption: primitive.orientationAssumption }); }); return assumptions; }
+
+function skippedSupportRecordsForBasis(profile, sourceContract) {
+  const basis = sourceContract.supportSourceBasis || {};
+  if (!basis.suppressedSupportCount) return [];
+  return (profile.supportRecords || []).slice(0, basis.suppressedSupportCount).map((record, index) => ({
+    name: record.name || `SUPPORT_${index + 1}`,
+    type: record.type || '',
+    reason: basis.suppressionReason || 'support-basis-suppressed',
+    activeBasis: basis.activeBasis || ''
+  }));
+}
 
 function warningOnlyGate(schema, callback, options = {}) { try { return callback(); } catch (error) { if (options.warningOnlyManagedStageGates !== true) throw error; return { schema: `${schema}.warning-only`, ok: false, failClosed: false, warningOnly: true, nonBlockingAuditIssues: [error.message], nonBlockingAuditWarningCount: 1 }; } }
 function visit(node, callback) { callback(node); for (const child of node.children || []) visit(child, callback); }

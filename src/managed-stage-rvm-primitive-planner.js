@@ -21,11 +21,20 @@ export function planManagedStagePrimitives(recordOrContract, options = {}) {
   if (!(pipeRadius > 0)) throw new Error(`Missing/invalid diameter for ${contract.name}`);
 
   if (contract.dtxr === 'BEND') {
+    if (contract.managedStageCode4BendPlan) {
+      const structuralCode4 = planManagedStageExplicitCode4Bend(contract, pipeRadius);
+      const preservedSourceRoute = contract.excludeCode4Bend
+        ? planGenericInputXmlBendCylinders(contract, pipeRadius)
+        : [];
+      return [
+        ...structuralCode4,
+        ...preservedSourceRoute
+      ];
+    }
     if (contract.excludeCode4Bend) {
       return [
-        ...planManagedStageExplicitCode4Bend(contract, pipeRadius),
         ...planGenericInputXmlBendCylinders(contract, pipeRadius),
-        ...(contract.managedStageCode4BendPlan ? [] : planGenericInputXmlNodeLocalElbows(contract, pipeRadius))
+        ...planGenericInputXmlNodeLocalElbows(contract, pipeRadius)
       ];
     }
     return planCode4ElbowOrSourceRoute(contract, pipeRadius, options);
@@ -104,7 +113,7 @@ function planManagedStageExplicitCode4Bend(contract, pipeRadius) {
     code4BendPlanAdjacentName: plan.adjacentName,
     code4BendPlanTrimMm: plan.trimMm,
     radiusCappedByTrim: Boolean(plan.radiusCappedByTrim),
-    orientationAssumption: 'explicit BEND emits one structural code-4 primitive from managedStageCode4BendPlan; source-route cylinder is trimmed separately for continuity'
+    orientationAssumption: 'explicit BEND emits one structural code-4 primitive from managedStageCode4BendPlan; source-route cylinder is trimmed separately only when the InputXML preservation path is explicitly enabled'
   }];
 }
 

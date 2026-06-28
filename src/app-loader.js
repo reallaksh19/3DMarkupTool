@@ -1,4 +1,4 @@
-const APP_LOADER_VERSION = 'input-persistent-root-card-20260629-d';
+const APP_LOADER_VERSION = 'input-persistent-root-card-20260629-e';
 const APP_MODULE_URL = `./app.js?v=${APP_LOADER_VERSION}`;
 const CLIP_HOOK_MODULE_URL = `./clip-render-hook.js?v=${APP_LOADER_VERSION}`;
 const FRESH_CLIP_MODULE_URL = `./fresh-clip-controller.js?v=${APP_LOADER_VERSION}`;

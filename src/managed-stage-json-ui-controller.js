@@ -1,4 +1,4 @@
-const CONTROLLER_SCHEMA = 'ManagedStageJsonUiController.v4';
+const CONTROLLER_SCHEMA = 'ManagedStageJsonUiController.v5';
 const MANAGED_STAGE_SCHEMA = 'inputxml-managed-stage/v1';
 const MANAGED_STAGE_PROFILE = 'AVEVA_JSON_FOR_3D_RVM_VIEWER';
 const NON_BLOCKING_MANAGED_STAGE_AUDIT_PATTERNS = Object.freeze([
@@ -134,6 +134,7 @@ function onUnifiedModelFileChange(event) {
 }
 
 async function loadManagedStageFile(file) {
+  resetSupportBasisToInputXml('managed-stage-file-load');
   const sourceText = await file.text();
   if (!looksLikeManagedStageJson(sourceText, file.name)) {
     throw new Error(`${file.name} is JSON, but not ${MANAGED_STAGE_SCHEMA} / ${MANAGED_STAGE_PROFILE}`);
@@ -315,10 +316,66 @@ function installManagedStageButtonInterceptors(modelFileInput) {
 }
 
 async function loadBundledManagedStageSample() {
-  const response = await fetch('./samples/BM_CII_INPUT_managed_stage.json');
-  if (!response.ok) throw new Error(`HTTP ${response.status} while loading BM_CII_INPUT_managed_stage.json`);
-  const text = await response.text();
+  resetSupportBasisToInputXml('bm-cii-bundled-sample');
+  const dataModule = await import('./managed-stage-bm-cii-json-sample-data.js?v=bust-cache-4').catch(() => null);
+  if (typeof dataModule?.createBmCiiManagedStageSampleJson === 'function') {
+    const text = dataModule.createBmCiiManagedStageSampleJson();
+    const name = dataModule.BM_CII_MANAGED_STAGE_SAMPLE_NAME || 'BM_CII_INPUT_managed_stage.json';
+    log(`Loaded bundled ${name} (${text.length.toLocaleString()} chars) via in-memory sample data`);
+    return loadManagedStageText(text, name);
+  }
+  const text = await fetchManagedStageSampleText();
   return loadManagedStageText(text, 'BM_CII_INPUT_managed_stage.json');
+}
+
+async function fetchManagedStageSampleText() {
+  const candidates = [
+    './src/BM_CII_INPUT_managed_stage.json',
+    './BM_CII_INPUT_managed_stage.json',
+    './samples/BM_CII_INPUT_managed_stage.json'
+  ];
+  const failures = [];
+  for (const url of candidates) {
+    try {
+      const response = await fetch(url);
+      if (response.ok) {
+        log(`Loaded BM_CII stagedJson sample from ${url}`);
+        return response.text();
+      }
+      failures.push(`${url}: HTTP ${response.status}`);
+    } catch (error) {
+      failures.push(`${url}: ${error?.message || error}`);
+    }
+  }
+  throw new Error(`Unable to load BM_CII_INPUT_managed_stage.json from bundled data or fallback URLs. ${failures.join(' | ')}`);
+}
+
+function resetSupportBasisToInputXml(reason = 'managed-stage-load') {
+  const select = document.getElementById('supportMode');
+  if (select) {
+    ensureSupportModeOption(select, 'stagedJson', 'InputXML Basis — use staged InputXML supports');
+    if (select.value !== 'stagedJson') {
+      select.value = 'stagedJson';
+      select.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+  }
+  const supportUi = window.__3D_MARKUP_SUPPORT_SOURCE_UI__;
+  if (supportUi && typeof supportUi === 'object') {
+    supportUi.sourceMode = 'stagedJson';
+    supportUi.activeBasis = 'InputXML Basis';
+    supportUi.lastBasisResetReason = reason;
+  }
+  window.dispatchEvent(new CustomEvent('viewer:support-basis-reset', {
+    detail: { reason, sourceMode: 'stagedJson', activeBasis: 'InputXML Basis' }
+  }));
+}
+
+function ensureSupportModeOption(select, value, label) {
+  if (Array.from(select.options || []).some((option) => option.value === value)) return;
+  const option = document.createElement('option');
+  option.value = value;
+  option.textContent = label || value;
+  select.appendChild(option);
 }
 
 function looksLikeManagedStageJson(sourceText, sourceName = '') {

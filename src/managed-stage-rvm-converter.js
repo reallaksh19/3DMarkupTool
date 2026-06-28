@@ -58,6 +58,7 @@ export function convertManagedStageJsonToRvmAtt(sourceText, options = {}) {
   const rvmGeometryAudit = auditManagedStageRvmGeometry(stitchManifest, primitivePayloadSemanticsAudit);
   const torusOrientationAssumptions = collectTorusAssumptions(exportModel.root);
   const rvmCode4ElbowAudit = auditManagedStageRvmElbows(torusOrientationAssumptions, primitivePayloadSemanticsAudit);
+  const explicitCode4BendInvariantAudit = auditExplicitManagedStageCode4BendEmission(exportModel, primitivePayloadContract, torusOrientationAssumptions);
   const rvmVisualGapWarningAudit = auditManagedStageRvmVisualGapWarnings(exportModel, primitivePayloads);
   const stitchManifestGate = warningOnlyGate('ManagedStageRvmStitchManifest', () => assertManagedStageRvmStitchManifest(stitchManifest), writerOptions);
   const supportRvmExportAudit = exportModel.audit?.supportRvmExportAudit || null;
@@ -85,6 +86,8 @@ export function convertManagedStageJsonToRvmAtt(sourceText, options = {}) {
     elbowTangentHintAudit: exportModel.audit?.elbowTangentHintAudit || null,
     inputXmlBendExclusionAudit: exportModel.audit?.inputXmlBendExclusionAudit || null,
     inputXmlNodeLocalElbowAudit: exportModel.audit?.inputXmlNodeLocalElbowAudit || null,
+    rvmBendRecoveryAudit: exportModel.audit?.rvmBendRecoveryAudit || null,
+    explicitCode4BendInvariantAudit,
     inputXmlBendEndpointLockAudit: exportModel.audit?.inputXmlBendEndpointLockAudit || null,
     inputXmlBranchFittingInferenceAudit: exportModel.audit?.inputXmlBranchFittingInferenceAudit || null,
     supportRvmExportAudit,
@@ -133,6 +136,56 @@ export function assertManagedStagePrimitivePayloadCompatibility(primitives = [],
   }
   if (rejected.length && options.warningOnlyManagedStageGates !== true) throw new Error(`Managed-stage RVM rejected primitive code(s): ${rejected.map((p) => p.code).join(', ')}`);
   return { schema: 'ManagedStageRvmPrimitivePayloadContract.v3', primitiveCount: primitives.length, allowedPrimitiveCodes: [1, 4, 7, 8, 9], forbiddenPrimitiveCodesPresent: [2, 5, 6, 11].filter((code) => codeCounts[code]), unsupportedPrimitivePayloadsPresent: rejected.length > 0, warningOnlyUnsupportedPrimitivePayloads: rejected.map((primitive) => ({ code: primitive.code, bodyLength: primitive.bodyLength })), codeCounts, statusCounts };
+}
+
+function auditExplicitManagedStageCode4BendEmission(exportModel = {}, primitivePayloadContract = {}, torusOrientationAssumptions = []) {
+  const recoveryAudit = exportModel.audit?.rvmBendRecoveryAudit || {};
+  const plans = Array.isArray(recoveryAudit.plans) ? recoveryAudit.plans : [];
+  const emittedByBend = new Map();
+  for (const assumption of torusOrientationAssumptions || []) {
+    const key = String(assumption.element || '').replace(/_EXPLICIT_CODE4$/i, '');
+    if (!key) continue;
+    const current = emittedByBend.get(key) || [];
+    current.push(assumption);
+    emittedByBend.set(key, current);
+  }
+  const rows = plans.map((plan) => {
+    const emitted = emittedByBend.get(plan.bendName) || [];
+    return {
+      bendName: plan.bendName,
+      sourceElementId: plan.sourceElementId || '',
+      node: plan.node,
+      adjacentName: plan.adjacentName,
+      turnAngleDeg: plan.turnAngleDeg,
+      bendRadiusMm: plan.bendRadiusMm,
+      pipeRadiusMm: plan.pipeRadiusMm,
+      trimMm: plan.trimMm,
+      planned: true,
+      emittedCode4PrimitiveCount: emitted.length,
+      status: emitted.length === 1 ? 'EMITTED_CODE4' : emitted.length > 1 ? 'DUPLICATE_CODE4' : 'MISSING_CODE4_PRIMITIVE',
+      reason: emitted.length === 1 ? '' : emitted.length > 1 ? 'More than one code-4 primitive was emitted for this explicit BEND plan.' : 'A managedStageCode4BendPlan existed but no matching kind=elbow/code-4 primitive was found in the exported model/RVM histogram.'
+    };
+  });
+  const code4Count = Number(primitivePayloadContract.codeCounts?.[4] || 0);
+  const duplicateRows = rows.filter((row) => row.emittedCode4PrimitiveCount > 1);
+  const missingRows = rows.filter((row) => row.emittedCode4PrimitiveCount === 0);
+  return {
+    schema: 'ManagedStageExplicitCode4BendInvariantAudit.v1',
+    explicitBendRecordCount: Number(recoveryAudit.explicitBendCount || 0),
+    plannedCode4BendCount: Number(recoveryAudit.plannedCode4BendCount || plans.length),
+    emittedCode4PrimitiveCount: code4Count,
+    missingCode4BendPlanCount: Number(recoveryAudit.missingCode4BendPlanCount || 0),
+    missingCode4PrimitiveCount: missingRows.length,
+    duplicateCode4PrimitiveCount: duplicateRows.length,
+    perBendStatusRows: rows,
+    issues: [
+      ...(Array.isArray(recoveryAudit.issues) ? recoveryAudit.issues.map((issue) => `${issue.bendName || 'BEND'}:${issue.code || 'ISSUE'}:${issue.message || ''}`) : []),
+      ...missingRows.map((row) => `${row.bendName}: ${row.reason}`),
+      ...duplicateRows.map((row) => `${row.bendName}: ${row.reason}`),
+      ...(code4Count !== rows.reduce((sum, row) => sum + row.emittedCode4PrimitiveCount, 0) ? [`Primitive histogram code4 count ${code4Count} does not match per-bend emitted total ${rows.reduce((sum, row) => sum + row.emittedCode4PrimitiveCount, 0)}`] : [])
+    ],
+    ok: Number(recoveryAudit.missingCode4BendPlanCount || 0) === 0 && missingRows.length === 0 && duplicateRows.length === 0 && code4Count === rows.length
+  };
 }
 
 function collectTorusAssumptions(root) {

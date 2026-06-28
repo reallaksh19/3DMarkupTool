@@ -2,8 +2,8 @@ import { buildEndpointLockedCylinderPrimitive } from './rvm-cylinder-primitive-b
 import { buildManagedStageSupportRvmExportNodes } from './managed-stage-support-rvm-export.js?v=bust-cache-4';
 import { resolveManagedStageSupportTopologyGate, summarizeManagedStageSupportTopologyGates } from './managed-stage-topology-gated-support-preview.js?v=bust-cache-4';
 
-export const MANAGED_STAGE_TOPOLOGY_GATED_SUPPORT_RVM_SCHEMA = 'ManagedStageTopologyGatedSupportRvmExport.v2';
-export const MANAGED_STAGE_SUPPORT_COMPLETENESS_AUDIT_SCHEMA = 'ManagedStageSupportCompletenessAudit.v1';
+export const MANAGED_STAGE_TOPOLOGY_GATED_SUPPORT_RVM_SCHEMA = 'ManagedStageTopologyGatedSupportRvmExport.v3';
+export const MANAGED_STAGE_SUPPORT_COMPLETENESS_AUDIT_SCHEMA = 'ManagedStageSupportCompletenessAudit.v2';
 
 const NODE_205 = '205';
 const EXACT_AXIS_FAMILY_RE = /^[+-]?[XYZ]$/;
@@ -23,7 +23,7 @@ export function buildTopologyGatedManagedStageSupportRvmExportNodes(profile, opt
     const gate = resolveManagedStageSupportTopologyGate(record, topologyAudit);
     gates.push(gate);
     const blocked = gate.status !== 'ok' || gate.associationOnly !== true;
-    const repairedPrimitives = blocked ? [] : ensureExactAxisSupportPrimitives(node, record, index, options);
+    const plannedPrimitives = blocked ? [] : ensureSupportPrimitives(node, record, index, options);
     const patchedNode = {
       ...node,
       attributes: {
@@ -35,10 +35,11 @@ export function buildTopologyGatedManagedStageSupportRvmExportNodes(profile, opt
         SUPPORT_TOPOLOGY_SEGMENT_ID: gate.segmentId || '',
         SUPPORT_CONTINUITY_EDGE_BLOCKED: Number(gate.supportContinuityEdgeCount || 0) === 0 ? 'TRUE' : 'FALSE',
         SUPPORT_INLINE_FACE_BLOCKED: Number(gate.supportInlineFaceCount || 0) === 0 ? 'TRUE' : 'FALSE',
-        SUPPORT_COMPLETENESS_AUDITED: 'TRUE'
+        SUPPORT_COMPLETENESS_AUDITED: 'TRUE',
+        SUPPORT_UNKNOWN_X_FALLBACK: plannedPrimitives.some((primitive) => primitive.supportUnknownXBlockingFlow === true) ? 'TRUE' : 'FALSE'
       },
       supportTopologyGate: gate,
-      primitives: repairedPrimitives.map((primitive) => ({
+      primitives: plannedPrimitives.map((primitive) => ({
         ...primitive,
         supportTopologyGate: gate.status,
         supportTopologyAssociationOnly: gate.associationOnly === true,
@@ -64,6 +65,16 @@ export function buildTopologyGatedManagedStageSupportRvmExportNodes(profile, opt
         family: supportFamily(node, record),
         node: supportNode(record, node),
         primitiveCount: patchedNode.primitives.length
+      });
+    }
+    if (!blocked && patchedNode.primitives.some((primitive) => primitive.supportUnknownXBlockingFlow === true)) {
+      supportWarnings.push({
+        code: 'UNKNOWN_SUPPORT_REQUIRES_MAPPING',
+        support: node.name,
+        family: supportFamily(node, record),
+        node: supportNode(record, node),
+        primitiveCount: patchedNode.primitives.length,
+        policy: 'rendered as pipe-normal X blocking-flow symbol'
       });
     }
     nodes.push(patchedNode);
@@ -103,10 +114,75 @@ export function buildTopologyGatedManagedStageSupportRvmExportNodes(profile, opt
     node205MissingRows: supportCompletenessAudit.node205MissingRows,
     node205YSupportRendered: supportCompletenessAudit.node205YSupportRendered,
     node205SpringRendered: supportCompletenessAudit.node205SpringRendered,
+    unknownSupportCount: supportCompletenessAudit.unknownSupportCount,
+    xFallbackSupportCount: supportCompletenessAudit.xFallbackSupportCount,
+    unknownSupportRows: supportCompletenessAudit.unknownSupportRows,
     supportWarnings,
     nodes,
-    policy: 'managed-stage support RVM export is topology-gated: support records must resolve to SUPPORT_ASSOCIATION-only topology with zero support continuity edges before compact support glyphs are emitted; completeness audit proves each source support row is rendered or has a suppression reason'
+    policy: 'managed-stage support RVM export is topology-gated: support records must resolve to SUPPORT_ASSOCIATION-only topology with zero support continuity edges before compact support glyphs are emitted; unknown/unmapped ATTA supports are rendered visibly as pipe-normal X blocking-flow symbols and counted in completeness audit'
   };
+}
+
+function ensureSupportPrimitives(node, record, index, options = {}) {
+  if (isUnknownSupport(node, record)) return unknownBlockingFlowPrimitives(node, record, index, options);
+  return ensureExactAxisSupportPrimitives(node, record, index, options);
+}
+
+function unknownBlockingFlowPrimitives(node, record, index, options = {}) {
+  const family = supportFamily(node, record) || 'UNKNOWN';
+  const center = vector3(node.position || node.sourceAnchor || supportPosition(record));
+  const pipeAxis = inferredPipeAxis(node, record);
+  const tHat = normalize(axisVector(pipeAxis));
+  const { u, v } = perpendicularPlaneBasis(tHat);
+  const odMm = Number(options.pointRadius || 30) * 2 || 60;
+  const half = Math.max(26, Math.min(65, odMm * 0.42));
+  const radiusMm = Math.max(1.25, Math.min(3, odMm * 0.018));
+  const sourceName = node.name || record?.name || `SUPPORT_${index + 1}`;
+  const material = node.material || 9;
+  const diagonals = [
+    { name: 'A', start: add(center, add(scale(u, -half), scale(v, -half))), end: add(center, add(scale(u, half), scale(v, half))) },
+    { name: 'B', start: add(center, add(scale(u, -half), scale(v, half))), end: add(center, add(scale(u, half), scale(v, -half))) }
+  ];
+  return diagonals.map((diag) => {
+    const primitive = buildEndpointLockedCylinderPrimitive({
+      name: `${sourceName}_UNKNOWN_X_BLOCKING_FLOW_${diag.name}`,
+      localName: `unknown-x-blocking-flow-${diag.name}`,
+      startMm: diag.start,
+      endMm: diag.end,
+      radiusMm,
+      material,
+      sourceContractName: record?.attributes?.NAME || record?.name || '',
+      sourceElementId: record?.attributes?.SOURCE_RESTRAINT_ID || record?.attributes?.REF || record?.name || '',
+      primitiveRole: 'managed-stage-rvm-support-unknown-x-blocking-flow',
+      parentStartMm: diag.start,
+      parentEndMm: diag.end,
+      startOffsetMm: 0,
+      endOffsetMm: 0
+    });
+    return {
+      ...primitive,
+      recipeName: 'managed-stage-rvm-support-unknown-x-blocking-flow',
+      managedStageSupportRvmPrimitive: true,
+      supportPrimitiveCode: SUPPORT_CODE8_CYLINDER,
+      supportBar: true,
+      supportFallbackCrossRod: true,
+      supportWarningMarker: true,
+      supportUnknownXBlockingFlow: true,
+      supportMarkerXFallback: true,
+      supportFamily: family,
+      supportRawKind: record?.attributes?.RAW_TYPE || record?.type || '',
+      supportNode: supportNode(record, node),
+      supportAxis: pipeAxis,
+      supportMatchedPipeAxis: pipeAxis,
+      supportActionAxes: ['X-BLOCKING-FLOW'],
+      warningCode: 'UNKNOWN_SUPPORT_REQUIRES_MAPPING',
+      warningMessage: 'Unknown/generic support was rendered as X blocking-flow fallback; update support mapper rules for a specific family.',
+      supportSourceAnchorMm: center,
+      supportVisualCenterMm: center,
+      supportGlyphLengthMm: half * 2,
+      orientationAssumption: 'Unknown support/ATTA fallback is drawn as two crossed code-8 bars in the plane normal to the matched pipe axis.'
+    };
+  });
 }
 
 function ensureExactAxisSupportPrimitives(node, record, index, options = {}) {
@@ -165,13 +241,15 @@ function buildSupportCompletenessRow(record, node, gate, index, blocked) {
   const primitives = node.primitives || [];
   const supportActionAxes = uniqueAxes([
     ...primitives.map((primitive) => primitive.supportAxis),
+    ...primitives.flatMap((primitive) => Array.isArray(primitive.supportActionAxes) ? primitive.supportActionAxes : []),
     ...(Array.isArray(node.supportActionAxes) ? node.supportActionAxes : []),
     node.attributes?.AXIS_CANVAS,
     node.attributes?.AXIS
   ]);
   const rendered = primitives.length > 0;
+  const xFallback = primitives.some((primitive) => primitive.supportUnknownXBlockingFlow === true);
   return {
-    schema: 'ManagedStageSupportCompletenessRow.v1',
+    schema: 'ManagedStageSupportCompletenessRow.v2',
     index,
     node: supportNode(record, node),
     family,
@@ -181,13 +259,16 @@ function buildSupportCompletenessRow(record, node, gate, index, blocked) {
     sourceAxis: attrs.SUPPORT_AXIS_SOURCE_ORIGINAL || attrs.SUPPORT_AXIS_SOURCE || attrs.SUPPORT_AXIS || attrs.RESTRAINT_AXIS || attrs.AXIS || '',
     mappedCanvasAxis: attrs.SUPPORT_AXIS_CANVAS || node.attributes?.AXIS_CANVAS || node.attributes?.AXIS || '',
     supportActionAxes,
-    matchedPipeAxis: attrs.MATCHED_PIPE_AXIS || attrs.PIPE_AXIS || node.attributes?.MATCHED_PIPE_AXIS || '',
+    matchedPipeAxis: attrs.MATCHED_PIPE_AXIS || attrs.PIPE_AXIS || node.attributes?.MATCHED_PIPE_AXIS || inferredPipeAxis(node, record),
     primitiveCount: primitives.length,
     rendered,
     suppressedReason: rendered ? '' : blocked ? `topology-gate:${gate.reason || gate.status}` : 'zero-primitives-after-support-planning',
     topologyGate: gate.status,
     topologyAssociationOnly: gate.associationOnly === true,
     exactAxisRepair: primitives.some((primitive) => primitive.supportExactAxisZeroPrimitiveRepair === true),
+    unknownSupport: isUnknownSupport(node, record),
+    xFallback,
+    warningCode: xFallback ? 'UNKNOWN_SUPPORT_REQUIRES_MAPPING' : '',
     isNode205: supportNode(record, node) === NODE_205,
     isYSupport: isYSupport(family, supportActionAxes, attrs),
     isSpringSupport: isSpringSupport(family, attrs)
@@ -210,6 +291,8 @@ function buildSupportCompletenessAudit(rows) {
   const node205MissingRows = node205Rows.filter((row) => !row.rendered);
   const node205YRows = node205Rows.filter((row) => row.isYSupport);
   const node205SpringRows = node205Rows.filter((row) => row.isSpringSupport);
+  const unknownSupportRows = rows.filter((row) => row.unknownSupport);
+  const xFallbackRows = rows.filter((row) => row.xFallback);
   return {
     schema: MANAGED_STAGE_SUPPORT_COMPLETENESS_AUDIT_SCHEMA,
     sourceRowCount: rows.length,
@@ -224,6 +307,10 @@ function buildSupportCompletenessAudit(rows) {
     node205YSupportRendered: node205YRows.length > 0 && node205YRows.every((row) => row.rendered),
     node205SpringSourceCount: node205SpringRows.length,
     node205SpringRendered: node205SpringRows.length > 0 && node205SpringRows.every((row) => row.rendered),
+    unknownSupportCount: unknownSupportRows.length,
+    xFallbackSupportCount: xFallbackRows.length,
+    unknownSupportRows,
+    xFallbackRows,
     pass: missingRows.length === 0 && node205MissingRows.length === 0
   };
 }
@@ -239,6 +326,22 @@ function supportNode(record, node) {
 function supportPosition(record) {
   const attrs = record?.attributes || {};
   return pointOrArray(attrs.SUPPORTCOORD || attrs.SUPPORT_COORD || attrs.POS || attrs.BPOS || attrs.APOS || attrs.LPOS);
+}
+
+function isUnknownSupport(node, record) {
+  const attrs = record?.attributes || {};
+  const family = supportFamily(node, record);
+  if (!family || family === 'UNKNOWN' || family === 'UNKNOWN_RESTRAINT') return true;
+  const sourceText = [attrs.SUPPORT_KIND, attrs.SUPPORT_TYPE, attrs.RESTRAINT, attrs.RESTYPE, attrs.CMPSUPTYPE, attrs.MDSSUPPTYPE, attrs.NAME, attrs.REF].filter(Boolean).join(' ').toUpperCase();
+  const typeText = [attrs.TYPE, attrs.RAW_TYPE, record?.type].filter(Boolean).join(' ').toUpperCase();
+  const hasMappedFamily = /REST|GUIDE|LINE.?STOP|LIMIT|HOLD.?DOWN|SPRING|HANGER|ANCHOR|SHOE|TRUNNION|U.?BOLT|CAN|^[+-]?[XYZ]$/.test(sourceText);
+  return /ATTA|ANCI|SUPPORT|SUPP/.test(typeText) && !hasMappedFamily && (family === 'ATTA' || family === 'ANCI' || family === 'SUPPORT');
+}
+
+function inferredPipeAxis(node, record) {
+  const attrs = record?.attributes || {};
+  const primitiveAxis = (node.primitives || []).map((primitive) => primitive.supportMatchedPipeAxis || primitive.supportMarkerAxis || primitive.matchedPipeAxis || primitive.pipeAxis).find(Boolean);
+  return normalizeAxis(attrs.MATCHED_PIPE_AXIS || attrs.PIPE_AXIS || node.attributes?.MATCHED_PIPE_AXIS || primitiveAxis || '+X');
 }
 
 function pointOrArray(value) {
@@ -266,6 +369,14 @@ function axisToken(axis) {
   return String(axis || '+X').replace('+', 'POS_').replace('-', 'NEG_').replace(/[^A-Za-z0-9_]/g, '_');
 }
 
+function perpendicularPlaneBasis(direction) {
+  const t = normalize(direction);
+  const seed = Math.abs(t[1]) < 0.85 ? [0, 1, 0] : [1, 0, 0];
+  const u = normalize(cross(t, seed));
+  const v = normalize(cross(t, u));
+  return { u, v };
+}
+
 function vector3(value) {
   if (Array.isArray(value) && value.length === 3) return value.map((entry) => Number(entry) || 0);
   return [0, 0, 0];
@@ -277,6 +388,20 @@ function add(a, b) {
 
 function scale(a, n) {
   return [a[0] * n, a[1] * n, a[2] * n];
+}
+
+function cross(a, b) {
+  return [
+    a[1] * b[2] - a[2] * b[1],
+    a[2] * b[0] - a[0] * b[2],
+    a[0] * b[1] - a[1] * b[0]
+  ];
+}
+
+function normalize(value) {
+  const length = Math.hypot(value[0], value[1], value[2]);
+  if (!Number.isFinite(length) || length <= 1e-12) return [1, 0, 0];
+  return scale(value, 1 / length);
 }
 
 function uniqueAxes(values) {

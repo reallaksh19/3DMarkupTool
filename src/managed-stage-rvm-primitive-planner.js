@@ -24,9 +24,10 @@ export function planManagedStagePrimitives(recordOrContract, options = {}) {
   if (contract.dtxr === 'BEND') {
     if (contract.managedStageCode4BendPlan) {
       const structuralCode4 = planManagedStageExplicitCode4Bend(contract, pipeRadius);
-      const preservedSourceRoute = contract.excludeCode4Bend
-        ? planGenericInputXmlBendCylinders(contract, pipeRadius)
-        : [];
+      const structuralCode4Degraded = structuralCode4.some((primitive) => primitive.code4BendPlanDegraded || primitive.code4BendExcluded);
+      const preservedSourceRoute = structuralCode4Degraded
+        ? []
+        : planGenericInputXmlBendCylinders(contract, pipeRadius);
       return [
         ...structuralCode4,
         ...preservedSourceRoute
@@ -134,7 +135,7 @@ function planManagedStageExplicitCode4Bend(contract, pipeRadius) {
     code4BendPlanAdjacentName: plan.adjacentName,
     code4BendPlanTrimMm: plan.trimMm,
     radiusCappedByTrim: Boolean(plan.radiusCappedByTrim),
-    orientationAssumption: 'explicit BEND emits one structural code-4 primitive from managedStageCode4BendPlan; source-route cylinder is trimmed separately only when the InputXML preservation path is explicitly enabled'
+    orientationAssumption: 'explicit BEND emits one structural code-4 primitive from managedStageCode4BendPlan; source-route cylinder is trimmed and preserved as a separate code-8 primitive for pipe continuity'
   }];
 }
 
@@ -143,6 +144,8 @@ function planGenericInputXmlBendCylinders(contract, pipeRadius) {
     ? contract.genericInputXmlBend.segments
     : [{ role: 'source-route', startMm: contract.startMm, endMm: contract.endMm }];
   const sourceRouteMode = contract.genericInputXmlBend?.mode === 'code8-source-route-cylinder';
+  const explicitCode4SourceRoute = Boolean(contract.managedStageCode4BendPlan && !contract.excludeCode4Bend);
+  const code4BendExcluded = !explicitCode4SourceRoute;
   return segments.map((segment, index) => {
     const sourceRouteSegment = sourceRouteMode || segment.role === 'source-route';
     const primitive = buildEndpointLockedCylinderPrimitive({
@@ -167,11 +170,13 @@ function planGenericInputXmlBendCylinders(contract, pipeRadius) {
     });
     return {
       ...primitive,
-      recipeName: sourceRouteSegment ? 'inputxml-source-route-bend-cylinder' : 'inputxml-generic-1p5d-bend-reconstructed-arc',
+      recipeName: sourceRouteSegment
+        ? (explicitCode4SourceRoute ? 'inputxml-source-route-bend-cylinder-with-code4' : 'inputxml-source-route-bend-cylinder')
+        : 'inputxml-generic-1p5d-bend-reconstructed-arc',
       genericInputXmlBend: true,
       inputXmlSourceRouteBend: sourceRouteSegment,
-      code4BendExcluded: true,
-      code4BendExclusionReason: contract.code4BendExclusionReason || contract.bendArcDegradationReason || '',
+      code4BendExcluded,
+      code4BendExclusionReason: code4BendExcluded ? (contract.code4BendExclusionReason || contract.bendArcDegradationReason || '') : '',
       genericInputXmlBendSegmentRole: segment.role || '',
       genericBendRadiusMm: contract.genericInputXmlBend?.genericBendRadiusMm || null,
       genericBendTrimLengthMm: contract.genericInputXmlBend?.trimLengthMm || null,
@@ -181,7 +186,9 @@ function planGenericInputXmlBendCylinders(contract, pipeRadius) {
       sourceRouteStartTrimMm: segment.startTrimMm || 0,
       sourceRouteEndTrimMm: segment.endTrimMm || 0,
       orientationAssumption: sourceRouteSegment
-        ? 'InputXML-derived JSON BEND APOS/LPOS preserved as trimmed source-route code-8 cylinder; explicit managedStageCode4BendPlan carries bend geometry'
+        ? (explicitCode4SourceRoute
+          ? 'InputXML-derived JSON BEND source route preserved as trimmed code-8 cylinder connecting into the explicit code-4 bend'
+          : 'InputXML-derived JSON BEND APOS/LPOS preserved as trimmed source-route code-8 cylinder; explicit managedStageCode4BendPlan carries bend geometry')
         : 'InputXML-derived JSON bend excluded; emitted as reconstructed generic 1.5D code-8 arc cylinders'
     };
   });

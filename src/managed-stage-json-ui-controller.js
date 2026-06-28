@@ -151,10 +151,6 @@ async function loadManagedStageText(sourceText, sourceName = 'BM_CII_INPUT_manag
   const options = bmCiiLikeSourceName(sourceName) ? { strictAuditExpectations: BM_CII_STAGED_JSON_EXPECTATIONS } : {};
   const result = convertManagedStageJsonToRvmAtt(sourceText, options);
 
-  // Coordinate-preservation self-test (non-blocking): the raw staged preview validates that
-  // source APOS/LPOS coordinates are preserved. It is no longer displayed — the canvas now
-  // renders the exported RVM geometry — but its audit is kept and surfaced as a diagnostic so
-  // any drift between the staged source and the exported RVM is still reported in the Log panel.
   let coordinateAuditScene = null;
   let previewAudit = null;
   try {
@@ -166,9 +162,6 @@ async function loadManagedStageText(sourceText, sourceName = 'BM_CII_INPUT_manag
   }
   const visibleDiagnostics = buildManagedStageVisibleDiagnostics(result.audit, previewAudit);
 
-  // Live preview == exported RVM geometry. Rendered from the same in-memory export model that
-  // writeRvm() serializes, so the canvas matches the downloaded .rvm 1:1. recenter:false keeps
-  // absolute mm coordinates so the XYZ readout and measure tool stay coordinate-true.
   const previewScene = createRvmPreviewScene(result.exportModel, {
     recenter: false,
     sceneName: `${managedStageUiState.basename}_EXPORTED_RVM_PREVIEW`
@@ -269,6 +262,12 @@ function replaceManagedStagePreviewSupportMarkers(scene, supports, buildSupportM
 }
 
 function installManagedStageButtonInterceptors() {
+  captureClick('copyLogBtn', (event) => {
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    copyCurrentLog();
+    return true;
+  });
   captureClick('convertBtn', async (event) => {
     if (!managedStageUiState.sourceText) return false;
     event.preventDefault();
@@ -343,7 +342,7 @@ function updateDrawerSummary(audit, previewAudit = null) {
   const counts = audit.inputCounts || {};
   const histogram = audit.primitiveHistogram || {};
   const diagnostics = buildManagedStageVisibleDiagnostics(audit, previewAudit);
-  target.textContent = `Managed JSON: ${counts.geometryComponents || 0} geometry, ${counts.supportRecordsSkippedFromGeometry || 0} supports, RVM primitives ${audit.rvmPrimitivePayloadContract?.primitiveCount || audit.chunkHierarchy?.primCount || 0} (code8=${histogram[8] || 0}, code1=${histogram[1] || 0}); topology=${diagnostics.topologyProofGateOk ? 'PASS' : 'FAIL'}, BEND details=${diagnostics.explicitBendDetailCount}/${diagnostics.explicitBendRecordCount}, support topology=${diagnostics.supportTopologyGatePass ? 'PASS' : 'FAIL'}`;
+  target.textContent = `Managed JSON: ${counts.geometryComponents || 0} geometry, ${counts.supportRecordsSkippedFromGeometry || 0} supports, RVM primitives ${audit.rvmPrimitivePayloadContract?.primitiveCount || audit.chunkHierarchy?.primCount || 0} (code4=${histogram[4] || 0}, code7=${histogram[7] || 0}, code8=${histogram[8] || 0}, code9=${histogram[9] || 0}); topology=${diagnostics.topologyProofGateOk ? 'PASS' : 'FAIL'}, BEND details=${diagnostics.explicitBendDetailCount}/${diagnostics.explicitBendRecordCount}, support topology=${diagnostics.supportTopologyGatePass ? 'PASS' : 'FAIL'}`;
 }
 
 function updateManagedStageDiagnosticsPanel(audit, previewAudit = null) {
@@ -419,7 +418,7 @@ function logManagedStageSummary(audit) {
   if (!audit) return;
   const counts = audit.inputCounts || {};
   const histogram = audit.primitiveHistogram || {};
-  log(`Managed-stage RVM: geometry=${counts.geometryComponents || 0}, supports=${counts.supportRecordsSkippedFromGeometry || 0}, emittedSupports=${counts.emittedSupports || counts.supportRecordsEmittedToRvm || 0}, PRIM=${audit.chunkHierarchy?.primCount || 0}, code1=${histogram[1] || 0}, code8=${histogram[8] || 0}`);
+  log(`Managed-stage RVM: geometry=${counts.geometryComponents || 0}, supports=${counts.supportRecordsSkippedFromGeometry || 0}, emittedSupports=${counts.emittedSupports || counts.supportRecordsEmittedToRvm || 0}, PRIM=${audit.chunkHierarchy?.primCount || 0}, code1=${histogram[1] || 0}, code4=${histogram[4] || 0}, code7=${histogram[7] || 0}, code8=${histogram[8] || 0}, code9=${histogram[9] || 0}`);
 }
 
 function logManagedStagePreviewCoordinateAudit(audit) {
@@ -430,6 +429,44 @@ function logManagedStagePreviewCoordinateAudit(audit) {
 function logManagedStageVisibleDiagnostics(diagnostics) {
   if (!diagnostics) return;
   log(`Managed-stage topology proof diagnostics: ${renderManagedStageVisibleDiagnostics(diagnostics)}`);
+}
+
+function copyCurrentLog() {
+  const button = document.getElementById('copyLogBtn');
+  const text = document.getElementById('log')?.textContent || '';
+  const done = () => flashStaticLogCopyButton(button);
+  if (navigator.clipboard?.writeText) {
+    navigator.clipboard.writeText(text).then(done).catch(() => {
+      fallbackCopy(text);
+      done();
+    });
+    return;
+  }
+  fallbackCopy(text);
+  done();
+}
+
+function fallbackCopy(text) {
+  const area = document.createElement('textarea');
+  area.value = text;
+  area.setAttribute('readonly', 'true');
+  area.style.position = 'fixed';
+  area.style.left = '-9999px';
+  document.body.appendChild(area);
+  area.select();
+  document.execCommand('copy');
+  area.remove();
+}
+
+function flashStaticLogCopyButton(button) {
+  if (!button) return;
+  button.dataset.copied = 'true';
+  const oldTitle = button.title;
+  button.title = 'Copied log';
+  window.setTimeout(() => {
+    delete button.dataset.copied;
+    button.title = oldTitle || 'Copy log to clipboard';
+  }, 1200);
 }
 
 function numberOrZero(value) {

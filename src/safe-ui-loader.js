@@ -1,4 +1,4 @@
-const SAFE_UI_VERSION = window.__3D_MARKUP_SAFE_UI_VERSION__ || 'static-shell-responsive-core-20260618';
+const SAFE_UI_VERSION = window.__3D_MARKUP_SAFE_UI_VERSION__ || 'static-shell-support-marker-panel-20260628';
 
 // index.html owns the shell. Default startup must stay small and deterministic.
 // Heavy/retry-based extras are opt-in until browser acceptance proves they are safe.
@@ -13,7 +13,8 @@ const CORE_MODULES = [
   { id: 'coreAppSafety', label: 'Core app safety', src: `./core-app-safety-controller.js?v=${SAFE_UI_VERSION}` },
   { id: 'fit', label: 'Fit', src: `./fit-controller.js?v=${SAFE_UI_VERSION}` },
   { id: 'grid', label: 'Grid toggle', src: `./grid-toggle-controller.js?v=${SAFE_UI_VERSION}` },
-  { id: 'selectionSync', label: 'Selection sync', src: `./selection-sync-controller.js?v=${SAFE_UI_VERSION}` }
+  { id: 'selectionSync', label: 'Selection sync', src: `./selection-sync-controller.js?v=${SAFE_UI_VERSION}` },
+  { id: 'supportMarkerPropertiesPanel', label: 'Support marker properties panel', src: `./support-marker-properties-panel-controller.js?v=${SAFE_UI_VERSION}` }
 ];
 
 const ADVANCED_MODULES = [

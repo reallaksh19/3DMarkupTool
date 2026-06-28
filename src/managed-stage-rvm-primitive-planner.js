@@ -24,7 +24,7 @@ export function planManagedStagePrimitives(recordOrContract, options = {}) {
     if (contract.excludeCode4Bend) {
       return [
         ...planGenericInputXmlBendCylinders(contract, pipeRadius),
-        ...planGenericInputXmlNodeLocalElbowCylinders(contract)
+        ...planGenericInputXmlNodeLocalElbows(contract, pipeRadius)
       ];
     }
     return planCode4ElbowOrSourceRoute(contract, pipeRadius, options);
@@ -37,7 +37,7 @@ export function planManagedStagePrimitives(recordOrContract, options = {}) {
   return [
     ...recipe.primitives,
     ...planGenericInputXmlBranchFittingCylinders(contract),
-    ...planGenericInputXmlNodeLocalElbowCylinders(contract)
+    ...planGenericInputXmlNodeLocalElbows(contract, pipeRadius)
   ];
 }
 
@@ -106,7 +106,7 @@ function planGenericInputXmlBendCylinders(contract, pipeRadius) {
       sourceRouteStartTrimMm: segment.startTrimMm || 0,
       sourceRouteEndTrimMm: segment.endTrimMm || 0,
       orientationAssumption: sourceRouteSegment
-        ? 'InputXML-derived JSON BEND APOS/LPOS preserved as source-route code-8 cylinder; code-4 emission is used only when declared radius/sweep can fit the endpoints without radius inflation'
+        ? 'InputXML-derived JSON BEND APOS/LPOS preserved as source-route code-8 cylinder; topology node-local code-4 elbows carry the visible bend geometry'
         : 'InputXML-derived JSON bend excluded; emitted as reconstructed generic 1.5D code-8 arc cylinders'
     };
   });
@@ -147,10 +147,14 @@ function planGenericInputXmlBranchFittingCylinders(contract) {
   return primitives;
 }
 
-function planGenericInputXmlNodeLocalElbowCylinders(contract) {
+function planGenericInputXmlNodeLocalElbows(contract, pipeRadius) {
   const elbows = contract.genericInputXmlNodeLocalElbows || [];
   const primitives = [];
   for (const elbow of elbows) {
+    if (elbow.code4) {
+      primitives.push(planNodeLocalCode4Elbow(contract, elbow, pipeRadius));
+      continue;
+    }
     for (const [index, segment] of (elbow.segments || []).entries()) {
       const primitive = buildEndpointLockedCylinderPrimitive({
         name: `${elbow.name}_SEG_${index + 1}`,
@@ -162,6 +166,7 @@ function planGenericInputXmlNodeLocalElbowCylinders(contract) {
         sourceContractName: contract.name,
         sourceElementId: contract.sourceElementId || contract.elementId || '',
         primitiveRole: 'inputxml-node-local-1p5d-elbow',
+        primitiveRoleTag: 'bendGenericArcCylinder',
         parentStartMm: contract.startMm,
         parentEndMm: contract.endMm,
         startOffsetMm: 0,
@@ -180,6 +185,47 @@ function planGenericInputXmlNodeLocalElbowCylinders(contract) {
     }
   }
   return primitives;
+}
+
+function planNodeLocalCode4Elbow(contract, elbow, pipeRadius) {
+  const code4 = elbow.code4;
+  const synthetic = {
+    ...contract,
+    name: `${elbow.name}_CODE4`,
+    dtxr: 'BEND',
+    centerlineKind: 'arc',
+    excludeCode4Bend: false,
+    startMm: code4.startMm,
+    endMm: code4.endMm,
+    lengthMm: distance(code4.startMm, code4.endMm),
+    centerMm: midpoint(code4.startMm, code4.endMm),
+    axis: unitVector(vsub(code4.endMm, code4.startMm)),
+    arc: {
+      bendRadiusMm: code4.bendRadiusMm,
+      tubeRadiusMm: code4.tubeRadiusMm || pipeRadius,
+      sweepAngleRad: code4.sweepAngleRad,
+      bendAngleDeg: code4.bendAngleDeg,
+      startTangent: code4.startTangent,
+      endTangent: code4.endTangent,
+      planeNormal: code4.planeNormal,
+      tangentHintState: 'node-local-topology',
+      tangentHintSources: elbow.parentSourceContractNames || []
+    }
+  };
+  const solved = solveCode4ElbowGeometry(synthetic, { preserveDeclaredRadius: true });
+  return {
+    ...code4ElbowPrimitiveFromSolved(synthetic, pipeRadius, solved),
+    name: `${elbow.name}_CODE4`,
+    localName: `node-local-code4-elbow-${elbow.node}`,
+    primitiveRole: 'inputxml-node-local-code4-elbow',
+    primitiveRoleTag: 'bendCode4Elbow',
+    recipeName: 'inputxml-node-local-code4-elbow',
+    genericInputXmlNodeLocalElbow: true,
+    nodeLocalElbowNode: elbow.node,
+    nodeLocalElbowParentSourceContractNames: elbow.parentSourceContractNames || [],
+    nodeLocalElbowSegmentCount: 1,
+    orientationAssumption: 'InputXML source routes are trimmed at topology turn node; code-4 elbow uses node-local tangent endpoints and declared/topology radius'
+  };
 }
 
 function planCode4ElbowOrSourceRoute(contract, pipeRadius, options = {}) {
@@ -241,3 +287,8 @@ function asGeometryContract(recordOrContract, elementIndex) {
   if (recordOrContract?.schema === 'ManagedStageGeometryContract.v1') return recordOrContract;
   return createManagedStageGeometryContract(recordOrContract, elementIndex);
 }
+
+function distance(a, b) { return Math.hypot(Number(a?.[0]) - Number(b?.[0]), Number(a?.[1]) - Number(b?.[1]), Number(a?.[2]) - Number(b?.[2])); }
+function midpoint(a, b) { return [(Number(a?.[0]) + Number(b?.[0])) / 2, (Number(a?.[1]) + Number(b?.[1])) / 2, (Number(a?.[2]) + Number(b?.[2])) / 2]; }
+function vsub(a, b) { return [Number(a?.[0]) - Number(b?.[0]), Number(a?.[1]) - Number(b?.[1]), Number(a?.[2]) - Number(b?.[2])]; }
+function unitVector(v) { const len = Math.hypot(v[0], v[1], v[2]); return len > 1e-9 ? v.map((entry) => entry / len) : [0, 0, 1]; }

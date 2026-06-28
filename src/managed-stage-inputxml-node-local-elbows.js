@@ -42,6 +42,10 @@ export function applyManagedStageInputXmlNodeLocalElbows(contracts = [], config 
       trimA: trimSummary(planned.entryA, planned.trimA),
       trimB: trimSummary(planned.entryB, planned.trimB),
       segmentCount: planned.elbow.segments.length,
+      code4Planned: true,
+      code4StartMm: planned.elbow.code4.startMm,
+      code4EndMm: planned.elbow.code4.endMm,
+      code4BendRadiusMm: planned.elbow.code4.bendRadiusMm,
       startMm: planned.elbow.segments[0].startMm,
       endMm: planned.elbow.segments[planned.elbow.segments.length - 1].endMm
     });
@@ -70,10 +74,11 @@ export function applyManagedStageInputXmlNodeLocalElbows(contracts = [], config 
       schema: 'ManagedStageInputXmlNodeLocalElbowAudit.v1',
       enabled: true,
       inputXmlBasedJson: true,
-      mode: 'degree-2-node-local-additive-1p5d-elbows',
+      mode: 'degree-2-node-local-code4-elbows-with-source-route-trim',
       segmentCountPerElbow: DEFAULT_SEGMENT_COUNT,
       nodeLocalElbowCount: elbows.length,
       genericNodeLocalElbowPrimitiveCount: elbows.reduce((sum, elbow) => sum + elbow.segmentCount, 0),
+      code4NodeLocalElbowCount: elbows.length,
       trimmedContractCount: trimmedContracts.length,
       trimApplicationCount: [...trimMap.values()].reduce((sum, trim) => sum + (trim.start > EPS_MM ? 1 : 0) + (trim.end > EPS_MM ? 1 : 0), 0),
       radiusMultiplier: config.genericInputXmlBendRadiusMultiplier,
@@ -107,6 +112,7 @@ function emptyAudit(state) {
     segmentCountPerElbow: DEFAULT_SEGMENT_COUNT,
     nodeLocalElbowCount: 0,
     genericNodeLocalElbowPrimitiveCount: 0,
+    code4NodeLocalElbowCount: 0,
     trimmedContractCount: 0,
     trimApplicationCount: 0,
     radiusMultiplier: null,
@@ -130,7 +136,10 @@ function planNodeElbow(node, entryA, entryB, config) {
   const radius = Math.min(Number(entryA.contract.radiusMm || 0), Number(entryB.contract.radiusMm || 0));
   if (!(diameter > EPS_MM) || !(radius > EPS_MM)) return { ok: false, reason: 'missing diameter/radius' };
 
-  const centerlineRadiusMm = diameter * positiveNumber(config.genericInputXmlBendRadiusMultiplier || 1.5, 'genericInputXmlBendRadiusMultiplier');
+  const explicitRadius = explicitBendRadius(entryA.contract, entryB.contract);
+  const centerlineRadiusMm = explicitRadius > EPS_MM
+    ? explicitRadius
+    : diameter * positiveNumber(config.genericInputXmlBendRadiusMultiplier || 1.5, 'genericInputXmlBendRadiusMultiplier');
   const nominalTrimMm = centerlineRadiusMm * Math.tan(turnAngleRad / 2);
   const trimA = cappedTrim(entryA.contract, nominalTrimMm, config);
   const trimB = cappedTrim(entryB.contract, nominalTrimMm, config);
@@ -138,6 +147,9 @@ function planNodeElbow(node, entryA, entryB, config) {
 
   const start = vadd(corner, scale(entryA.directionOut, trimA));
   const end = vadd(corner, scale(entryB.directionOut, trimB));
+  const startTangent = scale(entryA.directionOut, -1);
+  const endTangent = entryB.directionOut;
+  const planeNormal = unitVector(cross(startTangent, endTangent));
   const points = quadraticCornerCurve(start, corner, end, DEFAULT_SEGMENT_COUNT);
   const segments = [];
   for (let index = 0; index < DEFAULT_SEGMENT_COUNT; index += 1) {
@@ -166,15 +178,28 @@ function planNodeElbow(node, entryA, entryB, config) {
     trimA,
     trimB,
     elbow: {
-      schema: 'ManagedStageInputXmlNodeLocalElbow.v1',
+      schema: 'ManagedStageInputXmlNodeLocalElbow.v2',
       node: String(node),
       name: `INPUTXML_NODE_LOCAL_ELBOW_NODE_${node}`,
-      fittingClass: 'ELBOW_1P5D',
+      fittingClass: 'ELBOW_CODE4',
       centerlineRadiusMm: round(centerlineRadiusMm),
       turnAngleDeg: round(turnAngleDeg),
       parentSourceContractNames: [entryA.contract.name, entryB.contract.name],
       parentSourceDtxrs: [entryA.contract.dtxr, entryB.contract.dtxr],
       trimApplications: [trimSummary(entryA, trimA), trimSummary(entryB, trimB)],
+      code4: {
+        schema: 'ManagedStageInputXmlNodeLocalCode4Elbow.v1',
+        startMm: start.map(round),
+        endMm: end.map(round),
+        bendRadiusMm: round(centerlineRadiusMm),
+        tubeRadiusMm: round(radius),
+        sweepAngleRad: round(turnAngleRad),
+        bendAngleDeg: round(turnAngleDeg),
+        startTangent: startTangent.map(round),
+        endTangent: endTangent.map(round),
+        planeNormal: planeNormal.map(round),
+        sourceNode: String(node)
+      },
       segments
     }
   };
@@ -204,6 +229,10 @@ function isExportableCenterline(contract) {
 }
 
 function chooseHost(entryA, entryB) {
+  const aIsBend = entryA.contract.dtxr === 'BEND';
+  const bIsBend = entryB.contract.dtxr === 'BEND';
+  if (aIsBend && !bIsBend) return entryA;
+  if (bIsBend && !aIsBend) return entryB;
   return Number(entryA.contract.elementIndex || 0) <= Number(entryB.contract.elementIndex || 0) ? entryA : entryB;
 }
 
@@ -259,41 +288,34 @@ function trimSummary(entry, trimMm) {
   };
 }
 
-function quadraticCornerCurve(start, corner, end, segmentCount) {
+function explicitBendRadius(contractA, contractB) {
+  for (const contract of [contractA, contractB]) {
+    const radius = Number(contract?.arc?.bendRadiusMm || contract?.genericInputXmlBend?.originalBendRadiusMm || 0);
+    if (Number.isFinite(radius) && radius > EPS_MM) return radius;
+  }
+  return 0;
+}
+
+function quadraticCornerCurve(start, corner, end, count) {
   const points = [];
-  for (let index = 0; index <= segmentCount; index += 1) {
-    const t = index / segmentCount;
-    const a = (1 - t) * (1 - t);
-    const b = 2 * (1 - t) * t;
-    const c = t * t;
-    points.push([
-      a * start[0] + b * corner[0] + c * end[0],
-      a * start[1] + b * corner[1] + c * end[1],
-      a * start[2] + b * corner[2] + c * end[2]
-    ]);
+  for (let index = 0; index <= count; index += 1) {
+    const t = index / count;
+    const a = scale(start, (1 - t) * (1 - t));
+    const b = scale(corner, 2 * (1 - t) * t);
+    const c = scale(end, t * t);
+    points.push([a[0] + b[0] + c[0], a[1] + b[1] + c[1], a[2] + b[2] + c[2]].map(round));
   }
   return points;
 }
 
-function pointAlong(start, axis, distanceMm) {
-  return [start[0] + axis[0] * distanceMm, start[1] + axis[1] * distanceMm, start[2] + axis[2] * distanceMm];
-}
-
-function unitVector(vector) {
-  const len = Math.hypot(vector?.[0] || 0, vector?.[1] || 0, vector?.[2] || 0);
-  if (!(len > EPS_MM)) return [1, 0, 0];
-  return vector.map((value) => value / len);
-}
-
-function vadd(a, b) { return [a[0] + b[0], a[1] + b[1], a[2] + b[2]]; }
-function scale(v, factor) { return [v[0] * factor, v[1] * factor, v[2] * factor]; }
-function dotProduct(a, b) { return a[0] * b[0] + a[1] * b[1] + a[2] * b[2]; }
-function distance(a, b) { return Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]); }
-function clamp(value, min, max) { return Math.max(min, Math.min(max, value)); }
+function pointAlong(point, axis, offset) { return [point[0] + axis[0] * offset, point[1] + axis[1] * offset, point[2] + axis[2] * offset]; }
+function positiveNumber(value, fieldName) { const parsed = Number(value); if (!Number.isFinite(parsed) || parsed <= 0) throw new Error(`Invalid ${fieldName}: expected positive number`); return parsed; }
 function maxNumber(a, b) { return Math.max(Number(a) || 0, Number(b) || 0); }
-function positiveNumber(value, fieldName) {
-  const number = Number(value);
-  if (!Number.isFinite(number) || number <= 0) throw new Error(`Invalid ${fieldName}: expected positive number`);
-  return number;
-}
+function distance(a, b) { return Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]); }
+function scale(v, factor) { return [v[0] * factor, v[1] * factor, v[2] * factor]; }
+function vadd(a, b) { return [a[0] + b[0], a[1] + b[1], a[2] + b[2]]; }
+function dotProduct(a, b) { return a[0] * b[0] + a[1] * b[1] + a[2] * b[2]; }
+function cross(a, b) { return [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]]; }
+function unitVector(v) { const len = Math.hypot(v[0], v[1], v[2]); return len > EPS_MM ? v.map((entry) => entry / len) : [0, 0, 1]; }
+function clamp(value, min, max) { return Math.max(min, Math.min(max, value)); }
 function round(value) { return Number(Number(value).toFixed(6)); }

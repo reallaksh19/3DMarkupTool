@@ -39,6 +39,9 @@ export function applyManagedStageInputXmlNodeLocalElbows(contracts = [], config 
       sourceDtxrs: [planned.entryA.contract.dtxr, planned.entryB.contract.dtxr],
       turnAngleDeg: round(planned.turnAngleDeg),
       nominalTrimMm: round(planned.nominalTrimMm),
+      effectiveRadiusMm: round(planned.effectiveRadiusMm),
+      declaredRadiusMm: planned.declaredRadiusMm ? round(planned.declaredRadiusMm) : null,
+      radiusCappedByTrim: Boolean(planned.radiusCappedByTrim),
       trimA: trimSummary(planned.entryA, planned.trimA),
       trimB: trimSummary(planned.entryB, planned.trimB),
       segmentCount: planned.elbow.segments.length,
@@ -79,6 +82,7 @@ export function applyManagedStageInputXmlNodeLocalElbows(contracts = [], config 
       nodeLocalElbowCount: elbows.length,
       genericNodeLocalElbowPrimitiveCount: elbows.reduce((sum, elbow) => sum + elbow.segmentCount, 0),
       code4NodeLocalElbowCount: elbows.length,
+      radiusCappedByTrimCount: elbows.filter((elbow) => elbow.radiusCappedByTrim).length,
       trimmedContractCount: trimmedContracts.length,
       trimApplicationCount: [...trimMap.values()].reduce((sum, trim) => sum + (trim.start > EPS_MM ? 1 : 0) + (trim.end > EPS_MM ? 1 : 0), 0),
       radiusMultiplier: config.genericInputXmlBendRadiusMultiplier,
@@ -113,6 +117,7 @@ function emptyAudit(state) {
     nodeLocalElbowCount: 0,
     genericNodeLocalElbowPrimitiveCount: 0,
     code4NodeLocalElbowCount: 0,
+    radiusCappedByTrimCount: 0,
     trimmedContractCount: 0,
     trimApplicationCount: 0,
     radiusMultiplier: null,
@@ -136,17 +141,21 @@ function planNodeElbow(node, entryA, entryB, config) {
   const radius = Math.min(Number(entryA.contract.radiusMm || 0), Number(entryB.contract.radiusMm || 0));
   if (!(diameter > EPS_MM) || !(radius > EPS_MM)) return { ok: false, reason: 'missing diameter/radius' };
 
-  const explicitRadius = explicitBendRadius(entryA.contract, entryB.contract);
-  const centerlineRadiusMm = explicitRadius > EPS_MM
-    ? explicitRadius
+  const declaredRadiusMm = explicitBendRadius(entryA.contract, entryB.contract);
+  const requestedRadiusMm = declaredRadiusMm > EPS_MM
+    ? declaredRadiusMm
     : diameter * positiveNumber(config.genericInputXmlBendRadiusMultiplier || 1.5, 'genericInputXmlBendRadiusMultiplier');
-  const nominalTrimMm = centerlineRadiusMm * Math.tan(turnAngleRad / 2);
+  const nominalTrimMm = requestedRadiusMm * Math.tan(turnAngleRad / 2);
   const trimA = cappedTrim(entryA.contract, nominalTrimMm, config);
   const trimB = cappedTrim(entryB.contract, nominalTrimMm, config);
   if (!(trimA > EPS_MM) || !(trimB > EPS_MM)) return { ok: false, reason: 'trim collapsed' };
+  const effectiveTrimMm = Math.min(trimA, trimB);
+  const effectiveRadiusMm = effectiveTrimMm / Math.tan(turnAngleRad / 2);
+  if (!(effectiveRadiusMm > EPS_MM)) return { ok: false, reason: 'effective radius collapsed' };
+  const radiusCappedByTrim = Math.abs(effectiveRadiusMm - requestedRadiusMm) > 1e-3;
 
-  const start = vadd(corner, scale(entryA.directionOut, trimA));
-  const end = vadd(corner, scale(entryB.directionOut, trimB));
+  const start = vadd(corner, scale(entryA.directionOut, effectiveTrimMm));
+  const end = vadd(corner, scale(entryB.directionOut, effectiveTrimMm));
   const startTangent = scale(entryA.directionOut, -1);
   const endTangent = entryB.directionOut;
   const planeNormal = unitVector(cross(startTangent, endTangent));
@@ -175,23 +184,28 @@ function planNodeElbow(node, entryA, entryB, config) {
     entryB,
     turnAngleDeg,
     nominalTrimMm,
-    trimA,
-    trimB,
+    effectiveRadiusMm,
+    declaredRadiusMm,
+    radiusCappedByTrim,
+    trimA: effectiveTrimMm,
+    trimB: effectiveTrimMm,
     elbow: {
       schema: 'ManagedStageInputXmlNodeLocalElbow.v2',
       node: String(node),
       name: `INPUTXML_NODE_LOCAL_ELBOW_NODE_${node}`,
       fittingClass: 'ELBOW_CODE4',
-      centerlineRadiusMm: round(centerlineRadiusMm),
+      centerlineRadiusMm: round(effectiveRadiusMm),
       turnAngleDeg: round(turnAngleDeg),
       parentSourceContractNames: [entryA.contract.name, entryB.contract.name],
       parentSourceDtxrs: [entryA.contract.dtxr, entryB.contract.dtxr],
-      trimApplications: [trimSummary(entryA, trimA), trimSummary(entryB, trimB)],
+      trimApplications: [trimSummary(entryA, effectiveTrimMm), trimSummary(entryB, effectiveTrimMm)],
       code4: {
         schema: 'ManagedStageInputXmlNodeLocalCode4Elbow.v1',
         startMm: start.map(round),
         endMm: end.map(round),
-        bendRadiusMm: round(centerlineRadiusMm),
+        bendRadiusMm: round(effectiveRadiusMm),
+        declaredBendRadiusMm: declaredRadiusMm > EPS_MM ? round(declaredRadiusMm) : null,
+        radiusCappedByTrim,
         tubeRadiusMm: round(radius),
         sweepAngleRad: round(turnAngleRad),
         bendAngleDeg: round(turnAngleDeg),

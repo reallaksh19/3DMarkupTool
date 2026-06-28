@@ -1,4 +1,4 @@
-const CONTROLLER_SCHEMA = 'ManagedStageJsonUiController.v3';
+const CONTROLLER_SCHEMA = 'ManagedStageJsonUiController.v4';
 const MANAGED_STAGE_SCHEMA = 'inputxml-managed-stage/v1';
 const MANAGED_STAGE_PROFILE = 'AVEVA_JSON_FOR_3D_RVM_VIEWER';
 const NON_BLOCKING_MANAGED_STAGE_AUDIT_PATTERNS = Object.freeze([
@@ -82,6 +82,8 @@ export function installManagedStageJsonUi() {
     loadText: loadManagedStageText,
     loadFile: loadManagedStageFile,
     getActiveArtifact: () => managedStageUiState.artifact,
+    getActiveSourceText: () => managedStageUiState.sourceText,
+    getActiveSourceName: () => managedStageUiState.sourceName,
     clear: clearManagedStagePreview
   };
   window.__3D_MARKUP_MANAGED_STAGE_JSON_UI__ = api;
@@ -144,7 +146,7 @@ async function loadManagedStageText(sourceText, sourceName = 'BM_CII_INPUT_manag
   managedStageUiState.sourceName = sourceName;
   managedStageUiState.basename = basenameWithoutExtension(sourceName);
   setStatus('Managed-stage JSON converting');
-  updateInputStatus(`${sourceName} â€” managed-stage JSON`);
+  updateInputStatus(`${sourceName} — managed-stage JSON`);
   log(`Loaded managed-stage JSON ${sourceName} (${sourceText.length.toLocaleString()} chars)`);
 
   const { convertManagedStageJsonToRvmAtt, createManagedStagePreviewScene, buildSupportMarkerGlbObject, createRvmPreviewScene } = await getManagedStageRuntimeModules();
@@ -180,6 +182,7 @@ async function loadManagedStageText(sourceText, sourceName = 'BM_CII_INPUT_manag
   };
 
   managedStageUiState.artifact = {
+    sourceText,
     sourceName,
     basename: managedStageUiState.basename,
     rvm: result.rvm,
@@ -208,7 +211,10 @@ async function loadManagedStageText(sourceText, sourceName = 'BM_CII_INPUT_manag
   window.dispatchEvent(new CustomEvent('viewer:managed-stage-json-loaded', {
     detail: {
       sourceName,
+      sourceText,
       audit: result.audit,
+      sourceContract: result.sourceContract,
+      supportSourceBasis: result.sourceContract?.supportSourceBasis || result.audit?.supportSourceBasis || null,
       previewCoordinateAudit: previewAudit,
       visibleDiagnostics,
       modelRoot: previewScene
@@ -261,245 +267,83 @@ function replaceManagedStagePreviewSupportMarkers(scene, supports, buildSupportM
   }
 }
 
-function installManagedStageButtonInterceptors() {
-  captureClick('copyLogBtn', (event) => {
-    event.preventDefault();
-    event.stopImmediatePropagation();
-    copyCurrentLog();
-    return true;
-  });
-  captureClick('convertBtn', async (event) => {
-    if (!managedStageUiState.sourceText) return false;
-    event.preventDefault();
-    event.stopImmediatePropagation();
-    await loadManagedStageText(managedStageUiState.sourceText, managedStageUiState.sourceName || 'managed-stage.json');
-    return true;
-  });
-  captureClick('previewRvmBtn', (event) => {
-    if (!managedStageUiState.artifact?.previewScene) return false;
-    event.preventDefault();
-    event.stopImmediatePropagation();
-    showManagedStagePreview(managedStageUiState.artifact.previewScene);
-    return true;
-  });
-  captureClick('downloadRvmBtn', (event) => {
-    if (!managedStageUiState.artifact?.rvm) return false;
-    event.preventDefault();
-    event.stopImmediatePropagation();
-    downloadBlob(managedStageUiState.artifact.rvm, `${managedStageUiState.basename}.rvm`, 'application/octet-stream');
-    return true;
-  });
-  captureClick('downloadAttBtn', (event) => {
-    if (!managedStageUiState.artifact?.att) return false;
-    event.preventDefault();
-    event.stopImmediatePropagation();
-    downloadBlob(managedStageUiState.artifact.att, `${managedStageUiState.basename}.att`, 'text/plain');
-    return true;
-  });
-  captureClick('downloadAuditBtn', (event) => {
-    if (!managedStageUiState.artifact?.audit) return false;
-    event.preventDefault();
-    event.stopImmediatePropagation();
-    downloadBlob(JSON.stringify(managedStageUiState.artifact.audit, null, 2), `${managedStageUiState.basename}.audit.json`, 'application/json');
-    return true;
-  });
-}
-
-function captureClick(id, handler) {
-  const button = document.getElementById(id);
-  if (!button) return;
-  button.addEventListener('click', async (event) => {
-    const handled = await handler(event);
-    if (handled) return;
-  }, true);
-}
-
-function showManagedStagePreview(root) {
-  const api = window.__THREED_MARKUP_VIEWER__ || window.__viewerApi;
-  if (!api?.setModelRoot) throw new Error('Viewer API unavailable for managed-stage preview');
-  clearManagedStagePreview();
-  managedStageUiState.modelRoot = root;
-  api.setModelRoot(root, { source: 'managed-stage-json', sourceName: managedStageUiState.sourceName || root?.name || '' });
+function showManagedStagePreview(previewScene) {
+  managedStageUiState.modelRoot = previewScene;
+  const api = window.__viewerApi;
+  if (api?.setModelRoot) {
+    api.setModelRoot(previewScene, { source: CONTROLLER_SCHEMA, mode: 'managed-stage-rvm' });
+  } else if (window.__3D_MARKUP_VIEWER_RUNTIME__?.scene) {
+    const scene = window.__3D_MARKUP_VIEWER_RUNTIME__.scene;
+    if (managedStageUiState.modelRoot?.parent === scene) scene.remove(managedStageUiState.modelRoot);
+    scene.add(previewScene);
+  }
 }
 
 function clearManagedStagePreview() {
-  if (!managedStageUiState.modelRoot) return;
-  const api = window.__THREED_MARKUP_VIEWER__ || window.__viewerApi;
-  if (api?.clearModelRoot) api.clearModelRoot({ source: 'managed-stage-json', sourceName: managedStageUiState.sourceName || '', previousModelRootName: managedStageUiState.modelRoot?.name || '' });
+  if (managedStageUiState.modelRoot?.parent) managedStageUiState.modelRoot.parent.remove(managedStageUiState.modelRoot);
+  managedStageUiState.sourceText = '';
+  managedStageUiState.sourceName = '';
+  managedStageUiState.artifact = null;
   managedStageUiState.modelRoot = null;
 }
 
 function enableManagedStageDownloads() {
-  for (const id of ['downloadRvmBtn', 'downloadAttBtn', 'downloadAuditBtn', 'previewRvmBtn']) {
-    const button = document.getElementById(id);
-    if (button) button.disabled = false;
-  }
+  setButton('downloadRvmBtn', false, () => downloadBlob(managedStageUiState.artifact.rvm, `${managedStageUiState.basename}.rvm`, 'application/octet-stream'));
+  setButton('downloadAttBtn', false, () => downloadBlob(managedStageUiState.artifact.att, `${managedStageUiState.basename}.att`, 'text/plain'));
+  setButton('downloadAuditBtn', false, () => downloadBlob(JSON.stringify(managedStageUiState.artifact.audit, null, 2), `${managedStageUiState.basename}.audit.json`, 'application/json'));
+  setButton('previewRvmBtn', false, () => showManagedStagePreview(managedStageUiState.artifact.previewScene));
 }
 
-function updateDrawerSummary(audit, previewAudit = null) {
-  const target = document.getElementById('conversionSummary') || document.getElementById('conversionStatus');
-  if (!target || !audit) return;
-  const counts = audit.inputCounts || {};
-  const histogram = audit.primitiveHistogram || {};
-  const diagnostics = buildManagedStageVisibleDiagnostics(audit, previewAudit);
-  target.textContent = `Managed JSON: ${counts.geometryComponents || 0} geometry, ${counts.supportRecordsSkippedFromGeometry || 0} supports, RVM primitives ${audit.rvmPrimitivePayloadContract?.primitiveCount || audit.chunkHierarchy?.primCount || 0} (code4=${histogram[4] || 0}, code7=${histogram[7] || 0}, code8=${histogram[8] || 0}, code9=${histogram[9] || 0}); topology=${diagnostics.topologyProofGateOk ? 'PASS' : 'FAIL'}, BEND details=${diagnostics.explicitBendDetailCount}/${diagnostics.explicitBendRecordCount}, support topology=${diagnostics.supportTopologyGatePass ? 'PASS' : 'FAIL'}`;
-}
-
-function updateManagedStageDiagnosticsPanel(audit, previewAudit = null) {
-  const status = document.getElementById('conversionStatus') || document.getElementById('runtimeStatus');
-  if (!status || !audit) return;
-  const panel = ensureManagedStageDiagnosticsPanel(status);
-  const diagnostics = buildManagedStageVisibleDiagnostics(audit, previewAudit);
-  panel.textContent = renderManagedStageVisibleDiagnostics(diagnostics);
-  panel.dataset.schema = diagnostics.schema;
-  panel.dataset.topologyProofGateOk = String(diagnostics.topologyProofGateOk);
-  panel.dataset.explicitBendRecordCount = String(diagnostics.explicitBendRecordCount);
-  panel.dataset.explicitBendDetailCount = String(diagnostics.explicitBendDetailCount);
-  panel.dataset.supportAssociationOnlyCount = String(diagnostics.supportAssociationOnlyCount);
-  panel.dataset.supportContinuityEdgeCount = String(diagnostics.supportContinuityEdgeCount);
-}
-
-function ensureManagedStageDiagnosticsPanel(anchor) {
-  const existing = document.getElementById('managedStageTopologyDiagnostics');
-  if (existing) return existing;
-  const panel = document.createElement('div');
-  panel.id = 'managedStageTopologyDiagnostics';
-  panel.className = 'conversion-status managed-stage-topology-diagnostics';
-  panel.setAttribute('role', 'status');
-  panel.setAttribute('aria-live', 'polite');
-  panel.setAttribute('aria-label', 'Managed-stage topology proof diagnostics');
-  anchor.insertAdjacentElement('afterend', panel);
-  return panel;
-}
-
-function buildManagedStageVisibleDiagnostics(audit = {}, previewAudit = null) {
-  const proof = audit.managedStageTopologyProofGate || {};
-  const topologySummary = audit.supportTopologyAudit?.summary || previewAudit?.topologySummary || {};
-  const supportExport = audit.supportRvmExportAudit || {};
-  return {
-    schema: 'ManagedStageVisibleDiagnostics.v1',
-    topologyProofGateOk: proof.ok === true,
-    strictGateOk: audit.managedStageStrictGate?.ok === true,
-    previewTopologyAuditOk: previewAudit?.topologyAuditOk === true,
-    explicitBendRecordCount: numberOrZero(proof.explicitBendRecordCount ?? topologySummary.explicitBendRecordCount ?? previewAudit?.explicitBendRecordCount),
-    explicitBendDetailCount: numberOrZero(proof.explicitBendDetailCount ?? topologySummary.explicitBendDetailCount ?? previewAudit?.explicitBendDetailCount),
-    missingExplicitBendDetailCount: numberOrZero(proof.missingExplicitBendDetailCount ?? topologySummary.missingExplicitBendDetailCount),
-    synthetic1p5DTrimBlockedCount: numberOrZero(proof.synthetic1p5DTrimBlockedCount ?? topologySummary.synthetic1p5DTrimBlockedCount ?? previewAudit?.explicitBendTrimBlockedCount),
-    supportAssociationOnlyCount: numberOrZero(proof.supportAssociationOnlyCount ?? supportExport.supportAssociationOnlyCount ?? previewAudit?.supportAssociationOnlyCount),
-    supportTopologyBlockedCount: numberOrZero(proof.supportTopologyBlockedCount ?? supportExport.supportTopologyBlockedCount ?? previewAudit?.supportTopologyBlockedCount),
-    supportContinuityEdgeCount: numberOrZero(proof.supportContinuityEdgeCount ?? supportExport.supportContinuityEdgeCount ?? previewAudit?.supportContinuityEdgeCount),
-    supportInlineFaceCount: numberOrZero(proof.supportInlineFaceCount ?? supportExport.supportInlineFaceCount ?? previewAudit?.supportInlineFaceCount),
-    supportTopologyGatePass: (proof.supportTopologyGatePass ?? supportExport.supportTopologyGatePass ?? previewAudit?.supportTopologyGatePass) === true
-  };
-}
-
-function renderManagedStageVisibleDiagnostics(diagnostics) {
-  return `Topology proof: ${diagnostics.topologyProofGateOk ? 'PASS' : 'FAIL'} | Explicit BEND details: ${diagnostics.explicitBendDetailCount}/${diagnostics.explicitBendRecordCount}, missing ${diagnostics.missingExplicitBendDetailCount}, synthetic trim blocked ${diagnostics.synthetic1p5DTrimBlockedCount} | Support topology: ${diagnostics.supportTopologyGatePass ? 'PASS' : 'FAIL'}, association-only ${diagnostics.supportAssociationOnlyCount}, blocked ${diagnostics.supportTopologyBlockedCount}, continuity edges ${diagnostics.supportContinuityEdgeCount}, inline faces ${diagnostics.supportInlineFaceCount}`;
-}
-
-function showManagedStageAuditWarnings(gate = {}) {
-  const warnings = gate?.nonBlockingAuditIssues || [];
-  if (!warnings.length) return;
-  const text = `Managed-stage audit warning: ${warnings.length} non-geometry mismatch${warnings.length === 1 ? '' : 'es'}; export continued.`;
-  log(`${text} ${warnings.join('; ')}`);
-  showToast(text);
-}
-
-function showToast(text) {
-  const toast = document.createElement('div');
-  toast.className = 'managed-stage-audit-toast';
-  toast.textContent = text;
-  toast.style.cssText = 'position:fixed;right:16px;bottom:16px;max-width:360px;padding:10px 12px;border-radius:10px;background:rgba(20,29,43,.92);color:#f5d78a;font:12px/1.4 system-ui,sans-serif;box-shadow:0 8px 30px rgba(0,0,0,.28);z-index:99999;pointer-events:none;';
-  document.body.appendChild(toast);
-  window.setTimeout(() => toast.remove(), 6500);
-}
-
-function logManagedStageSummary(audit) {
-  if (!audit) return;
-  const counts = audit.inputCounts || {};
-  const histogram = audit.primitiveHistogram || {};
-  log(`Managed-stage RVM: geometry=${counts.geometryComponents || 0}, supports=${counts.supportRecordsSkippedFromGeometry || 0}, emittedSupports=${counts.emittedSupports || counts.supportRecordsEmittedToRvm || 0}, PRIM=${audit.chunkHierarchy?.primCount || 0}, code1=${histogram[1] || 0}, code4=${histogram[4] || 0}, code7=${histogram[7] || 0}, code8=${histogram[8] || 0}, code9=${histogram[9] || 0}`);
-}
-
-function logManagedStagePreviewCoordinateAudit(audit) {
-  if (!audit) return;
-  log(`Managed-stage preview audit: sourceLines=${audit.sourceLineCount}, supports=${audit.supportPreviewOnlyCount}, explicitBends=${audit.explicitBendRecordCount || 0}, trimmedBends=${audit.trimmedBendSourceLineCount || 0}, topologyGate=${audit.supportTopologyGatePass ? 'PASS' : 'FAIL'}, supportContinuityEdges=${audit.supportContinuityEdgeCount || 0}, supportInlineFaces=${audit.supportInlineFaceCount || 0}, unexplainedNonBendDelta=${audit.unexplainedNonBendDeltaCount || 0}`);
-}
-
-function logManagedStageVisibleDiagnostics(diagnostics) {
-  if (!diagnostics) return;
-  log(`Managed-stage topology proof diagnostics: ${renderManagedStageVisibleDiagnostics(diagnostics)}`);
-}
-
-function copyCurrentLog() {
-  const button = document.getElementById('copyLogBtn');
-  const text = document.getElementById('log')?.textContent || '';
-  const done = () => flashStaticLogCopyButton(button);
-  if (navigator.clipboard?.writeText) {
-    navigator.clipboard.writeText(text).then(done).catch(() => {
-      fallbackCopy(text);
-      done();
-    });
-    return;
-  }
-  fallbackCopy(text);
-  done();
-}
-
-function fallbackCopy(text) {
-  const area = document.createElement('textarea');
-  area.value = text;
-  area.setAttribute('readonly', 'true');
-  area.style.position = 'fixed';
-  area.style.left = '-9999px';
-  document.body.appendChild(area);
-  area.select();
-  document.execCommand('copy');
-  area.remove();
-}
-
-function flashStaticLogCopyButton(button) {
+function setButton(id, disabled, onClick) {
+  const button = document.getElementById(id);
   if (!button) return;
-  button.dataset.copied = 'true';
-  const oldTitle = button.title;
-  button.title = 'Copied log';
-  window.setTimeout(() => {
-    delete button.dataset.copied;
-    button.title = oldTitle || 'Copy log to clipboard';
-  }, 1200);
+  button.disabled = disabled;
+  if (onClick) {
+    button.onclick = onClick;
+  }
 }
 
-function numberOrZero(value) {
-  const number = Number(value);
-  return Number.isFinite(number) ? number : 0;
+function installManagedStageButtonInterceptors(modelFileInput) {
+  document.getElementById('loadSampleBtn')?.addEventListener('click', (event) => {
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    loadBundledManagedStageSample().catch((error) => {
+      log(`ERROR loading BM_CII stagedJson sample: ${error.message}`);
+      setStatus('BM_CII stagedJson load failed');
+    });
+  }, true);
 }
 
-function downloadBlob(data, filename, type) {
-  const blob = data instanceof Blob ? data : new Blob([data], { type });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 500);
+async function loadBundledManagedStageSample() {
+  const response = await fetch('./samples/BM_CII_INPUT_managed_stage.json');
+  if (!response.ok) throw new Error(`HTTP ${response.status} while loading BM_CII_INPUT_managed_stage.json`);
+  const text = await response.text();
+  return loadManagedStageText(text, 'BM_CII_INPUT_managed_stage.json');
 }
 
-function looksLikeManagedStageJson(text, name = '') {
-  if (!isJsonFileName(name)) return false;
+function looksLikeManagedStageJson(sourceText, sourceName = '') {
+  if (!isJsonFileName(sourceName)) return false;
   try {
-    const json = JSON.parse(text);
-    return json?.schema === MANAGED_STAGE_SCHEMA && json?.profile === MANAGED_STAGE_PROFILE;
-  } catch {
+    const parsed = JSON.parse(sourceText);
+    return parsed?.schema === MANAGED_STAGE_SCHEMA && parsed?.profile === MANAGED_STAGE_PROFILE;
+  } catch (_) {
     return false;
   }
 }
 
-function isJsonFileName(name = '') { return /\.(json|jscon)$/i.test(String(name)); }
-function bmCiiLikeSourceName(name = '') { return /BM_CII_INPUT_managed_stage/i.test(String(name)); }
+function isJsonFileName(name = '') { return /\.json$|\.jscon$/i.test(String(name)); }
 function basenameWithoutExtension(name = '') { return String(name || 'managed-stage').replace(/\.[^.]+$/, '') || 'managed-stage'; }
-function resetManagedStageStateOnly() { managedStageUiState.sourceText = ''; managedStageUiState.sourceName = ''; managedStageUiState.basename = 'managed-stage'; managedStageUiState.artifact = null; }
-function updateInputStatus(text) { const status = document.getElementById('inputStatus'); if (status) status.textContent = text; }
-function setStatus(text) { const status = document.getElementById('runtimeStatus') || document.getElementById('conversionStatus'); if (status) status.textContent = text; }
-function log(message) { const logEl = document.getElementById('log'); const line = `[${new Date().toLocaleTimeString()}] ${message}`; if (logEl) logEl.textContent += `${line}\n`; else console.log(line); }
+function bmCiiLikeSourceName(name = '') { return /BM_CII/i.test(String(name)); }
+function resetManagedStageStateOnly() { managedStageUiState.sourceText = ''; managedStageUiState.sourceName = ''; managedStageUiState.artifact = null; managedStageUiState.modelRoot = null; }
+function log(message) { const el = document.getElementById('log'); if (el) el.textContent += `[${new Date().toLocaleTimeString()}] ${message}\n`; else console.log(message); }
+function setStatus(message) { const el = document.getElementById('runtimeStatus'); if (el) el.textContent = message; }
+function updateInputStatus(message) { const el = document.getElementById('inputStatus'); if (el) el.textContent = message; }
+function downloadBlob(content, filename, mime) { if (!content) return; const blob = content instanceof Blob ? content : new Blob([content], { type: mime }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = filename; a.click(); setTimeout(() => URL.revokeObjectURL(url), 2500); }
+
+function buildManagedStageVisibleDiagnostics(audit = {}, previewAudit = null) { return { schema: 'ManagedStageVisibleDiagnostics.v1', source: audit.source || '', primitiveHistogram: audit.primitiveHistogram || {}, supportRvmExportAudit: audit.supportRvmExportAudit || null, previewAudit, warnings: audit.managedStageStrictGate?.nonBlockingAuditIssues || [] }; }
+function updateDrawerSummary(audit = {}, previewAudit = null) { const el = document.getElementById('drawerSummaryHint'); if (!el) return; const counts = audit.inputCounts || {}; el.textContent = `Managed-stage: ${counts.geometryComponents || 0} geometry components, ${counts.supportRecordsEmittedToRvm || 0} support markers, ${audit.rvmBytes || 0} RVM bytes.`; }
+function updateManagedStageDiagnosticsPanel(audit = {}, previewAudit = null) { const el = document.getElementById('conversionStatus'); if (el) el.textContent = `Managed-stage RVM ready — code8=${audit.primitiveHistogram?.[8] || 0}, supports=${audit.inputCounts?.supportRecordsEmittedToRvm || 0}.`; }
+function logManagedStageSummary(audit = {}) { log(`Managed-stage RVM: components=${audit.inputCounts?.geometryComponents || 0}, supports=${audit.inputCounts?.supportRecordsEmittedToRvm || 0}, PRIM=${audit.rvmPrimitivePayloadContract?.primitiveCount || 0}`); }
+function logManagedStagePreviewCoordinateAudit(previewAudit = null) { if (!previewAudit) return; log(`Coordinate audit: components=${previewAudit.componentCount || 0}, supportMarkers=${previewAudit.supportMarkerCount || 0}`); }
+function logManagedStageVisibleDiagnostics(visibleDiagnostics = {}) { log(`Visible diagnostics: supportPrimitiveCount=${visibleDiagnostics.supportRvmExportAudit?.supportPrimitiveCount || 0}`); }
+function showManagedStageAuditWarnings(gate = null) { for (const issue of gate?.nonBlockingAuditIssues || []) log(`AUDIT warning: ${issue}`); }

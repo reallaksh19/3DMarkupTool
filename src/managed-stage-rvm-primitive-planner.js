@@ -23,6 +23,7 @@ export function planManagedStagePrimitives(recordOrContract, options = {}) {
   if (contract.dtxr === 'BEND') {
     if (contract.excludeCode4Bend) {
       return [
+        ...planManagedStageExplicitCode4Bend(contract, pipeRadius),
         ...planGenericInputXmlBendCylinders(contract, pipeRadius),
         ...planGenericInputXmlNodeLocalElbows(contract, pipeRadius)
       ];
@@ -64,6 +65,49 @@ export function managedStageMaterialForClass(componentClass) {
   return MANAGED_STAGE_RVM_MATERIALS.FITTING;
 }
 
+function planManagedStageExplicitCode4Bend(contract, pipeRadius) {
+  const plan = contract.managedStageCode4BendPlan;
+  if (!plan) return [];
+  const synthetic = {
+    ...contract,
+    name: `${contract.name}_EXPLICIT_CODE4`,
+    dtxr: 'BEND',
+    centerlineKind: 'arc',
+    excludeCode4Bend: false,
+    startMm: plan.startMm,
+    endMm: plan.endMm,
+    lengthMm: distance(plan.startMm, plan.endMm),
+    centerMm: midpoint(plan.startMm, plan.endMm),
+    axis: unitVector(vsub(plan.endMm, plan.startMm)),
+    arc: {
+      bendRadiusMm: plan.bendRadiusMm,
+      tubeRadiusMm: plan.pipeRadiusMm || pipeRadius,
+      sweepAngleRad: plan.sweepAngleRad,
+      bendAngleDeg: plan.turnAngleDeg,
+      startTangent: plan.startTangent,
+      endTangent: plan.endTangent,
+      planeNormal: plan.planeNormal,
+      tangentHintState: 'explicit-bend-contract-plan',
+      tangentHintSources: [plan.bendName, plan.adjacentName].filter(Boolean)
+    }
+  };
+  const solved = solveCode4ElbowGeometry(synthetic, { preserveDeclaredRadius: true });
+  return [{
+    ...code4ElbowPrimitiveFromSolved(synthetic, pipeRadius, solved),
+    name: `${contract.name}_STRUCTURAL_CODE4_BEND`,
+    localName: `explicit-code4-bend-${plan.node}`,
+    primitiveRole: 'inputxml-explicit-bend-code4',
+    primitiveRoleTag: 'bendCode4Elbow',
+    recipeName: 'inputxml-explicit-bend-code4-contract-plan',
+    managedStageCode4BendPlan: true,
+    code4BendPlanNode: plan.node,
+    code4BendPlanAdjacentName: plan.adjacentName,
+    code4BendPlanTrimMm: plan.trimMm,
+    radiusCappedByTrim: Boolean(plan.radiusCappedByTrim),
+    orientationAssumption: 'explicit BEND emits one structural code-4 primitive from managedStageCode4BendPlan; source-route cylinder is trimmed separately for continuity'
+  }];
+}
+
 function planGenericInputXmlBendCylinders(contract, pipeRadius) {
   const segments = contract.genericInputXmlBend?.segments?.length
     ? contract.genericInputXmlBend.segments
@@ -102,11 +146,12 @@ function planGenericInputXmlBendCylinders(contract, pipeRadius) {
       genericBendRadiusMm: contract.genericInputXmlBend?.genericBendRadiusMm || null,
       genericBendTrimLengthMm: contract.genericInputXmlBend?.trimLengthMm || null,
       originalBendRadiusMm: contract.genericInputXmlBend?.originalBendRadiusMm || contract.arc?.bendRadiusMm || null,
+      sourceRouteTrimmedForCode4Bend: Boolean(segment.trimmedForCode4Bend || contract.managedStageCode4BendPlan),
       sourceRouteTrimmedForNodeLocalElbow: Boolean(segment.trimmedForNodeLocalElbow),
       sourceRouteStartTrimMm: segment.startTrimMm || 0,
       sourceRouteEndTrimMm: segment.endTrimMm || 0,
       orientationAssumption: sourceRouteSegment
-        ? 'InputXML-derived JSON BEND APOS/LPOS preserved as source-route code-8 cylinder; topology node-local code-4 elbows carry the visible bend geometry'
+        ? 'InputXML-derived JSON BEND APOS/LPOS preserved as trimmed source-route code-8 cylinder; explicit managedStageCode4BendPlan carries bend geometry'
         : 'InputXML-derived JSON bend excluded; emitted as reconstructed generic 1.5D code-8 arc cylinders'
     };
   });

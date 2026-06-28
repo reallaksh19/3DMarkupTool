@@ -39,6 +39,8 @@ console.log(`ATT bytes: ${artifactSummary.artifacts.attBytes}`);
 console.log(`CNTB / PRIM: ${artifactSummary.counts.cntb} / ${artifactSummary.counts.prim}`);
 console.log(`Primitive histogram: ${JSON.stringify(artifactSummary.primitiveHistogram)}`);
 console.log(`Payload issues: ${artifactSummary.payloadIssues.total}`);
+console.log(`Visual gap warnings: ${artifactSummary.visualWarnings.warningCount}`);
+console.log(`Visual warning histogram: ${JSON.stringify(artifactSummary.visualWarnings.warningCodeHistogram)}`);
 console.log(`Geometry primitive histogram: ${JSON.stringify(artifactSummary.geometry.primitiveCodeHistogram)}`);
 console.log(`Support primitive histogram: ${JSON.stringify(artifactSummary.supportOverlay.primitiveCodeHistogram)}`);
 console.log(`Support isolated from pipe/fitting codes: ${artifactSummary.supportOverlay.isolatedFromPipeFittingCodes ? 'YES' : 'NO'}`);
@@ -66,17 +68,9 @@ console.log(`Strict audit gate: ${result.audit.managedStageStrictGate.ok ? 'PASS
 async function resolveSource(input, fixture, options = {}) {
   if (fixture === 'bm-cii') {
     const { createBmCiiManagedStageFixture } = await import('../tests/managed-stage-bm-cii-profile-fixture.mjs');
-    return {
-      sourceText: JSON.stringify(createBmCiiManagedStageFixture()),
-      baseName: options.baseNameOverride || 'BM_CII_INPUT_managed_stage',
-      strictAuditExpectations: bmCiiExpectations()
-    };
+    return { sourceText: JSON.stringify(createBmCiiManagedStageFixture()), baseName: options.baseNameOverride || 'BM_CII_INPUT_managed_stage', strictAuditExpectations: bmCiiExpectations() };
   }
-  return {
-    sourceText: readFileSync(input, 'utf8'),
-    baseName: options.baseNameOverride || basename(input).replace(/\.json$/i, '') || 'BM_CII_INPUT_managed_stage',
-    strictAuditExpectations: options.expectBmCii ? bmCiiExpectations() : {}
-  };
+  return { sourceText: readFileSync(input, 'utf8'), baseName: options.baseNameOverride || basename(input).replace(/\.json$/i, '') || 'BM_CII_INPUT_managed_stage', strictAuditExpectations: options.expectBmCii ? bmCiiExpectations() : {} };
 }
 
 function buildArtifactSummary(audit = {}) {
@@ -85,57 +79,24 @@ function buildArtifactSummary(audit = {}) {
   const geometry = audit.rvmGeometryAudit || {};
   const support = audit.supportRvmExportAudit || {};
   const stitch = audit.stitchManifest || {};
-  const payloadIssues = {
-    total: Number(payload.issueCount || sourceSummary.payloadIssues?.total || 0),
-    code4: Number(payload.code4?.issueCount || sourceSummary.payloadIssues?.code4 || 0),
-    code7: Number(payload.code7?.issueCount || sourceSummary.payloadIssues?.code7 || 0),
-    code9: Number(payload.code9?.issueCount || sourceSummary.payloadIssues?.code9 || 0)
-  };
+  const visual = audit.rvmVisualGapWarningAudit || {};
+  const payloadIssues = { total: Number(payload.issueCount || sourceSummary.payloadIssues?.total || 0), code4: Number(payload.code4?.issueCount || sourceSummary.payloadIssues?.code4 || 0), code7: Number(payload.code7?.issueCount || sourceSummary.payloadIssues?.code7 || 0), code9: Number(payload.code9?.issueCount || sourceSummary.payloadIssues?.code9 || 0) };
   const supportCodeHistogram = geometry.supportOverlay?.primitiveCodeHistogram || support.supportPrimitiveCodeHistogram || {};
   const supportIsolated = geometry.supportOverlay?.isolatedFromPipeFittingCodes !== false;
   const geometryOk = geometry.issueCount === undefined ? true : Number(geometry.issueCount || 0) === 0;
-  const fallbackReady = payloadIssues.total === 0
-    && geometryOk
-    && audit.managedStageTopologyProofGate?.ok !== false
-    && audit.managedStageStrictGate?.ok !== false
-    && audit.stitchManifestGate?.ok !== false;
+  const fallbackReady = payloadIssues.total === 0 && geometryOk && audit.managedStageTopologyProofGate?.ok !== false && audit.managedStageStrictGate?.ok !== false && audit.stitchManifestGate?.ok !== false;
   const ready = sourceSummary.ready ?? fallbackReady;
   return {
     schema: 'ManagedStageRvmArtifactSummary.v1',
     ready: Boolean(ready),
-    counts: {
-      geometryComponents: audit.inputCounts?.geometryComponents || 0,
-      supportRecords: audit.inputCounts?.supportRecordsEmittedToRvm || 0,
-      cntb: audit.chunkHierarchy?.cntbCount || sourceSummary.counts?.cntb || 0,
-      prim: audit.chunkHierarchy?.primCount || sourceSummary.counts?.prim || 0
-    },
+    counts: { geometryComponents: audit.inputCounts?.geometryComponents || 0, supportRecords: audit.inputCounts?.supportRecordsEmittedToRvm || 0, cntb: audit.chunkHierarchy?.cntbCount || sourceSummary.counts?.cntb || 0, prim: audit.chunkHierarchy?.primCount || sourceSummary.counts?.prim || 0 },
     primitiveHistogram: audit.primitiveHistogram || sourceSummary.primitiveHistogram || {},
     payloadIssues,
-    geometry: {
-      primitiveCount: geometry.geometry?.primitiveCount || stitch.geometryPrimitiveCount || sourceSummary.geometry?.primitiveCount || 0,
-      primitiveCodeHistogram: geometry.geometry?.primitiveCodeHistogram || sourceSummary.geometry?.primitiveCodeHistogram || {},
-      primitiveRoleTagCounts: geometry.geometry?.primitiveRoleTagCounts || sourceSummary.geometry?.primitiveRoleTagCounts || {},
-      code4Count: geometry.geometry?.code4Elbows?.count || sourceSummary.geometry?.code4Count || 0,
-      code7Count: geometry.geometry?.code7Snouts?.count || sourceSummary.geometry?.code7Count || 0,
-      code8Count: geometry.geometry?.code8Cylinders?.count || sourceSummary.geometry?.code8Count || 0,
-      code9Count: geometry.geometry?.code9Spheres?.count || sourceSummary.geometry?.code9Count || 0
-    },
-    supportOverlay: {
-      primitiveCount: geometry.supportOverlay?.primitiveCount || stitch.supportOverlayPrimitiveCount || sourceSummary.supportOverlay?.primitiveCount || 0,
-      primitiveCodeHistogram: supportCodeHistogram,
-      isolatedFromPipeFittingCodes: supportIsolated,
-      nonCode8PrimitiveCount: geometry.supportOverlay?.nonCode8PrimitiveCount || sourceSummary.supportOverlay?.nonCode8PrimitiveCount || 0
-    },
-    gates: {
-      topologyProof: audit.managedStageTopologyProofGate?.ok !== false,
-      strictAudit: audit.managedStageStrictGate?.ok !== false,
-      stitchManifest: audit.stitchManifestGate?.ok !== false
-    },
-    artifacts: {
-      rvmBytes: audit.rvmBytes || sourceSummary.artifacts?.rvmBytes || 0,
-      attBytes: audit.attBytes || sourceSummary.artifacts?.attBytes || 0,
-      generationMode: audit.generationMode || sourceSummary.artifacts?.generationMode || ''
-    }
+    visualWarnings: { warningOnly: true, warningCount: Number(visual.warningCount || 0), warningCodeHistogram: visual.warningCodeHistogram || {} },
+    geometry: { primitiveCount: geometry.geometry?.primitiveCount || stitch.geometryPrimitiveCount || sourceSummary.geometry?.primitiveCount || 0, primitiveCodeHistogram: geometry.geometry?.primitiveCodeHistogram || sourceSummary.geometry?.primitiveCodeHistogram || {}, primitiveRoleTagCounts: geometry.geometry?.primitiveRoleTagCounts || sourceSummary.geometry?.primitiveRoleTagCounts || {}, code4Count: geometry.geometry?.code4Elbows?.count || sourceSummary.geometry?.code4Count || 0, code7Count: geometry.geometry?.code7Snouts?.count || sourceSummary.geometry?.code7Count || 0, code8Count: geometry.geometry?.code8Cylinders?.count || sourceSummary.geometry?.code8Count || 0, code9Count: geometry.geometry?.code9Spheres?.count || sourceSummary.geometry?.code9Count || 0 },
+    supportOverlay: { primitiveCount: geometry.supportOverlay?.primitiveCount || stitch.supportOverlayPrimitiveCount || sourceSummary.supportOverlay?.primitiveCount || 0, primitiveCodeHistogram: supportCodeHistogram, isolatedFromPipeFittingCodes: supportIsolated, nonCode8PrimitiveCount: geometry.supportOverlay?.nonCode8PrimitiveCount || sourceSummary.supportOverlay?.nonCode8PrimitiveCount || 0 },
+    gates: { topologyProof: audit.managedStageTopologyProofGate?.ok !== false, strictAudit: audit.managedStageStrictGate?.ok !== false, stitchManifest: audit.stitchManifestGate?.ok !== false },
+    artifacts: { rvmBytes: audit.rvmBytes || sourceSummary.artifacts?.rvmBytes || 0, attBytes: audit.attBytes || sourceSummary.artifacts?.attBytes || 0, generationMode: audit.generationMode || sourceSummary.artifacts?.generationMode || '' }
   };
 }
 
@@ -145,45 +106,11 @@ function assertArtifactAuditGates(audit) {
 }
 
 function bmCiiExpectations() {
-  return {
-    geometryComponents: 40,
-    supportRecordsSkippedFromGeometry: 12,
-    supportRecordsEmittedToRvm: 12,
-    supportRvmPrimitiveCount: 42,
-    topologyComponentCount: 52,
-    topologyGeometryComponentCount: 40,
-    topologySupportCount: 12,
-    explicitBendRecordCount: 7,
-    explicitBendDetailCount: 7,
-    missingExplicitBendDetailCount: 0,
-    synthetic1p5DTrimBlockedCount: 7,
-    supportAssociationOnlyCount: 12,
-    supportTopologyBlockedCount: 0,
-    supportContinuityEdgeCount: 0,
-    supportInlineFaceCount: 0,
-    code1: 0,
-    code4: 7,
-    code7: 6,
-    code8: 110,
-    code9: 6,
-    cntbCount: 56,
-    primCount: 129,
-    supportMaxGlyphExtentMm: 100,
-    supportMaxClusterOffsetMm: 30,
-    supportMaxPrimitiveSpanMm: 60,
-    supportMaxBarRadiusMm: 3
-  };
+  return { geometryComponents: 40, supportRecordsSkippedFromGeometry: 12, supportRecordsEmittedToRvm: 12, supportRvmPrimitiveCount: 42, topologyComponentCount: 52, topologyGeometryComponentCount: 40, topologySupportCount: 12, explicitBendRecordCount: 7, explicitBendDetailCount: 7, missingExplicitBendDetailCount: 0, synthetic1p5DTrimBlockedCount: 7, supportAssociationOnlyCount: 12, supportTopologyBlockedCount: 0, supportContinuityEdgeCount: 0, supportInlineFaceCount: 0, code1: 0, code4: 7, code7: 6, code8: 110, code9: 6, cntbCount: 56, primCount: 129, supportMaxGlyphExtentMm: 100, supportMaxClusterOffsetMm: 30, supportMaxPrimitiveSpanMm: 60, supportMaxBarRadiusMm: 3 };
 }
 
-function resolveOutDir(values) {
-  const arg = valueAfterPrefix(values, '--outdir=');
-  return arg ? join(repoRoot, arg) : join(repoRoot, 'artifacts', 'managed-stage-rvm');
-}
-
-function valueAfterPrefix(values, prefix) {
-  const entry = values.find((value) => value.startsWith(prefix));
-  return entry ? entry.slice(prefix.length) : '';
-}
+function resolveOutDir(values) { const arg = valueAfterPrefix(values, '--outdir='); return arg ? join(repoRoot, arg) : join(repoRoot, 'artifacts', 'managed-stage-rvm'); }
+function valueAfterPrefix(values, prefix) { const entry = values.find((value) => value.startsWith(prefix)); return entry ? entry.slice(prefix.length) : ''; }
 
 function makeStoredZip(entries) {
   let offset = 0;

@@ -158,7 +158,16 @@ function pyramidPrimitiveBody(primitive, common) {
 }
 
 function spherePrimitiveBody(primitive, common) {
-  return concatBuffers(common.concat([float32Body(positiveNumber(primitive.diameter, 'diameter'))]));
+  return concatBuffers(common.concat([float32Body(spherePayloadDiameter(primitive))]));
+}
+
+function spherePayloadDiameter(primitive) {
+  const diameter = positiveNumber(primitive.diameter, 'diameter');
+  const roleTag = String(primitive.primitiveRoleTag || primitive.primitiveRole || primitive.localName || '');
+  if (roleTag === 'valveBodySphere' && primitive.disableExternalRvmSpherePayloadCompensation !== true) {
+    return diameter / 2;
+  }
+  return diameter;
 }
 
 function snoutPrimitiveBody(primitive, common) {

@@ -1,4 +1,4 @@
-const SAFE_UI_VERSION = window.__3D_MARKUP_SAFE_UI_VERSION__ || 'static-shell-isonote-symbology-labels-20260629';
+const SAFE_UI_VERSION = window.__3D_MARKUP_SAFE_UI_VERSION__ || 'static-shell-isonote-sample-axis-config-20260629';
 
 // index.html owns the shell. Default startup must stay small and deterministic.
 // Heavy/retry-based extras are opt-in until browser acceptance proves they are safe.
@@ -17,6 +17,7 @@ const CORE_MODULES = [
   { id: 'disableClickZoom', label: 'Disable click zoom', src: `./disable-click-zoom-controller.js?v=${SAFE_UI_VERSION}` },
   { id: 'supportCanvasAxisOrbit', label: 'Support enriched axis HUD / orbit', src: `./support-canvas-axis-orbit-controller.js?v=${SAFE_UI_VERSION}` },
   { id: 'supportMappingIsonoteWorkbench', label: 'Support Mapping / ISONOTE workbench', src: `./support-mapping-isonote-workbench-controller.js?v=${SAFE_UI_VERSION}` },
+  { id: 'supportIsonoteDefaultSample', label: 'Default ISONOTE sample', src: `./support-isonote-default-sample-controller.js?v=${SAFE_UI_VERSION}` },
   { id: 'supportWorkbenchFallbackRow', label: 'Support workbench fallback row', src: `./support-workbench-fallback-row-controller.js?v=${SAFE_UI_VERSION}` },
   { id: 'supportWorkbenchSymbologyLabels', label: 'Support workbench symbology labels', src: `./support-workbench-symbology-label-controller.js?v=${SAFE_UI_VERSION}` },
   { id: 'supportMarkerPropertiesPanel', label: 'Support marker properties panel', src: `./support-marker-properties-panel-controller.js?v=${SAFE_UI_VERSION}` },

@@ -1,24 +1,20 @@
-export const SUPPORT_AXIS_TRANSFORM_SCHEMA = 'SupportAxisTransform.v2';
+import {
+  NAVIS_TO_CANVAS_SUPPORT_AXIS_BASIS,
+  resolveSemanticNavisAxisToken
+} from './support-axis-basis-config.js?v=bust-cache-4';
 
-const DEFAULT_AXIS_BASIS = Object.freeze({
-  schema: 'ManagedStageSupportAxisBasis.v1',
-  name: 'CAESAR default axis basis',
-  axes: Object.freeze({
-    '+Y': Object.freeze({ engineeringDirection: 'UP', canvasAxis: '+Y' }),
-    '-Y': Object.freeze({ engineeringDirection: 'DOWN', canvasAxis: '-Y' }),
-    '-X': Object.freeze({ engineeringDirection: 'NORTH', canvasAxis: '-X' }),
-    '+X': Object.freeze({ engineeringDirection: 'SOUTH', canvasAxis: '+X' }),
-    '+Z': Object.freeze({ engineeringDirection: 'PROJECT_POSITIVE_Z', canvasAxis: '+Z' }),
-    '-Z': Object.freeze({ engineeringDirection: 'PROJECT_NEGATIVE_Z', canvasAxis: '-Z' })
-  })
-});
+export const SUPPORT_AXIS_TRANSFORM_SCHEMA = 'SupportAxisTransform.v3';
+
+const DEFAULT_AXIS_BASIS = NAVIS_TO_CANVAS_SUPPORT_AXIS_BASIS;
 
 /**
  * Normalizes stagedJson support axes into one canonical canvas-space contract.
- * Parameters: raw/source axis text, optional mapper basis, optional resolved canvas axis, support family,
- * optional support action axes, and pipe axis fallback.
- * Output: SupportAxisTransform.v2 with source/canvas signed axes, action axes, matched pipe axis,
- * vector, sign, basis, and diagnostics.
+ *
+ * Observed Navis/canvas basis:
+ *   Navis N   -> Canvas +Y
+ *   Navis Top -> Canvas +Z
+ *   Navis W   -> Canvas -X
+ *
  * Fallback rules:
  *   - REST uses family-rule +Y when no explicit source/canvas axis exists.
  *   - HOLDDOWN uses family-rule +Y/-Y and reports +Y as the primary display axis.
@@ -84,6 +80,9 @@ export function resolveSupportAxisTransform(input) {
     axisVector: vector,
     sign: canvasAxis.startsWith('-') ? '-' : '+',
     basisPreset: options.basisPreset || options.mapperPresetId || basis.name || '',
+    axisBasis: basis,
+    axisBasisName: basis.name || '',
+    navisCanvasMapping: 'N->+Y, TOP->+Z, W->-X',
     axisTransformApplied,
     fallbackReason,
     diagnostics
@@ -94,6 +93,8 @@ export function normalizeSupportAxisToken(axisToken, signToken) {
   const text = String(axisToken || '').trim().toUpperCase();
   const signText = String(signToken || '').trim().toUpperCase();
   if (!text) return '';
+  const directSemantic = resolveSemanticNavisAxisToken(text);
+  if (directSemantic) return directSemantic;
   const signMatch = text.match(/(?:^|[^A-Z0-9])([+-])\s*([XYZ])(?:[^A-Z0-9]|$)/);
   if (signMatch) return `${signMatch[1]}${signMatch[2]}`;
   const axisMatch = text.match(/(?:^|[^A-Z0-9])([XYZ])(?:[^A-Z0-9]|$)|^([XYZ])$/);
@@ -101,7 +102,7 @@ export function normalizeSupportAxisToken(axisToken, signToken) {
   const axis = axisMatch[1] || axisMatch[2];
   if (/^-|MINUS|NEGATIVE|NEG|DOWN|WEST|NORTH/i.test(signText)) return `-${axis}`;
   if (/^\+|PLUS|POSITIVE|POS|UP|EAST|SOUTH/i.test(signText)) return `+${axis}`;
-  if (/^-|MINUS|NEGATIVE|DOWN|WEST|NORTH/i.test(text)) return `-${axis}`;
+  if (/^-|MINUS|NEGATIVE/i.test(text)) return `-${axis}`;
   return `+${axis}`;
 }
 
@@ -169,7 +170,8 @@ function mergeAxisBasis(base, override) {
     schema: override.schema || base.schema,
     name: override.name || base.name,
     description: override.description || base.description || '',
-    axes
+    axes,
+    semanticAxes: { ...(base.semanticAxes || {}), ...(override.semanticAxes || {}) }
   };
 }
 

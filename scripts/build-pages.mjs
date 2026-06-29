@@ -6,7 +6,7 @@ import { rollup } from 'rollup';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const SITE_DIR = path.join(ROOT, '_site');
 const ASSET_DIR = path.join(SITE_DIR, 'assets');
-const VERSION = 'input-persistent-root-card-20260629-j';
+const VERSION = 'input-persistent-root-card-20260629-k';
 const LEGACY_CACHE_KEYS = Object.freeze([
   'tool-fixes-v2-20260620',
   'support-ui-render-export-fix-20260623',
@@ -35,10 +35,13 @@ const LEGACY_CACHE_KEYS = Object.freeze([
   'input-persistent-root-card-20260629-g',
   'input-persistent-root-card-20260629-h',
   'input-persistent-root-card-20260629-i',
+  'input-persistent-root-card-20260629-j',
   'static-shell-support-sample-click-rca-20260628',
   'static-shell-support-workbench-isonote-axis-click-20260628',
   'static-shell-support-restraint-type-workbench-20260629',
-  'static-shell-support-nav-phased-cleanup-20260629'
+  'static-shell-support-nav-phased-cleanup-20260629',
+  'static-shell-isonote-symbology-labels-20260629',
+  'support-mapping-workbench-shell-20260628'
 ]);
 
 await rm(SITE_DIR, { recursive: true, force: true });

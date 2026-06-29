@@ -3,7 +3,7 @@ import {
   normalizeManagedStageSupportMapperRecord
 } from './managed-stage-support-mapper-config.js?v=bust-cache-4';
 
-export const MANAGED_STAGE_ISONOTE_SUPPORT_MAPPER_SCHEMA = 'ManagedStageIsonoteSupportMapper.v2';
+export const MANAGED_STAGE_ISONOTE_SUPPORT_MAPPER_SCHEMA = 'ManagedStageIsonoteSupportMapper.v3';
 
 export function parseManagedStageIsonoteSupportRecords(text = '', config = {}) {
   const rows = parseIsonoteRows(text);
@@ -11,9 +11,10 @@ export function parseManagedStageIsonoteSupportRecords(text = '', config = {}) {
   for (const row of rows) {
     const supportTag = row.supportTag || extractSupportTag(row.noteText) || '';
     const noteBody = extractIsonoteBody(row.noteText);
+    const displayText = normalizeIsonoteDisplayText(row.noteText);
     const segments = splitIsonoteSegments(noteBody);
     for (const segment of segments) {
-      const attrs = segmentToSupportAttrs(segment, { nodeId: row.nodeId, supportTag });
+      const attrs = segmentToSupportAttrs(segment, { nodeId: row.nodeId, supportTag, noteText: row.noteText, displayText });
       if (!attrs) continue;
       const mapperRecord = normalizeManagedStageSupportMapperRecord({ attrs }, {
         ...config,
@@ -33,6 +34,10 @@ export function parseManagedStageIsonoteSupportRecords(text = '', config = {}) {
         nodeId: row.nodeId,
         supportTag,
         rawText: segment,
+        noteText: row.noteText,
+        rowText: row.noteText,
+        displayText,
+        isonoteDisplayName: displayText,
         attrs: mapperRecord.attrs,
         mapperRecord
       });
@@ -58,6 +63,7 @@ export function parseIsonoteRows(text = '') {
       lineNumber: hasHeader ? index + 2 : index + 1,
       nodeId,
       noteText,
+      displayText: normalizeIsonoteDisplayText(noteText),
       supportTag: extractSupportTag(noteText)
     };
   }).filter((row) => row.noteText);
@@ -101,6 +107,8 @@ function segmentToSupportAttrs(segment, context = {}) {
     SUPPORT_TAG: context.supportTag || '',
     SUPPORT_KIND: supportKind,
     ISONOTE_SEGMENT: raw,
+    ISONOTE_ROW_TEXT: context.noteText || '',
+    ISONOTE_DISPLAY_NAME: context.displayText || normalizeIsonoteDisplayText(context.noteText || ''),
     ISONOTE_NORMALIZED_TEXT: normalized,
     SUPPORT_GAP_RECORD_SCOPED: 'TRUE',
     SUPPORT_GAP_CARRY_FORWARD: 'FALSE'
@@ -127,6 +135,12 @@ function extractIsonoteBody(value) {
   const quoted = text.match(/['"]([^'"]+)['"]/);
   if (quoted) return quoted[1];
   return text.replace(/^:?\/?[A-Z0-9_\-/]+\s*:ISONOTE\s*/i, '').replace(/^:ISONOTE\s*/i, '').trim();
+}
+
+function normalizeIsonoteDisplayText(value) {
+  const text = String(value || '').trim();
+  if (!text) return '';
+  return text.replace(/^:\s*(?=\/PS[-_A-Z0-9/]+\s*:ISONOTE)/i, '');
 }
 
 function extractSupportTag(value) {

@@ -1,42 +1,26 @@
-export const SUPPORT_AXIS_BASIS_CONFIG_SCHEMA = 'SupportAxisBasisConfig.v2';
+export const SUPPORT_AXIS_BASIS_CONFIG_SCHEMA = 'SupportAxisBasisConfig.v1';
 
 /**
- * Observed BM_CII/Navis-to-current-canvas relationship from side-by-side validation:
+ * Navisworks-to-canvas basis observed from side-by-side validation:
  *
- *   Navis N     is currently seen on Canvas +Y
- *   Navis Top   is currently seen on Canvas +Z
- *   Navis W     is currently seen on Canvas -X
+ *   Navis N     -> Canvas +Y
+ *   Navis Top   -> Canvas +Z
+ *   Navis W     -> Canvas -X
  *
- * Encoding only that observation does not change rendered support axes. The corrective
- * transform below rotates signed plan axes around +Z so Navis North is moved onto the
- * canvas North direction (-X), while Top stays +Z.
- *
- * Corrective signed-axis transform:
- *   source +Y / Navis N   -> canvas -X / canvas North
- *   source +Z / Navis Top -> canvas +Z
- *   source -X / Navis W   -> canvas -Y
- *
- * Matrix form, using source vector [x,y,z] -> canvas vector [x',y',z']:
- *   x' = -y
- *   y' =  x
- *   z' =  z
+ * This keeps signed XYZ axes stable in canvas coordinates while correcting the
+ * semantic engineering direction labels used by support-axis resolution.
  */
 export const NAVIS_TO_CANVAS_SUPPORT_AXIS_BASIS = Object.freeze({
   schema: SUPPORT_AXIS_BASIS_CONFIG_SCHEMA,
-  name: 'Navis-to-canvas corrective support axis basis',
-  description: 'Corrective BM_CII/Navis mapping: source +Y/Navis N -> canvas -X, source +Z/Navis Top -> canvas +Z, source -X/Navis W -> canvas -Y.',
-  observedAxes: Object.freeze({
-    '+Y': Object.freeze({ engineeringDirection: 'NAVIS_NORTH_OBSERVED', currentCanvasAxis: '+Y', navisDirection: 'N' }),
-    '+Z': Object.freeze({ engineeringDirection: 'NAVIS_TOP_OBSERVED', currentCanvasAxis: '+Z', navisDirection: 'TOP' }),
-    '-X': Object.freeze({ engineeringDirection: 'NAVIS_WEST_OBSERVED', currentCanvasAxis: '-X', navisDirection: 'W' })
-  }),
+  name: 'Navis-to-canvas support axis basis',
+  description: 'Observed BM_CII/Navis mapping: Navis N -> canvas +Y, Navis Top -> canvas +Z, Navis W -> canvas -X.',
   axes: Object.freeze({
-    '+X': Object.freeze({ engineeringDirection: 'NAVIS_EAST', canvasAxis: '+Y', navisDirection: 'E', transformed: true }),
-    '-X': Object.freeze({ engineeringDirection: 'NAVIS_WEST', canvasAxis: '-Y', navisDirection: 'W', transformed: true }),
-    '+Y': Object.freeze({ engineeringDirection: 'NAVIS_NORTH', canvasAxis: '-X', navisDirection: 'N', transformed: true }),
-    '-Y': Object.freeze({ engineeringDirection: 'NAVIS_SOUTH', canvasAxis: '+X', navisDirection: 'S', transformed: true }),
-    '+Z': Object.freeze({ engineeringDirection: 'NAVIS_TOP', canvasAxis: '+Z', navisDirection: 'TOP', transformed: false }),
-    '-Z': Object.freeze({ engineeringDirection: 'NAVIS_BOTTOM', canvasAxis: '-Z', navisDirection: 'BOTTOM', transformed: false })
+    '+Y': Object.freeze({ engineeringDirection: 'NAVIS_NORTH', canvasAxis: '+Y', navisDirection: 'N' }),
+    '-Y': Object.freeze({ engineeringDirection: 'NAVIS_SOUTH', canvasAxis: '-Y', navisDirection: 'S' }),
+    '+Z': Object.freeze({ engineeringDirection: 'NAVIS_TOP', canvasAxis: '+Z', navisDirection: 'TOP' }),
+    '-Z': Object.freeze({ engineeringDirection: 'NAVIS_BOTTOM', canvasAxis: '-Z', navisDirection: 'BOTTOM' }),
+    '-X': Object.freeze({ engineeringDirection: 'NAVIS_WEST', canvasAxis: '-X', navisDirection: 'W' }),
+    '+X': Object.freeze({ engineeringDirection: 'NAVIS_EAST', canvasAxis: '+X', navisDirection: 'E' })
   }),
   semanticAxes: Object.freeze({
     N: '+Y',
@@ -55,19 +39,6 @@ export const NAVIS_TO_CANVAS_SUPPORT_AXIS_BASIS = Object.freeze({
     WEST: '-X',
     E: '+X',
     EAST: '+X'
-  }),
-  matrix: Object.freeze([
-    Object.freeze([0, -1, 0]),
-    Object.freeze([1, 0, 0]),
-    Object.freeze([0, 0, 1])
-  ]),
-  signedAxisTransform: Object.freeze({
-    '+X': '+Y',
-    '-X': '-Y',
-    '+Y': '-X',
-    '-Y': '+X',
-    '+Z': '+Z',
-    '-Z': '-Z'
   })
 });
 
@@ -75,25 +46,4 @@ export function resolveSemanticNavisAxisToken(value) {
   const key = String(value || '').trim().toUpperCase().replace(/[^A-Z0-9]+/g, '_').replace(/^_+|_+$/g, '');
   if (!key) return '';
   return NAVIS_TO_CANVAS_SUPPORT_AXIS_BASIS.semanticAxes[key] || '';
-}
-
-export function transformNavisSourceAxisToCanvas(axisToken, basis = NAVIS_TO_CANVAS_SUPPORT_AXIS_BASIS) {
-  const axis = normalizeSignedAxis(axisToken);
-  if (!axis) return '';
-  return normalizeSignedAxis(basis?.signedAxisTransform?.[axis] || basis?.axes?.[axis]?.canvasAxis || axis);
-}
-
-export function transformNavisAxisListToCanvas(axisTokens = [], basis = NAVIS_TO_CANVAS_SUPPORT_AXIS_BASIS) {
-  const entries = Array.isArray(axisTokens) ? axisTokens : String(axisTokens || '').split(/[|,\s]+/);
-  const out = [];
-  for (const entry of entries) {
-    const transformed = transformNavisSourceAxisToCanvas(entry, basis);
-    if (transformed && !out.includes(transformed)) out.push(transformed);
-  }
-  return out;
-}
-
-function normalizeSignedAxis(value) {
-  const match = String(value || '').toUpperCase().match(/([+-]?)(X|Y|Z)/);
-  return match ? `${match[1] || '+'}${match[2]}` : '';
 }

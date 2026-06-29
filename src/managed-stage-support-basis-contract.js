@@ -1,6 +1,6 @@
 import { MANAGED_STAGE_SUPPORT_SOURCE_MODES } from './managed-stage-support-mapper-config.js?v=bust-cache-4';
 
-export const MANAGED_STAGE_SUPPORT_BASIS_CONTRACT_SCHEMA = 'ManagedStageSupportBasisContract.v2';
+export const MANAGED_STAGE_SUPPORT_BASIS_CONTRACT_SCHEMA = 'ManagedStageSupportBasisContract.v3';
 
 export function resolveManagedStageSupportBasisOptions(options = {}) {
   const ui = globalThis.__3D_MARKUP_SUPPORT_SOURCE_UI__ || {};
@@ -53,12 +53,18 @@ export function applyManagedStageSupportBasisToContract(contract, basisOptions =
     emittedSupportCount: supports.length,
     suppressedSupportCount: Math.max(0, originalSupports.length - supports.length),
     unmatchedIsonoteRecordCount: unmatchedIsonoteRecords.length,
-    unmatchedIsonoteRecords: unmatchedIsonoteRecords.map((record) => ({ node: record.nodeId || record.attrs?.NODE || '', family: record.mapperRecord?.family || record.attrs?.SUPPORT_KIND_MAPPED || record.attrs?.SUPPORT_KIND || '', rawText: record.rawText || '' })),
+    unmatchedIsonoteRecords: unmatchedIsonoteRecords.map((record) => ({
+      node: record.nodeId || record.attrs?.NODE || '',
+      family: record.mapperRecord?.family || record.attrs?.SUPPORT_KIND_MAPPED || record.attrs?.SUPPORT_KIND || '',
+      rawText: record.rawText || '',
+      displayText: record.displayText || record.noteText || record.rawText || ''
+    })),
     suppressionReason,
     normalizedBySameSupportMapper: true,
     isonoteBasisRequiresNodeFamilyMatch: supportSourceMode === MANAGED_STAGE_SUPPORT_SOURCE_MODES.ISONOTE,
     tagMismatchDoesNotSuppressNodeFamilyMatch: true,
     singleAxisMayMatchByNodeAxis: true,
+    fullIsonoteDisplayNamePreserved: true,
     springFamilyAliases: ['SPRING', 'HANGER', 'SPRING_CAN', 'SPRING_HANGER', 'CAN']
   };
 
@@ -97,6 +103,8 @@ function rewriteSupportAsIsonoteBasis(support, matchedRecord = null) {
   const matched = matchedRecord || support.matchedIsonoteRecord || {};
   const matchedAttrs = matched.attrs || matched.mapperRecord?.attrs || {};
   const matchedFamily = normalizeFamily(matched.mapperRecord?.family || matchedAttrs.SUPPORT_KIND_MAPPED || matchedAttrs.SUPPORT_KIND || '');
+  const displayText = normalizeIsonoteDisplayText(matched.displayText || matched.isonoteDisplayName || matchedAttrs.ISONOTE_DISPLAY_NAME || matched.noteText || matched.rawText || support.isonoteRawText || '');
+  const canonicalId = support.supportMarkerId || support.supportId || '';
   return {
     ...support,
     matchedIsonoteRecord: matched,
@@ -104,20 +112,28 @@ function rewriteSupportAsIsonoteBasis(support, matchedRecord = null) {
     sourceMode: MANAGED_STAGE_SUPPORT_SOURCE_MODES.ISONOTE,
     activeBasis: MANAGED_STAGE_SUPPORT_SOURCE_MODES.ISONOTE,
     activeBasisLabel: 'ISONOTE Basis',
+    supportMarkerCanonicalId: canonicalId,
+    supportMarkerId: displayText || canonicalId,
+    supportId: displayText || support.supportId,
+    supportName: displayText || support.supportName,
+    psTag: matched.supportTag || support.psTag || '',
     supportKindRaw: matchedAttrs.SUPPORT_KIND || support.supportKindRaw,
     supportKindNormalized: matched.mapperRecord?.family || support.supportKindNormalized,
     supportFamily: matchedFamily && matchedFamily !== 'UNKNOWN' ? matchedFamily : support.supportFamily,
     axisRaw: matched.mapperRecord?.axis?.sourceAxis || matchedAttrs.SUPPORT_AXIS || support.axisRaw,
     axisCanvas: matched.mapperRecord?.axis?.canvasAxis || matchedAttrs.AXIS || support.axisCanvas,
-    isonoteRawText: matched.rawText || support.isonoteRawText || '',
-    isonoteNoteName: matched.supportTag || matched.nodeId || support.isonoteNoteName || '',
+    isonoteRawText: displayText || matched.rawText || support.isonoteRawText || '',
+    isonoteSegmentText: matched.rawText || '',
+    isonoteDisplayName: displayText,
+    isonoteNoteName: displayText || matched.supportTag || matched.nodeId || support.isonoteNoteName || '',
     isonoteMatch: {
       ...(support.isonoteMatch || {}),
       matched: Boolean(matched),
       matchMethod: matched?.matchMethod || 'node-family-or-node-axis',
       confidence: matched ? 0.9 : 0,
-      rawText: matched.rawText || support.isonoteRawText || '',
-      noteName: matched.supportTag || matched.nodeId || support.isonoteNoteName || '',
+      rawText: displayText || matched.rawText || support.isonoteRawText || '',
+      segmentText: matched.rawText || '',
+      noteName: displayText || matched.supportTag || matched.nodeId || support.isonoteNoteName || '',
       matchedFields: matched?.matchMethod === 'node-axis' ? ['nodeNumber', 'axis'] : ['nodeNumber', 'supportFamily']
     },
     sourceAttributes: {
@@ -125,7 +141,10 @@ function rewriteSupportAsIsonoteBasis(support, matchedRecord = null) {
       ...matchedAttrs,
       SUPPORT_SOURCE_MODE: MANAGED_STAGE_SUPPORT_SOURCE_MODES.ISONOTE,
       SUPPORT_ACTIVE_BASIS: 'ISONOTE Basis',
-      ISONOTE_RAW_TEXT: matched.rawText || support.isonoteRawText || ''
+      SUPPORT_MARKER_CANONICAL_ID: canonicalId,
+      ISONOTE_RAW_TEXT: displayText || matched.rawText || support.isonoteRawText || '',
+      ISONOTE_SEGMENT_TEXT: matched.rawText || '',
+      ISONOTE_DISPLAY_NAME: displayText
     },
     diagnostics: [
       ...(support.diagnostics || []),
@@ -184,6 +203,12 @@ function normalizeAxis(axis) {
   const match = String(axis || '').toUpperCase().match(/([+-]?)(X|Y|Z)/);
   if (!match) return '';
   return `${match[1] || '+'}${match[2]}`;
+}
+
+function normalizeIsonoteDisplayText(value) {
+  const text = String(value || '').trim();
+  if (!text) return '';
+  return text.replace(/^:\s*(?=\/PS[-_A-Z0-9/]+\s*:ISONOTE)/i, '');
 }
 
 function normalizeSupportSourceMode(value) {

@@ -1,4 +1,4 @@
-const SUPPORT_CANVAS_AXIS_ORBIT_SCHEMA = 'SupportCanvasAxisOrbitController.v1';
+const SUPPORT_CANVAS_AXIS_ORBIT_SCHEMA = 'SupportCanvasAxisOrbitController.v2';
 
 if (document.readyState === 'loading') {
   window.addEventListener('DOMContentLoaded', installSupportCanvasAxisOrbitController, { once: true });
@@ -15,6 +15,7 @@ export function installSupportCanvasAxisOrbitController() {
   window.addEventListener('viewer:managed-stage-json-loaded', () => updateEnrichedAxisHud(null));
   window.addEventListener('viewer:runtime-context', renderShell);
   window.addEventListener('markup:app-ready', renderShell);
+  window.addEventListener('viewer:static-shell-bundle-ready', renderShell);
   return api;
 }
 
@@ -38,13 +39,6 @@ function ensureAxisHud(viewer) {
 }
 
 function ensureOrbitButton(viewer) {
-  let cluster = document.getElementById('canvasToolIconRail');
-  if (!cluster) {
-    cluster = document.createElement('div');
-    cluster.id = 'canvasToolIconRail';
-    cluster.className = 'canvas-tool-icon-rail';
-    viewer.appendChild(cluster);
-  }
   if (document.getElementById('canvasOrbitToolBtn')) return;
   const button = document.createElement('button');
   button.id = 'canvasOrbitToolBtn';
@@ -58,7 +52,24 @@ function ensureOrbitButton(viewer) {
     if (orbit) orbit.click();
     else window.__3D_MARKUP_VIEWER_RUNTIME__?.controls && enableOrbitFallback();
   });
+
+  const zoomButton = document.querySelector('#viewer [data-view="zoom"], #viewer button[title*="Zoom"], #viewer .view-pad [data-view="zoom"]');
+  if (zoomButton?.parentElement) {
+    button.classList.add('canvas-tool-icon-btn--orbit-after-zoom');
+    zoomButton.insertAdjacentElement('afterend', button);
+    injectStyles();
+    return;
+  }
+
+  let cluster = document.getElementById('canvasToolIconRail');
+  if (!cluster) {
+    cluster = document.createElement('div');
+    cluster.id = 'canvasToolIconRail';
+    cluster.className = 'canvas-tool-icon-rail';
+    viewer.appendChild(cluster);
+  }
   cluster.appendChild(button);
+  injectStyles();
 }
 
 function enableOrbitFallback() {
@@ -98,7 +109,7 @@ function injectStyles() {
   style.id = 'supportCanvasAxisOrbitStyles';
   style.textContent = `
     .enriched-axis-hud{position:absolute;right:12px;bottom:12px;z-index:30;background:rgba(15,23,42,.86);border:1px solid rgba(148,163,184,.38);border-radius:10px;color:#e5e7eb;font:12px/1.3 ui-monospace,SFMono-Regular,Consolas,monospace;padding:8px 10px;max-width:min(460px,42vw);pointer-events:none;box-shadow:0 8px 30px rgba(0,0,0,.25)}
-    .canvas-tool-icon-rail{position:absolute;right:12px;top:96px;z-index:31;display:flex;flex-direction:column;gap:8px}.canvas-tool-icon-btn{width:36px;height:36px;border-radius:10px;border:1px solid rgba(148,163,184,.38);background:rgba(15,23,42,.88);color:#e5e7eb;font-size:20px;cursor:pointer;box-shadow:0 8px 24px rgba(0,0,0,.22)}.canvas-tool-icon-btn:hover{background:rgba(30,41,59,.96)}
+    .canvas-tool-icon-rail{position:absolute;right:12px;top:148px;z-index:31;display:flex;flex-direction:column;gap:8px}.canvas-tool-icon-btn{width:36px;height:36px;border-radius:10px;border:1px solid rgba(148,163,184,.38);background:rgba(15,23,42,.88);color:#e5e7eb;font-size:20px;cursor:pointer;box-shadow:0 8px 24px rgba(0,0,0,.22)}.canvas-tool-icon-btn:hover{background:rgba(30,41,59,.96)}.canvas-tool-icon-btn--orbit-after-zoom{display:flex;align-items:center;justify-content:center;margin-top:8px}
   `;
   document.head.appendChild(style);
 }

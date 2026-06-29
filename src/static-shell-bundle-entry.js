@@ -17,6 +17,7 @@ import './static-tree-core-controller.js';
 import './static-color-legend-controller.js';
 import './static-workflow-status-controller.js';
 import './static-help-shortcuts-controller.js';
+import './static-shortcut-cleanup-controller.js';
 import './static-markup-core-controller.js';
 import './navis-manual-tag-safe-controller.js';
 import './static-quick-export-core-controller.js';
@@ -30,5 +31,5 @@ import './static-global-tool-lifecycle-controller.js';
 
 window.__3D_MARKUP_STATIC_SHELL_BUNDLE_READY__ = true;
 window.dispatchEvent(new CustomEvent('viewer:static-shell-bundle-ready', {
-  detail: { version: 'input-persistent-root-card-20260628' }
+  detail: { version: 'support-nav-phased-cleanup-20260629' }
 }));

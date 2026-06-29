@@ -1,0 +1,27 @@
+{
+  "schema": "CatalogueLoadSummary.v1",
+  "registryAudit": {
+    "schema": "CatalogueRegistryLoadAudit.v1",
+    "sourceName": "catalogues/base-piping/catalogue-registry.json",
+    "parsed": true,
+    "valid": true,
+    "catalogueCount": 1,
+    "familyCount": 3,
+    "itemSourceCount": 1,
+    "warnings": []
+  },
+  "itemAudit": {
+    "schema": "CatalogueItemLoadAudit.v1",
+    "sourceName": "catalogues/base-piping/base-piping.index.json",
+    "itemCount": 3,
+    "validItemCount": 3,
+    "invalidItemCount": 0,
+    "itemKeys": [
+      "base-piping/pipe/straight/4in/STD",
+      "base-piping/elbow/90LR/4in/STD",
+      "base-piping/support/REST/generic/standard"
+    ],
+    "unsupportedSources": [],
+    "warnings": []
+  }
+}

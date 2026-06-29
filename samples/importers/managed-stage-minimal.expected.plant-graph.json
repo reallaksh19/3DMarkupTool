@@ -1,0 +1,112 @@
+{
+  "schema": "PlantModelGraph.v1",
+  "id": "managed-stage-minimal",
+  "project": {
+    "name": "managed-stage-minimal",
+    "units": "mm",
+    "axisBasis": {
+      "authoring": "canvas-current",
+      "rvmExport": "navis-review"
+    }
+  },
+  "catalogues": [
+    {
+      "id": "base-piping",
+      "version": "0.1.0",
+      "source": "samples/contracts/base-piping.catalogue-registry.json"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "N35",
+      "coord": [0, 0, 0],
+      "sourceRef": "PIPE-001.FROM_NODE"
+    },
+    {
+      "id": "N130",
+      "coord": [2500, 0, 0],
+      "sourceRef": "PIPE-001.TO_NODE"
+    },
+    {
+      "id": "N205",
+      "coord": [2500, 0, -1800],
+      "sourceRef": "PIPE-002.TO_NODE"
+    }
+  ],
+  "routes": [
+    {
+      "id": "R-N35-N130",
+      "lineNo": "4-P8810212-31441C4-PP",
+      "from": "N35",
+      "to": "N130",
+      "bore": "4in",
+      "schedule": "STD",
+      "material": "CS",
+      "sourceRef": "PIPE-001"
+    },
+    {
+      "id": "R-N130-N205",
+      "lineNo": "4-P8810212-31441C4-PP",
+      "from": "N130",
+      "to": "N205",
+      "bore": "4in",
+      "schedule": "STD",
+      "material": "CS",
+      "sourceRef": "PIPE-002"
+    }
+  ],
+  "items": [
+    {
+      "id": "PIPE-001",
+      "kind": "generated",
+      "generator": "straightPipe.v1",
+      "route": "R-N35-N130",
+      "sourceRef": "PIPE-001"
+    },
+    {
+      "id": "ELBOW-001",
+      "kind": "component",
+      "tagged": true,
+      "catalogueRef": {
+        "catalogue": "base-piping",
+        "family": "elbow",
+        "type": "90LR",
+        "nps": "4in",
+        "schedule": "STD"
+      },
+      "placement": {
+        "node": "N130",
+        "inRoute": "R-N35-N130",
+        "outRoute": "R-N130-N205"
+      },
+      "sourceRef": "ELBOW-001"
+    },
+    {
+      "id": "PIPE-002",
+      "kind": "generated",
+      "generator": "straightPipe.v1",
+      "route": "R-N130-N205",
+      "sourceRef": "PIPE-002"
+    },
+    {
+      "id": "SUPPORT-001",
+      "kind": "support",
+      "tagged": false,
+      "node": "N35",
+      "supportFamily": "REST",
+      "axis": "+Y",
+      "source": "InputXML",
+      "placement": {
+        "position": [0, 0, 0]
+      },
+      "sourceRef": "SUPPORT-001"
+    }
+  ],
+  "sourceRefs": [
+    {
+      "sourceType": "managed-stage-json",
+      "name": "managed-stage-minimal.input.json",
+      "phase": "Phase 2 shadow importer benchmark"
+    }
+  ]
+}

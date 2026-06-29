@@ -1,4 +1,10 @@
-const WORKBENCH_SCHEMA = 'SupportMappingIsonoteWorkbench.v2';
+import {
+  DEFAULT_SUPPORT_RESTRAINT_TYPE_RULES,
+  loadSupportRestraintTypeRules,
+  saveSupportRestraintTypeRules
+} from './support-restraint-type-mapper.js?v=bust-cache-4';
+
+const WORKBENCH_SCHEMA = 'SupportMappingIsonoteWorkbench.v3';
 const BASIS = Object.freeze({ INPUTXML: 'stagedJson', ISONOTE: 'isonote' });
 const FIELD_KEYS = Object.freeze({
   supportTag: 'supportTagFields',
@@ -29,6 +35,7 @@ export function installSupportMappingIsonoteWorkbench() {
   const api = { schema: WORKBENCH_SCHEMA, show, render, applyBasis, setTab };
   window.__3D_MARKUP_SUPPORT_MAPPING_ISONOTE_WORKBENCH__ = api;
   ensureDialog();
+  hideLegacySupportLaunchers();
   window.addEventListener('viewer:managed-stage-json-loaded', (event) => {
     captureArtifact(event.detail || {});
     render();
@@ -57,6 +64,7 @@ function ensureDialog() {
       <div><h2>Support Mapping / ISONOTE</h2><p id="smwSubtitle">Load managed-stage JSON to inspect support basis resolution.</p></div>
       <button type="button" class="smw-close" data-smw-close aria-label="Close">×</button>
     </div>
+    <div id="smwModeSummary" class="smw-mode-summary"></div>
     <div class="smw-actions">
       <button type="button" data-smw-apply="stagedJson" class="primary">Apply as per InputXML</button>
       <button type="button" data-smw-apply="isonote" class="primary alt">Apply as per ISONOTE</button>
@@ -65,6 +73,7 @@ function ensureDialog() {
     <div class="smw-tabs" role="tablist">
       <button type="button" data-smw-tab="inputxml" class="active">InputXML basis</button>
       <button type="button" data-smw-tab="isonote">Load ISONOTE</button>
+      <button type="button" data-smw-tab="restraintType">Restraint Type</button>
       <button type="button" data-smw-tab="rules">Support Mapping rules</button>
     </div>
     <div id="smwBody" class="smw-body"></div>`;
@@ -77,6 +86,10 @@ function ensureDialog() {
     if (basis) applyBasis(basis);
     const save = event.target.closest('[data-smw-save-rules]');
     if (save) saveRuleEdits();
+    const saveRestraint = event.target.closest('[data-smw-save-restraint-types]');
+    if (saveRestraint) saveRestraintTypeEdits();
+    const resetRestraint = event.target.closest('[data-smw-reset-restraint-types]');
+    if (resetRestraint) { saveSupportRestraintTypeRules(DEFAULT_SUPPORT_RESTRAINT_TYPE_RULES); render(); }
   });
   dialog.addEventListener('input', (event) => {
     if (event.target?.id === 'smwIsonoteText') syncIsonoteText(event.target.value);
@@ -97,6 +110,7 @@ function setTab(tab) {
 
 function render() {
   const dialog = ensureDialog();
+  hideLegacySupportLaunchers();
   dialog.querySelectorAll('[data-smw-tab]').forEach((button) => button.classList.toggle('active', button.getAttribute('data-smw-tab') === state.activeTab));
   const artifact = window.__3D_MARKUP_MANAGED_STAGE_JSON_UI__?.getActiveArtifact?.() || state.artifact || {};
   state.artifact = artifact;
@@ -104,18 +118,37 @@ function render() {
   const sourceContract = artifact.sourceContract || state.lastEventDetail?.sourceContract || {};
   const sourceBasis = sourceContract.supportSourceBasis || audit.supportSourceBasis || audit.inputCounts?.supportSourceBasis || {};
   const subtitle = document.getElementById('smwSubtitle');
-  if (subtitle) subtitle.textContent = `${state.sourceName || artifact.sourceName || 'managed-stage'} — active basis: ${sourceBasis.activeBasis || 'stagedJson'}`;
+  if (subtitle) subtitle.textContent = `${state.sourceName || artifact.sourceName || 'managed-stage'} — active basis: ${sourceBasis.activeBasis || currentSupportMode()}`;
+  const summary = document.getElementById('smwModeSummary');
+  if (summary) summary.innerHTML = renderModeSummary(sourceContract, audit, sourceBasis);
   const body = document.getElementById('smwBody');
   if (!body) return;
   if (state.activeTab === 'isonote') body.innerHTML = renderIsonoteTab(sourceContract, audit);
   else if (state.activeTab === 'rules') body.innerHTML = renderRulesTab();
+  else if (state.activeTab === 'restraintType') body.innerHTML = renderRestraintTypeTab();
   else body.innerHTML = renderInputXmlTab(sourceContract, audit);
+}
+
+function renderModeSummary(sourceContract = {}, audit = {}, sourceBasis = {}) {
+  const supports = Array.isArray(sourceContract.supports) ? sourceContract.supports : [];
+  const parsedIsonote = Array.isArray(sourceContract.isonoteRecords) ? sourceContract.isonoteRecords.length : 0;
+  const appliedRestraint = supports.filter((support) => support.sourceAttributes?.SUPPORT_RESTRAINT_TYPE_APPLIED === 'TRUE').length;
+  const pass = audit.supportRvmExportAudit?.supportCompletenessAudit?.pass;
+  return `<div class="smw-summary-grid">
+    <div><strong>Mode</strong><span>${escapeHtml(sourceBasis.activeBasis || currentSupportMode())}</span></div>
+    <div><strong>Preset</strong><span>${escapeHtml(window.__3D_MARKUP_SUPPORT_SOURCE_UI__?.mapperPresetId || 'Custom')}</span></div>
+    <div><strong>Axis basis</strong><span>${escapeHtml(window.__3D_MARKUP_SUPPORT_SOURCE_UI__?.northLabel || '-X → -X')}</span></div>
+    <div><strong>Supports</strong><span>${supports.length} emitted / ${audit.inputCounts?.supportRecordsEmittedToRvm ?? supports.length} RVM</span></div>
+    <div><strong>ISONOTE rows</strong><span>${parsedIsonote}</span></div>
+    <div><strong>Restraint Type</strong><span>${appliedRestraint} applied</span></div>
+    <div><strong>Audit</strong><span>${pass === undefined ? 'not available' : pass ? 'PASS' : 'CHECK'}</span></div>
+  </div>`;
 }
 
 function renderInputXmlTab(sourceContract = {}, audit = {}) {
   const rows = supportRows(sourceContract, audit).filter((row) => row.activeBasis !== BASIS.ISONOTE);
   return `
-    <div class="smw-intro"><strong>InputXML basis</strong><span>Node-wise restraints detected from staged InputXML, normalized family, pipe axis, axis resolution, and app symbology.</span></div>
+    <div class="smw-intro"><strong>InputXML basis</strong><span>Node-wise restraints detected from staged InputXML, normalized family, pipe axis, enriched axis, and app symbology.</span></div>
     ${supportTable(rows, 'No InputXML support rows detected yet.')}`;
 }
 
@@ -128,11 +161,21 @@ function renderIsonoteTab(sourceContract = {}, audit = {}) {
     ${supportTable(rows, 'No ISONOTE rows parsed yet. Load ISONOTE text and click Apply as per ISONOTE.')}`;
 }
 
+function renderRestraintTypeTab() {
+  const rules = loadSupportRestraintTypeRules();
+  return `
+    <div class="smw-intro"><strong>Restraint Type</strong><span>Edit InputXML Restraint Type to support family / axis resolution. Click Apply as per InputXML to regenerate support geometry using this table.</span></div>
+    <table class="smw-table"><thead><tr><th>Enabled</th><th>Restraint Type</th><th>Support family</th><th>Source axis</th><th>Canvas axis</th><th>Action axis</th><th>Symbology rule</th></tr></thead><tbody>
+      ${rules.map((rule, index) => `<tr data-restraint-row="${index}"><td><input type="checkbox" data-rt-enabled ${rule.enabled !== false ? 'checked' : ''}></td><td><input data-rt-code value="${escapeAttr(rule.restraintType)}"></td><td><input data-rt-family value="${escapeAttr(rule.family)}"></td><td><input data-rt-source-axis value="${escapeAttr(rule.sourceAxis)}"></td><td><input data-rt-canvas-axis value="${escapeAttr(rule.canvasAxis)}"></td><td><input data-rt-action-axis value="${escapeAttr(rule.actionAxis)}"></td><td><input data-rt-graphics value="${escapeAttr(rule.graphicsRule)}"></td></tr>`).join('')}
+    </tbody></table>
+    <div class="smw-button-row"><button type="button" class="primary" data-smw-save-restraint-types>Save Restraint Type mapping</button><button type="button" class="ghost" data-smw-reset-restraint-types>Reset defaults</button></div>`;
+}
+
 function renderRulesTab() {
   const model = window.__3D_MARKUP_SUPPORT_SOURCE_UI__ || {};
   const rows = Array.isArray(model.mapperRows) ? model.mapperRows : [];
   return `
-    <div class="smw-intro"><strong>Support Mapping rules</strong><span>Edit field candidates used to map, normalize, and resolve support symbology. Save, then apply InputXML or ISONOTE basis.</span></div>
+    <div class="smw-intro"><strong>Support Mapping rules</strong><span>Edit field candidates used to map, normalize, and resolve support symbology. Restraint Type rules override support-kind/axis fields when a type code is present.</span></div>
     <table class="smw-table"><thead><tr><th>Purpose</th><th>User editable source fields</th><th>Normalized output</th><th>Current resolving rule</th></tr></thead><tbody>
     ${rows.map((row) => `<tr><td>${escapeHtml(row.label || row.fieldPurpose)}</td><td><input data-smw-rule="${escapeAttr(row.fieldPurpose)}" value="${escapeAttr((row.sourceFieldCandidates || []).join(', '))}"></td><td>${escapeHtml(row.normalizedOutput || '')}</td><td>${escapeHtml(row.graphicsRule || row.axisBasis || '')}</td></tr>`).join('') || '<tr><td colspan="4">Support mapper UI not ready yet.</td></tr>'}
     </tbody></table>
@@ -149,15 +192,15 @@ function supportRows(sourceContract = {}, audit = {}) {
       return {
         node: support.nodeNumber || match.node || '',
         tag: support.supportName || support.supportId || support.psTag || '',
-        raw: support.supportKindRaw || support.rawType || support.sourceAttributes?.SUPPORT_KIND || '',
+        raw: support.restraintTypeCode ? `Restraint Type ${support.restraintTypeCode}` : (support.supportKindRaw || support.rawType || support.sourceAttributes?.SUPPORT_KIND || ''),
         family: displayFamily || match.family || 'UNKNOWN',
         pipeAxis: support.pipeAxis || support.visual?.pipeAxis || support.axisTransform?.pipeAxis || match.matchedPipeAxis || '',
         sourceAxis: support.axisRaw || match.sourceAxis || '',
         canvasAxis: support.axisCanvas || match.mappedCanvasAxis || '',
-        actionAxis: (support.axisTransform?.supportActionAxes || support.visual?.supportActionAxes || match.supportActionAxes || []).join(' / ') || support.axisCanvas || '',
+        actionAxis: (support.axisTransform?.supportActionAxes || support.visual?.supportActionAxes || match.supportActionAxes || []).join(' / ') || support.restraintTypeRule?.actionAxis || support.axisCanvas || '',
         symbology: symbologyLabel(support, match),
         rendered: match.rendered !== false,
-        statusLabel: match.rendered === false ? 'Missing / suppressed' : 'Rendered',
+        statusLabel: match.rendered === false ? 'Missing / suppressed' : (support.restraintTypeCode ? `Rendered via Restraint Type ${support.restraintTypeCode}` : 'Rendered'),
         activeBasis: support.activeBasis || support.sourceMode || sourceContract.supportSourceBasis?.activeBasis || BASIS.INPUTXML,
         isonoteRawText: support.isonoteRawText || ''
       };
@@ -212,13 +255,14 @@ function isonoteRows(sourceContract = {}, audit = {}) {
 
 function supportTable(rows, emptyMessage) {
   const grouped = [...rows].sort((a, b) => Number(a.node) - Number(b.node));
-  return `<table class="smw-table"><thead><tr><th>Node</th><th>Detected restraint</th><th>Normalized support</th><th>Pipe Axis</th><th>Axis resolution</th><th>App symbology</th><th>Status</th></tr></thead><tbody>
+  return `<table class="smw-table"><thead><tr><th>Node</th><th>Detected restraint</th><th>Normalized support</th><th>Pipe Axis</th><th>Enriched axis</th><th>App symbology</th><th>Status</th></tr></thead><tbody>
     ${grouped.map((row) => `<tr><td>${escapeHtml(row.node)}</td><td>${escapeHtml(row.raw || row.tag)}</td><td>${escapeHtml(row.family)}</td><td>${escapeHtml(row.pipeAxis || 'N/A')}</td><td>source ${escapeHtml(row.sourceAxis || 'N/A')} → canvas ${escapeHtml(row.canvasAxis || 'N/A')} / action ${escapeHtml(row.actionAxis || 'N/A')}</td><td>${escapeHtml(row.symbology)}</td><td>${escapeHtml(row.statusLabel || (row.rendered ? 'Rendered' : 'Missing / suppressed'))}</td></tr>`).join('') || `<tr><td colspan="7">${escapeHtml(emptyMessage)}</td></tr>`}
   </tbody></table>`;
 }
 
 async function applyBasis(mode) {
   const supportMode = mode === BASIS.ISONOTE ? BASIS.ISONOTE : BASIS.INPUTXML;
+  if (supportMode === BASIS.INPUTXML) saveRestraintTypeEdits({ silent: true });
   const select = document.getElementById('supportMode');
   if (select) {
     ensureOption(select, supportMode);
@@ -251,13 +295,33 @@ function saveRuleEdits() {
     const existing = document.querySelector(`[data-support-mapper-fields="${purpose}"]`);
     if (existing) existing.value = input.value;
   }
-  const payload = { mapperPresetId: 'custom', fieldMapper };
+  const payload = { mapperPresetId: 'custom', fieldMapper, restraintTypeRules: loadSupportRestraintTypeRules() };
   try { localStorage.setItem('managedStage.supportMapperConfig.v1', JSON.stringify(payload, null, 2)); } catch (_) {}
   const details = document.getElementById('supportMapperConfigDetails');
   details?.dispatchEvent(new Event('change', { bubbles: true }));
   const textarea = document.getElementById('supportMapperConfigJson');
   if (textarea) textarea.value = JSON.stringify(payload, null, 2);
   setStatus('Support mapping rules saved. Apply a basis to process support modules.');
+}
+
+function saveRestraintTypeEdits(options = {}) {
+  const rows = Array.from(document.querySelectorAll('[data-restraint-row]'));
+  if (!rows.length) return loadSupportRestraintTypeRules();
+  const rules = rows.map((row) => ({
+    enabled: Boolean(row.querySelector('[data-rt-enabled]')?.checked),
+    restraintType: row.querySelector('[data-rt-code]')?.value || '',
+    family: row.querySelector('[data-rt-family]')?.value || '',
+    sourceAxis: row.querySelector('[data-rt-source-axis]')?.value || '',
+    canvasAxis: row.querySelector('[data-rt-canvas-axis]')?.value || '',
+    actionAxis: row.querySelector('[data-rt-action-axis]')?.value || '',
+    graphicsRule: row.querySelector('[data-rt-graphics]')?.value || ''
+  }));
+  const saved = saveSupportRestraintTypeRules(rules);
+  const existingConfig = readMapperConfig();
+  const payload = { ...existingConfig, mapperPresetId: 'custom', restraintTypeRules: saved };
+  try { localStorage.setItem('managedStage.supportMapperConfig.v1', JSON.stringify(payload, null, 2)); } catch (_) {}
+  if (!options.silent) setStatus('Restraint Type mapping saved. Click Apply as per InputXML to regenerate support geometry.');
+  return saved;
 }
 
 function syncIsonoteText(value) {
@@ -276,6 +340,7 @@ function ensureOption(select, value) {
 function symbologyLabel(support, row = {}) {
   if (row.xFallback || support.warningCode === 'UNKNOWN_SUPPORT_REQUIRES_MAPPING') return 'X blocking-flow fallback';
   if (row.exactAxisRepair) return 'Exact-axis code-8 glyph';
+  if (support.restraintTypeRule?.graphicsRule) return support.restraintTypeRule.graphicsRule;
   const visual = support.visual || {};
   if (visual.previewGlyphGeometry) return visual.previewGlyphGeometry;
   if (visual.family) return visual.family;
@@ -295,6 +360,29 @@ function axisMatches(row, record) {
   const rowAxis = normalizeAxis(row.canvasAxis || row.sourceAxis || row.actionAxis || '');
   const recordAxis = normalizeAxis(record.mapperRecord?.axis?.canvasAxis || record.mapperRecord?.axis?.sourceAxis || record.attrs?.SUPPORT_AXIS || '');
   return Boolean(rowAxis && recordAxis && rowAxis.replace('+', '') === recordAxis.replace('+', ''));
+}
+
+function hideLegacySupportLaunchers() {
+  const hideIds = ['viewRulesBtn', 'openSupportMappingIsonoteBtn', 'openSupportMappingBtn'];
+  for (const id of hideIds) {
+    const el = document.getElementById(id);
+    if (el) { el.hidden = true; el.setAttribute('aria-hidden', 'true'); }
+  }
+  for (const button of Array.from(document.querySelectorAll('button'))) {
+    const text = button.textContent?.trim() || '';
+    if (/^(Open\s+)?Support Mapping\s*\/\s*ISONOTE$/i.test(text) || /^Mapping Rules$/i.test(text)) {
+      button.hidden = true;
+      button.setAttribute('aria-hidden', 'true');
+    }
+  }
+}
+
+function currentSupportMode() {
+  return document.getElementById('supportMode')?.value || window.__3D_MARKUP_SUPPORT_SOURCE_UI__?.sourceMode || BASIS.INPUTXML;
+}
+
+function readMapperConfig() {
+  try { return JSON.parse(localStorage.getItem('managedStage.supportMapperConfig.v1') || '{}') || {}; } catch (_) { return {}; }
 }
 
 function setStatus(message) {
@@ -332,14 +420,15 @@ function injectStyles() {
   const style = document.createElement('style');
   style.id = 'supportMappingIsonoteWorkbenchStyles';
   style.textContent = `
-    .support-map-workbench{width:min(1240px,96vw);max-height:88vh;border:1px solid rgba(148,163,184,.35);border-radius:16px;background:#111827;color:#e5e7eb;padding:0;box-shadow:0 24px 80px rgba(0,0,0,.45)}
+    .support-map-workbench{width:min(1280px,96vw);max-height:88vh;border:1px solid rgba(148,163,184,.35);border-radius:16px;background:#111827;color:#e5e7eb;padding:0;box-shadow:0 24px 80px rgba(0,0,0,.45)}
     .support-map-workbench::backdrop{background:rgba(2,6,23,.62)}
     .smw-head{display:flex;justify-content:space-between;gap:16px;padding:18px 20px;border-bottom:1px solid rgba(148,163,184,.22)}
     .smw-head h2{margin:0;font-size:20px}.smw-head p{margin:4px 0 0;color:#94a3b8}.smw-close{font-size:26px;background:transparent;color:#e5e7eb;border:0;cursor:pointer}
+    .smw-mode-summary{padding:12px 20px;border-bottom:1px solid rgba(148,163,184,.18);background:#0b1220}.smw-summary-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:8px}.smw-summary-grid div{background:#111827;border:1px solid rgba(148,163,184,.2);border-radius:10px;padding:8px}.smw-summary-grid strong{display:block;font-size:11px;color:#94a3b8}.smw-summary-grid span{font-size:12px;color:#e5e7eb}
     .smw-actions{display:flex;gap:10px;align-items:center;padding:12px 20px;border-bottom:1px solid rgba(148,163,184,.18)}
-    .smw-actions .primary,.smw-body .primary{border:0;border-radius:10px;padding:9px 12px;background:#2563eb;color:white;cursor:pointer}.smw-actions .alt{background:#7c3aed}.smw-status{margin-left:auto;color:#cbd5e1;font-size:12px}
+    .smw-actions .primary,.smw-body .primary{border:0;border-radius:10px;padding:9px 12px;background:#2563eb;color:white;cursor:pointer}.smw-actions .alt{background:#7c3aed}.smw-body .ghost{border:1px solid rgba(148,163,184,.35);border-radius:10px;padding:9px 12px;background:transparent;color:#e5e7eb;cursor:pointer}.smw-button-row{display:flex;gap:10px;margin-top:12px}.smw-status{margin-left:auto;color:#cbd5e1;font-size:12px}
     .smw-tabs{display:flex;gap:8px;padding:12px 20px 0}.smw-tabs button{border:1px solid rgba(148,163,184,.28);border-radius:10px 10px 0 0;background:#1f2937;color:#cbd5e1;padding:10px 14px;cursor:pointer}.smw-tabs button.active{background:#0f172a;color:#fff;border-bottom-color:#0f172a}
-    .smw-body{padding:16px 20px 20px;overflow:auto;max-height:62vh;background:#0f172a}.smw-intro{display:flex;justify-content:space-between;gap:16px;margin-bottom:12px;color:#cbd5e1}.smw-intro strong{color:#fff}.smw-intro span{font-size:12px;color:#94a3b8}
+    .smw-body{padding:16px 20px 20px;overflow:auto;max-height:58vh;background:#0f172a}.smw-intro{display:flex;justify-content:space-between;gap:16px;margin-bottom:12px;color:#cbd5e1}.smw-intro strong{color:#fff}.smw-intro span{font-size:12px;color:#94a3b8}
     #smwIsonoteText{width:100%;box-sizing:border-box;background:#020617;color:#e5e7eb;border:1px solid rgba(148,163,184,.28);border-radius:10px;padding:10px;margin-bottom:12px;font-family:ui-monospace,SFMono-Regular,Consolas,monospace}
     .smw-table{width:100%;border-collapse:collapse;font-size:12px}.smw-table th,.smw-table td{border:1px solid rgba(148,163,184,.22);padding:8px;vertical-align:top}.smw-table th{background:#1e293b;color:#e2e8f0;text-align:left}.smw-table input{width:100%;box-sizing:border-box;background:#020617;color:#e5e7eb;border:1px solid rgba(148,163,184,.28);border-radius:8px;padding:7px}
   `;

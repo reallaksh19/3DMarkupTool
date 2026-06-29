@@ -1,4 +1,4 @@
-export const RVM_POST_AXIS_TRANSFORM_SCHEMA = 'RvmPostAxisTransform.v1';
+export const RVM_POST_AXIS_TRANSFORM_SCHEMA = 'RvmPostAxisTransform.v2';
 
 export const RVM_POST_AXIS_TRANSFORM_PRESETS = Object.freeze({
   off: Object.freeze({
@@ -6,30 +6,33 @@ export const RVM_POST_AXIS_TRANSFORM_PRESETS = Object.freeze({
     label: 'Off - no post-RVM geometry transform',
     enabled: false,
     matrix: Object.freeze([[1, 0, 0], [0, 1, 0], [0, 0, 1]]),
-    description: 'Do not transform the generated RVM export model.'
+    description: 'Do not transform the generated RVM export model.',
+    handedness: 'right-handed'
   }),
-  navisObservedWnt: Object.freeze({
-    id: 'navisObservedWnt',
-    label: 'Navis observed W/N/Top basis',
+  navisObservedSemantic: Object.freeze({
+    id: 'navisObservedSemantic',
+    label: 'Observed Navis semantic mapping - no rotation',
     enabled: true,
-    matrix: Object.freeze([[-1, 0, 0], [0, 1, 0], [0, 0, 1]]),
-    description: 'Post-RVM transform using observed relationship: Navis W = Canvas -X, Navis N = Canvas +Y, Navis Top = Canvas +Z. Matrix: [xPrime,yPrime,zPrime]=[-x,y,z].',
-    observedMapping: Object.freeze({ navisN: 'canvas +Y', navisTop: 'canvas +Z', navisW: 'canvas -X' })
+    matrix: Object.freeze([[1, 0, 0], [0, 1, 0], [0, 0, 1]]),
+    description: 'Records the observed relationship without rotating geometry: Navis N = Canvas +Y, Navis Top = Canvas +Z, Navis W = Canvas -X. This is right-handed as East/North/Top.',
+    observedMapping: Object.freeze({ navisN: 'canvas +Y', navisTop: 'canvas +Z', navisW: 'canvas -X' }),
+    handedness: 'right-handed'
   }),
   canvasEngineeringToNavis: Object.freeze({
     id: 'canvasEngineeringToNavis',
-    label: 'Canvas engineering axes to Navis N/Top/W',
+    label: 'Canvas engineering axes to Navis E/N/Top',
     enabled: true,
-    matrix: Object.freeze([[0, 0, 1], [-1, 0, 0], [0, 1, 0]]),
-    description: 'Alternative full-basis reorientation: Canvas North -X -> Navis +Y, Canvas Vertical +Y -> Navis +Z, Canvas +Z -> Navis +X. Matrix: [xPrime,yPrime,zPrime]=[z,-x,y].',
-    observedMapping: Object.freeze({ canvasNorth: '-X -> Navis +Y', canvasVertical: '+Y -> Navis +Z', canvasZ: '+Z -> Navis +X' })
+    matrix: Object.freeze([[0, 0, -1], [-1, 0, 0], [0, 1, 0]]),
+    description: 'Right-handed full-geometry reorientation: Canvas North -X -> Navis +Y, Canvas Vertical +Y -> Navis +Z, Canvas +Z -> Navis West -X. Matrix: [xPrime,yPrime,zPrime]=[-z,-x,y].',
+    observedMapping: Object.freeze({ canvasNorth: '-X -> Navis +Y', canvasVertical: '+Y -> Navis +Z', canvasZ: '+Z -> Navis -X' }),
+    handedness: 'right-handed'
   })
 });
 
 export const DEFAULT_RVM_POST_AXIS_TRANSFORM_CONFIG = Object.freeze({
   schema: RVM_POST_AXIS_TRANSFORM_SCHEMA,
   enabled: true,
-  presetId: 'navisObservedWnt',
+  presetId: 'canvasEngineeringToNavis',
   applyStage: 'post-export-model-pre-writeRvm',
   transformScope: 'entire-export-model-with-supports'
 });
@@ -44,7 +47,8 @@ export function resolveRvmPostAxisTransformConfig(options = {}, runtime = global
     ...(globalConfig || {}),
     ...(explicit || {})
   };
-  const preset = RVM_POST_AXIS_TRANSFORM_PRESETS[merged.presetId] || RVM_POST_AXIS_TRANSFORM_PRESETS.navisObservedWnt;
+  const preset = RVM_POST_AXIS_TRANSFORM_PRESETS[merged.presetId] || RVM_POST_AXIS_TRANSFORM_PRESETS.canvasEngineeringToNavis;
+  const matrix = normalizeMatrix(merged.matrix || preset.matrix || RVM_POST_AXIS_TRANSFORM_PRESETS.off.matrix);
   return {
     ...merged,
     enabled: merged.enabled !== false && preset.enabled !== false,
@@ -52,14 +56,15 @@ export function resolveRvmPostAxisTransformConfig(options = {}, runtime = global
     presetLabel: preset.label,
     description: preset.description,
     observedMapping: preset.observedMapping || {},
-    matrix: normalizeMatrix(merged.matrix || preset.matrix || RVM_POST_AXIS_TRANSFORM_PRESETS.off.matrix),
+    matrix,
+    handedness: determinant3(matrix) < 0 ? 'left-handed-blocked' : 'right-handed',
     schema: RVM_POST_AXIS_TRANSFORM_SCHEMA
   };
 }
 
 export function applyRvmPostAxisTransform(exportModel, configInput = {}) {
   const config = resolveRvmPostAxisTransformConfig(configInput);
-  if (!config.enabled) {
+  if (!config.enabled || config.handedness !== 'right-handed') {
     return {
       exportModel,
       audit: buildAudit(config, { transformed: false, nodeCount: 0, primitiveCount: 0, sampleRows: [] })
@@ -178,6 +183,7 @@ function buildAudit(config, stats) {
     observedMapping: config.observedMapping || {},
     matrix: config.matrix,
     matrixSummary: matrixSummary(config.matrix),
+    handedness: config.handedness,
     applyStage: config.applyStage || 'post-export-model-pre-writeRvm',
     transformScope: config.transformScope || 'entire-export-model-with-supports',
     nodeCount: stats.nodeCount || 0,
@@ -201,6 +207,12 @@ function normalizeMatrix(value) {
   const out = matrix.map((row) => Array.isArray(row) && row.length === 3 ? row.map(Number) : [0, 0, 0]);
   if (out.flat().some((entry) => !Number.isFinite(entry))) return RVM_POST_AXIS_TRANSFORM_PRESETS.off.matrix;
   return out;
+}
+
+function determinant3(m) {
+  return m[0][0] * (m[1][1] * m[2][2] - m[1][2] * m[2][1])
+    - m[0][1] * (m[1][0] * m[2][2] - m[1][2] * m[2][0])
+    + m[0][2] * (m[1][0] * m[2][1] - m[1][1] * m[2][0]);
 }
 
 function rowExpression(row) {

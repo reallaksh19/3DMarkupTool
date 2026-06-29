@@ -1,8 +1,9 @@
-const DISABLE_CLICK_ZOOM_SCHEMA = 'DisableClickZoomController.v3';
+const DISABLE_CLICK_ZOOM_SCHEMA = 'DisableClickZoomController.v4';
 const CLICK_TOLERANCE_PX = 5;
 
 let pointerSnapshot = null;
 let lastWheelMs = 0;
+let enforceTimer = null;
 
 if (document.readyState === 'loading') {
   window.addEventListener('DOMContentLoaded', installDisableClickZoomController, { once: true });
@@ -15,9 +16,12 @@ export function installDisableClickZoomController() {
   const api = { schema: DISABLE_CLICK_ZOOM_SCHEMA, enabled: true, install: attachGuards, enforce: enforceSelectModeNavigationPolicy };
   window.__3D_MARKUP_DISABLE_CLICK_ZOOM__ = api;
   attachGuards();
+  startEnforcementLoop();
   enforceSelectModeNavigationPolicy('install');
   window.addEventListener('markup:app-ready', () => { attachGuards(); enforceSelectModeNavigationPolicy('markup:app-ready'); });
   window.addEventListener('viewer:runtime-context', () => { attachGuards(); enforceSelectModeNavigationPolicy('viewer:runtime-context'); });
+  window.addEventListener('viewer:app-module-loaded', () => setTimeout(() => enforceSelectModeNavigationPolicy('app-module-loaded'), 0));
+  window.addEventListener('viewer:app-bundle-ready', () => setTimeout(() => enforceSelectModeNavigationPolicy('app-bundle-ready'), 0));
   window.addEventListener('click', (event) => {
     if (event.target?.closest?.('#selectToolBtn')) setTimeout(() => enforceSelectModeNavigationPolicy('select-tool-click'), 0);
   }, true);
@@ -31,8 +35,8 @@ function attachGuards() {
     window.__3D_MARKUP_VIEWER_RUNTIME__?.renderer?.domElement
   ].filter(Boolean));
   for (const target of targets) {
-    if (target.__disableClickZoomInstalledV3) continue;
-    target.__disableClickZoomInstalledV3 = true;
+    if (target.__disableClickZoomInstalledV4) continue;
+    target.__disableClickZoomInstalledV4 = true;
     target.addEventListener('pointerdown', snapshotCameraForClick, true);
     target.addEventListener('pointerup', restoreCameraAfterSelectionClick, true);
     target.addEventListener('wheel', () => { lastWheelMs = performance.now(); }, true);
@@ -41,9 +45,17 @@ function attachGuards() {
   }
 }
 
+function startEnforcementLoop() {
+  if (enforceTimer) return;
+  enforceTimer = setInterval(() => {
+    attachGuards();
+    enforceSelectModeNavigationPolicy('interval');
+  }, 500);
+}
+
 function snapshotCameraForClick(event) {
   if (!isViewerEvent(event) || event.button !== 0) return;
-  enforceSelectModeNavigationPolicy('pointerdown');
+  enforceSelectModeNavigationPolicy('pointerdown-capture');
   const runtime = window.__3D_MARKUP_VIEWER_RUNTIME__ || {};
   const camera = runtime.camera;
   const target = runtime.controls?.target;
@@ -69,7 +81,7 @@ function restoreCameraAfterSelectionClick(event) {
   pointerSnapshot = null;
   if (!isClick) return;
   if (performance.now() - lastWheelMs < 350) return;
-  for (const delay of [0, 50, 160, 320]) {
+  for (const delay of [0, 50, 160, 320, 640]) {
     setTimeout(() => restoreIfCameraMovedFromClick(snapshot, event, delay), delay);
   }
 }
@@ -99,8 +111,12 @@ function enforceSelectModeNavigationPolicy(source = 'enforce') {
   const controls = window.__3D_MARKUP_VIEWER_RUNTIME__?.controls;
   if (!controls) return false;
   controls.enableRotate = false;
-  controls.enablePan = true;
+  controls.enablePan = false;
   controls.enableZoom = true;
+  controls.mouseButtons = {
+    ...(controls.mouseButtons || {}),
+    LEFT: undefined
+  };
   controls.update?.();
   window.__3D_MARKUP_DISABLE_CLICK_ZOOM_LAST_ENFORCED__ = { schema: DISABLE_CLICK_ZOOM_SCHEMA, source, at: new Date().toISOString() };
   return true;

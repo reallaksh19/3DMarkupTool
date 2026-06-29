@@ -1,0 +1,11 @@
+{
+  "schema": "CatalogueRegistry.v1",
+  "catalogues": [
+    {
+      "id": "base-piping",
+      "version": "0.1.0",
+      "source": "samples/contracts/base-piping.elbow-90lr-4in-std.json",
+      "families": ["pipe", "elbow", "tee", "flange", "valve", "support"]
+    }
+  ]
+}

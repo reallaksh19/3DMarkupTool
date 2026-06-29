@@ -1,0 +1,70 @@
+{
+  "schema": "ResolvedPrimitiveModel.v1",
+  "sourceGraphId": "BM_CII_GRAPH_SEED",
+  "items": [
+    {
+      "id": "PIPE-35-130",
+      "sourceGraphItemId": "PIPE-35-130",
+      "resolutionMode": "procedural",
+      "resolver": "straightPipe.v1"
+    },
+    {
+      "id": "ELB-130",
+      "sourceGraphItemId": "ELB-130",
+      "resolutionMode": "catalogue",
+      "catalogue": "base-piping",
+      "catalogueItem": "elbow/90LR/4in/STD"
+    },
+    {
+      "id": "SUP-35-REST",
+      "sourceGraphItemId": "SUP-35-REST",
+      "resolutionMode": "procedural",
+      "resolver": "supportMarker.rest.v1"
+    }
+  ],
+  "primitives": [
+    {
+      "id": "PRIM-PIPE-35-130",
+      "sourceItemId": "PIPE-35-130",
+      "kind": "CYLINDER",
+      "rvmCode": 8,
+      "center": [1250, 0, 0],
+      "axis": [1, 0, 0],
+      "lengthMm": 2500,
+      "radiusMm": 57.15,
+      "bbox": [0, -57.15, -57.15, 2500, 57.15, 57.15],
+      "material": "pipe-default"
+    },
+    {
+      "id": "PRIM-ELB-130-CODE4-SEED",
+      "sourceItemId": "ELB-130",
+      "kind": "TORUS",
+      "rvmCode": 4,
+      "center": [2500, 0, 0],
+      "axis": [0, 1, 0],
+      "bendRadiusMm": 152.4,
+      "tubeRadiusMm": 57.15,
+      "bbox": [2347.6, -57.15, -152.4, 2557.15, 57.15, 57.15],
+      "material": "fitting-default"
+    },
+    {
+      "id": "PRIM-SUP-35-REST",
+      "sourceItemId": "SUP-35-REST",
+      "kind": "CYLINDER",
+      "rvmCode": 8,
+      "center": [0, -120, 0],
+      "axis": [0, 1, 0],
+      "lengthMm": 180,
+      "radiusMm": 18,
+      "bbox": [-18, -210, -18, 18, -30, 18],
+      "material": "support-default"
+    }
+  ],
+  "audit": {
+    "schema": "ResolvedPrimitiveModelAudit.v1",
+    "phase": "Phase 1 seed only",
+    "catalogueResolved": 1,
+    "proceduralResolved": 2,
+    "fallbackResolved": 0
+  }
+}

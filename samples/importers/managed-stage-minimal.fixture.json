@@ -1,0 +1,72 @@
+{
+  "schema": "ManagedStageMinimalFixture.v1",
+  "source": "managed-stage-minimal",
+  "units": "mm",
+  "hierarchy": [
+    {
+      "id": "BRANCH-001",
+      "name": "BM_CII_BRANCH_001",
+      "type": "BRANCH",
+      "attributes": {
+        "LINE_NO": "4-P8810212-31441C4-PP",
+        "SPEC": "P8810212",
+        "MATERIAL": "CS"
+      },
+      "children": [
+        {
+          "id": "PIPE-001",
+          "name": "PIPE_N35_N130",
+          "type": "PIPE",
+          "attributes": {
+            "FROM_NODE": "35",
+            "TO_NODE": "130",
+            "APOS": [0, 0, 0],
+            "LPOS": [2500, 0, 0],
+            "NPS": "4in",
+            "SCHEDULE": "STD",
+            "OD_MM": 114.3
+          }
+        },
+        {
+          "id": "ELBOW-001",
+          "name": "ELBOW_N130",
+          "type": "ELBOW",
+          "attributes": {
+            "NODE": "130",
+            "CATALOGUE_FAMILY": "elbow",
+            "CATALOGUE_TYPE": "90LR",
+            "NPS": "4in",
+            "SCHEDULE": "STD",
+            "POS": [2500, 0, 0]
+          }
+        },
+        {
+          "id": "PIPE-002",
+          "name": "PIPE_N130_N205",
+          "type": "PIPE",
+          "attributes": {
+            "FROM_NODE": "130",
+            "TO_NODE": "205",
+            "APOS": [2500, 0, 0],
+            "LPOS": [2500, 0, -1800],
+            "NPS": "4in",
+            "SCHEDULE": "STD",
+            "OD_MM": 114.3
+          }
+        },
+        {
+          "id": "SUPPORT-001",
+          "name": "INPUTXML-35-REST-0",
+          "type": "ATTA",
+          "attributes": {
+            "NODE": "35",
+            "SUPPORT_KIND": "REST",
+            "SUPPORT_AXIS": "+Y",
+            "POS": [0, 0, 0],
+            "SOURCE": "InputXML"
+          }
+        }
+      ]
+    }
+  ]
+}

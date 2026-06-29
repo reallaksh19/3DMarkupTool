@@ -25,6 +25,7 @@ import {
   assertManagedStageRvmStitchManifest,
   buildManagedStageRvmStitchManifest
 } from './managed-stage-rvm-stitch-manifest.js?v=bust-cache-4';
+import { applyRvmPostAxisTransform } from './rvm-post-axis-transform.js?v=bust-cache-4';
 
 export const MANAGED_STAGE_CODE4_RVM_OPTIONS = Object.freeze({
   experimentalRvmPrimitiveCodes: ['code4-elbow'],
@@ -53,7 +54,10 @@ export function convertManagedStageJsonToRvmAtt(sourceText, options = {}) {
     sourceContract,
     ...options
   };
-  const exportModel = buildManagedStageRvmExportModel(profile, writerOptions);
+  const rawExportModel = buildManagedStageRvmExportModel(profile, writerOptions);
+  const postAxisTransform = applyRvmPostAxisTransform(rawExportModel, writerOptions);
+  const exportModel = postAxisTransform.exportModel;
+  writerOptions.postRvmAxisTransformAudit = postAxisTransform.audit;
   const rvm = writeRvm(exportModel, writerOptions);
   const att = writeAtt(exportModel);
   const primitivePayloads = scanRvmPrimitivePayloads(rvm);
@@ -80,6 +84,7 @@ export function convertManagedStageJsonToRvmAtt(sourceText, options = {}) {
     units: profile.units,
     generationMode: 'managed-stage-cylinder-torus',
     supportSourceBasis: sourceContract.supportSourceBasis || null,
+    postRvmAxisTransform: postAxisTransform.audit,
     inputCounts: {
       geometryComponents: profile.geometryRecords.length,
       geometryContractsEmitted: exportModel.audit?.componentCount || profile.geometryRecords.length,
@@ -87,13 +92,14 @@ export function convertManagedStageJsonToRvmAtt(sourceText, options = {}) {
       supportRecordsSkippedFromGeometry: profile.supportRecords.length,
       supportRecordsEmittedToRvm: supportRvmExportAudit?.supportRecordCount || sourceContract.supports?.length || 0,
       supportSourceBasis: sourceContract.supportSourceBasis || null,
+      postRvmAxisTransform: postAxisTransform.audit,
       stats: profile.inputStats,
       statsRestraintsMismatch: Number(profile.inputStats?.validRestraints ?? profile.inputStats?.restraints ?? 0) !== profile.supportRecords.length
     },
     topology,
     supportTopologyAudit,
     processingConfig: exportModel.audit?.processingConfig || null,
-    geometryContractAudit: exportModel.audit?.geometryContractAudit || null,
+    geometryContractAudit: contractAuditWithPostAxisTransform(exportModel.audit?.geometryContractAudit, postAxisTransform.audit),
     elbowTangentHintAudit: exportModel.audit?.elbowTangentHintAudit || null,
     inputXmlBendExclusionAudit: exportModel.audit?.inputXmlBendExclusionAudit || null,
     inputXmlNodeLocalElbowAudit: exportModel.audit?.inputXmlNodeLocalElbowAudit || null,
@@ -199,16 +205,7 @@ function auditExplicitManagedStageCode4BendEmission(exportModel = {}, primitiveP
   };
 }
 
-function collectTorusAssumptions(root) {
-  const assumptions = [];
-  visit(root, (node) => {
-    for (const primitive of node.primitives || []) {
-      if (primitive.kind === 'elbow') assumptions.push({ element: node.reviewName || node.name, primitive: primitive.name, primitiveCode: 4, bendRadiusMm: primitive.bendRadius, tubeRadiusMm: primitive.tubeRadius, sweepAngleRad: primitive.sweepAngleRad, declaredBendRadiusMm: primitive.declaredBendRadiusMm, declaredSweepAngleRad: primitive.declaredSweepAngleRad, minRadiusForChordMm: primitive.minRadiusForChordMm, radiusInflatedMm: primitive.radiusInflatedMm, endpointFitErrorMm: primitive.endpointFitErrorMm, chordLengthMm: primitive.chordLengthMm, solverState: primitive.solverState || '', orientationAssumption: primitive.orientationAssumption, tangentHintState: primitive.tangentHintState || '', tangentHintSources: primitive.tangentHintSources || null });
-    }
-  });
-  return assumptions;
-}
-
+function collectTorusAssumptions(root) { const assumptions = []; visit(root, (node) => { for (const primitive of node.primitives || []) { if (primitive.kind === 'elbow') assumptions.push({ element: node.reviewName || node.name, primitive: primitive.name, primitiveCode: 4, bendRadiusMm: primitive.bendRadius, tubeRadiusMm: primitive.tubeRadius, sweepAngleRad: primitive.sweepAngleRad, declaredBendRadiusMm: primitive.declaredBendRadiusMm, declaredSweepAngleRad: primitive.declaredSweepAngleRad, minRadiusForChordMm: primitive.minRadiusForChordMm, radiusInflatedMm: primitive.radiusInflatedMm, endpointFitErrorMm: primitive.endpointFitErrorMm, chordLengthMm: primitive.chordLengthMm, solverState: primitive.solverState || '', orientationAssumption: primitive.orientationAssumption, tangentHintState: primitive.tangentHintState || '', tangentHintSources: primitive.tangentHintSources || null }); } }); return assumptions; }
 function collectGenericInputXmlBendAssumptions(root) { const assumptions = []; visit(root, (node) => { for (const primitive of node.primitives || []) if (primitive.genericInputXmlBend) assumptions.push({ element: node.reviewName || node.name, primitive: primitive.name, primitiveCode: 8, segmentRole: primitive.genericInputXmlBendSegmentRole || '', genericBendRadiusMm: primitive.genericBendRadiusMm, genericBendTrimLengthMm: primitive.genericBendTrimLengthMm, originalBendRadiusMm: primitive.originalBendRadiusMm, startMm: primitive.startMm, endMm: primitive.endMm, sourceRouteTrimmedForNodeLocalElbow: primitive.sourceRouteTrimmedForNodeLocalElbow || false, orientationAssumption: primitive.orientationAssumption }); }); return assumptions; }
 function collectGenericInputXmlNodeLocalElbowAssumptions(root) { const assumptions = []; visit(root, (node) => { for (const primitive of node.primitives || []) if (primitive.genericInputXmlNodeLocalElbow) assumptions.push({ element: node.reviewName || node.name, primitive: primitive.name, primitiveCode: 8, node: primitive.nodeLocalElbowNode, segmentIndex: primitive.nodeLocalElbowSegmentIndex, segmentCount: primitive.nodeLocalElbowSegmentCount, parentSourceContractNames: primitive.nodeLocalElbowParentSourceContractNames, startMm: primitive.startMm, endMm: primitive.endMm, orientationAssumption: primitive.orientationAssumption }); }); return assumptions; }
 function collectGenericInputXmlBranchFittingAssumptions(root) { const assumptions = []; visit(root, (node) => { for (const primitive of node.primitives || []) if (primitive.genericInputXmlBranchFitting) assumptions.push({ element: node.reviewName || node.name, primitive: primitive.name, primitiveCode: 8, branchFittingClass: primitive.branchFittingClass, branchFittingNode: primitive.branchFittingNode, hostContractName: primitive.branchFittingHostContractName, startMm: primitive.startMm, endMm: primitive.endMm, orientationAssumption: primitive.orientationAssumption }); }); return assumptions; }
@@ -222,6 +219,16 @@ function skippedSupportRecordsForBasis(profile, sourceContract) {
     reason: basis.suppressionReason || 'support-basis-suppressed',
     activeBasis: basis.activeBasis || ''
   }));
+}
+
+function contractAuditWithPostAxisTransform(contractAudit, postAxisTransform) {
+  if (!contractAudit || typeof contractAudit !== 'object') return contractAudit;
+  return {
+    ...contractAudit,
+    postRvmAxisTransformAppliedAfterExportModel: Boolean(postAxisTransform?.transformed),
+    postRvmAxisTransformPreset: postAxisTransform?.presetId || '',
+    postRvmAxisTransformMatrix: postAxisTransform?.matrixSummary || ''
+  };
 }
 
 function warningOnlyGate(schema, callback, options = {}) { try { return callback(); } catch (error) { if (options.warningOnlyManagedStageGates !== true) throw error; return { schema: `${schema}.warning-only`, ok: false, failClosed: false, warningOnly: true, nonBlockingAuditIssues: [error.message], nonBlockingAuditWarningCount: 1 }; } }

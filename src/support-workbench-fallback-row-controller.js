@@ -1,4 +1,4 @@
-const SUPPORT_WORKBENCH_FALLBACK_ROW_SCHEMA = 'SupportWorkbenchFallbackRowController.v1';
+const SUPPORT_WORKBENCH_FALLBACK_ROW_SCHEMA = 'SupportWorkbenchFallbackRowController.v2';
 
 if (document.readyState === 'loading') {
   window.addEventListener('DOMContentLoaded', installSupportWorkbenchFallbackRowController, { once: true });
@@ -8,12 +8,14 @@ if (document.readyState === 'loading') {
 
 export function installSupportWorkbenchFallbackRowController() {
   if (window.__3D_MARKUP_SUPPORT_WORKBENCH_FALLBACK_ROW__?.schema === SUPPORT_WORKBENCH_FALLBACK_ROW_SCHEMA) return window.__3D_MARKUP_SUPPORT_WORKBENCH_FALLBACK_ROW__;
-  const api = { schema: SUPPORT_WORKBENCH_FALLBACK_ROW_SCHEMA, refresh: refreshFallbackRows };
+  const api = { schema: SUPPORT_WORKBENCH_FALLBACK_ROW_SCHEMA, refresh: refreshFallbackRows, cleanup: hideObsoleteSupportPanel };
   window.__3D_MARKUP_SUPPORT_WORKBENCH_FALLBACK_ROW__ = api;
   observeWorkbench();
   refreshFallbackRows('install');
-  window.addEventListener('viewer:managed-stage-json-loaded', () => setTimeout(() => refreshFallbackRows('managed-stage-loaded'), 0));
-  window.addEventListener('managed-stage:support-source-ui-ready', () => setTimeout(() => refreshFallbackRows('support-source-ui-ready'), 0));
+  hideObsoleteSupportPanel('install');
+  window.addEventListener('viewer:managed-stage-json-loaded', () => setTimeout(() => { refreshFallbackRows('managed-stage-loaded'); hideObsoleteSupportPanel('managed-stage-loaded'); }, 0));
+  window.addEventListener('managed-stage:support-source-ui-ready', () => setTimeout(() => { refreshFallbackRows('support-source-ui-ready'); hideObsoleteSupportPanel('support-source-ui-ready'); }, 0));
+  window.addEventListener('markup:safe-ui-status', () => setTimeout(() => hideObsoleteSupportPanel('safe-ui-status'), 0));
   return api;
 }
 
@@ -28,8 +30,27 @@ function observeWorkbench() {
   attach();
   const timer = setInterval(() => {
     attach();
+    hideObsoleteSupportPanel('interval');
     if (document.getElementById('smwBody')?.__supportFallbackObserver) clearInterval(timer);
   }, 500);
+}
+
+function hideObsoleteSupportPanel(source = 'cleanup') {
+  const section = document.querySelector('[data-section="support-mapping"]');
+  if (section) {
+    section.hidden = true;
+    section.setAttribute('aria-hidden', 'true');
+    section.dataset.obsoleteSupportPanelHiddenBy = SUPPORT_WORKBENCH_FALLBACK_ROW_SCHEMA;
+  }
+  for (const button of Array.from(document.querySelectorAll('button'))) {
+    const text = button.textContent?.trim() || '';
+    if (/^(Open\s+)?Support Mapping\s*\/\s*ISONOTE$/i.test(text) || /^Dump Support Debug$/i.test(text) || /^Mapping Rules$/i.test(text)) {
+      button.hidden = true;
+      button.setAttribute('aria-hidden', 'true');
+    }
+  }
+  window.__3D_MARKUP_SUPPORT_PANEL_CLEANUP_LAST__ = { schema: SUPPORT_WORKBENCH_FALLBACK_ROW_SCHEMA, source, at: new Date().toISOString() };
+  return true;
 }
 
 function refreshFallbackRows(source = 'refresh') {

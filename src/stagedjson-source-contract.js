@@ -7,12 +7,16 @@ import { parseManagedStageIsonoteSupportRecords } from './managed-stage-isonote-
 import { resolveManagedStageSupportVisual } from './managed-stage-support-visual-resolver.js?v=bust-cache-4';
 import { resolveSupportAxisTransform } from './support-axis-transform.js?v=bust-cache-4';
 import {
+  applySupportRestraintTypeToAttributes,
+  applySupportRestraintTypeToMapperRecord
+} from './support-restraint-type-mapper.js?v=bust-cache-4';
+import {
   SUPPORT_MARKER_CONTRACT_SCHEMA,
   SUPPORT_MARKER_TYPE,
   buildSupportMarkerId
 } from './support-marker-primitive-policy.js?v=bust-cache-4';
 
-export const STAGEDJSON_SOURCE_CONTRACT_SCHEMA = 'StagedJsonSourceContract.v1';
+export const STAGEDJSON_SOURCE_CONTRACT_SCHEMA = 'StagedJsonSourceContract.v2';
 export const STAGEDJSON_SOURCE_KIND = 'stagedJson';
 
 const SUPPORT_FAMILY_MAP = Object.freeze({
@@ -62,13 +66,14 @@ export function looksLikeStagedJsonSource(value) {
 
 export function parseStagedJsonSourceContract(sourceText, options = {}) {
   const profile = parseManagedStageProfile(sourceText);
+  const supportMapperConfig = options.supportMapperConfig || {};
   const adaptedRecords = profile.records.map(adaptManagedStageRecord);
-  const isonoteRecords = parseManagedStageIsonoteSupportRecords(options.isonoteText || '', options.supportMapperConfig || {});
+  const isonoteRecords = parseManagedStageIsonoteSupportRecords(options.isonoteText || '', supportMapperConfig);
   const pipeSegments = profile.geometryRecords
     .map((record, index) => toPipeSegment(record, index))
     .filter(Boolean);
   const components = profile.geometryRecords.map((record, index) => toComponentRecord(record, index));
-  const supports = profile.supportRecords.map((record, index) => toSupportContractRecord(record, index, adaptedRecords, isonoteRecords));
+  const supports = profile.supportRecords.map((record, index) => toSupportContractRecord(record, index, adaptedRecords, isonoteRecords, supportMapperConfig));
   const compatibility = buildCompatibilityModel(profile.geometryRecords, supports);
   const diagnostics = buildDiagnostics(profile, supports, isonoteRecords, compatibility);
 
@@ -85,6 +90,10 @@ export function parseStagedJsonSourceContract(sourceText, options = {}) {
     supports,
     isonoteRecords,
     diagnostics,
+    supportMapperConfig: {
+      mapperPresetId: supportMapperConfig.mapperPresetId || supportMapperConfig.presetId || '',
+      restraintTypeRulesConfigured: Array.isArray(supportMapperConfig.restraintTypeRules) && supportMapperConfig.restraintTypeRules.length > 0
+    },
     sourcePaths: {
       root: '$',
       branches: '$.hierarchy[]',
@@ -93,8 +102,6 @@ export function parseStagedJsonSourceContract(sourceText, options = {}) {
       isonoteRecords: 'options.isonoteText'
     },
 
-    // Compatibility fields consumed by existing GLB/RVM converters while the
-    // stagedJson pipeline is consolidated around the contract above.
     elements: compatibility.elements,
     nodes: compatibility.nodes,
     restraints: compatibility.restraints,
@@ -129,15 +136,20 @@ export function assertStagedJsonSourceContract(contract) {
   return true;
 }
 
-function toSupportContractRecord(record, index, adaptedRecords, isonoteRecords) {
+function toSupportContractRecord(record, index, adaptedRecords, isonoteRecords, supportMapperConfig = {}) {
   const adapted = adaptManagedStageRecord(record);
-  const mapperRecord = normalizeManagedStageSupportMapperRecord({ attrs: adapted.attrs }, { sourceMode: MANAGED_STAGE_SUPPORT_SOURCE_MODES.STAGED_JSON });
-  const visual = resolveManagedStageSupportVisual({ ...adapted, attrs: mapperRecord.attrs }, adaptedRecords, {});
-  const normalizedFamily = normalizeContractFamily(visual.family || mapperRecord.family);
+  const restraintTypeApplied = applySupportRestraintTypeToAttributes(adapted.attrs, supportMapperConfig);
+  const attrsForMapper = restraintTypeApplied.attrs;
+  const mappedAdapted = { ...adapted, attrs: attrsForMapper };
+  const baseMapperRecord = normalizeManagedStageSupportMapperRecord({ attrs: attrsForMapper }, { ...supportMapperConfig, sourceMode: MANAGED_STAGE_SUPPORT_SOURCE_MODES.STAGED_JSON });
+  const mapperRecord = applySupportRestraintTypeToMapperRecord(baseMapperRecord, attrsForMapper, supportMapperConfig);
+  const visual = resolveManagedStageSupportVisual({ ...mappedAdapted, attrs: mapperRecord.attrs }, adaptedRecords, {});
+  const normalizedFamily = normalizeContractFamily(mapperRecord.family || visual.family);
   const nodeNumber = String(mapperRecord.attrs.NODE || adapted.fromNode || adapted.toNode || visual.node || '');
   const supportTag = mapperRecord.supportTag || mapperRecord.attrs.SUPPORT_TAG_MAPPED || mapperRecord.attrs.NAME || record.name || '';
   const matchedIsonoteRecord = matchIsonoteRecord({ nodeNumber, supportTag, normalizedFamily, isonoteRecords });
   const positionMm = pointOrNull(adapted.source.supportCoord || adapted.source.pos || adapted.source.bpos || adapted.source.apos || adapted.source.lpos);
+  const actionAxes = String(mapperRecord.attrs.SUPPORT_RESTRAINT_TYPE_ACTION_AXIS || '').trim();
   const axisTransform = resolveSupportAxisTransform({
     sourceAxis: mapperRecord.axis?.sourceAxis || visual.sourceAxis || '',
     canvasAxis: mapperRecord.axis?.canvasAxis || visual.canvasAxis || '',
@@ -145,6 +157,7 @@ function toSupportContractRecord(record, index, adaptedRecords, isonoteRecords) 
     axisBasis: mapperRecord.config?.axisBasis || null,
     basisPreset: mapperRecord.mapperPresetId || ''
   });
+  if (actionAxes) axisTransform.supportActionAxes = [actionAxes];
   const warningCode = mapperRecord.preflight?.issues?.[0]?.code || (visual.popupRequired ? 'popup-required' : '');
   const warningMessage = mapperRecord.preflight?.issues?.[0]?.message || visual.popupReason || '';
   const isonoteMatch = {
@@ -162,19 +175,21 @@ function toSupportContractRecord(record, index, adaptedRecords, isonoteRecords) 
     supportId: supportTag || `SUPPORT_${index + 1}`,
     sourceKind: STAGEDJSON_SOURCE_KIND,
     sourcePath: record.path || '',
-    sourceAttributes: { ...(adapted.attrs || {}) },
+    sourceAttributes: { ...(mapperRecord.attrs || attrsForMapper || {}) },
     nodeNumber,
     supportName: supportTag,
     psTag: supportTag,
     supportKindRaw: mapperRecord.rawKind || visual.rawKind || record.type || '',
     supportKindNormalized: mapperRecord.family || visual.family || 'UNKNOWN',
     supportFamily: normalizedFamily,
+    restraintTypeCode: mapperRecord.attrs.SUPPORT_RESTRAINT_TYPE_CODE || restraintTypeApplied.code || '',
+    restraintTypeRule: mapperRecord.restraintTypeRule || restraintTypeApplied.rule || null,
     axisRaw: axisTransform.sourceAxis || mapperRecord.axis?.sourceAxis || visual.sourceAxis || '',
     axisCanvas: axisTransform.canvasAxis || mapperRecord.axis?.canvasAxis || visual.canvasAxis || '',
     axisVector: axisTransform.axisVector,
     sign: axisTransform.sign,
     axisTransform,
-    axisTransformApplied: Boolean(String(mapperRecord.attrs.SUPPORT_AXIS_CANVAS_APPLIED || '').toUpperCase() === 'TRUE' || visual.axisTransformApplied || axisTransform.axisTransformApplied),
+    axisTransformApplied: Boolean(String(mapperRecord.attrs.SUPPORT_AXIS_CANVAS_APPLIED || mapperRecord.attrs.SUPPORT_RESTRAINT_TYPE_APPLIED || '').toUpperCase() === 'TRUE' || visual.axisTransformApplied || axisTransform.axisTransformApplied),
     gapMm: finiteNumber(visual.gapMm, 0),
     pipeOdMm: finiteNumber(visual.pipeDiameterMm, 0),
     pipeRadiusMm: finiteNumber(visual.pipeRadiusMm, 0),
@@ -200,7 +215,7 @@ function toSupportContractRecord(record, index, adaptedRecords, isonoteRecords) 
       path: record.path || '',
       attributes: { ...(record.attributes || {}) }
     },
-    diagnostics: supportDiagnostics(mapperRecord, visual, axisTransform),
+    diagnostics: supportDiagnostics(mapperRecord, visual, axisTransform, restraintTypeApplied),
     visual
   };
   return {
@@ -307,10 +322,10 @@ function buildCompatibilityModel(geometryRecords, supports) {
       source: STAGEDJSON_SOURCE_KIND,
       sourceMode: 'ACTUAL_STAGED_JSON',
       node: String(Number(support.nodeNumber || 0)),
-      typeCode: support.supportKindNormalized,
+      typeCode: support.restraintTypeCode || support.supportKindNormalized,
       rawType: support.supportKindRaw,
       family: LEGACY_FAMILY_MAP[support.supportFamily] || 'AXIS_RESTRAINT_UNRESOLVED',
-      axis: support.axisCanvas || support.axisRaw || 'PIPE_AXIAL_Â±',
+      axis: support.axisCanvas || support.axisRaw || 'PIPE_AXIAL_±',
       sign: support.axisCanvas?.startsWith('-') ? '-' : support.axisCanvas?.startsWith('+') ? '+' : 'UNKNOWN',
       gapMm: support.gapMm,
       sourceNoteName: support.isonoteNoteName || '',
@@ -326,10 +341,11 @@ function buildCompatibilityModel(geometryRecords, supports) {
 }
 
 function buildDiagnostics(profile, supports, isonoteRecords, compatibility) {
+  const restraintTypeApplied = supports.filter((support) => support.sourceAttributes?.SUPPORT_RESTRAINT_TYPE_APPLIED === 'TRUE').length;
   return [{
     code: 'STAGEDJSON_SOURCE_CONTRACT_BUILT',
     severity: 'info',
-    message: `stagedJson contract built: components=${profile.geometryRecords.length}, supports=${supports.length}, isonoteRecords=${isonoteRecords.length}`,
+    message: `stagedJson contract built: components=${profile.geometryRecords.length}, supports=${supports.length}, isonoteRecords=${isonoteRecords.length}, restraintTypeApplied=${restraintTypeApplied}`,
     counts: {
       branches: profile.branches.length,
       components: profile.geometryRecords.length,
@@ -337,7 +353,8 @@ function buildDiagnostics(profile, supports, isonoteRecords, compatibility) {
       supports: supports.length,
       isonoteRecords: isonoteRecords.length,
       popupRequired: supports.filter((support) => support.popupRequired).length,
-      axisTransformed: supports.filter((support) => support.axisTransformApplied).length
+      axisTransformed: supports.filter((support) => support.axisTransformApplied).length,
+      restraintTypeApplied
     }
   }];
 }
@@ -373,8 +390,15 @@ function matchIsonoteRecord({ nodeNumber, supportTag, normalizedFamily, isonoteR
   }) || null;
 }
 
-function supportDiagnostics(mapperRecord, visual, axisTransform) {
+function supportDiagnostics(mapperRecord, visual, axisTransform, restraintTypeApplied = null) {
   const diagnostics = [];
+  if (restraintTypeApplied?.matched) {
+    diagnostics.push({
+      code: 'restraint-type-rule-applied',
+      severity: 'info',
+      message: `Restraint Type ${restraintTypeApplied.code} resolved to ${restraintTypeApplied.rule?.family || 'UNKNOWN'} / ${restraintTypeApplied.rule?.canvasAxis || ''}.`
+    });
+  }
   for (const issue of mapperRecord.preflight?.issues || []) {
     diagnostics.push({
       code: issue.code || 'mapper-preflight-issue',

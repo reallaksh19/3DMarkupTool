@@ -1,4 +1,4 @@
-const SAFE_UI_VERSION = window.__3D_MARKUP_SAFE_UI_VERSION__ || 'static-shell-support-sample-click-rca-20260628';
+const SAFE_UI_VERSION = window.__3D_MARKUP_SAFE_UI_VERSION__ || 'static-shell-support-restraint-type-workbench-20260629';
 
 // index.html owns the shell. Default startup must stay small and deterministic.
 // Heavy/retry-based extras are opt-in until browser acceptance proves they are safe.
@@ -15,6 +15,7 @@ const CORE_MODULES = [
   { id: 'grid', label: 'Grid toggle', src: `./grid-toggle-controller.js?v=${SAFE_UI_VERSION}` },
   { id: 'selectionSync', label: 'Selection sync', src: `./selection-sync-controller.js?v=${SAFE_UI_VERSION}` },
   { id: 'disableClickZoom', label: 'Disable click zoom', src: `./disable-click-zoom-controller.js?v=${SAFE_UI_VERSION}` },
+  { id: 'supportCanvasAxisOrbit', label: 'Support enriched axis HUD / orbit', src: `./support-canvas-axis-orbit-controller.js?v=${SAFE_UI_VERSION}` },
   { id: 'supportMappingIsonoteWorkbench', label: 'Support Mapping / ISONOTE workbench', src: `./support-mapping-isonote-workbench-controller.js?v=${SAFE_UI_VERSION}` },
   { id: 'supportMarkerPropertiesPanel', label: 'Support marker properties panel', src: `./support-marker-properties-panel-controller.js?v=${SAFE_UI_VERSION}` },
   { id: 'supportAuditVisibleDiagnostics', label: 'Support audit visible diagnostics', src: `./support-audit-visible-diagnostics-controller.js?v=${SAFE_UI_VERSION}` }

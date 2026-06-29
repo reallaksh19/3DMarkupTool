@@ -7,6 +7,7 @@ if (typeof installGuard === 'function') {
 
 await import('./app.js?v=bust-cache-4');
 await import('./disable-click-zoom-controller.js?v=bust-cache-4');
+await import('./support-canvas-axis-orbit-controller.js?v=bust-cache-4');
 
 try {
   await import('./fresh-clip-controller.js?v=bust-cache-4');
@@ -23,5 +24,5 @@ try {
 
 window.__3D_MARKUP_APP_BUNDLE_READY__ = true;
 window.dispatchEvent(new CustomEvent('viewer:app-bundle-ready', {
-  detail: { version: 'select-click-camera-policy-bundle-20260628' }
+  detail: { version: 'support-restraint-type-workbench-20260629' }
 }));

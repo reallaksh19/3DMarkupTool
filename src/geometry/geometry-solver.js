@@ -22,7 +22,7 @@ export function resolvePlantGraphGeometry(graph, bindingAudit, options = {}) {
     const binding = bindingByItemId.get(String(item.id));
     if (item.kind === 'generated' && item.generator === 'straightPipe.v1' && binding?.status === 'proceduralResolved') {
       const frame = routeFrameById.get(item.route);
-      if (frame) itemFrames.push(straightPipeFrame(item, frame));
+      if (frame && frame.geometryStatus !== 'invalid') itemFrames.push(straightPipeFrame(item, frame));
       continue;
     }
     if (item.kind === 'support') {
@@ -60,7 +60,8 @@ export function buildGeometryResolutionAudit(graph, resolvedGeometry, bindingAud
   const primitiveCodeCount = forbiddenHits.filter((hit) => hit.field === 'primitiveCode' || hit.field === 'rvmCode').length;
   const navisTransformApplied = forbiddenHits.some((hit) => hit.field === 'navisTransform' || hit.field === 'exportTransform' || hit.field === 'rvmMatrix');
   const exportDecisionCount = forbiddenHits.filter((hit) => ['materialId', 'glbMesh', 'meshGeometry', 'attRecord'].includes(hit.field)).length;
-  const errors = [...validation.errors];
+  const routeFrameErrors = collectRouteFrameErrors(graph, resolvedGeometry);
+  const errors = [...validation.errors, ...routeFrameErrors];
   if (!bindingAudit || bindingAudit.schema !== 'CatalogueBindingAudit.v1') errors.push('CatalogueBindingAudit.v1 is required');
   if (bindingAudit?.nearestMatchCount !== 0) errors.push('nearest-match binding audit is not allowed for geometry resolution');
   if (bindingAudit?.exportDecisionCount !== 0) errors.push('export decisions are not allowed before geometry resolution');
@@ -95,20 +96,28 @@ export function buildGeometryResolutionAudit(graph, resolvedGeometry, bindingAud
 function routeFrame(route, nodesById) {
   const fromNode = String(route.from);
   const toNode = String(route.to);
-  const start = point(nodesById.get(fromNode)?.coord);
-  const end = point(nodesById.get(toNode)?.coord);
-  const vector = subtract(end, start);
-  const lengthMm = magnitude(vector);
+  const start = pointOrNull(nodesById.get(fromNode)?.coord);
+  const end = pointOrNull(nodesById.get(toNode)?.coord);
+  const vector = start && end ? subtract(end, start) : null;
+  const lengthMm = vector ? magnitude(vector) : undefined;
+  const errors = [];
+  if (!nodesById.has(fromNode)) errors.push(`route ${route.id} references missing from node ${fromNode}`);
+  if (!nodesById.has(toNode)) errors.push(`route ${route.id} references missing to node ${toNode}`);
+  if (nodesById.has(fromNode) && !start) errors.push(`route ${route.id} has invalid from-node coordinates`);
+  if (nodesById.has(toNode) && !end) errors.push(`route ${route.id} has invalid to-node coordinates`);
+  if (start && end && lengthMm === 0) errors.push(`route ${route.id} has zero length`);
   return compact({
     routeId: route.id,
     fromNode,
     toNode,
     start,
     end,
-    direction: lengthMm > 0 ? vector.map((entry) => entry / lengthMm) : [0, 0, 0],
-    lengthMm,
+    direction: vector && lengthMm > 0 ? vector.map((entry) => entry / lengthMm) : undefined,
+    lengthMm: Number.isFinite(Number(lengthMm)) ? lengthMm : undefined,
     sourceRef: route.sourceRef,
-    topologyRole: route.topologyRole
+    topologyRole: route.topologyRole,
+    geometryStatus: errors.length ? 'invalid' : undefined,
+    errors: errors.length ? errors : undefined
   });
 }
 
@@ -150,14 +159,14 @@ function catalogueComponentFrame(item, binding, nodesById, routeFrameById) {
   const position = pointOrNull(placement.position)
     || (fromPosition && toPosition ? midpoint(fromPosition, toPosition) : null)
     || nodePosition
-    || (routeFrame ? midpoint(routeFrame.start, routeFrame.end) : null)
+    || (routeFrame?.geometryStatus !== 'invalid' ? midpoint(routeFrame.start, routeFrame.end) : null)
     || [0, 0, 0];
-  const axis = routeFrame?.direction || (fromPosition && toPosition ? unit(subtract(toPosition, fromPosition)) : [1, 0, 0]);
+  const axis = routeFrame?.geometryStatus !== 'invalid' ? routeFrame?.direction : undefined;
   return compact({
     itemId: item.id,
     routeId: item.route,
     position: point(position),
-    axis,
+    axis: axis || (fromPosition && toPosition ? unit(subtract(toPosition, fromPosition)) : [1, 0, 0]),
     family: binding.family,
     type: binding.type,
     catalogueItemKey: binding.catalogueItemKey,
@@ -176,6 +185,25 @@ function blockedGeometry(item, binding = {}) {
     reason: binding.reason || 'no exact catalogue item',
     sourceRef: item.sourceRef
   });
+}
+
+function collectRouteFrameErrors(graph, resolvedGeometry) {
+  const framesById = new Map((Array.isArray(resolvedGeometry?.routeFrames) ? resolvedGeometry.routeFrames : []).map((frame) => [String(frame.routeId), frame]));
+  const errors = [];
+  for (const route of Array.isArray(graph?.routes) ? graph.routes : []) {
+    const frame = framesById.get(String(route.id));
+    if (!frame) {
+      errors.push(`route ${route.id} has no route frame`);
+      continue;
+    }
+    if (Array.isArray(frame.errors)) errors.push(...frame.errors);
+    if (!pointOrNull(frame.start)) errors.push(`route ${route.id} frame start is invalid`);
+    if (!pointOrNull(frame.end)) errors.push(`route ${route.id} frame end is invalid`);
+    if (!pointOrNull(frame.direction)) errors.push(`route ${route.id} frame direction is invalid`);
+    if (!Number.isFinite(Number(frame.lengthMm))) errors.push(`route ${route.id} frame length is invalid`);
+    if (Number(frame.lengthMm) === 0) errors.push(`route ${route.id} frame length is zero`);
+  }
+  return errors;
 }
 
 function point(value) {

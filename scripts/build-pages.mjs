@@ -6,7 +6,7 @@ import { rollup } from 'rollup';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const SITE_DIR = path.join(ROOT, '_site');
 const ASSET_DIR = path.join(SITE_DIR, 'assets');
-const VERSION = 'input-persistent-root-card-20260629-l';
+const VERSION = 'input-persistent-root-card-20260629-m';
 const LEGACY_CACHE_KEYS = Object.freeze([
   'tool-fixes-v2-20260620',
   'support-ui-render-export-fix-20260623',
@@ -37,6 +37,7 @@ const LEGACY_CACHE_KEYS = Object.freeze([
   'input-persistent-root-card-20260629-i',
   'input-persistent-root-card-20260629-j',
   'input-persistent-root-card-20260629-k',
+  'input-persistent-root-card-20260629-l',
   'static-shell-support-sample-click-rca-20260628',
   'static-shell-support-workbench-isonote-axis-click-20260628',
   'static-shell-support-restraint-type-workbench-20260629',

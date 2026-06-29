@@ -1,4 +1,4 @@
-const SAFE_UI_VERSION = window.__3D_MARKUP_SAFE_UI_VERSION__ || 'static-shell-isonote-sample-axis-config-20260629';
+const SAFE_UI_VERSION = window.__3D_MARKUP_SAFE_UI_VERSION__ || 'static-shell-axis-transform-debug-proof-20260629';
 
 // index.html owns the shell. Default startup must stay small and deterministic.
 // Heavy/retry-based extras are opt-in until browser acceptance proves they are safe.
@@ -20,6 +20,7 @@ const CORE_MODULES = [
   { id: 'supportIsonoteDefaultSample', label: 'Default ISONOTE sample', src: `./support-isonote-default-sample-controller.js?v=${SAFE_UI_VERSION}` },
   { id: 'supportWorkbenchFallbackRow', label: 'Support workbench fallback row', src: `./support-workbench-fallback-row-controller.js?v=${SAFE_UI_VERSION}` },
   { id: 'supportWorkbenchSymbologyLabels', label: 'Support workbench symbology labels', src: `./support-workbench-symbology-label-controller.js?v=${SAFE_UI_VERSION}` },
+  { id: 'supportAxisTransformUiDebug', label: 'Support axis transform proof', src: `./support-axis-transform-ui-debug-controller.js?v=${SAFE_UI_VERSION}` },
   { id: 'supportMarkerPropertiesPanel', label: 'Support marker properties panel', src: `./support-marker-properties-panel-controller.js?v=${SAFE_UI_VERSION}` },
   { id: 'supportAuditVisibleDiagnostics', label: 'Support audit visible diagnostics', src: `./support-audit-visible-diagnostics-controller.js?v=${SAFE_UI_VERSION}` }
 ];

@@ -1,0 +1,11 @@
+{
+  "schema": "CatalogueRegistry.v1",
+  "catalogues": [
+    {
+      "id": "base-piping",
+      "version": "0.1.0",
+      "source": "catalogues/base-piping/base-piping.index.json",
+      "families": ["pipe", "elbow", "support"]
+    }
+  ]
+}

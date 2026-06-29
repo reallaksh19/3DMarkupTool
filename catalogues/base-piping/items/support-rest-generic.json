@@ -1,0 +1,35 @@
+{
+  "schema": "ComponentCatalogueItem.v1",
+  "catalogue": "base-piping",
+  "family": "support",
+  "type": "REST",
+  "nps": "generic",
+  "schedule": "standard",
+  "dimensions": {
+    "markerHeightMm": 180,
+    "markerRadiusMm": 18,
+    "defaultAxis": "+Y"
+  },
+  "ports": [
+    {
+      "id": "P1",
+      "role": "attach",
+      "localPosition": [0, 0, 0],
+      "localDirection": [0, 1, 0]
+    }
+  ],
+  "rvmRecipe": {
+    "preferredPrimitive": "CYLINDER",
+    "primitiveCode": 8,
+    "generator": "supportMarker.rest.v1"
+  },
+  "glbRecipe": {
+    "visualType": "supportRestMarker",
+    "segments": 16
+  },
+  "attTemplate": {
+    "TYPE": "SUPPORT",
+    "SUPPORT_KIND": "REST",
+    "SOURCE": "catalogue/base-piping"
+  }
+}

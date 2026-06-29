@@ -1,0 +1,42 @@
+{
+  "schema": "ComponentCatalogueItem.v1",
+  "catalogue": "base-piping",
+  "family": "pipe",
+  "type": "straight",
+  "nps": "4in",
+  "schedule": "STD",
+  "dimensions": {
+    "odMm": 114.3,
+    "wallMm": 6.02,
+    "nominalLengthMm": 1000
+  },
+  "ports": [
+    {
+      "id": "P1",
+      "role": "start",
+      "localPosition": [-500, 0, 0],
+      "localDirection": [-1, 0, 0]
+    },
+    {
+      "id": "P2",
+      "role": "end",
+      "localPosition": [500, 0, 0],
+      "localDirection": [1, 0, 0]
+    }
+  ],
+  "rvmRecipe": {
+    "preferredPrimitive": "CYLINDER",
+    "primitiveCode": 8,
+    "generator": "straightPipe.v1"
+  },
+  "glbRecipe": {
+    "visualType": "tubeStraight",
+    "segments": 32
+  },
+  "attTemplate": {
+    "TYPE": "PIPE",
+    "STANDARD": "SEED",
+    "NPS": "4in",
+    "SCHEDULE": "STD"
+  }
+}

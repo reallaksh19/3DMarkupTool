@@ -1,0 +1,44 @@
+{
+  "schema": "ComponentCatalogueItem.v1",
+  "catalogue": "base-piping",
+  "family": "elbow",
+  "type": "90LR",
+  "nps": "4in",
+  "schedule": "STD",
+  "dimensions": {
+    "odMm": 114.3,
+    "wallMm": 6.02,
+    "centerToEndMm": 152.4,
+    "bendRadiusMm": 152.4,
+    "angleDeg": 90
+  },
+  "ports": [
+    {
+      "id": "P1",
+      "role": "inlet",
+      "localPosition": [-152.4, 0, 0],
+      "localDirection": [-1, 0, 0]
+    },
+    {
+      "id": "P2",
+      "role": "outlet",
+      "localPosition": [0, 0, -152.4],
+      "localDirection": [0, 0, -1]
+    }
+  ],
+  "rvmRecipe": {
+    "preferredPrimitive": "TORUS",
+    "primitiveCode": 4,
+    "fallbackPrimitive": "CYLINDER_SEGMENTED_ELBOW"
+  },
+  "glbRecipe": {
+    "visualType": "tubeElbow",
+    "segments": 32
+  },
+  "attTemplate": {
+    "TYPE": "ELBOW",
+    "STANDARD": "SEED",
+    "NPS": "4in",
+    "SCHEDULE": "STD"
+  }
+}

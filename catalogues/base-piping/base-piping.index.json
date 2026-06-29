@@ -1,0 +1,31 @@
+{
+  "schema": "BasePipingCatalogueIndex.v1",
+  "catalogue": "base-piping",
+  "version": "0.1.0",
+  "items": [
+    {
+      "id": "pipe/straight/4in/STD",
+      "family": "pipe",
+      "type": "straight",
+      "nps": "4in",
+      "schedule": "STD",
+      "source": "catalogues/base-piping/items/pipe-straight-4in-std.json"
+    },
+    {
+      "id": "elbow/90LR/4in/STD",
+      "family": "elbow",
+      "type": "90LR",
+      "nps": "4in",
+      "schedule": "STD",
+      "source": "catalogues/base-piping/items/elbow-90lr-4in-std.json"
+    },
+    {
+      "id": "support/REST/generic/standard",
+      "family": "support",
+      "type": "REST",
+      "nps": "generic",
+      "schedule": "standard",
+      "source": "catalogues/base-piping/items/support-rest-generic.json"
+    }
+  ]
+}

@@ -4,7 +4,7 @@ import {
 } from './support-axis-basis-config.js?v=bust-cache-4';
 import { resolveSupportAxisTransform } from './support-axis-transform.js?v=bust-cache-4';
 
-export const SUPPORT_AXIS_TRANSFORM_UI_DEBUG_SCHEMA = 'SupportAxisTransformUiDebugController.v1';
+export const SUPPORT_AXIS_TRANSFORM_UI_DEBUG_SCHEMA = 'SupportAxisTransformUiDebugController.v2';
 
 const AXIS_SAMPLE_ROWS = Object.freeze([
   '+X', '-X', '+Y', '-Y', '+Z', '-Z'
@@ -52,6 +52,15 @@ export function installSupportAxisTransformUiDebugController({ win = globalThis.
 }
 
 function renderAxisTransformUi({ win, doc }) {
+  const summary = buildAxisTransformConfigSummary(win);
+  const renderedSettings = renderSettingsPopupAxisConfig({ win, doc, summary });
+  const renderedWorkbench = renderWorkbenchAxisConfig({ doc, summary });
+  cleanLauncherText(doc, summary);
+  win.__3D_MARKUP_SUPPORT_AXIS_TRANSFORM_ACTIVE_CONFIG__ = summary;
+  return Boolean(renderedSettings || renderedWorkbench);
+}
+
+function renderSettingsPopupAxisConfig({ win, doc, summary }) {
   const mapperHost = doc.querySelector?.('#supportMappingSettingsDialog [data-support-settings-mapper-host]')
     || doc.querySelector?.('[data-support-settings-mapper-host]');
   if (!mapperHost) return false;
@@ -62,8 +71,28 @@ function renderAxisTransformUi({ win, doc }) {
     block.setAttribute('data-support-axis-transform-config', SUPPORT_AXIS_TRANSFORM_UI_DEBUG_SCHEMA);
     mapperHost.appendChild(block);
   }
-  const summary = buildAxisTransformConfigSummary(win);
-  block.innerHTML = [
+  block.innerHTML = axisConfigHtml(summary);
+  injectStyles(doc);
+  return true;
+}
+
+function renderWorkbenchAxisConfig({ doc, summary }) {
+  const host = doc.getElementById('smwModeSummary') || doc.querySelector?.('#supportMappingIsonoteDialog .smw-body');
+  if (!host) return false;
+  let block = doc.querySelector?.('#supportMappingIsonoteDialog [data-support-axis-transform-config]') || host.querySelector?.('[data-support-axis-transform-config]');
+  if (!block) {
+    block = doc.createElement('section');
+    block.className = 'support-axis-transform-config-card support-axis-transform-config-card--workbench';
+    block.setAttribute('data-support-axis-transform-config', SUPPORT_AXIS_TRANSFORM_UI_DEBUG_SCHEMA);
+    host.appendChild(block);
+  }
+  block.innerHTML = axisConfigHtml(summary);
+  injectStyles(doc);
+  return true;
+}
+
+function axisConfigHtml(summary) {
+  return [
     '<h4>Navis Axis Transform Config</h4>',
     `<p><strong>Status:</strong> active in source resolver (${escapeHtml(summary.resolverSchema)})</p>`,
     `<p><strong>Current loader:</strong> ${escapeHtml(summary.appLoaderVersion || 'unknown')} | <strong>bundle:</strong> ${escapeHtml(summary.bundleVersion || 'unknown')}</p>`,
@@ -73,10 +102,6 @@ function renderAxisTransformUi({ win, doc }) {
     '</tbody></table>',
     '<p class="support-axis-transform-config-note">Priority-2 proof target: source +X -&gt; canvas +Y. If the debug log still shows appLoaderVersion ...-f, the browser is running an old loader.</p>'
   ].join('');
-  injectStyles(doc);
-  cleanLauncherText(doc, summary);
-  win.__3D_MARKUP_SUPPORT_AXIS_TRANSFORM_ACTIVE_CONFIG__ = summary;
-  return true;
 }
 
 function cleanLauncherText(doc, summary) {
@@ -222,7 +247,7 @@ function injectStyles(doc) {
   style.textContent = `
     .support-axis-transform-config-card{margin:10px 0 0;padding:10px;border:1px solid rgba(96,165,250,.38);border-radius:10px;background:rgba(30,64,175,.18);color:#dbeafe;font-size:12px;line-height:1.35}
     .support-axis-transform-config-card h4{margin:0 0 8px;color:#bfdbfe}
-    .support-axis-transform-config-card p{margin:5px 0}.support-axis-transform-config-card table{width:100%;border-collapse:collapse;margin-top:8px}.support-axis-transform-config-card th,.support-axis-transform-config-card td{border:1px solid rgba(148,163,184,.24);padding:5px;text-align:left}.support-axis-transform-config-note{color:#fde68a!important}
+    .support-axis-transform-config-card p{margin:5px 0}.support-axis-transform-config-card table{width:100%;border-collapse:collapse;margin-top:8px}.support-axis-transform-config-card th,.support-axis-transform-config-card td{border:1px solid rgba(148,163,184,.24);padding:5px;text-align:left}.support-axis-transform-config-note{color:#fde68a!important}.support-axis-transform-config-card--workbench{margin-top:10px}
   `;
   doc.head?.appendChild?.(style);
 }

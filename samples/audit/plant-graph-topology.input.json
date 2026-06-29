@@ -1,0 +1,77 @@
+{
+  "schema": "PlantModelGraph.v1",
+  "id": "plant-graph-topology-governance-fixture",
+  "project": {
+    "name": "PlantGraph topology governance fixture",
+    "units": "mm",
+    "axisBasis": {
+      "authoring": "canvas-current",
+      "rvmExport": "navis-review"
+    }
+  },
+  "catalogues": [],
+  "nodes": [
+    { "id": "N1", "coord": [0, 0, 0], "sourceRef": "fixture/N1" },
+    { "id": "N2", "coord": [1000, 0, 0], "sourceRef": "fixture/N2-A" },
+    { "id": "N2", "coord": [1000, 0, 0], "sourceRef": "fixture/N2-B" },
+    { "id": "N3", "coord": [2000, 0, 0], "sourceRef": "fixture/N3" },
+    { "id": "N4", "coord": [1000, 1000, 0], "sourceRef": "fixture/N4" },
+    { "id": "N5", "coord": [1000, 0, -1000], "sourceRef": "fixture/N5" }
+  ],
+  "routes": [
+    { "id": "R1", "from": "N1", "to": "N2", "lineNo": "L-100", "sourceRef": "fixture/R1" },
+    { "id": "R-DUP", "from": "N2", "to": "N3", "lineNo": "L-100", "sourceRef": "fixture/R2" },
+    { "id": "R-DUP", "from": "N2", "to": "N4", "lineNo": "L-100", "sourceRef": "fixture/R3" },
+    { "id": "R4", "from": "N2", "to": "N5", "lineNo": "L-100", "sourceRef": "fixture/R4" }
+  ],
+  "items": [
+    {
+      "id": "PIPE-1",
+      "kind": "generated",
+      "generator": "straightPipe.v1",
+      "route": "R1",
+      "sourceRef": "fixture/PIPE-1"
+    },
+    {
+      "id": "ITEM-DUP",
+      "kind": "component",
+      "tagged": true,
+      "catalogueRef": {
+        "catalogue": "base-piping",
+        "family": "elbow",
+        "type": "90LR",
+        "nps": "4in",
+        "schedule": "STD"
+      },
+      "placement": {
+        "node": "N404",
+        "inRoute": "R404",
+        "outRoute": "R1"
+      },
+      "sourceRef": "fixture/ITEM-DUP-A"
+    },
+    {
+      "id": "ITEM-DUP",
+      "kind": "generated",
+      "generator": "straightPipe.v1",
+      "route": "R-DUP",
+      "sourceRef": "fixture/ITEM-DUP-B"
+    },
+    {
+      "id": "SUPPORT-1",
+      "kind": "support",
+      "tagged": false,
+      "node": "N3",
+      "supportFamily": "REST",
+      "axis": "+Y",
+      "sourceRef": "fixture/SUPPORT-1"
+    }
+  ],
+  "sourceRefs": [
+    {
+      "sourceType": "governance-fixture",
+      "name": "plant-graph-topology.input.json",
+      "phase": "Phase 2A topology audit benchmark"
+    }
+  ]
+}

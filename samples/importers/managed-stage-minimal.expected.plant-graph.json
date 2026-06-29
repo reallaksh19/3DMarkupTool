@@ -42,7 +42,9 @@
       "bore": "4in",
       "schedule": "STD",
       "material": "CS",
-      "sourceRef": "PIPE-001"
+      "sourceRef": "PIPE-001",
+      "topologyRole": "pipe-run-segment",
+      "componentClass": "PIPE"
     },
     {
       "id": "R-N130-N205",
@@ -52,7 +54,9 @@
       "bore": "4in",
       "schedule": "STD",
       "material": "CS",
-      "sourceRef": "PIPE-002"
+      "sourceRef": "PIPE-002",
+      "topologyRole": "pipe-run-segment",
+      "componentClass": "PIPE"
     }
   ],
   "items": [
@@ -76,6 +80,7 @@
       },
       "placement": {
         "node": "N130",
+        "position": [2500, 0, 0],
         "inRoute": "R-N35-N130",
         "outRoute": "R-N130-N205"
       },

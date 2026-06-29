@@ -1,0 +1,86 @@
+{
+  "schema": "PlantModelGraph.v1",
+  "id": "BM_CII_GRAPH_SEED",
+  "project": {
+    "name": "BM_CII contract seed",
+    "units": "mm",
+    "axisBasis": {
+      "authoring": "canvas-current",
+      "rvmExport": "navis-review",
+      "notes": "Phase 1 contract seed only; not consumed by runtime."
+    }
+  },
+  "catalogues": [
+    {
+      "id": "base-piping",
+      "version": "0.1.0",
+      "source": "samples/contracts/base-piping.catalogue-registry.json"
+    }
+  ],
+  "nodes": [
+    { "id": "N35", "coord": [0, 0, 0], "sourceRef": "stagedJson/node/35" },
+    { "id": "N130", "coord": [2500, 0, 0], "sourceRef": "stagedJson/node/130" },
+    { "id": "N205", "coord": [2500, 0, -1800], "sourceRef": "stagedJson/node/205" }
+  ],
+  "routes": [
+    {
+      "id": "R-35-130",
+      "lineNo": "BM_CII-SEED",
+      "from": "N35",
+      "to": "N130",
+      "bore": "4in",
+      "schedule": "STD",
+      "material": "CS"
+    },
+    {
+      "id": "R-130-205",
+      "lineNo": "BM_CII-SEED",
+      "from": "N130",
+      "to": "N205",
+      "bore": "4in",
+      "schedule": "STD",
+      "material": "CS"
+    }
+  ],
+  "items": [
+    {
+      "id": "PIPE-35-130",
+      "kind": "generated",
+      "generator": "straightPipe.v1",
+      "route": "R-35-130"
+    },
+    {
+      "id": "ELB-130",
+      "kind": "component",
+      "tagged": true,
+      "catalogueRef": {
+        "catalogue": "base-piping",
+        "family": "elbow",
+        "type": "90LR",
+        "nps": "4in",
+        "schedule": "STD"
+      },
+      "placement": {
+        "node": "N130",
+        "inRoute": "R-35-130",
+        "outRoute": "R-130-205"
+      }
+    },
+    {
+      "id": "SUP-35-REST",
+      "kind": "support",
+      "tagged": false,
+      "node": "N35",
+      "supportFamily": "REST",
+      "axis": "+Y",
+      "source": "InputXML"
+    }
+  ],
+  "sourceRefs": [
+    {
+      "sourceType": "managed-stage-json",
+      "name": "BM_CII_INPUT_managed_stage.json",
+      "phase": "Phase 1 seed only"
+    }
+  ]
+}

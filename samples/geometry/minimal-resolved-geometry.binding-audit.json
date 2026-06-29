@@ -1,0 +1,57 @@
+{
+  "schema": "CatalogueBindingAudit.v1",
+  "graphId": "minimal-resolved-geometry-fixture",
+  "itemCount": 4,
+  "catalogueResolvedCount": 1,
+  "proceduralResolvedCount": 1,
+  "fallbackBlockedCount": 0,
+  "unresolvedCount": 1,
+  "supportIntentCount": 1,
+  "nearestMatchCount": 0,
+  "exportDecisionCount": 0,
+  "bindings": [
+    {
+      "itemId": "PIPE-1",
+      "itemKind": "generated",
+      "sourceRef": "fixture/PIPE-1",
+      "status": "proceduralResolved",
+      "family": "pipe",
+      "type": "straight",
+      "route": "R1",
+      "identityKey": "pipe|straight|nps:4in|schedule:std",
+      "resolver": "straightPipe.v1",
+      "reason": "deterministic procedural straight pipe generator"
+    },
+    {
+      "itemId": "ELBOW-1",
+      "itemKind": "component",
+      "sourceRef": "fixture/ELBOW-1",
+      "status": "catalogueResolved",
+      "family": "elbow",
+      "type": "90lr",
+      "catalogueItemKey": "elbow|90lr|nps:4in|schedule:std",
+      "reason": "exact catalogue item match"
+    },
+    {
+      "itemId": "SUPPORT-1",
+      "itemKind": "support",
+      "sourceRef": "fixture/SUPPORT-1",
+      "status": "supportIntent",
+      "family": "support",
+      "type": "REST",
+      "node": "N2",
+      "reason": "support intent is preserved for later support binding"
+    },
+    {
+      "itemId": "VALVE-1",
+      "itemKind": "component",
+      "sourceRef": "fixture/VALVE-1",
+      "status": "unresolved",
+      "family": "valve",
+      "type": "valve",
+      "route": "R2",
+      "identityKey": "valve|valve|diameterMm:114.3|wallMm:6.02",
+      "reason": "no exact catalogue item"
+    }
+  ]
+}

@@ -54,41 +54,51 @@ export function convertManagedStageJsonToRvmAtt(sourceText, options = {}) {
     sourceContract,
     ...options
   };
-  const rawExportModel = buildManagedStageRvmExportModel(profile, writerOptions);
-  const postAxisTransform = applyRvmPostAxisTransform(rawExportModel, writerOptions);
-  const exportModel = postAxisTransform.exportModel;
+
+  const previewExportModel = buildManagedStageRvmExportModel(profile, writerOptions);
+  const postAxisTransform = applyRvmPostAxisTransform(previewExportModel, writerOptions);
+  const rvmExportModel = postAxisTransform.exportModel;
   writerOptions.postRvmAxisTransformAudit = postAxisTransform.audit;
-  const rvm = writeRvm(exportModel, writerOptions);
-  const att = writeAtt(exportModel);
+
+  const rvm = writeRvm(rvmExportModel, writerOptions);
+  const att = writeAtt(rvmExportModel);
   const primitivePayloads = scanRvmPrimitivePayloads(rvm);
   const primitivePayloadContract = assertManagedStagePrimitivePayloadCompatibility(primitivePayloads, writerOptions);
   const primitivePayloadSemanticsAudit = auditManagedStageRvmPayloadSemantics(primitivePayloads);
-  const materialLayerContract = assertRvmMaterialLayerContract(exportModel);
+  const materialLayerContract = assertRvmMaterialLayerContract(rvmExportModel);
   const materialTableContract = assertRvmMaterialTableContract(rvm, materialLayerContract);
-  const boundingExtentsMm = computeExportModelBoundingExtents(exportModel);
-  const chunkHierarchy = assertRvmChunkHierarchy(rvm, att, exportModel);
-  const stitchManifest = buildManagedStageRvmStitchManifest(profile, exportModel, primitivePayloads);
+  const boundingExtentsMm = computeExportModelBoundingExtents(rvmExportModel);
+  const chunkHierarchy = assertRvmChunkHierarchy(rvm, att, rvmExportModel);
+  const stitchManifest = buildManagedStageRvmStitchManifest(profile, rvmExportModel, primitivePayloads);
   const rvmGeometryAudit = auditManagedStageRvmGeometry(stitchManifest, primitivePayloadSemanticsAudit);
-  const torusOrientationAssumptions = collectTorusAssumptions(exportModel.root);
+  const torusOrientationAssumptions = collectTorusAssumptions(rvmExportModel.root);
   const rvmCode4ElbowAudit = auditManagedStageRvmElbows(torusOrientationAssumptions, primitivePayloadSemanticsAudit);
-  const explicitCode4BendInvariantAudit = auditExplicitManagedStageCode4BendEmission(exportModel, primitivePayloadContract, torusOrientationAssumptions);
-  const rvmVisualGapWarningAudit = auditManagedStageRvmVisualGapWarnings(exportModel, primitivePayloads);
+  const explicitCode4BendInvariantAudit = auditExplicitManagedStageCode4BendEmission(rvmExportModel, primitivePayloadContract, torusOrientationAssumptions);
+  const rvmVisualGapWarningAudit = auditManagedStageRvmVisualGapWarnings(rvmExportModel, primitivePayloads);
   const stitchManifestGate = warningOnlyGate('ManagedStageRvmStitchManifest', () => assertManagedStageRvmStitchManifest(stitchManifest), writerOptions);
-  const supportRvmExportAudit = exportModel.audit?.supportRvmExportAudit || null;
-  const supportTopologyAudit = exportModel.audit?.supportTopologyAudit || null;
-  const componentPrimitiveSymbolExportAudit = exportModel.audit?.componentPrimitiveSymbolExportAudit || null;
+  const supportRvmExportAudit = previewExportModel.audit?.supportRvmExportAudit || null;
+  const supportTopologyAudit = previewExportModel.audit?.supportTopologyAudit || null;
+  const componentPrimitiveSymbolExportAudit = previewExportModel.audit?.componentPrimitiveSymbolExportAudit || null;
   const audit = {
-    schema: 'ManagedStageRvmConverterAudit.v1',
+    schema: 'ManagedStageRvmConverterAudit.v2',
     source: profile.source,
     profile: profile.profile,
     units: profile.units,
     generationMode: 'managed-stage-cylinder-torus',
+    modelFlow: {
+      schema: 'ManagedStageRvmModelFlow.v1',
+      canvasPreviewUses: 'rawExportModel',
+      rvmBinaryUses: 'rvmExportModel',
+      attUses: 'rvmExportModel',
+      canvasPreviewTransformed: false,
+      rvmBinaryTransformed: Boolean(postAxisTransform.audit?.transformed)
+    },
     supportSourceBasis: sourceContract.supportSourceBasis || null,
     postRvmAxisTransform: postAxisTransform.audit,
     inputCounts: {
       geometryComponents: profile.geometryRecords.length,
-      geometryContractsEmitted: exportModel.audit?.componentCount || profile.geometryRecords.length,
-      geometryContractsSkipped: exportModel.audit?.skippedGeometryContractCount || 0,
+      geometryContractsEmitted: previewExportModel.audit?.componentCount || profile.geometryRecords.length,
+      geometryContractsSkipped: previewExportModel.audit?.skippedGeometryContractCount || 0,
       supportRecordsSkippedFromGeometry: profile.supportRecords.length,
       supportRecordsEmittedToRvm: supportRvmExportAudit?.supportRecordCount || sourceContract.supports?.length || 0,
       supportSourceBasis: sourceContract.supportSourceBasis || null,
@@ -98,15 +108,15 @@ export function convertManagedStageJsonToRvmAtt(sourceText, options = {}) {
     },
     topology,
     supportTopologyAudit,
-    processingConfig: exportModel.audit?.processingConfig || null,
-    geometryContractAudit: contractAuditWithPostAxisTransform(exportModel.audit?.geometryContractAudit, postAxisTransform.audit),
-    elbowTangentHintAudit: exportModel.audit?.elbowTangentHintAudit || null,
-    inputXmlBendExclusionAudit: exportModel.audit?.inputXmlBendExclusionAudit || null,
-    inputXmlNodeLocalElbowAudit: exportModel.audit?.inputXmlNodeLocalElbowAudit || null,
-    rvmBendRecoveryAudit: exportModel.audit?.rvmBendRecoveryAudit || null,
+    processingConfig: previewExportModel.audit?.processingConfig || null,
+    geometryContractAudit: contractAuditWithPostAxisTransform(previewExportModel.audit?.geometryContractAudit, postAxisTransform.audit),
+    elbowTangentHintAudit: previewExportModel.audit?.elbowTangentHintAudit || null,
+    inputXmlBendExclusionAudit: previewExportModel.audit?.inputXmlBendExclusionAudit || null,
+    inputXmlNodeLocalElbowAudit: previewExportModel.audit?.inputXmlNodeLocalElbowAudit || null,
+    rvmBendRecoveryAudit: previewExportModel.audit?.rvmBendRecoveryAudit || null,
     explicitCode4BendInvariantAudit,
-    inputXmlBendEndpointLockAudit: exportModel.audit?.inputXmlBendEndpointLockAudit || null,
-    inputXmlBranchFittingInferenceAudit: exportModel.audit?.inputXmlBranchFittingInferenceAudit || null,
+    inputXmlBendEndpointLockAudit: previewExportModel.audit?.inputXmlBendEndpointLockAudit || null,
+    inputXmlBranchFittingInferenceAudit: previewExportModel.audit?.inputXmlBranchFittingInferenceAudit || null,
     supportRvmExportAudit,
     componentPrimitiveSymbolExportAudit,
     primitiveHistogram: primitivePayloadContract.codeCounts,
@@ -116,9 +126,9 @@ export function convertManagedStageJsonToRvmAtt(sourceText, options = {}) {
     rvmCode4ElbowAudit,
     rvmVisualGapWarningAudit,
     torusOrientationAssumptions,
-    genericInputXmlBendAssumptions: collectGenericInputXmlBendAssumptions(exportModel.root),
-    genericInputXmlNodeLocalElbowAssumptions: collectGenericInputXmlNodeLocalElbowAssumptions(exportModel.root),
-    genericInputXmlBranchFittingAssumptions: collectGenericInputXmlBranchFittingAssumptions(exportModel.root),
+    genericInputXmlBendAssumptions: collectGenericInputXmlBendAssumptions(rvmExportModel.root),
+    genericInputXmlNodeLocalElbowAssumptions: collectGenericInputXmlNodeLocalElbowAssumptions(rvmExportModel.root),
+    genericInputXmlBranchFittingAssumptions: collectGenericInputXmlBranchFittingAssumptions(rvmExportModel.root),
     exportedSupportRecords: sourceContract.supports.map((support) => ({ name: support.supportName || support.name || support.supportId, type: support.type, supportKind: support.supportFamily || support.supportKindNormalized || '', sourceMode: support.sourceMode || '', activeBasis: support.activeBasis || '', geometryEmitted: true, rvmExported: true })),
     skippedSupportRecords: skippedSupportRecordsForBasis(profile, sourceContract),
     materialLayerContract,
@@ -135,7 +145,17 @@ export function convertManagedStageJsonToRvmAtt(sourceText, options = {}) {
   audit.managedStageTopologyProofGate = warningOnlyGate('ManagedStageTopologyProofGate', () => assertManagedStageTopologyProofGate(audit, options.strictAuditExpectations || {}), writerOptions);
   audit.managedStageStrictGate = warningOnlyGate('ManagedStageRvmAuditGate', () => assertManagedStageRvmAuditGate(audit, options.strictAuditExpectations || {}), writerOptions);
   audit.rvmAuditSummary = summarizeManagedStageRvmAudit(audit);
-  return { profile, sourceContract, exportModel, rvm, att, audit };
+  return {
+    profile,
+    sourceContract,
+    exportModel: previewExportModel,
+    previewExportModel,
+    rvmExportModel,
+    transformedExportModel: rvmExportModel,
+    rvm,
+    att,
+    audit
+  };
 }
 
 export function assertManagedStagePrimitivePayloadCompatibility(primitives = [], options = MANAGED_STAGE_CODE4_RVM_OPTIONS) {
@@ -227,7 +247,8 @@ function contractAuditWithPostAxisTransform(contractAudit, postAxisTransform) {
     ...contractAudit,
     postRvmAxisTransformAppliedAfterExportModel: Boolean(postAxisTransform?.transformed),
     postRvmAxisTransformPreset: postAxisTransform?.presetId || '',
-    postRvmAxisTransformMatrix: postAxisTransform?.matrixSummary || ''
+    postRvmAxisTransformMatrix: postAxisTransform?.matrixSummary || '',
+    postRvmAxisTransformAffectsCanvasPreview: false
   };
 }
 

@@ -80,6 +80,7 @@ assert.equal(assertGeometryResolutionAudit(geometryAudit, {
   primitiveCodeCount: 0,
   exportDecisionCount: 0,
   routeFrameCount: 40,
+  itemFrameCount: 19,
   resolvedStraightPipeCount: 19,
   supportPlacementCount: 12,
   blockedUnresolvedComponentCount: 21,
@@ -92,10 +93,12 @@ assert.equal(geometryAudit.navisTransformApplied, false, 'Navis transform not ap
 assert.equal(geometryAudit.primitiveCodeCount, 0, 'primitive code count');
 assert.equal(geometryAudit.exportDecisionCount, 0, 'export decision count');
 assert.equal(geometryAudit.routeFrameCount, 40, 'route frame count');
+assert.equal(geometryAudit.itemFrameCount, 19, 'item frame count');
 assert.equal(geometryAudit.resolvedStraightPipeCount, 19, 'resolved straight pipe count');
 assert.equal(geometryAudit.supportPlacementCount, 12, 'support placement count');
 assert.equal(geometryAudit.blockedUnresolvedComponentCount, 21, 'blocked unresolved component count');
 assert.equal(geometryAudit.unresolvedGeometryCount, 21, 'unresolved geometry count');
+assert.equal(resolvedGeometry.itemFrames.length, 19, 'BM_CII must only create pipe item frames in Phase 5');
 assert.equal(resolvedGeometry.unresolvedGeometry.filter((entry) => entry.family === 'flange').length, 8, 'blocked unresolved flanges');
 assert.equal(resolvedGeometry.unresolvedGeometry.filter((entry) => entry.family === 'valve').length, 6, 'blocked unresolved valves');
 assert.equal(resolvedGeometry.unresolvedGeometry.filter((entry) => entry.family === 'elbow').length, 7, 'blocked unresolved bends');
@@ -105,7 +108,7 @@ assert.equal(JSON.stringify(resolvedGeometry).includes('inputxml-chord-midpoint-
 const solverSource = await readFile('src/geometry/geometry-solver.js', 'utf8');
 const contractSource = await readFile('src/contracts/resolved-geometry-model-contract.js', 'utf8');
 for (const source of [solverSource, contractSource]) {
-  for (const forbidden of ['rvm-writer', 'att-writer', 'managed-stage-rvm-converter', 'canvas', 'app-loader', 'safe-ui-loader', 'window.', 'document.']) {
+  for (const forbidden of ['catalogue-binder', 'rvm-writer', 'att-writer', 'managed-stage-rvm-converter', 'canvas', 'app-loader', 'safe-ui-loader', 'window.', 'document.']) {
     assert.equal(source.includes(forbidden), false, `Phase 5 source must not reference ${forbidden}`);
   }
 }

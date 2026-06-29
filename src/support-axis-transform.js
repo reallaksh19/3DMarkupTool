@@ -1,100 +1,88 @@
 import {
   NAVIS_TO_CANVAS_SUPPORT_AXIS_BASIS,
-  resolveSemanticNavisAxisToken,
-  transformNavisAxisListToCanvas,
-  transformNavisSourceAxisToCanvas
+  resolveSemanticNavisAxisToken
 } from './support-axis-basis-config.js?v=bust-cache-4';
 
-export const SUPPORT_AXIS_TRANSFORM_SCHEMA = 'SupportAxisTransform.v4';
+export const SUPPORT_AXIS_TRANSFORM_SCHEMA = 'SupportAxisTransform.v3';
 
 const DEFAULT_AXIS_BASIS = NAVIS_TO_CANVAS_SUPPORT_AXIS_BASIS;
 
 /**
- * Normalizes stagedJson/ISONOTE support axes into one canonical canvas-space contract.
+ * Normalizes stagedJson support axes into one canonical canvas-space contract.
  *
- * RCA for PR #452:
- *   The previous patch stored the observed Navis/canvas relationship but did not
- *   transform already-signed XYZ rows, so existing +Y/+Z/-X rows looked unchanged.
+ * Observed Navis/canvas basis:
+ *   Navis N   -> Canvas +Y
+ *   Navis Top -> Canvas +Z
+ *   Navis W   -> Canvas -X
  *
- * Corrective transform now applied:
- *   source +Y / Navis N   -> canvas -X / canvas North
- *   source +Z / Navis Top -> canvas +Z
- *   source -X / Navis W   -> canvas -Y
- *
- * Matrix: source [x,y,z] -> canvas [-y, x, z].
+ * Fallback rules:
+ *   - REST uses family-rule +Y when no explicit source/canvas axis exists.
+ *   - HOLDDOWN uses family-rule +Y/-Y and reports +Y as the primary display axis.
+ *   - GUIDE/LINESTOP/LIMIT/ANCHOR may use pipe axis fallback when no explicit source/canvas axis exists.
+ *   - Missing everything falls back to +X with a diagnostic.
  */
 export function resolveSupportAxisTransform(input) {
   const options = input && typeof input === 'object' ? input : {};
   const diagnostics = [];
   const basis = mergeAxisBasis(DEFAULT_AXIS_BASIS, options.axisBasis || options.basis || {});
-  const applySignedAxisTransform = options.applySignedAxisTransform !== false;
   const rawSourceAxis = options.sourceAxis || options.rawAxis || options.axis || '';
-  const explicitCanvasAxisSource = normalizeSupportAxisToken(options.canvasAxis || '');
+  const explicitCanvasAxis = normalizeSupportAxisToken(options.canvasAxis || '');
   const sourceAxis = normalizeSupportAxisToken(rawSourceAxis, options.sign || options.sourceSign || '');
   const family = normalizeSupportFamily(options.supportFamily || options.family || '');
-  const requestedActionAxesSource = normalizeAxisList(options.supportActionAxes || options.actionAxes || []);
-  const familyActionAxesSource = requestedActionAxesSource.length ? requestedActionAxesSource : supportFamilyActionAxes(family);
-  let canvasAxis = '';
+  const requestedActionAxes = normalizeAxisList(options.supportActionAxes || options.actionAxes || []);
+  const familyActionAxes = requestedActionAxes.length ? requestedActionAxes : supportFamilyActionAxes(family);
+  let canvasAxis = explicitCanvasAxis;
   let axisTransformApplied = false;
   let fallbackReason = '';
 
-  if (explicitCanvasAxisSource) {
-    canvasAxis = applySignedAxisTransform ? transformCanvasAxis(explicitCanvasAxisSource, basis) : explicitCanvasAxisSource;
-    axisTransformApplied = Boolean(applySignedAxisTransform && canvasAxis && canvasAxis !== explicitCanvasAxisSource);
-  }
-
   if (!canvasAxis && sourceAxis) {
     const entry = basis.axes[sourceAxis] || {};
-    const configuredCanvasAxis = normalizeSupportAxisToken(entry.canvasAxis || sourceAxis);
-    canvasAxis = applySignedAxisTransform ? transformCanvasAxis(sourceAxis, basis) : configuredCanvasAxis;
+    canvasAxis = normalizeSupportAxisToken(entry.canvasAxis || sourceAxis);
     axisTransformApplied = Boolean(canvasAxis && canvasAxis !== sourceAxis);
   }
 
-  if (!canvasAxis && familyActionAxesSource.length && (family === 'REST' || family === 'HOLDDOWN')) {
-    const familyCanvasAxes = applySignedAxisTransform ? transformNavisAxisListToCanvas(familyActionAxesSource, basis) : familyActionAxesSource;
-    canvasAxis = familyCanvasAxes[0] || '';
+  if (explicitCanvasAxis && sourceAxis && explicitCanvasAxis !== sourceAxis) {
+    axisTransformApplied = true;
+  }
+
+  if (!canvasAxis && familyActionAxes.length && (family === 'REST' || family === 'HOLDDOWN')) {
+    canvasAxis = familyActionAxes[0];
     fallbackReason = 'family-rule-axis';
-    axisTransformApplied = Boolean(applySignedAxisTransform && canvasAxis && canvasAxis !== familyActionAxesSource[0]);
     diagnostics.push(axisDiagnostic('family-rule-axis', 'info', `${family} uses a family-rule support action axis.`));
   }
 
-  const pipeFallbackSource = normalizePipeAxis(options.pipeAxis || '');
-  const pipeFallback = applySignedAxisTransform ? transformCanvasAxis(pipeFallbackSource, basis) : pipeFallbackSource;
+  const pipeFallback = normalizePipeAxis(options.pipeAxis || '');
   if (!canvasAxis && pipeFallback) {
     canvasAxis = pipeFallback;
     fallbackReason = 'pipe-axis-fallback';
-    diagnostics.push(axisDiagnostic('pipe-axis-fallback', 'warning', 'Support axis was missing; transformed pipe axis fallback was used.'));
+    diagnostics.push(axisDiagnostic('pipe-axis-fallback', 'warning', 'Support axis was missing; pipe axis fallback was used.'));
   }
 
   if (!canvasAxis) {
-    canvasAxis = applySignedAxisTransform ? transformCanvasAxis('+X', basis) : '+X';
+    canvasAxis = '+X';
     fallbackReason = 'default-axis-fallback';
-    diagnostics.push(axisDiagnostic('default-axis-fallback', 'warning', 'Support axis and pipe axis were missing; transformed +X fallback was used.'));
+    diagnostics.push(axisDiagnostic('default-axis-fallback', 'warning', 'Support axis and pipe axis were missing; +X fallback was used.'));
   }
 
   if (rawSourceAxis && !sourceAxis) {
     diagnostics.push(axisDiagnostic('unparsed-source-axis', 'warning', `Support axis could not be parsed: ${String(rawSourceAxis)}`));
   }
 
-  const supportActionAxesSource = familyActionAxesSource.length ? familyActionAxesSource : [sourceAxis || explicitCanvasAxisSource || canvasAxis];
-  const supportActionAxes = applySignedAxisTransform ? transformNavisAxisListToCanvas(supportActionAxesSource, basis) : normalizeAxisList(supportActionAxesSource);
+  const supportActionAxes = familyActionAxes.length ? familyActionAxes : [canvasAxis];
   const vector = supportAxisVector(canvasAxis);
   return {
     schema: SUPPORT_AXIS_TRANSFORM_SCHEMA,
     sourceAxis,
     canvasAxis,
-    sourceActionAxes: supportActionAxesSource,
     supportActionAxes,
     primarySupportActionAxis: supportActionAxes[0] || canvasAxis,
     matchedPipeAxis: pipeFallback,
-    matchedPipeAxisSource: pipeFallbackSource,
     axisVector: vector,
     sign: canvasAxis.startsWith('-') ? '-' : '+',
     basisPreset: options.basisPreset || options.mapperPresetId || basis.name || '',
     axisBasis: basis,
     axisBasisName: basis.name || '',
-    navisCanvasMapping: 'source +Y/Navis N -> canvas -X; source +Z/Navis Top -> canvas +Z; source -X/Navis W -> canvas -Y',
-    signedAxisTransformApplied: applySignedAxisTransform,
+    navisCanvasMapping: 'N->+Y, TOP->+Z, W->-X',
     axisTransformApplied,
     fallbackReason,
     diagnostics
@@ -130,12 +118,6 @@ export function supportAxisVector(axisToken) {
 export function invertSupportAxis(axisToken) {
   const axis = normalizeSupportAxisToken(axisToken) || '+X';
   return `${axis.startsWith('-') ? '+' : '-'}${axis.replace(/[+-]/g, '')}`;
-}
-
-function transformCanvasAxis(axis, basis) {
-  const normalized = normalizeSupportAxisToken(axis);
-  if (!normalized) return '';
-  return transformNavisSourceAxisToCanvas(normalized, basis) || normalized;
 }
 
 function supportFamilyActionAxes(family) {
@@ -188,11 +170,8 @@ function mergeAxisBasis(base, override) {
     schema: override.schema || base.schema,
     name: override.name || base.name,
     description: override.description || base.description || '',
-    observedAxes: { ...(base.observedAxes || {}), ...(override.observedAxes || {}) },
     axes,
-    semanticAxes: { ...(base.semanticAxes || {}), ...(override.semanticAxes || {}) },
-    matrix: override.matrix || base.matrix || [],
-    signedAxisTransform: { ...(base.signedAxisTransform || {}), ...(override.signedAxisTransform || {}) }
+    semanticAxes: { ...(base.semanticAxes || {}), ...(override.semanticAxes || {}) }
   };
 }
 

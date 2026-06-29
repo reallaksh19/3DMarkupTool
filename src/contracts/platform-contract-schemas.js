@@ -3,6 +3,7 @@ export const PLATFORM_CONTRACT_SCHEMA = 'PlatformContractSchemas.v1';
 export const PLANT_MODEL_GRAPH_SCHEMA = 'PlantModelGraph.v1';
 export const CATALOGUE_REGISTRY_SCHEMA = 'CatalogueRegistry.v1';
 export const COMPONENT_CATALOGUE_ITEM_SCHEMA = 'ComponentCatalogueItem.v1';
+export const RESOLVED_GEOMETRY_MODEL_SCHEMA = 'ResolvedGeometryModel.v1';
 export const RESOLVED_PRIMITIVE_MODEL_SCHEMA = 'ResolvedPrimitiveModel.v1';
 
 export const CONTRACT_SCHEMA_SET = Object.freeze({
@@ -10,5 +11,6 @@ export const CONTRACT_SCHEMA_SET = Object.freeze({
   plantModelGraph: PLANT_MODEL_GRAPH_SCHEMA,
   catalogueRegistry: CATALOGUE_REGISTRY_SCHEMA,
   componentCatalogueItem: COMPONENT_CATALOGUE_ITEM_SCHEMA,
+  resolvedGeometryModel: RESOLVED_GEOMETRY_MODEL_SCHEMA,
   resolvedPrimitiveModel: RESOLVED_PRIMITIVE_MODEL_SCHEMA
 });

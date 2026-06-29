@@ -35,8 +35,8 @@ export function appendManagedStageVisibleFallback(previewScene, sourceText, opti
   };
 
   const radius = Math.max(Math.min(radiusBasis * 0.02, 80), 5);
-  const pointRadius = Math.max(radius * 1.6, 12);
   let supportMarkerCount = 0;
+  let suppressedSupportFallbackCount = 0;
   let rawGeometryFallbackCount = 0;
   let added = 0;
 
@@ -44,15 +44,21 @@ export function appendManagedStageVisibleFallback(previewScene, sourceText, opti
     if (added >= (options.maxFallbackObjects || MAX_FALLBACK_OBJECTS)) break;
     const supportLike = isSupportLike(candidate.type);
     const represented = candidate.keys.some((key) => existingNames.has(key));
-    if (represented && !supportLike) continue;
-    const mesh = candidate.start && candidate.end && !supportLike
+
+    if (supportLike) {
+      suppressedSupportFallbackCount += 1;
+      continue;
+    }
+    if (represented) continue;
+
+    const mesh = candidate.start && candidate.end
       ? createFallbackCylinder(candidate, radius)
-      : createFallbackPointMarker(candidate, pointRadius);
+      : createFallbackPointMarker(candidate, Math.max(radius * 1.6, 12));
     if (!mesh) continue;
     mesh.name = candidate.path;
     mesh.userData = {
       ...(mesh.userData || {}),
-      TYPE: supportLike ? 'SUPPORT_RESTRAINT' : 'MANAGED_STAGE_RAW_FALLBACK',
+      TYPE: 'MANAGED_STAGE_RAW_FALLBACK',
       sourceName: candidate.name,
       sourcePath: candidate.path,
       rawType: candidate.rawType,
@@ -65,23 +71,26 @@ export function appendManagedStageVisibleFallback(previewScene, sourceText, opti
       toNode: candidate.toNode || ''
     };
     group.add(mesh);
-    if (supportLike) supportMarkerCount += 1;
-    else rawGeometryFallbackCount += 1;
+    rawGeometryFallbackCount += 1;
     added += 1;
   }
 
   if (!group.children.length) {
-    return { schema: 'ManagedStageVisibleFallback.v1', candidateCount: candidates.length, meshCount: 0, supportMarkerCount: 0, rawGeometryFallbackCount: 0 };
+    const audit = { schema: 'ManagedStageVisibleFallback.v2', candidateCount: candidates.length, meshCount: 0, supportMarkerCount, suppressedSupportFallbackCount, rawGeometryFallbackCount, supportFallbackPolicy: 'suppressed-canvas-only-support-cubes-use-canonical-support-markers' };
+    previewScene.userData = { ...(previewScene.userData || {}), managedStageVisibleFallback: audit };
+    return audit;
   }
 
   previewScene.add(group);
   const audit = {
-    schema: 'ManagedStageVisibleFallback.v1',
+    schema: 'ManagedStageVisibleFallback.v2',
     source: 'raw managed-stage JSON APOS/LPOS/POS/BPOS fallback overlay',
     candidateCount: candidates.length,
     meshCount: group.children.length,
     supportMarkerCount,
+    suppressedSupportFallbackCount,
     rawGeometryFallbackCount,
+    supportFallbackPolicy: 'suppressed-canvas-only-support-cubes-use-canonical-support-markers',
     exportedRvmGeometry: false
   };
   previewScene.userData = { ...(previewScene.userData || {}), managedStageVisibleFallback: audit };
@@ -138,127 +147,34 @@ function createFallbackCylinder(candidate, radius) {
 function createFallbackPointMarker(candidate, radius) {
   const pos = candidate.pos || candidate.start || candidate.end;
   if (!pos) return null;
-  const geometry = isSupportLike(candidate.type)
-    ? new THREE.BoxGeometry(radius * 1.8, radius * 1.8, radius * 1.8)
-    : new THREE.SphereGeometry(radius, 12, 8);
+  const geometry = new THREE.SphereGeometry(radius, 12, 8);
   const mesh = new THREE.Mesh(geometry, mat(colorFor(candidate.type)));
   mesh.position.copy(toVec(pos));
-  mesh.userData = { TYPE: isSupportLike(candidate.type) ? 'SUPPORT_RESTRAINT' : 'MANAGED_STAGE_RAW_FALLBACK', primitiveKind: 'raw-staged-point-marker' };
+  mesh.userData = { TYPE: 'MANAGED_STAGE_RAW_FALLBACK', primitiveKind: 'raw-staged-point-marker' };
   return mesh;
 }
 
 function collectExistingNames(scene) {
   const names = new Set();
   scene?.traverse?.((object) => {
-    for (const value of [object.name, object.userData?.sourceName, object.userData?.NAME, object.userData?.SOURCE_ELEMENT_ID]) {
+    for (const value of [object.name, object.userData?.sourceName, object.userData?.NAME, object.userData?.SOURCE_ELEMENT_ID, object.userData?.SUPPORT_MARKER_ID, object.userData?.supportMarkerId]) {
       if (value) names.add(String(value));
     }
   });
   return names;
 }
 
-function parseManagedStageJson(sourceText) {
-  try {
-    return JSON.parse(sourceText);
-  } catch {
-    return null;
-  }
-}
-
-function attrsOf(node) {
-  return node && typeof node === 'object' && node.attributes && typeof node.attributes === 'object' ? node.attributes : {};
-}
-
-function nodeType(node) {
-  const raw = String(node?.type || attrsOf(node).TYPE || '').toUpperCase();
-  if (raw === 'VALV') return 'VALVE';
-  if (raw === 'FLAN') return 'FLANGE';
-  if (raw === 'ELBO') return 'ELBOW';
-  if (raw === 'REDU') return 'REDUCER';
-  if (raw === 'BRAN') return 'BRANCH';
-  if (raw === 'ATTA' || raw === 'ANCI' || raw === 'SUPP' || raw === 'SUPC') return 'SUPPORT';
-  return raw || 'UNKNOWN';
-}
-
-function colorFor(type) {
-  return FALLBACK_COLORS[type] || FALLBACK_COLORS.UNKNOWN;
-}
-
-function isSupportLike(type) {
-  return type === 'SUPPORT' || type === 'ATTA';
-}
-
-function toVec(point) {
-  return new THREE.Vector3(point.x, point.y, point.z);
-}
-
-function pointDistance(a, b) {
-  const dx = b.x - a.x;
-  const dy = b.y - a.y;
-  const dz = b.z - a.z;
-  return Math.sqrt(dx * dx + dy * dy + dz * dz);
-}
-
-function median(values) {
-  const list = values.filter((value) => Number.isFinite(value) && value > 0).sort((a, b) => a - b);
-  return list.length ? list[Math.floor(list.length * 0.5)] : 100;
-}
-
-function pickPoint(node, keys) {
-  const attrs = attrsOf(node);
-  for (const key of keys) {
-    const value = attrs[key] ?? attrs[key.toLowerCase?.()] ?? node?.[key] ?? node?.[key.toLowerCase?.()];
-    const point = pointFrom(value);
-    if (point) return point;
-  }
-  return null;
-}
-
-function pointFrom(value) {
-  if (!value && value !== 0) return null;
-  if (Array.isArray(value) && value.length >= 3) return pointFromArray(value);
-  if (typeof value === 'object') return pointFromObject(value);
-  const directional = parseDirectional(value);
-  if (directional) return directional;
-  const nums = String(value || '').match(/[-+]?\d*\.?\d+(?:e[-+]?\d+)?/gi)?.map(Number).filter(Number.isFinite) || [];
-  return nums.length >= 3 ? { x: nums[0], y: nums[1], z: nums[2] } : null;
-}
-
-function pointFromArray(value) {
-  const x = asNumber(value[0]);
-  const y = asNumber(value[1]);
-  const z = asNumber(value[2]);
-  return x == null || y == null || z == null ? null : { x, y, z };
-}
-
-function pointFromObject(value) {
-  const x = asNumber(value.x ?? value.X ?? value.e ?? value.E);
-  const y = asNumber(value.y ?? value.Y ?? value.n ?? value.N);
-  const z = asNumber(value.z ?? value.Z ?? value.u ?? value.U);
-  return x == null || y == null || z == null ? null : { x, y, z };
-}
-
-function asNumber(value) {
-  const n = Number.parseFloat(String(value ?? '').replace(/mm/gi, '').trim());
-  return Number.isFinite(n) ? n : null;
-}
-
-function parseDirectional(text) {
-  const src = String(text || '').trim();
-  if (!src) return null;
-  const tokens = src.split(/\s+/g);
-  const out = { x: 0, y: 0, z: 0 };
-  let parsed = false;
-  for (let i = 0; i < tokens.length - 1; i += 2) {
-    const axis = String(tokens[i] || '').toUpperCase();
-    const value = asNumber(tokens[i + 1]);
-    if (value == null) continue;
-    if (axis === 'E') { out.x = value; parsed = true; }
-    else if (axis === 'W') { out.x = -value; parsed = true; }
-    else if (axis === 'N') { out.y = value; parsed = true; }
-    else if (axis === 'S') { out.y = -value; parsed = true; }
-    else if (axis === 'U') { out.z = value; parsed = true; }
-    else if (axis === 'D') { out.z = -value; parsed = true; }
-  }
-  return parsed ? out : null;
-}
+function parseManagedStageJson(sourceText) { try { return JSON.parse(sourceText); } catch { return null; } }
+function attrsOf(node) { return node && typeof node === 'object' && node.attributes && typeof node.attributes === 'object' ? node.attributes : {}; }
+function nodeType(node) { const raw = String(node?.type || attrsOf(node).TYPE || '').toUpperCase(); if (raw === 'VALV') return 'VALVE'; if (raw === 'FLAN') return 'FLANGE'; if (raw === 'ELBO') return 'ELBOW'; if (raw === 'REDU') return 'REDUCER'; if (raw === 'BRAN') return 'BRANCH'; if (raw === 'ATTA' || raw === 'ANCI' || raw === 'SUPP' || raw === 'SUPC') return 'SUPPORT'; return raw || 'UNKNOWN'; }
+function colorFor(type) { return FALLBACK_COLORS[type] || FALLBACK_COLORS.UNKNOWN; }
+function isSupportLike(type) { return type === 'SUPPORT' || type === 'ATTA'; }
+function toVec(point) { return new THREE.Vector3(point.x, point.y, point.z); }
+function pointDistance(a, b) { const dx = b.x - a.x; const dy = b.y - a.y; const dz = b.z - a.z; return Math.sqrt(dx * dx + dy * dy + dz * dz); }
+function median(values) { const list = values.filter((value) => Number.isFinite(value) && value > 0).sort((a, b) => a - b); return list.length ? list[Math.floor(list.length * 0.5)] : 100; }
+function pickPoint(node, keys) { const attrs = attrsOf(node); for (const key of keys) { const value = attrs[key] ?? attrs[key.toLowerCase?.()] ?? node?.[key] ?? node?.[key.toLowerCase?.()]; const point = pointFrom(value); if (point) return point; } return null; }
+function pointFrom(value) { if (!value && value !== 0) return null; if (Array.isArray(value) && value.length >= 3) return pointFromArray(value); if (typeof value === 'object') return pointFromObject(value); const directional = parseDirectional(value); if (directional) return directional; const nums = String(value || '').match(/[-+]?\d*\.?\d+(?:e[-+]?\d+)?/gi)?.map(Number).filter(Number.isFinite) || []; return nums.length >= 3 ? { x: nums[0], y: nums[1], z: nums[2] } : null; }
+function pointFromArray(value) { const x = asNumber(value[0]); const y = asNumber(value[1]); const z = asNumber(value[2]); return x == null || y == null || z == null ? null : { x, y, z }; }
+function pointFromObject(value) { const x = asNumber(value.x ?? value.X ?? value.e ?? value.E); const y = asNumber(value.y ?? value.Y ?? value.n ?? value.N); const z = asNumber(value.z ?? value.Z ?? value.u ?? value.U); return x == null || y == null || z == null ? null : { x, y, z }; }
+function asNumber(value) { const n = Number.parseFloat(String(value ?? '').replace(/mm/gi, '').trim()); return Number.isFinite(n) ? n : null; }
+function parseDirectional(text) { const src = String(text || '').trim(); if (!src) return null; const tokens = src.split(/\s+/g); const out = { x: 0, y: 0, z: 0 }; let parsed = false; for (let i = 0; i < tokens.length - 1; i += 2) { const axis = String(tokens[i] || '').toUpperCase(); const value = asNumber(tokens[i + 1]); if (value == null) continue; if (axis === 'E') { out.x = value; parsed = true; } else if (axis === 'W') { out.x = -value; parsed = true; } else if (axis === 'N') { out.y = value; parsed = true; } else if (axis === 'S') { out.y = -value; parsed = true; } else if (axis === 'U') { out.z = value; parsed = true; } else if (axis === 'D') { out.z = -value; parsed = true; } } return parsed ? out : null; }

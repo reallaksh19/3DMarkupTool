@@ -1,6 +1,6 @@
 import { appendManagedStageVisibleFallback } from './managed-stage-visible-fallback.js?v=bust-cache-4';
 
-const PATCH_SCHEMA = 'ManagedStageVisibleFallbackPatch.v1';
+const PATCH_SCHEMA = 'ManagedStageVisibleFallbackPatch.v2';
 let lastJsonSourcePromise = null;
 
 installManagedStageVisibleFallbackPatch();
@@ -62,7 +62,7 @@ async function applyFallbackFromCapturedInput(detail) {
 
 function applyVisibleFallbackToArtifact(artifact, sourceText) {
   const scene = artifact?.previewScene;
-  if (!scene || !sourceText || scene.userData?.managedStageVisibleFallback?.schema === 'ManagedStageVisibleFallback.v1') return null;
+  if (!scene || !sourceText || isFallbackAlreadyApplied(scene)) return null;
   const visibleFallback = appendManagedStageVisibleFallback(scene, sourceText);
   if (!visibleFallback?.meshCount) return visibleFallback;
   if (artifact) artifact.visibleFallback = visibleFallback;
@@ -73,10 +73,16 @@ function applyVisibleFallbackToArtifact(artifact, sourceText) {
   return visibleFallback;
 }
 
+function isFallbackAlreadyApplied(scene) {
+  const schema = String(scene?.userData?.managedStageVisibleFallback?.schema || '');
+  if (schema.startsWith('ManagedStageVisibleFallback.')) return true;
+  return Boolean(scene?.getObjectByName?.('MANAGED_STAGE_VISIBLE_FALLBACK'));
+}
+
 function logVisibleFallback(visibleFallback) {
   const target = document.getElementById('log');
   if (!target) return;
   const ts = new Date().toLocaleTimeString();
-  target.textContent += `[${ts}] Managed-stage visible fallback overlay: previewOnly=${visibleFallback.meshCount}, supports=${visibleFallback.supportMarkerCount || 0}, rawFallback=${visibleFallback.rawGeometryFallbackCount || 0}\n`;
+  target.textContent += `[${ts}] Managed-stage visible fallback overlay: previewOnly=${visibleFallback.meshCount}, supports=${visibleFallback.supportMarkerCount || 0}, suppressedSupports=${visibleFallback.suppressedSupportFallbackCount || 0}, rawFallback=${visibleFallback.rawGeometryFallbackCount || 0}\n`;
   target.scrollTop = target.scrollHeight;
 }

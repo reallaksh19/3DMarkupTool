@@ -1,0 +1,29 @@
+{
+  "schema": "PlantGraphTopologyAudit.v1",
+  "graphId": "plant-graph-topology-governance-fixture",
+  "nodeCount": 6,
+  "routeCount": 4,
+  "itemCount": 4,
+  "missingRouteNodeRefs": [],
+  "missingItemNodeRefs": [
+    {
+      "itemId": "ITEM-DUP",
+      "field": "placement.node",
+      "nodeId": "N404"
+    }
+  ],
+  "missingItemRouteRefs": [
+    {
+      "itemId": "ITEM-DUP",
+      "field": "placement.inRoute",
+      "routeId": "R404"
+    }
+  ],
+  "duplicateNodeIds": ["N2"],
+  "duplicateRouteIds": ["R-DUP"],
+  "duplicateItemIds": ["ITEM-DUP"],
+  "openRouteEnds": ["N1", "N3", "N4", "N5"],
+  "branchNodeIds": ["N2"],
+  "supportNodeIds": ["N3"],
+  "ok": false
+}

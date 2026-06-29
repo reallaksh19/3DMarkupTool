@@ -23,3 +23,12 @@ export {
   validateResolvedPrimitiveModelContract,
   assertResolvedPrimitiveModelContract
 } from './resolved-primitive-model-contract.js';
+
+export {
+  FALLBACK_POLICY_SCHEMA,
+  FALLBACK_KINDS,
+  ALLOWED_FALLBACK_KINDS,
+  createBlockedUnknownEngineeringItemFallback,
+  validateFallbackPolicyRecord,
+  assertFallbackPolicyRecord
+} from './fallback-policy-contract.js';

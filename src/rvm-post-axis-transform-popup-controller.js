@@ -66,22 +66,7 @@ function renderDialog(win, doc, dialog) {
   const config = getActiveConfig(win);
   const presetRows = Object.values(RVM_POST_AXIS_TRANSFORM_PRESETS).map((preset) => ({ ...preset, selected: preset.id === config.presetId }));
   const selectedPreset = RVM_POST_AXIS_TRANSFORM_PRESETS[config.presetId] || RVM_POST_AXIS_TRANSFORM_PRESETS[DEFAULT_PRESET_ID];
-  dialog.innerHTML = `
-    <form method="dialog" class="rvm-post-axis-transform-card">
-      <div class="rvm-post-axis-transform-head"><div><h3>RVM Navis Axis Transform</h3><p>Applied after the complete RVM export model is generated and before writeRvm()/ATT/preview consume it.</p></div><button type="submit" class="icon-btn" aria-label="Close">×</button></div>
-      <label class="rvm-post-axis-transform-enable"><input id="rvmPostAxisTransformEnabled" type="checkbox" ${config.enabled ? 'checked' : ''}> Enable post-RVM full-geometry transform</label>
-      <label class="field"><span>Preset</span><select id="rvmPostAxisTransformPreset">${presetRows.map((preset) => `<option value="${escapeHtml(preset.id)}" ${preset.selected ? 'selected' : ''}>${escapeHtml(preset.label)}</option>`).join('')}</select></label>
-      <div class="rvm-post-axis-transform-proof">
-        <h4>Observed mapping retained</h4>
-        <table><tbody><tr><th>Navis N</th><td>Canvas +Y</td></tr><tr><th>Navis Top</th><td>Canvas +Z</td></tr><tr><th>Navis W</th><td>Canvas -X</td></tr></tbody></table>
-        <h4>Applied model-stage transform</h4>
-        <p><strong>Scope:</strong> entire export model: pipe/fittings/valves/flanges/supports, primitive centers, endpoint-locked start/end, basis vectors, CNTB positions, ATT attributes, preview model.</p>
-        <p><strong>Stage:</strong> post-export-model / pre-writeRvm.</p>
-        <p><strong>Matrix:</strong> <code id="rvmPostAxisTransformMatrixSummary">${escapeHtml(matrixSummary(selectedPreset.matrix))}</code></p>
-        <p><strong>Description:</strong> <span id="rvmPostAxisTransformDescription">${escapeHtml(selectedPreset.description)}</span></p>
-      </div>
-      <div class="rvm-post-axis-transform-actions"><button id="rvmPostAxisTransformSaveBtn" type="button" class="primary">Save Transform Config</button><button id="rvmPostAxisTransformOffBtn" type="button" class="ghost">Disable</button></div>
-    </form>`;
+  dialog.innerHTML = `<form method="dialog" class="rvm-post-axis-transform-card"><div class="rvm-post-axis-transform-head"><div><h3>RVM Navis Axis Transform</h3><p>Applied after the complete RVM export model is generated and before writeRvm()/ATT/preview consume it.</p></div><button type="submit" class="icon-btn" aria-label="Close">×</button></div><label class="rvm-post-axis-transform-enable"><input id="rvmPostAxisTransformEnabled" type="checkbox" ${config.enabled ? 'checked' : ''}> Enable post-RVM full-geometry transform</label><label class="field"><span>Preset</span><select id="rvmPostAxisTransformPreset">${presetRows.map((preset) => `<option value="${escapeHtml(preset.id)}" ${preset.selected ? 'selected' : ''}>${escapeHtml(preset.label)}</option>`).join('')}</select></label><div class="rvm-post-axis-transform-proof"><h4>Observed mapping retained</h4><table><tbody><tr><th>Navis N</th><td>Canvas +Y</td></tr><tr><th>Navis Top</th><td>Canvas +Z</td></tr><tr><th>Navis W</th><td>Canvas -X</td></tr></tbody></table><h4>Applied model-stage transform</h4><p><strong>Scope:</strong> entire export model: pipe/fittings/valves/flanges/supports, primitive centers, endpoint-locked start/end, basis vectors, CNTB positions, ATT attributes, preview model.</p><p><strong>Stage:</strong> post-export-model / pre-writeRvm.</p><p><strong>Matrix:</strong> <code id="rvmPostAxisTransformMatrixSummary">${escapeHtml(matrixSummary(selectedPreset.matrix))}</code></p><p><strong>Description:</strong> <span id="rvmPostAxisTransformDescription">${escapeHtml(selectedPreset.description)}</span></p></div><div class="rvm-post-axis-transform-actions"><button id="rvmPostAxisTransformSaveBtn" type="button" class="primary">Save Transform Config</button><button id="rvmPostAxisTransformOffBtn" type="button" class="ghost">Disable</button></div></form>`;
   const presetSelect = dialog.querySelector('#rvmPostAxisTransformPreset');
   const updateSummary = () => {
     const preset = RVM_POST_AXIS_TRANSFORM_PRESETS[presetSelect.value] || RVM_POST_AXIS_TRANSFORM_PRESETS[DEFAULT_PRESET_ID];
@@ -93,10 +78,10 @@ function renderDialog(win, doc, dialog) {
   presetSelect.addEventListener('change', updateSummary);
   dialog.querySelector('#rvmPostAxisTransformSaveBtn')?.addEventListener('click', () => {
     const preset = RVM_POST_AXIS_TRANSFORM_PRESETS[presetSelect.value] || RVM_POST_AXIS_TRANSFORM_PRESETS[DEFAULT_PRESET_ID];
-    saveConfig(win, { schema: RVM_POST_AXIS_TRANSFORM_SCHEMA, enabled: dialog.querySelector('#rvmPostAxisTransformEnabled')?.checked !== false, presetId: preset.id, applyStage: 'post-export-model-pre-writeRvm', transformScope: 'entire-export-model-with-supports' });
+    saveConfig(win, { schema: RVM_POST_AXIS_TRANSFORM_SCHEMA, enabled: dialog.querySelector('#rvmPostAxisTransformEnabled')?.checked !== false, presetId: preset.id, matrix: preset.matrix, applyStage: 'post-export-model-pre-writeRvm', transformScope: 'entire-export-model-with-supports' });
     dialog.close?.();
   });
-  dialog.querySelector('#rvmPostAxisTransformOffBtn')?.addEventListener('click', () => { saveConfig(win, { ...DEFAULT_RVM_POST_AXIS_TRANSFORM_CONFIG, enabled: false, presetId: 'off' }); dialog.close?.(); });
+  dialog.querySelector('#rvmPostAxisTransformOffBtn')?.addEventListener('click', () => { saveConfig(win, { ...DEFAULT_RVM_POST_AXIS_TRANSFORM_CONFIG, matrix: RVM_POST_AXIS_TRANSFORM_PRESETS.off.matrix, enabled: false, presetId: 'off' }); dialog.close?.(); });
 }
 
 function getActiveConfig(win) { return resolveRvmPostAxisTransformConfig(readStoredConfig(win) || DEFAULT_RVM_POST_AXIS_TRANSFORM_CONFIG, win); }

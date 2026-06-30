@@ -1,0 +1,37 @@
+const PRIMITIVE_COMPILATION_AUDIT_SCHEMA = 'PrimitiveCompilationAudit.v1';
+const COUNT_KEYS = [
+  'primitiveCount',
+  'cylinderPrimitiveCount',
+  'torusPrimitiveCount',
+  'boxPrimitiveCount',
+  'spherePrimitiveCount',
+  'pyramidPrimitiveCount',
+  'supportPrimitiveCount',
+  'deferredPrimitiveCount',
+  'deferredSupportPrimitiveCount',
+  'blockedPrimitiveCount',
+  'blockedUnresolvedGeometryCount',
+  'blockedCatalogueFrameCount',
+  'missingDimensionCount',
+  'hardErrorCount',
+  'writerCallCount',
+  'exportDecisionCount'
+];
+
+export function assertPrimitiveCompilationAudit(audit, expectations = {}) {
+  const errors = [];
+  if (!audit || typeof audit !== 'object') errors.push('audit must be an object');
+  if (audit?.schema !== PRIMITIVE_COMPILATION_AUDIT_SCHEMA) errors.push(`schema must be ${PRIMITIVE_COMPILATION_AUDIT_SCHEMA}`);
+  if (!audit?.graphId) errors.push('graphId is required');
+  for (const key of COUNT_KEYS) {
+    if (!Number.isInteger(Number(audit?.[key]))) errors.push(`${key} must be integer-like`);
+  }
+  if (typeof audit?.navisTransformApplied !== 'boolean') errors.push('navisTransformApplied must be boolean');
+  if (typeof audit?.ok !== 'boolean') errors.push('ok must be boolean');
+  if (!Array.isArray(audit?.errors)) errors.push('errors array is required');
+  for (const [key, expected] of Object.entries(expectations)) {
+    if (JSON.stringify(audit?.[key]) !== JSON.stringify(expected)) errors.push(`${key} expectation failed`);
+  }
+  if (errors.length) throw new Error(`Primitive compilation audit invalid: ${errors.join('; ')}`);
+  return { schema: 'PrimitiveCompilationAuditAssertion.v1', ok: true, errorCount: 0, errors: [] };
+}

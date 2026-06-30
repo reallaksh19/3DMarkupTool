@@ -15,6 +15,10 @@ const resolved = await readJson('samples/contracts/BM_CII.resolved-primitive-mod
 
 assert.equal(CONTRACT_SCHEMA_SET.schema, 'PlatformContractSchemas.v1');
 assert.equal(CONTRACT_SCHEMA_SET.resolvedGeometryModel, 'ResolvedGeometryModel.v1');
+assert.equal(CONTRACT_SCHEMA_SET.resolvedPrimitiveModel, 'ResolvedPrimitiveModel.v1');
+assert.equal(CONTRACT_SCHEMA_SET.rvmExportModel, 'RvmExportModel.v1');
+assert.equal(CONTRACT_SCHEMA_SET.attExportModel, 'AttExportModel.v1');
+assert.equal(CONTRACT_SCHEMA_SET.glbVisualModel, 'GlbVisualModel.v1');
 assert.equal(assertPlantModelGraphContract(graph).ok, true);
 assert.equal(assertCatalogueRegistryContract(registry).ok, true);
 assert.equal(assertComponentCatalogueItemContract(catalogueItem).ok, true);

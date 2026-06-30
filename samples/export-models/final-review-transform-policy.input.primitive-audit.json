@@ -1,0 +1,22 @@
+{
+  "schema": "PrimitiveCompilationAudit.v1",
+  "graphId": "final-review-transform-fixture",
+  "ok": true,
+  "hardErrorCount": 0,
+  "navisTransformApplied": false,
+  "writerCallCount": 0,
+  "exportDecisionCount": 0,
+  "primitiveCount": 1,
+  "cylinderPrimitiveCount": 1,
+  "torusPrimitiveCount": 0,
+  "boxPrimitiveCount": 0,
+  "spherePrimitiveCount": 0,
+  "pyramidPrimitiveCount": 0,
+  "supportPrimitiveCount": 0,
+  "deferredSupportPrimitiveCount": 0,
+  "blockedUnresolvedGeometryCount": 0,
+  "blockedPrimitiveCount": 0,
+  "missingDimensionCount": 0,
+  "errors": [],
+  "warnings": []
+}

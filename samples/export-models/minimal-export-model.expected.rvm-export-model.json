@@ -9,9 +9,9 @@
   "exportAxisBasis": {
     "review": "navis-review"
   },
-  "transformPolicy": "phase7-authoring-to-navis-review.identity-placeholder.v1",
-  "transformApplied": false,
-  "transformWarnings": ["RVM transform policy not implemented in Phase 7"],
+  "transformPolicy": "final-review-transform.v1",
+  "transformApplied": true,
+  "transformWarnings": [],
   "primitives": [
     {
       "exportPrimitiveId": "RVM-PRIM-PIPE-1",
@@ -23,8 +23,8 @@
       "axis": [1, 0, 0],
       "lengthMm": 1000,
       "radiusMm": 57.15,
-      "basis": "authoring",
-      "transformPolicy": "phase7-authoring-to-navis-review.identity-placeholder.v1",
+      "basis": "navis-review",
+      "transformPolicy": "final-review-transform.v1",
       "sourceRef": "fixture/PIPE-1"
     }
   ],

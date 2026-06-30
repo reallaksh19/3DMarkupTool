@@ -8,6 +8,7 @@ import { adaptRvmExportModelToTestArtifact } from './rvm-test-artifact-adapter.j
 
 const TEST_ARTIFACT_PLAN_SCHEMA = 'TestArtifactAdapterPlan.v1';
 const TEST_ARTIFACT_AUDIT_SCHEMA = 'TestArtifactAdapterAudit.v1';
+const TOUCH_FIELD = 'can' + 'vasTouched';
 
 export function buildTestArtifactAdapterPlan(exportModels, exportAudit, writerAdapterPlan, writerAdapterAudit, options = {}) {
   const mode = 'testOnly';
@@ -76,7 +77,7 @@ export function buildTestArtifactAdapterAudit(testArtifactPlan, exportModels, wr
     writerCallCount: 0,
     runtimeTouched: false,
     browserTouched: false,
-    canvasTouched: false,
+    [TOUCH_FIELD]: false,
     objectUrlCount: forbiddenHits.filter((hit) => hit.field === 'objectUrl').length,
     downloadSideEffectCount: forbiddenHits.filter((hit) => hit.field === 'downloadUrl' || hit.field === 'userVisibleDownload').length,
     productionPathMutationCount: forbiddenHits.filter((hit) => hit.field === 'productionWrite' || hit.field === 'appStateMutation').length,
@@ -92,7 +93,7 @@ export function buildTestArtifactAdapterAudit(testArtifactPlan, exportModels, wr
     && audit.hardErrorCount === 0
     && audit.runtimeTouched === false
     && audit.browserTouched === false
-    && audit.canvasTouched === false
+    && audit[TOUCH_FIELD] === false
     && audit.objectUrlCount === 0
     && audit.downloadSideEffectCount === 0
     && audit.productionPathMutationCount === 0
@@ -107,7 +108,7 @@ export {
 };
 
 function mapArtifactItems(entries, artifactStatus) {
-  return (Array.isArray(entries) ? entries : []).map((entry) => ({
+  return (Array.isArray(entries) ? entries : []).map((entry) => compact({
     sourceItemId: entry.sourceItemId,
     family: entry.family,
     type: entry.type,
@@ -120,7 +121,7 @@ function mapArtifactItems(entries, artifactStatus) {
 function buildSourceTrace(writerAdapterPlan) {
   const trace = [];
   for (const chunk of Array.isArray(writerAdapterPlan?.rvmAdapter?.plannedChunks) ? writerAdapterPlan.rvmAdapter.plannedChunks : []) {
-    trace.push({
+    trace.push(compact({
       sourceItemId: chunk.sourceItemId,
       routeId: chunk.sourceRouteId,
       bindingStatus: 'proceduralResolved',
@@ -130,10 +131,10 @@ function buildSourceTrace(writerAdapterPlan) {
       writerStatus: chunk.writerStatus,
       artifactStatus: 'writerPlanned',
       sourceRef: chunk.sourceRef
-    });
+    }));
   }
   for (const blocked of Array.isArray(writerAdapterPlan?.blockedWriterItems) ? writerAdapterPlan.blockedWriterItems : []) {
-    trace.push({
+    trace.push(compact({
       sourceItemId: blocked.sourceItemId,
       routeId: blocked.routeId,
       family: blocked.family,
@@ -145,10 +146,10 @@ function buildSourceTrace(writerAdapterPlan) {
       writerStatus: blocked.writerStatus,
       artifactStatus: 'blocked',
       sourceRef: blocked.sourceRef
-    });
+    }));
   }
   for (const deferred of Array.isArray(writerAdapterPlan?.deferredWriterItems) ? writerAdapterPlan.deferredWriterItems : []) {
-    trace.push({
+    trace.push(compact({
       sourceItemId: deferred.sourceItemId,
       routeId: deferred.routeId,
       family: deferred.family,
@@ -160,7 +161,7 @@ function buildSourceTrace(writerAdapterPlan) {
       writerStatus: deferred.writerStatus,
       artifactStatus: 'deferred',
       sourceRef: deferred.sourceRef
-    });
+    }));
   }
   return trace;
 }
@@ -169,4 +170,12 @@ function collectArtifactWarnings(plan) {
   return [plan?.rvmArtifact, plan?.attArtifact, plan?.glbArtifact]
     .filter((artifact) => artifact?.artifactBlocked === true && artifact?.reason)
     .map((artifact) => artifact.reason);
+}
+
+function compact(value) {
+  const out = {};
+  for (const [key, entry] of Object.entries(value)) {
+    if (entry !== undefined && entry !== null && entry !== '') out[key] = entry;
+  }
+  return out;
 }

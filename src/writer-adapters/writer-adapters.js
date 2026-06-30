@@ -1,0 +1,94 @@
+import {
+  collectWriterAdapterForbiddenFieldHits,
+  validateWriterAdapterPlanContract
+} from '../contracts/index.js';
+import { adaptAttExportModelForWriter } from './att-writer-adapter.js';
+import { adaptGlbVisualModelForWriter } from './glb-writer-adapter.js';
+import { adaptRvmExportModelForWriter } from './rvm-writer-adapter.js';
+
+const WRITER_ADAPTER_PLAN_SCHEMA = 'WriterAdapterPlan.v1';
+const WRITER_ADAPTER_AUDIT_SCHEMA = 'WriterAdapterAudit.v1';
+
+export function buildWriterAdapterPlan(exportModels, exportAudit, options = {}) {
+  const mode = options.mode || 'dryRun';
+  const rvmAdapter = adaptRvmExportModelForWriter(exportModels?.rvmExportModel, exportAudit, { ...options, mode });
+  const attAdapter = adaptAttExportModelForWriter(exportModels?.attExportModel, exportAudit, { ...options, mode });
+  const glbAdapter = adaptGlbVisualModelForWriter(exportModels?.glbVisualModel, exportAudit, { ...options, mode });
+  return {
+    schema: WRITER_ADAPTER_PLAN_SCHEMA,
+    graphId: exportModels?.rvmExportModel?.graphId || exportModels?.attExportModel?.graphId || exportModels?.glbVisualModel?.graphId || options.graphId || '<unknown-graph>',
+    units: exportModels?.rvmExportModel?.units || exportModels?.attExportModel?.units || exportModels?.glbVisualModel?.units || options.units || 'mm',
+    mode,
+    rvmAdapter,
+    attAdapter,
+    glbAdapter,
+    blockedWriterItems: Array.isArray(rvmAdapter.blockedItems) ? rvmAdapter.blockedItems : [],
+    deferredWriterItems: Array.isArray(rvmAdapter.deferredItems) ? rvmAdapter.deferredItems : [],
+    sourceRefs: Array.isArray(exportModels?.rvmExportModel?.sourceRefs) ? exportModels.rvmExportModel.sourceRefs : []
+  };
+}
+
+export function buildWriterAdapterAudit(writerAdapterPlan, exportModels, exportAudit, options = {}) {
+  const validation = validateWriterAdapterPlanContract(writerAdapterPlan);
+  const forbiddenHits = collectWriterAdapterForbiddenFieldHits(writerAdapterPlan);
+  const errors = [...validation.errors];
+  const warnings = [
+    ...(Array.isArray(writerAdapterPlan?.rvmAdapter?.warnings) ? writerAdapterPlan.rvmAdapter.warnings : []),
+    ...(Array.isArray(writerAdapterPlan?.attAdapter?.warnings) ? writerAdapterPlan.attAdapter.warnings : []),
+    ...(Array.isArray(writerAdapterPlan?.glbAdapter?.warnings) ? writerAdapterPlan.glbAdapter.warnings : [])
+  ];
+  if (!exportAudit || exportAudit.schema !== 'ExportModelCompilationAudit.v1') errors.push('ExportModelCompilationAudit.v1 is required');
+  if (exportAudit?.ok !== true) errors.push('ExportModelCompilationAudit.ok must be true before writer adapter planning');
+
+  const rvmChunks = Array.isArray(writerAdapterPlan?.rvmAdapter?.plannedChunks) ? writerAdapterPlan.rvmAdapter.plannedChunks : [];
+  const blockedWriterItems = Array.isArray(writerAdapterPlan?.blockedWriterItems) ? writerAdapterPlan.blockedWriterItems : [];
+  const deferredWriterItems = Array.isArray(writerAdapterPlan?.deferredWriterItems) ? writerAdapterPlan.deferredWriterItems : [];
+  const audit = {
+    schema: WRITER_ADAPTER_AUDIT_SCHEMA,
+    graphId: writerAdapterPlan?.graphId || options.graphId || '<unknown-graph>',
+    mode: writerAdapterPlan?.mode || options.mode || 'dryRun',
+    rvmWriterReady: writerAdapterPlan?.rvmAdapter?.writerReady === true,
+    attWriterReady: writerAdapterPlan?.attAdapter?.writerReady === true,
+    glbWriterReady: writerAdapterPlan?.glbAdapter?.writerReady === true,
+    rvmPlannedChunkCount: rvmChunks.length,
+    rvmPlannedPrimChunkCount: rvmChunks.filter((entry) => entry.chunkKind === 'PRIM').length,
+    rvmPlannedCylinderCount: rvmChunks.filter((entry) => entry.primitiveKind === 'CYLINDER').length,
+    rvmPlannedTorusCount: rvmChunks.filter((entry) => entry.primitiveKind === 'TORUS').length,
+    rvmPlannedBoxCount: rvmChunks.filter((entry) => entry.primitiveKind === 'BOX').length,
+    rvmPlannedSphereCount: rvmChunks.filter((entry) => entry.primitiveKind === 'SPHERE').length,
+    rvmPlannedPyramidCount: rvmChunks.filter((entry) => entry.primitiveKind === 'PYRAMID').length,
+    attPlannedRecordCount: writerAdapterPlan?.attAdapter?.plannedRecordCount || 0,
+    glbPlannedVisualCount: writerAdapterPlan?.glbAdapter?.plannedVisualCount || 0,
+    blockedWriterItemCount: blockedWriterItems.length,
+    deferredWriterItemCount: deferredWriterItems.length,
+    blockedUnresolvedWriterCount: blockedWriterItems.length,
+    deferredSupportWriterCount: deferredWriterItems.filter((entry) => entry.family === 'support').length,
+    writerCallCount: 0,
+    binaryPayloadCount: forbiddenHits.filter((hit) => ['binary', 'bytes', 'buffer', 'arrayBuffer', 'chunkBytes', 'cntbBytes', 'primBody', 'fileBlob', 'writerPayload', 'writeResult'].includes(hit.field)).length,
+    textPayloadCount: forbiddenHits.filter((hit) => hit.field === 'attText').length,
+    glbPayloadCount: forbiddenHits.filter((hit) => hit.field === 'glbBytes' || hit.field === 'gltfJson').length,
+    downloadSideEffectCount: forbiddenHits.filter((hit) => hit.field === 'objectUrl' || hit.field === 'downloadUrl' || hit.field === 'filePath').length,
+    runtimeMutationCount: forbiddenHits.filter((hit) => ['threeObject', 'threeGeometry', 'meshGeometry'].includes(hit.field)).length,
+    hardErrorCount: errors.length,
+    warningCount: warnings.length,
+    ok: false,
+    errors,
+    warnings
+  };
+  audit.ok = validation.ok
+    && exportAudit?.ok === true
+    && audit.hardErrorCount === 0
+    && audit.writerCallCount === 0
+    && audit.binaryPayloadCount === 0
+    && audit.textPayloadCount === 0
+    && audit.glbPayloadCount === 0
+    && audit.downloadSideEffectCount === 0
+    && audit.runtimeMutationCount === 0;
+  return audit;
+}
+
+export {
+  adaptRvmExportModelForWriter,
+  adaptAttExportModelForWriter,
+  adaptGlbVisualModelForWriter
+};

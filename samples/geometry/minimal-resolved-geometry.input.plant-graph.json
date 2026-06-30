@@ -1,0 +1,100 @@
+{
+  "schema": "PlantModelGraph.v1",
+  "id": "minimal-resolved-geometry-fixture",
+  "project": {
+    "name": "Minimal resolved geometry fixture",
+    "units": "mm",
+    "axisBasis": {
+      "authoring": "canvas-current",
+      "rvmExport": "navis-review"
+    }
+  },
+  "catalogues": [
+    {
+      "id": "base-piping",
+      "version": "0.1.0",
+      "source": "catalogues/base-piping/base-piping.index.json"
+    }
+  ],
+  "nodes": [
+    { "id": "N1", "coord": [0, 0, 0], "sourceRef": "fixture/N1" },
+    { "id": "N2", "coord": [1000, 0, 0], "sourceRef": "fixture/N2" },
+    { "id": "N3", "coord": [1000, 1000, 0], "sourceRef": "fixture/N3" }
+  ],
+  "routes": [
+    {
+      "id": "R1",
+      "from": "N1",
+      "to": "N2",
+      "bore": "4in",
+      "schedule": "STD",
+      "sourceRef": "fixture/R1",
+      "topologyRole": "pipe-run-segment"
+    },
+    {
+      "id": "R2",
+      "from": "N2",
+      "to": "N3",
+      "bore": "4in",
+      "schedule": "STD",
+      "sourceRef": "fixture/R2",
+      "topologyRole": "inline-component-segment"
+    }
+  ],
+  "items": [
+    {
+      "id": "PIPE-1",
+      "kind": "generated",
+      "generator": "straightPipe.v1",
+      "route": "R1",
+      "sourceRef": "fixture/PIPE-1"
+    },
+    {
+      "id": "ELBOW-1",
+      "kind": "component",
+      "route": "R2",
+      "catalogueRef": {
+        "catalogue": "base-piping",
+        "family": "elbow",
+        "type": "90LR",
+        "nps": "4in",
+        "schedule": "STD"
+      },
+      "placement": {
+        "node": "N2",
+        "inRoute": "R1",
+        "outRoute": "R2"
+      },
+      "sourceRef": "fixture/ELBOW-1"
+    },
+    {
+      "id": "SUPPORT-1",
+      "kind": "support",
+      "node": "N2",
+      "supportFamily": "REST",
+      "axis": "+Y",
+      "sourceRef": "fixture/SUPPORT-1"
+    },
+    {
+      "id": "VALVE-1",
+      "kind": "component",
+      "family": "valve",
+      "type": "VALVE",
+      "route": "R2",
+      "dimensions": {
+        "diameterMm": 114.3,
+        "wallMm": 6.02
+      },
+      "placement": {
+        "node": "N3"
+      },
+      "sourceRef": "fixture/VALVE-1"
+    }
+  ],
+  "sourceRefs": [
+    {
+      "sourceType": "geometry-fixture",
+      "name": "minimal-resolved-geometry.input.plant-graph.json"
+    }
+  ]
+}

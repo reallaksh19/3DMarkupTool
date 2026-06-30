@@ -1,0 +1,17 @@
+{
+  "schema": "GeometryResolutionAudit.v1",
+  "graphId": "minimal-resolved-geometry-fixture",
+  "routeFrameCount": 2,
+  "itemFrameCount": 2,
+  "supportPlacementCount": 1,
+  "unresolvedGeometryCount": 1,
+  "resolvedStraightPipeCount": 1,
+  "catalogueFrameResolvedCount": 1,
+  "blockedUnresolvedComponentCount": 1,
+  "hardErrorCount": 0,
+  "navisTransformApplied": false,
+  "primitiveCodeCount": 0,
+  "exportDecisionCount": 0,
+  "ok": true,
+  "errors": []
+}

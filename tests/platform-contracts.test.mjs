@@ -14,6 +14,7 @@ const catalogueItem = await readJson('samples/contracts/base-piping.elbow-90lr-4
 const resolved = await readJson('samples/contracts/BM_CII.resolved-primitive-model.seed.json');
 
 assert.equal(CONTRACT_SCHEMA_SET.schema, 'PlatformContractSchemas.v1');
+assert.equal(CONTRACT_SCHEMA_SET.resolvedGeometryModel, 'ResolvedGeometryModel.v1');
 assert.equal(assertPlantModelGraphContract(graph).ok, true);
 assert.equal(assertCatalogueRegistryContract(registry).ok, true);
 assert.equal(assertComponentCatalogueItemContract(catalogueItem).ok, true);

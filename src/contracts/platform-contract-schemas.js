@@ -12,6 +12,7 @@ export const WRITER_ADAPTER_PLAN_SCHEMA = 'WriterAdapterPlan.v1';
 export const TEST_ARTIFACT_ADAPTER_PLAN_SCHEMA = 'TestArtifactAdapterPlan.v1';
 export const RVM_TEST_ARTIFACT_BYTE_PROOF_SCHEMA = 'RvmTestArtifactByteProof.v1';
 export const DIAGNOSTIC_CANVAS_PREVIEW_MODEL_SCHEMA = 'DiagnosticCanvasPreviewModel.v1';
+export const CONTROLLED_PREVIEW_MODEL_SCHEMA = 'ControlledPreviewModel.v1';
 
 export const CONTRACT_SCHEMA_SET = Object.freeze({
   schema: PLATFORM_CONTRACT_SCHEMA,
@@ -26,5 +27,6 @@ export const CONTRACT_SCHEMA_SET = Object.freeze({
   writerAdapterPlan: WRITER_ADAPTER_PLAN_SCHEMA,
   testArtifactAdapterPlan: TEST_ARTIFACT_ADAPTER_PLAN_SCHEMA,
   rvmTestArtifactByteProof: RVM_TEST_ARTIFACT_BYTE_PROOF_SCHEMA,
-  diagnosticCanvasPreviewModel: DIAGNOSTIC_CANVAS_PREVIEW_MODEL_SCHEMA
+  diagnosticCanvasPreviewModel: DIAGNOSTIC_CANVAS_PREVIEW_MODEL_SCHEMA,
+  controlledPreviewModel: CONTROLLED_PREVIEW_MODEL_SCHEMA
 });

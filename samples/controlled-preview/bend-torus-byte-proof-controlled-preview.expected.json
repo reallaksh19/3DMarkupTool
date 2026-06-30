@@ -1,0 +1,15 @@
+{
+  "schema": "Phase11BControlledPreviewExpected.v1",
+  "banner": {
+    "rvmPipeBendSubset": "READY",
+    "bendTorusTestByteProof": "READY",
+    "rvmFullModel": "NOT READY",
+    "reason": "flanges/valves/supports remain unresolved/deferred"
+  },
+  "counts": {
+    "straightPipeReadyCount": 19,
+    "bendTorusByteProvenCount": 7,
+    "blockedComponentCount": 14,
+    "deferredSupportCount": 12
+  }
+}

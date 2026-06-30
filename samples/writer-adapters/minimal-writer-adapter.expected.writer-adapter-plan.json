@@ -1,0 +1,158 @@
+{
+  "schema": "WriterAdapterPlan.v1",
+  "graphId": "minimal-writer-adapter-fixture",
+  "units": "mm",
+  "mode": "dryRun",
+  "rvmAdapter": {
+    "schema": "RvmWriterAdapterPlan.v1",
+    "graphId": "minimal-writer-adapter-fixture",
+    "writerKind": "rvm",
+    "mode": "dryRun",
+    "writerReady": false,
+    "sourceSchema": "RvmExportModel.v1",
+    "transformPolicy": "phase7-authoring-to-navis-review.identity-placeholder.v1",
+    "transformApplied": false,
+    "plannedPrimitiveCount": 1,
+    "plannedCylinderCount": 1,
+    "plannedTorusCount": 0,
+    "plannedBoxCount": 0,
+    "plannedSphereCount": 0,
+    "plannedPyramidCount": 0,
+    "plannedChunks": [
+      {
+        "chunkKind": "PRIM",
+        "sourcePrimitiveId": "PRIM-PIPE-1",
+        "sourceItemId": "PIPE-1",
+        "primitiveKind": "CYLINDER",
+        "primitiveCode": 8,
+        "writerStatus": "planned",
+        "reason": "writer-neutral cylinder primitive plan accepted"
+      }
+    ],
+    "blockedItems": [
+      {
+        "sourceItemId": "VALVE-1",
+        "family": "valve",
+        "type": "valve",
+        "writerStatus": "blocked",
+        "reason": "no exact catalogue item",
+        "sourceRef": "fixture/VALVE-1"
+      }
+    ],
+    "deferredItems": [
+      {
+        "sourceItemId": "SUPPORT-1",
+        "family": "support",
+        "type": "REST",
+        "writerStatus": "deferred",
+        "reason": "support primitive compiler not implemented in Phase 6",
+        "sourceRef": "fixture/SUPPORT-1"
+      }
+    ],
+    "warnings": ["RVM writer artifact readiness blocked until final review transform policy is implemented."]
+  },
+  "attAdapter": {
+    "schema": "AttWriterAdapterPlan.v1",
+    "graphId": "minimal-writer-adapter-fixture",
+    "writerKind": "att",
+    "mode": "dryRun",
+    "writerReady": true,
+    "sourceSchema": "AttExportModel.v1",
+    "plannedRecordCount": 1,
+    "plannedRecords": [
+      {
+        "recordId": "ATT-PIPE-1",
+        "sourceItemId": "PIPE-1",
+        "sourceRef": "fixture/PIPE-1",
+        "resolutionMode": "procedural",
+        "writerStatus": "planned",
+        "reason": "metadata record summary accepted"
+      }
+    ],
+    "blockedRecords": [
+      {
+        "sourceItemId": "VALVE-1",
+        "family": "valve",
+        "type": "valve",
+        "writerStatus": "blocked",
+        "reason": "no exact catalogue item",
+        "sourceRef": "fixture/VALVE-1"
+      }
+    ],
+    "deferredRecords": [
+      {
+        "sourceItemId": "SUPPORT-1",
+        "family": "support",
+        "type": "REST",
+        "writerStatus": "deferred",
+        "reason": "support primitive compiler not implemented in Phase 6",
+        "sourceRef": "fixture/SUPPORT-1"
+      }
+    ],
+    "warnings": []
+  },
+  "glbAdapter": {
+    "schema": "GlbWriterAdapterPlan.v1",
+    "graphId": "minimal-writer-adapter-fixture",
+    "writerKind": "glb",
+    "mode": "dryRun",
+    "writerReady": true,
+    "sourceSchema": "GlbVisualModel.v1",
+    "plannedVisualCount": 1,
+    "plannedVisuals": [
+      {
+        "visualItemId": "VIS-PRIM-PIPE-1",
+        "sourcePrimitiveId": "PRIM-PIPE-1",
+        "sourceItemId": "PIPE-1",
+        "visualKind": "cylinder",
+        "writerStatus": "planned",
+        "reason": "writer-neutral visual summary accepted",
+        "sourceRef": "fixture/PIPE-1"
+      }
+    ],
+    "blockedVisuals": [
+      {
+        "sourceItemId": "VALVE-1",
+        "family": "valve",
+        "type": "valve",
+        "writerStatus": "blocked",
+        "reason": "no exact catalogue item",
+        "sourceRef": "fixture/VALVE-1"
+      }
+    ],
+    "deferredVisuals": [
+      {
+        "sourceItemId": "SUPPORT-1",
+        "family": "support",
+        "type": "REST",
+        "writerStatus": "deferred",
+        "reason": "support primitive compiler not implemented in Phase 6",
+        "sourceRef": "fixture/SUPPORT-1"
+      }
+    ],
+    "warnings": ["GLB artifact output is not implemented in Phase 8."]
+  },
+  "blockedWriterItems": [
+    {
+      "sourceItemId": "VALVE-1",
+      "family": "valve",
+      "type": "valve",
+      "writerStatus": "blocked",
+      "reason": "no exact catalogue item",
+      "sourceRef": "fixture/VALVE-1"
+    }
+  ],
+  "deferredWriterItems": [
+    {
+      "sourceItemId": "SUPPORT-1",
+      "family": "support",
+      "type": "REST",
+      "writerStatus": "deferred",
+      "reason": "support primitive compiler not implemented in Phase 6",
+      "sourceRef": "fixture/SUPPORT-1"
+    }
+  ],
+  "sourceRefs": [
+    { "sourceType": "writer-adapter-fixture", "name": "minimal-writer-adapter.input.export-models.json" }
+  ]
+}

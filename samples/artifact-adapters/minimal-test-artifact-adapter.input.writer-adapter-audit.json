@@ -29,7 +29,7 @@
   "ok": true,
   "errors": [],
   "warnings": [
-    "RVM writer dry run ready for straight-pipe cylinder subset only",
+    "RVM writer dry-run ready for straight-pipe cylinder subset only",
     "GLB artifact output is not implemented in Phase 8."
   ]
 }

@@ -1,0 +1,68 @@
+{
+  "schema": "ResolvedPrimitiveModel.v1",
+  "graphId": "minimal-primitive-compiler-fixture",
+  "sourceGraphId": "minimal-primitive-compiler-fixture",
+  "sourceGeometryId": "minimal-primitive-compiler-fixture",
+  "units": "mm",
+  "axisBasis": {
+    "authoring": "canvas-current",
+    "rvmExport": "navis-review"
+  },
+  "items": [
+    { "id": "PIPE-1", "sourceGraphItemId": "PIPE-1", "resolutionMode": "procedural", "sourceRef": "fixture/PIPE-1" },
+    { "id": "ELBOW-1", "sourceGraphItemId": "ELBOW-1", "resolutionMode": "deferred", "sourceRef": "fixture/ELBOW-1" },
+    { "id": "SUPPORT-1", "sourceGraphItemId": "SUPPORT-1", "resolutionMode": "deferred", "sourceRef": "fixture/SUPPORT-1" },
+    { "id": "VALVE-1", "sourceGraphItemId": "VALVE-1", "resolutionMode": "blocked", "sourceRef": "fixture/VALVE-1" }
+  ],
+  "primitives": [
+    {
+      "primitiveId": "PRIM-PIPE-1",
+      "sourceItemId": "PIPE-1",
+      "sourceRouteId": "R1",
+      "primitiveKind": "CYLINDER",
+      "primitiveCode": 8,
+      "center": [500, 0, 0],
+      "axis": [1, 0, 0],
+      "lengthMm": 1000,
+      "radiusMm": 57.15,
+      "basis": "authoring",
+      "resolver": "straightPipeCylinderPrimitive.v1",
+      "geometryStatus": "primitiveResolved",
+      "sourceRef": "fixture/PIPE-1"
+    }
+  ],
+  "blockedPrimitives": [
+    {
+      "sourceItemId": "VALVE-1",
+      "family": "valve",
+      "type": "valve",
+      "geometryStatus": "blocked",
+      "reason": "no exact catalogue item",
+      "sourceRef": "fixture/VALVE-1"
+    }
+  ],
+  "deferredPrimitives": [
+    {
+      "sourceItemId": "ELBOW-1",
+      "family": "elbow",
+      "type": "90lr",
+      "geometryStatus": "deferred",
+      "reason": "component primitive compiler not implemented in Phase 6",
+      "sourceRef": "fixture/ELBOW-1"
+    },
+    {
+      "sourceItemId": "SUPPORT-1",
+      "family": "support",
+      "type": "REST",
+      "geometryStatus": "deferred",
+      "reason": "support primitive compiler not implemented in Phase 6",
+      "sourceRef": "fixture/SUPPORT-1"
+    }
+  ],
+  "sourceRefs": [
+    {
+      "sourceType": "primitive-fixture",
+      "name": "minimal-primitive-compiler.input.resolved-geometry.json"
+    }
+  ]
+}

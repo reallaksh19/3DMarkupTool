@@ -1,0 +1,144 @@
+{
+  "schema": "DiagnosticCanvasPreviewModel.v1",
+  "graphId": "minimal-test-artifact-fixture",
+  "units": "mm",
+  "mode": "diagnosticOnly",
+  "sourceSchemas": [
+    "TestArtifactAdapterPlan.v1",
+    "TestArtifactAdapterAudit.v1",
+    "WriterAdapterPlan.v1",
+    "WriterAdapterAudit.v1"
+  ],
+  "artifactStatusBanner": {
+    "rvm": {
+      "ready": false,
+      "generated": false,
+      "blocked": true,
+      "message": "RVM artifact blocked until final review transform policy is implemented"
+    },
+    "att": {
+      "ready": false,
+      "generated": false,
+      "blocked": true,
+      "message": "ATT writer adapter requires production writer model bridge not implemented in Phase 8A"
+    },
+    "glb": {
+      "ready": false,
+      "generated": false,
+      "blocked": true,
+      "message": "GLB test artifact writer not implemented in Phase 8A"
+    }
+  },
+  "summaryCards": [
+    { "key": "straightPipeWriterPlanCount", "value": 1 },
+    { "key": "blockedComponentCount", "value": 1 },
+    { "key": "deferredSupportCount", "value": 1 },
+    { "key": "artifactReadyCount", "value": 0 },
+    { "key": "artifactBlockedCount", "value": 3 },
+    { "key": "runtimeTouched", "value": false },
+    { "key": "canvasTouched", "value": false }
+  ],
+  "previewItems": [
+    {
+      "previewItemId": "DCP-0001",
+      "sourceItemId": "PIPE-1",
+      "family": "pipe",
+      "type": "straight",
+      "diagnosticKind": "straightPipeWriterPlan",
+      "diagnosticStatus": "writerPlannedArtifactBlocked",
+      "severity": "warning",
+      "label": "Straight pipe planned, artifact blocked",
+      "message": "Writer plan exists, but artifact readiness is blocked until artifact audit is ready."
+    },
+    {
+      "previewItemId": "DCP-0002",
+      "sourceItemId": "VALVE-1",
+      "family": "valve",
+      "type": "valve",
+      "diagnosticKind": "blockedComponent",
+      "diagnosticStatus": "blockedUnresolved",
+      "severity": "blocked",
+      "label": "Blocked valve",
+      "message": "No preview shape generated. Component remains blocked by upstream catalogue, planning, export, or artifact status.",
+      "sourceRef": "fixture/VALVE-1"
+    },
+    {
+      "previewItemId": "DCP-0003",
+      "sourceItemId": "SUPPORT-1",
+      "family": "support",
+      "type": "REST",
+      "diagnosticKind": "deferredSupport",
+      "diagnosticStatus": "deferred",
+      "severity": "warning",
+      "label": "Deferred support",
+      "message": "Support is preserved as deferred status. No support preview shape is generated in Phase 9.",
+      "sourceRef": "fixture/SUPPORT-1"
+    }
+  ],
+  "blockedBadges": [
+    {
+      "previewItemId": "DCP-0002",
+      "sourceItemId": "VALVE-1",
+      "family": "valve",
+      "type": "valve",
+      "diagnosticKind": "blockedComponent",
+      "diagnosticStatus": "blockedUnresolved",
+      "severity": "blocked",
+      "label": "Blocked valve",
+      "message": "No preview shape generated. Component remains blocked by upstream catalogue, planning, export, or artifact status.",
+      "sourceRef": "fixture/VALVE-1"
+    }
+  ],
+  "deferredBadges": [
+    {
+      "previewItemId": "DCP-0003",
+      "sourceItemId": "SUPPORT-1",
+      "family": "support",
+      "type": "REST",
+      "diagnosticKind": "deferredSupport",
+      "diagnosticStatus": "deferred",
+      "severity": "warning",
+      "label": "Deferred support",
+      "message": "Support is preserved as deferred status. No support preview shape is generated in Phase 9.",
+      "sourceRef": "fixture/SUPPORT-1"
+    }
+  ],
+  "sourceTrace": [
+    {
+      "sourceItemId": "PIPE-1",
+      "bindingStatus": "proceduralResolved",
+      "geometryStatus": "resolved",
+      "primitiveStatus": "primitiveResolved",
+      "exportStatus": "planned",
+      "writerStatus": "planned",
+      "artifactStatus": "writerPlanned"
+    },
+    {
+      "sourceItemId": "VALVE-1",
+      "family": "valve",
+      "type": "valve",
+      "bindingStatus": "unresolved",
+      "geometryStatus": "blocked",
+      "primitiveStatus": "blocked",
+      "exportStatus": "blocked",
+      "writerStatus": "blocked",
+      "artifactStatus": "blocked",
+      "sourceRef": "fixture/VALVE-1"
+    },
+    {
+      "sourceItemId": "SUPPORT-1",
+      "family": "support",
+      "type": "REST",
+      "bindingStatus": "supportIntent",
+      "geometryStatus": "intentOnly",
+      "primitiveStatus": "deferred",
+      "exportStatus": "deferred",
+      "writerStatus": "deferred",
+      "artifactStatus": "deferred",
+      "sourceRef": "fixture/SUPPORT-1"
+    }
+  ],
+  "sourceRefs": [
+    { "sourceType": "preview-fixture", "name": "minimal-diagnostic-preview.input.test-artifact-plan.json" }
+  ]
+}

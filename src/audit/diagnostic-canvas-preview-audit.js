@@ -1,0 +1,49 @@
+const DIAGNOSTIC_CANVAS_PREVIEW_AUDIT_SCHEMA = 'DiagnosticCanvasPreviewAudit.v1';
+const COUNT_KEYS = [
+  'previewItemCount',
+  'straightPipeWriterPlanPreviewCount',
+  'blockedComponentPreviewCount',
+  'blockedFlangePreviewCount',
+  'blockedValvePreviewCount',
+  'blockedBendPreviewCount',
+  'deferredSupportPreviewCount',
+  'artifactStatusBannerCount',
+  'summaryCardCount',
+  'sourceTraceCount',
+  'geometryPayloadCount',
+  'meshPayloadCount',
+  'threeObjectCount',
+  'runtimeMutationCount',
+  'browserTouchCount',
+  'canvasTouchCount',
+  'objectUrlCount',
+  'downloadSideEffectCount',
+  'binaryPayloadCount',
+  'textPayloadCount',
+  'glbPayloadCount',
+  'cacheKeyMutationCount',
+  'hardErrorCount',
+  'warningCount'
+];
+const BOOLEAN_KEYS = ['ok'];
+
+export function assertDiagnosticCanvasPreviewAudit(audit, expectations = {}) {
+  const errors = [];
+  if (!audit || typeof audit !== 'object') errors.push('audit must be an object');
+  if (audit?.schema !== DIAGNOSTIC_CANVAS_PREVIEW_AUDIT_SCHEMA) errors.push(`schema must be ${DIAGNOSTIC_CANVAS_PREVIEW_AUDIT_SCHEMA}`);
+  if (!audit?.graphId) errors.push('graphId is required');
+  if (audit?.mode !== 'diagnosticOnly') errors.push('mode must be diagnosticOnly');
+  for (const key of COUNT_KEYS) {
+    if (!Number.isInteger(Number(audit?.[key]))) errors.push(`${key} must be integer-like`);
+  }
+  for (const key of BOOLEAN_KEYS) {
+    if (typeof audit?.[key] !== 'boolean') errors.push(`${key} must be boolean`);
+  }
+  if (!Array.isArray(audit?.errors)) errors.push('errors array is required');
+  if (!Array.isArray(audit?.warnings)) errors.push('warnings array is required');
+  for (const [key, expected] of Object.entries(expectations)) {
+    if (JSON.stringify(audit?.[key]) !== JSON.stringify(expected)) errors.push(`${key} expectation failed`);
+  }
+  if (errors.length) throw new Error(`Diagnostic canvas preview audit invalid: ${errors.join('; ')}`);
+  return { schema: 'DiagnosticCanvasPreviewAuditAssertion.v1', ok: true, errorCount: 0, errors: [] };
+}

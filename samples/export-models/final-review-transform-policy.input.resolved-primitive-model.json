@@ -1,0 +1,38 @@
+{
+  "schema": "ResolvedPrimitiveModel.v1",
+  "graphId": "final-review-transform-fixture",
+  "sourceGraphId": "final-review-transform-fixture",
+  "sourceGeometryId": "final-review-transform-fixture",
+  "units": "mm",
+  "axisBasis": {
+    "authoring": "canvas-current",
+    "rvmExport": "navis-review"
+  },
+  "items": [
+    { "id": "PIPE-X", "sourceGraphItemId": "PIPE-X", "resolutionMode": "procedural", "sourceRef": "fixture/PIPE-X" }
+  ],
+  "primitives": [
+    {
+      "primitiveId": "PRIM-PIPE-X",
+      "sourceItemId": "PIPE-X",
+      "sourceRouteId": "R-X",
+      "primitiveKind": "CYLINDER",
+      "primitiveCode": 8,
+      "center": [100, 200, 300],
+      "axis": [0, 3, 4],
+      "lengthMm": 500,
+      "radiusMm": 25,
+      "diameterMm": 50,
+      "wallMm": 5,
+      "basis": "authoring",
+      "resolver": "straightPipeCylinderPrimitive.v1",
+      "geometryStatus": "primitiveResolved",
+      "sourceRef": "fixture/PIPE-X"
+    }
+  ],
+  "blockedPrimitives": [],
+  "deferredPrimitives": [],
+  "sourceRefs": [
+    { "sourceType": "final-review-transform-fixture", "name": "final-review-transform-policy.input.resolved-primitive-model.json" }
+  ]
+}

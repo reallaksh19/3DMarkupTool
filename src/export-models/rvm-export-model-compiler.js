@@ -1,14 +1,13 @@
 import {
-  phase7TransformMetadata,
-  transformAuthoringAxisToReview,
-  transformAuthoringPointToReview
+  applyFinalReviewTransformToRvmPrimitive,
+  finalReviewTransformMetadata
 } from './review-transform-policy.js';
 
 const RVM_EXPORT_MODEL_SCHEMA = 'RvmExportModel.v1';
 
 export function compileResolvedPrimitiveModelToRvmExportModel(primitiveModel, primitiveAudit, options = {}) {
   const canCompile = primitiveAudit?.schema === 'PrimitiveCompilationAudit.v1' && primitiveAudit.ok === true;
-  const transform = phase7TransformMetadata();
+  const transform = finalReviewTransformMetadata();
   const graphId = primitiveModel?.graphId || options.graphId || '<unknown-graph>';
   const primitives = [];
   const blockedExports = [];
@@ -17,17 +16,18 @@ export function compileResolvedPrimitiveModelToRvmExportModel(primitiveModel, pr
   if (canCompile) {
     for (const primitive of Array.isArray(primitiveModel?.primitives) ? primitiveModel.primitives : []) {
       if (primitive.primitiveKind === 'CYLINDER' && Number(primitive.primitiveCode) === 8) {
+        const transformed = applyFinalReviewTransformToRvmPrimitive(primitive);
         primitives.push({
           exportPrimitiveId: `RVM-${primitive.primitiveId || primitive.sourceItemId}`,
           sourcePrimitiveId: primitive.primitiveId,
           sourceItemId: primitive.sourceItemId,
           primitiveKind: 'CYLINDER',
           primitiveCode: 8,
-          center: transformAuthoringPointToReview(primitive.center),
-          axis: transformAuthoringAxisToReview(primitive.axis),
-          lengthMm: Number(primitive.lengthMm),
-          radiusMm: Number(primitive.radiusMm),
-          basis: transform.transformApplied ? 'navis-review' : 'authoring',
+          center: transformed.center,
+          axis: transformed.axis,
+          lengthMm: transformed.lengthMm,
+          radiusMm: transformed.radiusMm,
+          basis: 'navis-review',
           transformPolicy: transform.transformPolicy,
           sourceRef: primitive.sourceRef
         });
@@ -63,7 +63,7 @@ export function compileResolvedPrimitiveModelToRvmExportModel(primitiveModel, pr
     exportAxisBasis: transform.exportAxisBasis,
     transformPolicy: transform.transformPolicy,
     transformApplied: transform.transformApplied,
-    transformWarnings: [transform.warning],
+    transformWarnings: transform.transformWarnings,
     primitives,
     blockedExports,
     deferredExports,

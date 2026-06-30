@@ -23,6 +23,7 @@ assert.equal(CONTRACT_SCHEMA_SET.writerAdapterPlan, 'WriterAdapterPlan.v1');
 assert.equal(CONTRACT_SCHEMA_SET.testArtifactAdapterPlan, 'TestArtifactAdapterPlan.v1');
 assert.equal(CONTRACT_SCHEMA_SET.rvmTestArtifactByteProof, 'RvmTestArtifactByteProof.v1');
 assert.equal(CONTRACT_SCHEMA_SET.diagnosticCanvasPreviewModel, 'DiagnosticCanvasPreviewModel.v1');
+assert.equal(CONTRACT_SCHEMA_SET.controlledPreviewModel, 'ControlledPreviewModel.v1');
 assert.equal(assertPlantModelGraphContract(graph).ok, true);
 assert.equal(assertCatalogueRegistryContract(registry).ok, true);
 assert.equal(assertComponentCatalogueItemContract(catalogueItem).ok, true);

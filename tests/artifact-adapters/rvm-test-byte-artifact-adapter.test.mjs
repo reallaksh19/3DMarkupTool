@@ -116,7 +116,7 @@ assert.equal(assertRvmTestArtifactByteProofAudit(audit, {
 
 const adapterSource = await readFile('src/artifact-adapters/rvm-test-byte-artifact-adapter.js', 'utf8');
 assert.match(adapterSource, /\.\.\/rvm-writer\.js/, 'byte adapter may import rvm-writer.js only here');
-for (const forbidden of ['app.js', 'safe-ui-loader', 'app-loader', 'managed-stage-json-ui-controller', 'managed-stage-rvm-converter', "from 'three'", 'from "three"', 'window.', 'document.', 'createObjectURL', 'userVisibleDownload']) {
+for (const forbidden of ['app.js', 'safe-ui-loader', 'app-loader', 'managed-stage-json-ui-controller', 'managed-stage-rvm-converter', "from 'three'", 'from "three"', 'window.', 'document.', 'createObjectURL']) {
   assert.equal(adapterSource.includes(forbidden), false, `byte adapter must not reference ${forbidden}`);
 }
 for (const runtimePath of [

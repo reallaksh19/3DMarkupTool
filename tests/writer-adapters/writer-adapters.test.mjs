@@ -22,8 +22,9 @@ assert.equal(rvmAdapter.plannedChunks[0].primitiveKind, 'CYLINDER');
 assert.equal(rvmAdapter.plannedChunks[0].primitiveCode, 8);
 assert.equal(JSON.stringify(rvmAdapter).includes('chunkBytes'), false, 'RVM adapter has no chunk bytes');
 assert.equal(JSON.stringify(rvmAdapter).includes('primBody'), false, 'RVM adapter has no PRIM body');
-assert.equal(rvmAdapter.writerReady, false, 'RVM readiness is blocked by transform placeholder');
-assert.ok(rvmAdapter.warnings.some((entry) => entry.includes('final review transform policy')));
+assert.equal(rvmAdapter.writerReady, true, 'RVM dry-run readiness is true for final transformed straight-pipe subset');
+assert.equal(rvmAdapter.writerReadinessScope, 'straightPipeSubsetDryRunReady');
+assert.ok(rvmAdapter.warnings.some((entry) => entry.includes('straight-pipe cylinder subset only')));
 assert.equal(rvmAdapter.blockedItems.find((entry) => entry.sourceItemId === 'VALVE-1').writerStatus, 'blocked');
 assert.equal(rvmAdapter.deferredItems.find((entry) => entry.sourceItemId === 'SUPPORT-1').writerStatus, 'deferred');
 
@@ -48,6 +49,7 @@ assert.deepEqual(audit, expectedAudit, 'writer adapter audit must match golden f
 assert.equal(assertWriterAdapterAudit(audit, {
   ok: true,
   hardErrorCount: 0,
+  rvmWriterReady: true,
   writerCallCount: 0,
   binaryPayloadCount: 0,
   textPayloadCount: 0,

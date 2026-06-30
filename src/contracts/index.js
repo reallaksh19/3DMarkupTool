@@ -5,6 +5,9 @@ export {
   COMPONENT_CATALOGUE_ITEM_SCHEMA,
   RESOLVED_GEOMETRY_MODEL_SCHEMA,
   RESOLVED_PRIMITIVE_MODEL_SCHEMA,
+  RVM_EXPORT_MODEL_SCHEMA,
+  ATT_EXPORT_MODEL_SCHEMA,
+  GLB_VISUAL_MODEL_SCHEMA,
   CONTRACT_SCHEMA_SET
 } from './platform-contract-schemas.js';
 
@@ -30,6 +33,16 @@ export {
   validateResolvedPrimitiveModelContract,
   assertResolvedPrimitiveModelContract
 } from './resolved-primitive-model-contract.js';
+
+export {
+  validateRvmExportModelContract,
+  validateAttExportModelContract,
+  validateGlbVisualModelContract,
+  assertRvmExportModelContract,
+  assertAttExportModelContract,
+  assertGlbVisualModelContract,
+  collectExportModelForbiddenFieldHits
+} from './export-model-contracts.js';
 
 export {
   FALLBACK_POLICY_SCHEMA,

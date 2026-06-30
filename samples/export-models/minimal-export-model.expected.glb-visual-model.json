@@ -1,0 +1,58 @@
+{
+  "schema": "GlbVisualModel.v1",
+  "graphId": "minimal-primitive-compiler-fixture",
+  "units": "mm",
+  "sourceAxisBasis": {
+    "authoring": "canvas-current",
+    "rvmExport": "navis-review"
+  },
+  "visualItems": [
+    {
+      "visualItemId": "VIS-PRIM-PIPE-1",
+      "sourcePrimitiveId": "PRIM-PIPE-1",
+      "sourceItemId": "PIPE-1",
+      "visualKind": "cylinder",
+      "center": [500, 0, 0],
+      "axis": [1, 0, 0],
+      "lengthMm": 1000,
+      "radiusMm": 57.15,
+      "basis": "authoring",
+      "visualStatus": "visualPlanned",
+      "sourceRef": "fixture/PIPE-1"
+    }
+  ],
+  "blockedVisuals": [
+    {
+      "sourceItemId": "VALVE-1",
+      "family": "valve",
+      "type": "valve",
+      "visualStatus": "blocked",
+      "reason": "no exact catalogue item",
+      "sourceRef": "fixture/VALVE-1"
+    }
+  ],
+  "deferredVisuals": [
+    {
+      "sourceItemId": "ELBOW-1",
+      "family": "elbow",
+      "type": "90lr",
+      "visualStatus": "deferred",
+      "reason": "component primitive compiler not implemented in Phase 6",
+      "sourceRef": "fixture/ELBOW-1"
+    },
+    {
+      "sourceItemId": "SUPPORT-1",
+      "family": "support",
+      "type": "REST",
+      "visualStatus": "deferred",
+      "reason": "support primitive compiler not implemented in Phase 6",
+      "sourceRef": "fixture/SUPPORT-1"
+    }
+  ],
+  "sourceRefs": [
+    {
+      "sourceType": "primitive-fixture",
+      "name": "minimal-primitive-compiler.input.resolved-geometry.json"
+    }
+  ]
+}

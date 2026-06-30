@@ -1,0 +1,23 @@
+{
+  "schema": "PrimitiveCompilationAudit.v1",
+  "graphId": "minimal-primitive-compiler-fixture",
+  "primitiveCount": 1,
+  "cylinderPrimitiveCount": 1,
+  "torusPrimitiveCount": 0,
+  "boxPrimitiveCount": 0,
+  "spherePrimitiveCount": 0,
+  "pyramidPrimitiveCount": 0,
+  "supportPrimitiveCount": 0,
+  "deferredPrimitiveCount": 2,
+  "deferredSupportPrimitiveCount": 1,
+  "blockedPrimitiveCount": 1,
+  "blockedUnresolvedGeometryCount": 1,
+  "blockedCatalogueFrameCount": 1,
+  "missingDimensionCount": 0,
+  "hardErrorCount": 0,
+  "navisTransformApplied": false,
+  "writerCallCount": 0,
+  "exportDecisionCount": 0,
+  "ok": true,
+  "errors": []
+}

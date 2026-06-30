@@ -1,0 +1,109 @@
+import { RVM_TEST_ARTIFACT_BYTE_PROOF_SCHEMA } from './platform-contract-schemas.js';
+
+const FORBIDDEN_FIELDS = Object.freeze([
+  'objectUrl',
+  'downloadUrl',
+  'domNode',
+  'canvas',
+  'threeObject',
+  'threeGeometry',
+  'meshGeometry',
+  'runtimeMutation',
+  'userVisibleDownload',
+  'productionWrite',
+  'appStateMutation',
+  'cacheKeyMutation',
+  'attText',
+  'glbBytes',
+  'gltfJson',
+  'fileBlob',
+  'bytes',
+  'binary',
+  'arrayBuffer',
+  'buffer',
+  'rvmBytes'
+]);
+
+export function validateRvmTestArtifactByteProofContract(proof) {
+  const errors = [];
+  if (!proof || typeof proof !== 'object') errors.push('proof must be an object');
+  if (proof?.schema !== RVM_TEST_ARTIFACT_BYTE_PROOF_SCHEMA) errors.push(`schema must be ${RVM_TEST_ARTIFACT_BYTE_PROOF_SCHEMA}`);
+  if (!proof?.graphId) errors.push('graphId is required');
+  if (!proof?.units) errors.push('units is required');
+  if (proof?.mode !== 'testOnly') errors.push('mode must be testOnly');
+  if (proof?.artifactKind !== 'rvm') errors.push('artifactKind must be rvm');
+  for (const key of ['artifactReady', 'artifactGenerated', 'artifactBlocked', 'transformApplied']) {
+    if (typeof proof?.[key] !== 'boolean') errors.push(`${key} must be boolean`);
+  }
+  if (!Number.isInteger(Number(proof?.artifactByteLength))) errors.push('artifactByteLength must be integer-like');
+  if (proof?.artifactGenerated === true && Number(proof?.artifactByteLength) <= 0) errors.push('generated artifact requires positive artifactByteLength');
+  if (proof?.artifactGenerated === true && !isSha256(proof?.checksumSha256)) errors.push('generated artifact requires checksumSha256');
+  if (proof?.checksumSha256 && !isSha256(proof.checksumSha256)) errors.push('checksumSha256 must be 64 lowercase hex chars');
+  if (proof?.byteHeaderHex !== undefined && !isHeaderHex(proof.byteHeaderHex)) errors.push('byteHeaderHex must be hex and at most 64 chars');
+  if (proof?.writerBridge !== 'src/rvm-writer.js') errors.push('writerBridge must be src/rvm-writer.js');
+  if (proof?.writerBridgeMode !== 'isolated-test-only') errors.push('writerBridgeMode must be isolated-test-only');
+  if (proof?.transformPolicy !== 'final-review-transform.v1') errors.push('transformPolicy must be final-review-transform.v1');
+  if (proof?.sourceSchema !== 'RvmExportModel.v1') errors.push('sourceSchema must be RvmExportModel.v1');
+  for (const key of ['primitiveCount', 'cylinderPrimitiveCount', 'torusPrimitiveCount', 'boxPrimitiveCount', 'spherePrimitiveCount', 'pyramidPrimitiveCount', 'supportPrimitiveCount']) {
+    if (!Number.isInteger(Number(proof?.[key])) || Number(proof?.[key]) < 0) errors.push(`${key} must be non-negative integer-like`);
+  }
+  if (Number(proof?.primitiveCount) !== Number(proof?.cylinderPrimitiveCount) + Number(proof?.torusPrimitiveCount) + Number(proof?.boxPrimitiveCount) + Number(proof?.spherePrimitiveCount) + Number(proof?.pyramidPrimitiveCount) + Number(proof?.supportPrimitiveCount)) {
+    errors.push('primitiveCount must equal per-kind primitive count total');
+  }
+  if (!Array.isArray(proof?.blockedArtifactItems)) errors.push('blockedArtifactItems array is required');
+  if (!Array.isArray(proof?.deferredArtifactItems)) errors.push('deferredArtifactItems array is required');
+  if (!Array.isArray(proof?.sourceTrace)) errors.push('sourceTrace array is required');
+  if (!Array.isArray(proof?.warnings)) errors.push('warnings array is required');
+  if (!Array.isArray(proof?.errors)) errors.push('errors array is required');
+  validateStatusArray(proof?.blockedArtifactItems, 'blockedArtifactItems', 'blocked', errors);
+  validateStatusArray(proof?.deferredArtifactItems, 'deferredArtifactItems', 'deferred', errors);
+  for (const [index, trace] of (proof?.sourceTrace || []).entries()) {
+    if (!trace?.sourceItemId) errors.push(`sourceTrace[${index}].sourceItemId is required`);
+    if (!trace?.artifactStatus) errors.push(`sourceTrace[${index}].artifactStatus is required`);
+  }
+  const forbiddenHits = collectRvmTestArtifactByteProofForbiddenFieldHits(proof);
+  errors.push(...forbiddenHits.map((hit) => `forbidden field ${hit.field} at ${hit.path}`));
+  return {
+    schema: 'RvmTestArtifactByteProofValidation.v1',
+    ok: errors.length === 0,
+    errorCount: errors.length,
+    errors,
+    forbiddenFieldCount: forbiddenHits.length,
+    forbiddenFields: forbiddenHits
+  };
+}
+
+export function assertRvmTestArtifactByteProofContract(proof) {
+  const result = validateRvmTestArtifactByteProofContract(proof);
+  if (!result.ok) throw new Error(`RvmTestArtifactByteProof contract invalid: ${result.errors.join('; ')}`);
+  return result;
+}
+
+export function collectRvmTestArtifactByteProofForbiddenFieldHits(value, path = '$', hits = []) {
+  if (!value || typeof value !== 'object') return hits;
+  if (Array.isArray(value)) {
+    value.forEach((entry, index) => collectRvmTestArtifactByteProofForbiddenFieldHits(entry, `${path}[${index}]`, hits));
+    return hits;
+  }
+  for (const [key, entry] of Object.entries(value)) {
+    if (FORBIDDEN_FIELDS.includes(key)) hits.push({ path: `${path}.${key}`, field: key });
+    collectRvmTestArtifactByteProofForbiddenFieldHits(entry, `${path}.${key}`, hits);
+  }
+  return hits;
+}
+
+function validateStatusArray(entries, label, expectedStatus, errors) {
+  for (const [index, entry] of (entries || []).entries()) {
+    if (!entry?.sourceItemId) errors.push(`${label}[${index}].sourceItemId is required`);
+    if (entry?.artifactStatus !== expectedStatus) errors.push(`${label}[${index}].artifactStatus must be ${expectedStatus}`);
+    if (!entry?.reason) errors.push(`${label}[${index}].reason is required`);
+  }
+}
+
+function isSha256(value) {
+  return typeof value === 'string' && /^[0-9a-f]{64}$/.test(value);
+}
+
+function isHeaderHex(value) {
+  return typeof value === 'string' && value.length <= 64 && value.length % 2 === 0 && /^[0-9a-f]*$/.test(value);
+}

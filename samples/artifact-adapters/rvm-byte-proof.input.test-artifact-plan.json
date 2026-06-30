@@ -1,0 +1,33 @@
+{
+  "schema": "TestArtifactAdapterPlan.v1",
+  "graphId": "rvm-byte-proof-fixture",
+  "units": "mm",
+  "mode": "testOnly",
+  "rvmArtifact": {
+    "artifactKind": "rvm",
+    "artifactReady": false,
+    "artifactGenerated": false,
+    "artifactBlocked": true,
+    "reason": "RVM artifact byte generation not implemented in Phase 8B; straight-pipe subset transform readiness proven",
+    "byteLength": 0,
+    "primitiveCount": 1,
+    "transformReady": true,
+    "straightPipeSubsetReady": true
+  },
+  "attArtifact": { "artifactKind": "att", "artifactReady": false, "artifactGenerated": false, "artifactBlocked": true, "reason": "ATT writer adapter requires production writer model bridge not implemented in Phase 8A", "textLength": 0, "recordCount": 0 },
+  "glbArtifact": { "artifactKind": "glb", "artifactReady": false, "artifactGenerated": false, "artifactBlocked": true, "reason": "GLB test artifact writer not implemented in Phase 8A", "byteLength": 0, "primitiveCount": 0 },
+  "blockedArtifactItems": [
+    { "sourceItemId": "VALVE-1", "family": "valve", "type": "valve", "artifactStatus": "blocked", "reason": "no exact catalogue item", "sourceRef": "fixture/VALVE-1" }
+  ],
+  "deferredArtifactItems": [
+    { "sourceItemId": "SUPPORT-1", "family": "support", "type": "REST", "artifactStatus": "deferred", "reason": "support primitive compiler not implemented in Phase 6", "sourceRef": "fixture/SUPPORT-1" }
+  ],
+  "sourceTrace": [
+    { "sourceItemId": "PIPE-1", "bindingStatus": "proceduralResolved", "geometryStatus": "resolved", "primitiveStatus": "primitiveResolved", "exportStatus": "planned", "writerStatus": "planned", "artifactStatus": "writerPlanned" },
+    { "sourceItemId": "VALVE-1", "family": "valve", "type": "valve", "bindingStatus": "unresolved", "geometryStatus": "blocked", "primitiveStatus": "blocked", "exportStatus": "blocked", "writerStatus": "blocked", "artifactStatus": "blocked", "sourceRef": "fixture/VALVE-1" },
+    { "sourceItemId": "SUPPORT-1", "family": "support", "type": "REST", "bindingStatus": "supportIntent", "geometryStatus": "intentOnly", "primitiveStatus": "deferred", "exportStatus": "deferred", "writerStatus": "deferred", "artifactStatus": "deferred", "sourceRef": "fixture/SUPPORT-1" }
+  ],
+  "sourceRefs": [
+    { "sourceType": "rvm-byte-proof-fixture", "name": "rvm-byte-proof.input.test-artifact-plan.json" }
+  ]
+}

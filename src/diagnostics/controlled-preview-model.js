@@ -15,7 +15,7 @@ export function buildControlledPreviewModel(panelViewModel, diagnosticPreviewMod
   if (!rvmByteProofAudit || rvmByteProofAudit.schema !== 'RvmTestArtifactByteProofAudit.v1') errors.push('RvmTestArtifactByteProofAudit.v1 is required');
   if (rvmByteProofAudit?.ok !== true) errors.push('RvmTestArtifactByteProofAudit.ok must be true');
   const rows = Array.isArray(panelViewModel?.sourceTraceRows) ? panelViewModel.sourceTraceRows : [];
-  const straightRows = rows.filter((row) => row.primitiveStatus === 'primitiveResolved' && ['planned', 'byteProven'].includes(row.writerStatus));
+  const straightRows = rows.filter((row) => row.primitiveStatus === 'primitiveResolved' && ['planned', 'byteProven'].includes(row.writerStatus) && row.primitiveKind !== 'TORUS' && row.family !== 'elbow');
   const bendTorusByteRows = rows.filter((row) => row.family === 'elbow' && row.primitiveKind === 'TORUS' && row.writerStatus === 'byteProven');
   const bendTorusDeferredRows = rows.filter((row) => row.family === 'elbow' && row.primitiveKind === 'TORUS' && row.writerStatus === 'deferred');
   const blockedRows = rows.filter((row) => row.artifactStatus === 'blocked');
@@ -29,14 +29,7 @@ export function buildControlledPreviewModel(panelViewModel, diagnosticPreviewMod
   const blockedPreview = blockedRows.map((row, index) => toPreviewItem(row, index, 'blockedComponent', 'blocked', 'blocked', `${displayFamily(row.family)} blocked`, 'Component remains blocked; no placeholder/fallback geometry is shown.'));
   const bendBytePreview = bendTorusByteRows.map((row, index) => toPreviewItem(row, index, 'bendTorusByteProven', 'ready', 'info', 'Bend TORUS test byte proof ready', 'Bend TORUS/code4 is included in the isolated test-only RVM byte proof.'));
   const deferredPreview = [...bendBytePreview, ...deferredRows.map((row, index) => row.family === 'elbow' ? toPreviewItem(row, index, 'bendTorusWriterDeferred', 'deferred', 'warning', 'Bend TORUS primitive resolved; writer/artifact deferred', 'Bend TORUS byte proof is not available.') : toPreviewItem(row, index, 'deferredSupport', 'deferred', 'warning', 'Support deferred', 'Support remains deferred; no support geometry is shown.'))];
-  const sourceTracePreview = rows.map((row, index) => {
-    if (row.family === 'elbow' && row.primitiveKind === 'TORUS' && row.writerStatus === 'byteProven') return toPreviewItem(row, index, 'bendTorusByteProven', 'ready', 'info', 'Source trace diagnostic row', 'Bend TORUS/code4 byte proof ready.');
-    if (row.family === 'elbow' && row.primitiveKind === 'TORUS' && row.writerStatus === 'deferred') return toPreviewItem(row, index, 'bendTorusWriterDeferred', 'deferred', 'warning', 'Source trace diagnostic row', 'Bend TORUS primitive resolved; writer/artifact deferred.');
-    if (row.artifactStatus === 'blocked') return toPreviewItem(row, index, 'blockedComponent', 'blocked', 'blocked', 'Source trace diagnostic row', 'Blocked diagnostic row; not geometry.');
-    if (row.artifactStatus === 'deferred') return toPreviewItem(row, index, 'deferredSupport', 'deferred', 'warning', 'Source trace diagnostic row', 'Deferred diagnostic row; not geometry.');
-    if (row.writerStatus === 'planned' || row.writerStatus === 'byteProven') return toPreviewItem(row, index, rvmPipeBendReady ? 'rvmPipeBendSubsetReady' : 'rvmStraightPipeSubsetReady', 'ready', 'info', 'Source trace diagnostic row', 'Schematic diagnostic preview row; not geometry.');
-    return toPreviewItem(row, index, 'diagnosticOnly', 'diagnosticOnly', 'info', 'Source trace diagnostic row', 'Schematic diagnostic preview row; not geometry.');
-  });
+  const sourceTracePreview = rows.map((row, index) => { if (row.family === 'elbow' && row.primitiveKind === 'TORUS' && row.writerStatus === 'byteProven') return toPreviewItem(row, index, 'bendTorusByteProven', 'ready', 'info', 'Source trace diagnostic row', 'Bend TORUS/code4 byte proof ready.'); if (row.family === 'elbow' && row.primitiveKind === 'TORUS' && row.writerStatus === 'deferred') return toPreviewItem(row, index, 'bendTorusWriterDeferred', 'deferred', 'warning', 'Source trace diagnostic row', 'Bend TORUS primitive resolved; writer/artifact deferred.'); if (row.artifactStatus === 'blocked') return toPreviewItem(row, index, 'blockedComponent', 'blocked', 'blocked', 'Source trace diagnostic row', 'Blocked diagnostic row; not geometry.'); if (row.artifactStatus === 'deferred') return toPreviewItem(row, index, 'deferredSupport', 'deferred', 'warning', 'Source trace diagnostic row', 'Deferred diagnostic row; not geometry.'); if (row.writerStatus === 'planned' || row.writerStatus === 'byteProven') return toPreviewItem(row, index, rvmPipeBendReady ? 'rvmPipeBendSubsetReady' : 'rvmStraightPipeSubsetReady', 'ready', 'info', 'Source trace diagnostic row', 'Schematic diagnostic preview row; not geometry.'); return toPreviewItem(row, index, 'diagnosticOnly', 'diagnosticOnly', 'info', 'Source trace diagnostic row', 'Schematic diagnostic preview row; not geometry.'); });
   const blockedFlanges = blockedRows.filter((row) => row.family === 'flange');
   const blockedValves = blockedRows.filter((row) => row.family === 'valve');
   const blockedBends = blockedRows.filter((row) => row.family === 'elbow');
@@ -44,7 +37,6 @@ export function buildControlledPreviewModel(panelViewModel, diagnosticPreviewMod
   model.errors.push(...validateControlledPreviewModel(model).errors);
   return model;
 }
-
 export function validateControlledPreviewModel(model) { return validateControlledPreviewModelContract(model); }
 export { collectControlledPreviewForbiddenFieldHits };
 function toPreviewItem(row, index, previewStatus, readiness, severity, label, message) { return { previewId: `CP-${String(index + 1).padStart(4, '0')}-${safeId(row.sourceItemId)}`, sourceItemId: row.sourceItemId || '<unknown-item>', family: row.family || 'unknown', type: row.type || '', previewStatus, readiness, severity, label, message, sourceRef: row.sourceRef || '' }; }

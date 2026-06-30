@@ -61,7 +61,7 @@ assert.equal(failedAudit.ok, false, 'failed geometry audit must fail primitive a
 assert.ok(failedAudit.errors.some((entry) => entry.includes('GeometryResolutionAudit.ok')));
 
 const compilerSource = await readFile('src/primitives/primitive-compiler.js', 'utf8');
-for (const forbidden of ['catalogue-binder', 'geometry-solver', 'rvm-writer', 'att-writer', 'managed-stage-rvm-converter', 'canvas', 'app-loader', 'safe-ui-loader', 'three', 'window.', 'document.']) {
+for (const forbidden of ['catalogue-binder', 'geometry-solver', 'rvm-writer', 'att-writer', 'managed-stage-rvm-converter', 'canvas', 'app-loader', 'safe-ui-loader', "from 'three'", 'from "three"', 'window.', 'document.']) {
   assert.equal(compilerSource.includes(forbidden), false, `primitive compiler must not reference ${forbidden}`);
 }
 

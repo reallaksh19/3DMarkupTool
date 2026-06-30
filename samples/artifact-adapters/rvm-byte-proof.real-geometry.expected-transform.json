@@ -1,0 +1,15 @@
+{
+  "schema": "RvmByteProofRealGeometryTransformOracle.v1",
+  "graphId": "rvm-byte-proof-real-geometry",
+  "transformPolicy": "final-review-transform.v1",
+  "pointMapping": "[xPrime,yPrime,zPrime]=[-z,-x,y]",
+  "axisTolerance": 1e-9,
+  "metricToleranceMm": 1e-6,
+  "pipes": [
+    { "sourceItemId": "PIPE-001", "authoringStart": [0, 0, 0], "authoringEnd": [1000, 0, 0], "authoringCenter": [500, 0, 0], "authoringAxis": [1, 0, 0], "navisCenter": [0, -500, 0], "navisAxis": [0, -1, 0], "lengthMm": 1000, "radiusMm": 57.15, "primitiveKind": "CYLINDER", "primitiveCode": 8 },
+    { "sourceItemId": "PIPE-002", "authoringStart": [1000, 0, 0], "authoringEnd": [1000, 2000, 0], "authoringCenter": [1000, 1000, 0], "authoringAxis": [0, 1, 0], "navisCenter": [0, -1000, 1000], "navisAxis": [0, 0, 1], "lengthMm": 2000, "radiusMm": 44.45, "primitiveKind": "CYLINDER", "primitiveCode": 8 },
+    { "sourceItemId": "PIPE-003", "authoringStart": [1000, 2000, 0], "authoringEnd": [1000, 2000, 1500], "authoringCenter": [1000, 2000, 750], "authoringAxis": [0, 0, 1], "navisCenter": [-750, -1000, 2000], "navisAxis": [-1, 0, 0], "lengthMm": 1500, "radiusMm": 30.15, "primitiveKind": "CYLINDER", "primitiveCode": 8 },
+    { "sourceItemId": "PIPE-004", "authoringStart": [1000, 2000, 1500], "authoringEnd": [-500, 2000, 1500], "authoringCenter": [250, 2000, 1500], "authoringAxis": [-1, 0, 0], "navisCenter": [-1500, -250, 2000], "navisAxis": [0, 1, 0], "lengthMm": 1500, "radiusMm": 84.15, "primitiveKind": "CYLINDER", "primitiveCode": 8 },
+    { "sourceItemId": "PIPE-005", "authoringStart": [-500, 2000, 1500], "authoringEnd": [-500, 1250, 2250], "authoringCenter": [-500, 1625, 1875], "authoringAxis": [0, -0.7071067811865475, 0.7071067811865475], "navisCenter": [-1875, 500, 1625], "navisAxis": [-0.7071067811865475, 0, -0.7071067811865475], "lengthMm": 1060.6601717798212, "radiusMm": 16.7, "primitiveKind": "CYLINDER", "primitiveCode": 8 }
+  ]
+}

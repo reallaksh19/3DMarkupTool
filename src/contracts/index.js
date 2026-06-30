@@ -9,6 +9,7 @@ export {
   ATT_EXPORT_MODEL_SCHEMA,
   GLB_VISUAL_MODEL_SCHEMA,
   WRITER_ADAPTER_PLAN_SCHEMA,
+  TEST_ARTIFACT_ADAPTER_PLAN_SCHEMA,
   CONTRACT_SCHEMA_SET
 } from './platform-contract-schemas.js';
 
@@ -50,6 +51,12 @@ export {
   assertWriterAdapterPlanContract,
   collectWriterAdapterForbiddenFieldHits
 } from './writer-adapter-contract.js';
+
+export {
+  validateTestArtifactAdapterPlanContract,
+  assertTestArtifactAdapterPlanContract,
+  collectTestArtifactForbiddenFieldHits
+} from './test-artifact-adapter-contract.js';
 
 export {
   FALLBACK_POLICY_SCHEMA,

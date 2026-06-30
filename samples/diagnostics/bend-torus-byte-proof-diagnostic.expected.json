@@ -1,0 +1,15 @@
+{
+  "schema": "Phase11BDiagnosticExpected.v1",
+  "straightPipeReadyCount": 19,
+  "bendTorusPrimitiveResolvedCount": 7,
+  "bendTorusByteProvenCount": 7,
+  "bendTorusWriterDeferredCount": 0,
+  "blockedFlangeCount": 8,
+  "blockedValveCount": 6,
+  "blockedBendCount": 0,
+  "deferredSupportCount": 12,
+  "rvmPipeBendSubsetReady": true,
+  "rvmFullModelReady": false,
+  "attReady": false,
+  "glbReady": false
+}

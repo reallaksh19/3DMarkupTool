@@ -1,32 +1,5 @@
 const DIAGNOSTIC_CANVAS_PREVIEW_AUDIT_SCHEMA = 'DiagnosticCanvasPreviewAudit.v1';
-const COUNT_KEYS = [
-  'previewItemCount',
-  'straightPipeWriterPlanPreviewCount',
-  'bendTorusPrimitiveResolvedPreviewCount',
-  'bendTorusWriterDeferredPreviewCount',
-  'blockedComponentPreviewCount',
-  'blockedFlangePreviewCount',
-  'blockedValvePreviewCount',
-  'blockedBendPreviewCount',
-  'deferredSupportPreviewCount',
-  'artifactStatusBannerCount',
-  'summaryCardCount',
-  'sourceTraceCount',
-  'geometryPayloadCount',
-  'meshPayloadCount',
-  'threeObjectCount',
-  'runtimeMutationCount',
-  'browserTouchCount',
-  'canvasTouchCount',
-  'objectUrlCount',
-  'downloadSideEffectCount',
-  'binaryPayloadCount',
-  'textPayloadCount',
-  'glbPayloadCount',
-  'cacheKeyMutationCount',
-  'hardErrorCount',
-  'warningCount'
-];
+const COUNT_KEYS = ['previewItemCount', 'straightPipeWriterPlanPreviewCount', 'straightPipeByteProvenPreviewCount', 'bendTorusPrimitiveResolvedPreviewCount', 'bendTorusWriterDeferredPreviewCount', 'bendTorusByteProvenPreviewCount', 'blockedComponentPreviewCount', 'blockedFlangePreviewCount', 'blockedValvePreviewCount', 'blockedBendPreviewCount', 'deferredSupportPreviewCount', 'artifactStatusBannerCount', 'summaryCardCount', 'sourceTraceCount', 'geometryPayloadCount', 'meshPayloadCount', 'threeObjectCount', 'runtimeMutationCount', 'browserTouchCount', 'canvasTouchCount', 'objectUrlCount', 'downloadSideEffectCount', 'binaryPayloadCount', 'textPayloadCount', 'glbPayloadCount', 'cacheKeyMutationCount', 'hardErrorCount', 'warningCount'];
 const BOOLEAN_KEYS = ['ok'];
 
 export function assertDiagnosticCanvasPreviewAudit(audit, expectations = {}) {
@@ -39,9 +12,7 @@ export function assertDiagnosticCanvasPreviewAudit(audit, expectations = {}) {
   for (const key of BOOLEAN_KEYS) if (typeof audit?.[key] !== 'boolean') errors.push(`${key} must be boolean`);
   if (!Array.isArray(audit?.errors)) errors.push('errors array is required');
   if (!Array.isArray(audit?.warnings)) errors.push('warnings array is required');
-  for (const [key, expected] of Object.entries(expectations)) {
-    if (JSON.stringify(audit?.[key]) !== JSON.stringify(expected)) errors.push(`${key} expectation failed`);
-  }
+  for (const [key, expected] of Object.entries(expectations)) if (JSON.stringify(audit?.[key]) !== JSON.stringify(expected)) errors.push(`${key} expectation failed`);
   if (errors.length) throw new Error(`Diagnostic canvas preview audit invalid: ${errors.join('; ')}`);
   return { schema: 'DiagnosticCanvasPreviewAuditAssertion.v1', ok: true, errorCount: 0, errors: [] };
 }

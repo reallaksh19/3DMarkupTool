@@ -1,48 +1,10 @@
 import { DIAGNOSTIC_CANVAS_PREVIEW_MODEL_SCHEMA } from './platform-contract-schemas.js';
 
 const MODE = 'diagnosticOnly';
-const DIAGNOSTIC_KINDS = Object.freeze([
-  'straightPipeWriterPlan',
-  'blockedComponent',
-  'deferredSupport',
-  'bendTorusWriterDeferred',
-  'artifactStatus',
-  'pipelineSummary'
-]);
-const DIAGNOSTIC_STATUSES = Object.freeze([
-  'writerPlannedArtifactBlocked',
-  'blockedUnresolved',
-  'deferred',
-  'primitiveResolvedWriterDeferred',
-  'artifactBlocked',
-  'summary'
-]);
+const DIAGNOSTIC_KINDS = Object.freeze(['straightPipeWriterPlan', 'straightPipeByteProven', 'blockedComponent', 'deferredSupport', 'bendTorusWriterDeferred', 'bendTorusByteProven', 'artifactStatus', 'pipelineSummary']);
+const DIAGNOSTIC_STATUSES = Object.freeze(['writerPlannedArtifactBlocked', 'byteProven', 'blockedUnresolved', 'deferred', 'primitiveResolvedWriterDeferred', 'primitiveResolvedByteProven', 'artifactBlocked', 'summary']);
 const SEVERITIES = Object.freeze(['info', 'warning', 'blocked']);
-const FORBIDDEN_FIELDS = Object.freeze([
-  'geometry',
-  'mesh',
-  'meshGeometry',
-  'threeObject',
-  'threeGeometry',
-  'webgl',
-  'bufferGeometry',
-  'material',
-  'rvmBytes',
-  'attText',
-  'glbBytes',
-  'gltfJson',
-  'objectUrl',
-  'downloadUrl',
-  'domNode',
-  'canvas',
-  'runtimeMutation',
-  'artifactPayload',
-  'writerPayload',
-  'binary',
-  'bytes',
-  'fileBlob',
-  'cacheKeyMutation'
-]);
+const FORBIDDEN_FIELDS = Object.freeze(['geometry', 'mesh', 'meshGeometry', 'threeObject', 'threeGeometry', 'webgl', 'bufferGeometry', 'material', 'rvmBytes', 'attText', 'glbBytes', 'gltfJson', 'objectUrl', 'downloadUrl', 'domNode', 'canvas', 'runtimeMutation', 'artifactPayload', 'writerPayload', 'binary', 'bytes', 'fileBlob', 'cacheKeyMutation']);
 
 export function validateDiagnosticCanvasPreviewModelContract(model) {
   const errors = [];
@@ -59,63 +21,17 @@ export function validateDiagnosticCanvasPreviewModelContract(model) {
   if (!Array.isArray(model?.deferredBadges)) errors.push('deferredBadges array is required');
   if (!Array.isArray(model?.sourceTrace)) errors.push('sourceTrace array is required');
   if (!Array.isArray(model?.sourceRefs)) errors.push('sourceRefs array is required');
-
   for (const [index, item] of (model?.previewItems || []).entries()) validatePreviewItem(item, `previewItems[${index}]`, errors);
   for (const [index, item] of (model?.blockedBadges || []).entries()) validatePreviewItem(item, `blockedBadges[${index}]`, errors);
   for (const [index, item] of (model?.deferredBadges || []).entries()) validatePreviewItem(item, `deferredBadges[${index}]`, errors);
   for (const [index, item] of (model?.bendTorusBadges || []).entries()) validatePreviewItem(item, `bendTorusBadges[${index}]`, errors);
-  for (const [index, card] of (model?.summaryCards || []).entries()) {
-    if (!card?.key) errors.push(`summaryCards[${index}].key is required`);
-    if (!Object.hasOwn(card || {}, 'value')) errors.push(`summaryCards[${index}].value is required`);
-  }
-  for (const [kind, artifact] of Object.entries(model?.artifactStatusBanner || {})) {
-    if (!['rvm', 'att', 'glb'].includes(kind)) errors.push(`artifactStatusBanner.${kind} is not allowed`);
-    for (const key of ['ready', 'generated', 'blocked']) {
-      if (typeof artifact?.[key] !== 'boolean') errors.push(`artifactStatusBanner.${kind}.${key} must be boolean`);
-    }
-    if (!artifact?.message) errors.push(`artifactStatusBanner.${kind}.message is required`);
-  }
-
+  for (const [index, card] of (model?.summaryCards || []).entries()) { if (!card?.key) errors.push(`summaryCards[${index}].key is required`); if (!Object.hasOwn(card || {}, 'value')) errors.push(`summaryCards[${index}].value is required`); }
+  for (const [kind, artifact] of Object.entries(model?.artifactStatusBanner || {})) { if (!['rvm', 'att', 'glb'].includes(kind)) errors.push(`artifactStatusBanner.${kind} is not allowed`); for (const key of ['ready', 'generated', 'blocked']) if (typeof artifact?.[key] !== 'boolean') errors.push(`artifactStatusBanner.${kind}.${key} must be boolean`); if (!artifact?.message) errors.push(`artifactStatusBanner.${kind}.message is required`); }
   const forbiddenHits = collectDiagnosticPreviewForbiddenFieldHits(model);
   errors.push(...forbiddenHits.map((hit) => `forbidden field ${hit.field} at ${hit.path}`));
-  return {
-    schema: 'DiagnosticCanvasPreviewModelValidation.v1',
-    ok: errors.length === 0,
-    errorCount: errors.length,
-    errors,
-    forbiddenFieldCount: forbiddenHits.length,
-    forbiddenFields: forbiddenHits
-  };
+  return { schema: 'DiagnosticCanvasPreviewModelValidation.v1', ok: errors.length === 0, errorCount: errors.length, errors, forbiddenFieldCount: forbiddenHits.length, forbiddenFields: forbiddenHits };
 }
 
-export function assertDiagnosticCanvasPreviewModelContract(model) {
-  const result = validateDiagnosticCanvasPreviewModelContract(model);
-  if (!result.ok) throw new Error(`DiagnosticCanvasPreviewModel contract invalid: ${result.errors.join('; ')}`);
-  return result;
-}
-
-export function collectDiagnosticPreviewForbiddenFieldHits(value, path = '$', hits = []) {
-  if (!value || typeof value !== 'object') return hits;
-  if (Array.isArray(value)) {
-    value.forEach((entry, index) => collectDiagnosticPreviewForbiddenFieldHits(entry, `${path}[${index}]`, hits));
-    return hits;
-  }
-  for (const [key, entry] of Object.entries(value)) {
-    if (FORBIDDEN_FIELDS.includes(key)) hits.push({ path: `${path}.${key}`, field: key });
-    collectDiagnosticPreviewForbiddenFieldHits(entry, `${path}.${key}`, hits);
-  }
-  return hits;
-}
-
-function validatePreviewItem(item, path, errors) {
-  if (!item || typeof item !== 'object') {
-    errors.push(`${path} must be an object`);
-    return;
-  }
-  for (const key of ['previewItemId', 'sourceItemId', 'diagnosticKind', 'diagnosticStatus', 'severity', 'label', 'message']) {
-    if (!item[key]) errors.push(`${path}.${key} is required`);
-  }
-  if (!DIAGNOSTIC_KINDS.includes(item.diagnosticKind)) errors.push(`${path}.diagnosticKind is not allowed`);
-  if (!DIAGNOSTIC_STATUSES.includes(item.diagnosticStatus)) errors.push(`${path}.diagnosticStatus is not allowed`);
-  if (!SEVERITIES.includes(item.severity)) errors.push(`${path}.severity is not allowed`);
-}
+export function assertDiagnosticCanvasPreviewModelContract(model) { const result = validateDiagnosticCanvasPreviewModelContract(model); if (!result.ok) throw new Error(`DiagnosticCanvasPreviewModel contract invalid: ${result.errors.join('; ')}`); return result; }
+export function collectDiagnosticPreviewForbiddenFieldHits(value, path = '$', hits = []) { if (!value || typeof value !== 'object') return hits; if (Array.isArray(value)) { value.forEach((entry, index) => collectDiagnosticPreviewForbiddenFieldHits(entry, `${path}[${index}]`, hits)); return hits; } for (const [key, entry] of Object.entries(value)) { if (FORBIDDEN_FIELDS.includes(key)) hits.push({ path: `${path}.${key}`, field: key }); collectDiagnosticPreviewForbiddenFieldHits(entry, `${path}.${key}`, hits); } return hits; }
+function validatePreviewItem(item, path, errors) { if (!item || typeof item !== 'object') { errors.push(`${path} must be an object`); return; } for (const key of ['previewItemId', 'sourceItemId', 'diagnosticKind', 'diagnosticStatus', 'severity', 'label', 'message']) if (!item[key]) errors.push(`${path}.${key} is required`); if (!DIAGNOSTIC_KINDS.includes(item.diagnosticKind)) errors.push(`${path}.diagnosticKind is not allowed`); if (!DIAGNOSTIC_STATUSES.includes(item.diagnosticStatus)) errors.push(`${path}.diagnosticStatus is not allowed`); if (!SEVERITIES.includes(item.severity)) errors.push(`${path}.severity is not allowed`); }

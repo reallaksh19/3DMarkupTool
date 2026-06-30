@@ -11,7 +11,6 @@ export function buildDiagnosticPanelViewModel(diagnosticPreviewModel, diagnostic
   if (rvmByteProof && rvmByteProof.schema !== 'RvmTestArtifactByteProof.v1') errors.push('RvmTestArtifactByteProof.v1 expected when byte proof is provided');
   if (rvmByteProofAudit && rvmByteProofAudit.schema !== 'RvmTestArtifactByteProofAudit.v1') errors.push('RvmTestArtifactByteProofAudit.v1 expected when byte proof audit is provided');
   if (rvmByteProofAudit && rvmByteProofAudit.ok !== true) errors.push('RvmTestArtifactByteProofAudit.ok must be true when provided');
-
   const previewItems = Array.isArray(diagnosticPreviewModel?.previewItems) ? diagnosticPreviewModel.previewItems : [];
   const traceRows = Array.isArray(diagnosticPreviewModel?.sourceTrace) ? diagnosticPreviewModel.sourceTrace : [];
   const blockedFlanges = previewItems.filter((item) => item.family === 'flange' && item.diagnosticKind === 'blockedComponent');
@@ -19,66 +18,18 @@ export function buildDiagnosticPanelViewModel(diagnosticPreviewModel, diagnostic
   const blockedBends = previewItems.filter((item) => item.family === 'elbow' && item.diagnosticKind === 'blockedComponent');
   const deferredSupports = previewItems.filter((item) => item.family === 'support' && item.diagnosticKind === 'deferredSupport');
   const deferredBendTorus = previewItems.filter((item) => item.family === 'elbow' && item.diagnosticKind === 'bendTorusWriterDeferred');
-  const straightPipes = previewItems.filter((item) => item.diagnosticKind === 'straightPipeWriterPlan');
+  const byteProvenBendTorus = previewItems.filter((item) => item.family === 'elbow' && item.diagnosticKind === 'bendTorusByteProven');
+  const straightPipes = previewItems.filter((item) => item.diagnosticKind === 'straightPipeWriterPlan' || item.diagnosticKind === 'straightPipeByteProven');
+  const rvmPipeBendReady = rvmByteProofAudit?.rvmPipeBendSubsetArtifactReady === true;
   const rvmSubsetReady = rvmByteProofAudit?.rvmStraightPipeSubsetArtifactReady === true || rvmByteProof?.artifactReady === true;
   const rvmFullReady = rvmByteProofAudit?.rvmFullModelArtifactReady === true;
   if (!rvmByteProof || !rvmByteProofAudit) warnings.push('RVM byte proof is not available to the diagnostic panel.');
   if (blockedFlanges.length + blockedValves.length + blockedBends.length + deferredSupports.length + deferredBendTorus.length) warnings.push('RVM full model remains not ready because blocked/deferred content remains.');
-
-  return {
-    schema: VIEW_MODEL_SCHEMA,
-    graphId: diagnosticPreviewModel?.graphId || options.graphId || '<unknown-graph>',
-    mode: MODE,
-    featureFlagEnabled: options.featureFlagEnabled === true,
-    overallStatus: rvmSubsetReady && !rvmFullReady ? 'partial-rvm-subset-ready' : 'diagnostics-only',
-    artifactCards: [
-      card('rvmStraightPipeSubset', 'RVM straight-pipe subset byte proof', rvmSubsetReady ? 'READY' : 'NOT READY', rvmSubsetReady, rvmSubsetReady ? 'Straight-pipe CYLINDER/code8 byte proof is available.' : 'Straight-pipe byte proof is not available.'),
-      card('rvmFullModel', 'RVM full model', rvmFullReady ? 'READY' : 'NOT READY', rvmFullReady, rvmFullReady ? 'Full model artifact is ready.' : 'blocked/deferred content remains'),
-      card('bendTorus', 'Bend TORUS writer/artifact', 'DEFERRED', false, 'Bends resolved as TORUS/code4 primitive, but RVM TORUS byte writer is not implemented.'),
-      card('att', 'ATT', 'BLOCKED', false, 'ATT writer bridge remains blocked.'),
-      card('glb', 'GLB', 'BLOCKED', false, 'GLB artifact bridge remains blocked.')
-    ],
-    summaryCards: [
-      summary('straightPipeCount', 'Straight-pipe subset ready count', straightPipes.length),
-      summary('bendTorusPrimitiveResolvedCount', 'Bends resolved as TORUS primitive', deferredBendTorus.length),
-      summary('bendTorusWriterDeferredCount', 'Bend TORUS writer/artifact deferred', deferredBendTorus.length),
-      summary('blockedFlangeCount', 'Flanges blocked', blockedFlanges.length),
-      summary('blockedValveCount', 'Valves blocked', blockedValves.length),
-      summary('blockedBendCount', 'Bends blocked', blockedBends.length),
-      summary('deferredSupportCount', 'Supports deferred', deferredSupports.length),
-      summary('sourceTraceRows', 'Source trace rows', traceRows.length)
-    ],
-    blockedGroups: [group('flange', 'Flanges blocked', blockedFlanges), group('valve', 'Valves blocked', blockedValves), group('bend', 'Bends blocked', blockedBends)],
-    deferredGroups: [group('bendTorus', 'Bend TORUS writer/artifact deferred', deferredBendTorus), group('support', 'Supports deferred', deferredSupports)],
-    straightPipeSubsetCard: { key: 'straightPipeSubset', ready: rvmSubsetReady, status: rvmSubsetReady ? 'READY' : 'NOT READY', count: straightPipes.length, fullModelReady: rvmFullReady, artifactByteLength: Number(rvmByteProof?.artifactByteLength || 0), checksumPresent: typeof rvmByteProof?.checksumSha256 === 'string' && /^[0-9a-f]{64}$/.test(rvmByteProof.checksumSha256) },
-    sourceTraceRows: traceRows.map(toTraceRow),
-    warnings,
-    errors
-  };
+  return { schema: VIEW_MODEL_SCHEMA, graphId: diagnosticPreviewModel?.graphId || options.graphId || '<unknown-graph>', mode: MODE, featureFlagEnabled: options.featureFlagEnabled === true, overallStatus: rvmPipeBendReady && !rvmFullReady ? 'pipe-bend-subset-ready' : rvmSubsetReady && !rvmFullReady ? 'partial-rvm-subset-ready' : 'diagnostics-only', artifactCards: [card('rvmPipeBendSubset', 'RVM pipe+bend subset byte proof', rvmPipeBendReady ? 'READY' : 'NOT READY', rvmPipeBendReady, rvmPipeBendReady ? '19 CYLINDER/code8 + 7 TORUS/code4 test byte proof is available.' : 'Pipe+bend byte proof is not available.'), card('rvmStraightPipeSubset', 'RVM straight-pipe subset byte proof', rvmSubsetReady ? 'READY' : 'NOT READY', rvmSubsetReady, rvmSubsetReady ? 'Straight-pipe CYLINDER/code8 byte proof is available.' : 'Straight-pipe byte proof is not available.'), card('rvmFullModel', 'RVM full model', rvmFullReady ? 'READY' : 'NOT READY', rvmFullReady, rvmFullReady ? 'Full model artifact is ready.' : 'flanges/valves/supports remain unresolved/deferred'), card('bendTorus', 'Bend TORUS test byte proof', byteProvenBendTorus.length ? 'READY' : 'DEFERRED', byteProvenBendTorus.length > 0, byteProvenBendTorus.length ? 'Bends resolved as TORUS/code4 and included in test-only byte proof.' : 'Bend TORUS proof is not available.'), card('att', 'ATT', 'BLOCKED', false, 'ATT writer bridge remains blocked.'), card('glb', 'GLB', 'BLOCKED', false, 'GLB artifact bridge remains blocked.')], summaryCards: [summary('straightPipeCount', 'Straight-pipe ready count', straightPipes.length), summary('bendTorusPrimitiveResolvedCount', 'Bends resolved as TORUS primitive', byteProvenBendTorus.length + deferredBendTorus.length), summary('bendTorusByteProvenCount', 'Bend TORUS test byte proof ready', byteProvenBendTorus.length), summary('bendTorusWriterDeferredCount', 'Bend TORUS writer/artifact deferred', deferredBendTorus.length), summary('blockedFlangeCount', 'Flanges blocked', blockedFlanges.length), summary('blockedValveCount', 'Valves blocked', blockedValves.length), summary('blockedBendCount', 'Bends blocked', blockedBends.length), summary('deferredSupportCount', 'Supports deferred', deferredSupports.length), summary('sourceTraceRows', 'Source trace rows', traceRows.length)], blockedGroups: [group('flange', 'Flanges blocked', blockedFlanges), group('valve', 'Valves blocked', blockedValves), group('bend', 'Bends blocked', blockedBends)], deferredGroups: [group('bendTorus', 'Bend TORUS writer/artifact deferred', deferredBendTorus), group('support', 'Supports deferred', deferredSupports)], byteProvenGroups: [group('bendTorusByteProof', 'Bend TORUS test byte proof ready', byteProvenBendTorus)], straightPipeSubsetCard: { key: 'straightPipeSubset', ready: rvmSubsetReady, status: rvmSubsetReady ? 'READY' : 'NOT READY', count: straightPipes.length, pipeBendSubsetReady: rvmPipeBendReady, fullModelReady: rvmFullReady, artifactByteLength: Number(rvmByteProof?.artifactByteLength || 0), checksumPresent: typeof rvmByteProof?.checksumSha256 === 'string' && /^[0-9a-f]{64}$/.test(rvmByteProof.checksumSha256) }, sourceTraceRows: traceRows.map(toTraceRow), warnings, errors };
 }
 
-export function validateDiagnosticPanelViewModel(viewModel) {
-  const errors = [];
-  if (!viewModel || typeof viewModel !== 'object') errors.push('viewModel must be an object');
-  if (viewModel?.schema !== VIEW_MODEL_SCHEMA) errors.push(`schema must be ${VIEW_MODEL_SCHEMA}`);
-  if (viewModel?.mode !== MODE) errors.push(`mode must be ${MODE}`);
-  if (!viewModel?.graphId) errors.push('graphId is required');
-  for (const key of ['artifactCards', 'summaryCards', 'blockedGroups', 'deferredGroups', 'sourceTraceRows', 'warnings', 'errors']) if (!Array.isArray(viewModel?.[key])) errors.push(`${key} array is required`);
-  const forbiddenHits = collectPanelForbiddenFieldHits(viewModel);
-  errors.push(...forbiddenHits.map((hit) => `forbidden field ${hit.field} at ${hit.path}`));
-  return { schema: 'DiagnosticPanelViewModelValidation.v1', ok: errors.length === 0, errorCount: errors.length, errors, forbiddenFieldCount: forbiddenHits.length, forbiddenFields: forbiddenHits };
-}
-
-export function collectPanelForbiddenFieldHits(value, path = '$', hits = []) {
-  if (!value || typeof value !== 'object') return hits;
-  if (Array.isArray(value)) { value.forEach((entry, index) => collectPanelForbiddenFieldHits(entry, `${path}[${index}]`, hits)); return hits; }
-  for (const [key, entry] of Object.entries(value)) {
-    if (RAW_FIELD_NAMES.includes(key)) hits.push({ path: `${path}.${key}`, field: key });
-    collectPanelForbiddenFieldHits(entry, `${path}.${key}`, hits);
-  }
-  return hits;
-}
-
+export function validateDiagnosticPanelViewModel(viewModel) { const errors = []; if (!viewModel || typeof viewModel !== 'object') errors.push('viewModel must be an object'); if (viewModel?.schema !== VIEW_MODEL_SCHEMA) errors.push(`schema must be ${VIEW_MODEL_SCHEMA}`); if (viewModel?.mode !== MODE) errors.push(`mode must be ${MODE}`); if (!viewModel?.graphId) errors.push('graphId is required'); for (const key of ['artifactCards', 'summaryCards', 'blockedGroups', 'deferredGroups', 'sourceTraceRows', 'warnings', 'errors']) if (!Array.isArray(viewModel?.[key])) errors.push(`${key} array is required`); const forbiddenHits = collectPanelForbiddenFieldHits(viewModel); errors.push(...forbiddenHits.map((hit) => `forbidden field ${hit.field} at ${hit.path}`)); return { schema: 'DiagnosticPanelViewModelValidation.v1', ok: errors.length === 0, errorCount: errors.length, errors, forbiddenFieldCount: forbiddenHits.length, forbiddenFields: forbiddenHits }; }
+export function collectPanelForbiddenFieldHits(value, path = '$', hits = []) { if (!value || typeof value !== 'object') return hits; if (Array.isArray(value)) { value.forEach((entry, index) => collectPanelForbiddenFieldHits(entry, `${path}[${index}]`, hits)); return hits; } for (const [key, entry] of Object.entries(value)) { if (RAW_FIELD_NAMES.includes(key)) hits.push({ path: `${path}.${key}`, field: key }); collectPanelForbiddenFieldHits(entry, `${path}.${key}`, hits); } return hits; }
 function card(key, title, status, ready, reason) { return { key, title, status, ready, reason }; }
 function summary(key, label, value) { return { key, label, value }; }
 function group(key, label, rows) { return { key, label, count: rows.length, rows: rows.map(toGroupRow) }; }

@@ -48,6 +48,8 @@ export function buildExportModelCompilationAudit(primitiveModel, exportModels, p
     if (source) {
       if (Number(primitive.lengthMm) !== Number(source.lengthMm)) errors.push(`RVM primitive ${index} lengthMm changed during transform`);
       if (Number(primitive.radiusMm) !== Number(source.radiusMm)) errors.push(`RVM primitive ${index} radiusMm changed during transform`);
+      if (source.diameterMm !== undefined && Number(primitive.diameterMm) !== Number(source.diameterMm)) errors.push(`RVM primitive ${index} diameterMm changed during transform`);
+      if (source.wallMm !== undefined && Number(primitive.wallMm) !== Number(source.wallMm)) errors.push(`RVM primitive ${index} wallMm changed during transform`);
     }
   }
 

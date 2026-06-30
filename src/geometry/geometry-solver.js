@@ -100,6 +100,8 @@ function routeFrame(route, nodesById) {
   const end = pointOrNull(nodesById.get(toNode)?.coord);
   const vector = start && end ? subtract(end, start) : null;
   const lengthMm = vector ? magnitude(vector) : undefined;
+  const diameterMm = numberValue(route.diameterMm ?? route.diameter ?? route.bore);
+  const wallMm = numberValue(route.wallMm ?? route.wall ?? route.schedule);
   const errors = [];
   if (!nodesById.has(fromNode)) errors.push(`route ${route.id} references missing from node ${fromNode}`);
   if (!nodesById.has(toNode)) errors.push(`route ${route.id} references missing to node ${toNode}`);
@@ -114,6 +116,9 @@ function routeFrame(route, nodesById) {
     end,
     direction: vector && lengthMm > 0 ? vector.map((entry) => entry / lengthMm) : undefined,
     lengthMm: Number.isFinite(Number(lengthMm)) ? lengthMm : undefined,
+    diameterMm,
+    radiusMm: Number.isFinite(Number(diameterMm)) ? Number(diameterMm) / 2 : undefined,
+    wallMm,
     sourceRef: route.sourceRef,
     topologyRole: route.topologyRole,
     geometryStatus: errors.length ? 'invalid' : undefined,
@@ -128,6 +133,9 @@ function straightPipeFrame(item, frame) {
     center: midpoint(frame.start, frame.end),
     axis: [...frame.direction],
     lengthMm: frame.lengthMm,
+    diameterMm: frame.diameterMm,
+    radiusMm: frame.radiusMm,
+    wallMm: frame.wallMm,
     geometryStatus: 'resolved',
     resolver: 'straightPipeGeometry.v1',
     sourceRef: item.sourceRef
@@ -212,6 +220,12 @@ function point(value) {
 
 function pointOrNull(value) {
   return Array.isArray(value) && value.length === 3 && value.every((entry) => Number.isFinite(Number(entry))) ? value.map(Number) : null;
+}
+
+function numberValue(value) {
+  if (value === undefined || value === null || value === '') return undefined;
+  const number = Number(value);
+  return Number.isFinite(number) ? number : undefined;
 }
 
 function subtract(a, b) {

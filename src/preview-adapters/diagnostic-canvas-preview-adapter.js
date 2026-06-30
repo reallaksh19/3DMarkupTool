@@ -173,7 +173,7 @@ function buildPreviewItem(entry, index) {
 
 function buildArtifactStatusBanner(testArtifactPlan) {
   return {
-    rvm: artifactBannerEntry(testArtifactPlan?.rvmArtifact, 'RVM artifact blocked until final review transform policy is implemented.'),
+    rvm: artifactBannerEntry(testArtifactPlan?.rvmArtifact, 'RVM artifact byte generation not implemented in Phase 8B; straight-pipe subset transform readiness proven'),
     att: artifactBannerEntry(testArtifactPlan?.attArtifact, 'ATT writer bridge not implemented in Phase 8A.'),
     glb: artifactBannerEntry(testArtifactPlan?.glbArtifact, 'GLB test artifact writer not implemented in Phase 8A.')
   };

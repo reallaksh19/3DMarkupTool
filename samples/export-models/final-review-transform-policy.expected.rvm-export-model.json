@@ -1,0 +1,38 @@
+{
+  "schema": "RvmExportModel.v1",
+  "graphId": "final-review-transform-fixture",
+  "units": "mm",
+  "sourceAxisBasis": {
+    "authoring": "canvas-current",
+    "rvmExport": "navis-review"
+  },
+  "exportAxisBasis": {
+    "review": "navis-review"
+  },
+  "transformPolicy": "final-review-transform.v1",
+  "transformApplied": true,
+  "transformWarnings": [],
+  "primitives": [
+    {
+      "exportPrimitiveId": "RVM-PRIM-PIPE-X",
+      "sourcePrimitiveId": "PRIM-PIPE-X",
+      "sourceItemId": "PIPE-X",
+      "primitiveKind": "CYLINDER",
+      "primitiveCode": 8,
+      "center": [-300, -100, 200],
+      "axis": [-0.8, 0, 0.6],
+      "lengthMm": 500,
+      "radiusMm": 25,
+      "diameterMm": 50,
+      "wallMm": 5,
+      "basis": "navis-review",
+      "transformPolicy": "final-review-transform.v1",
+      "sourceRef": "fixture/PIPE-X"
+    }
+  ],
+  "blockedExports": [],
+  "deferredExports": [],
+  "sourceRefs": [
+    { "sourceType": "final-review-transform-fixture", "name": "final-review-transform-policy.input.resolved-primitive-model.json" }
+  ]
+}

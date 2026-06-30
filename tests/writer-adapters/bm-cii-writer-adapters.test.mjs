@@ -46,7 +46,7 @@ const sourceName = 'bm-cii-managed-stage-full-topology.generated.json';
 const sourceText = JSON.stringify(buildBmCiiStyleManagedStageFixture());
 const graph = convertManagedStageJsonToPlantGraph(sourceText, {
   sourceName,
-  phase: 'Phase 8 writer adapter benchmark'
+  phase: 'Phase 8B writer adapter benchmark'
 });
 
 const graphValidation = validatePlantModelGraphContract(graph);
@@ -140,6 +140,9 @@ const exportAudit = buildExportModelCompilationAudit(primitiveModel, exportModel
 assert.equal(assertExportModelCompilationAudit(exportAudit, {
   ok: true,
   hardErrorCount: 0,
+  transformPolicy: 'final-review-transform.v1',
+  rvmTransformWarningCount: 0,
+  navisTransformApplied: true,
   writerCallCount: 0,
   binaryPayloadCount: 0,
   textPayloadCount: 0,
@@ -161,6 +164,7 @@ const writerAudit = buildWriterAdapterAudit(writerAdapterPlan, exportModels, exp
 assert.equal(assertWriterAdapterAudit(writerAudit, {
   ok: true,
   hardErrorCount: 0,
+  rvmWriterReady: true,
   writerCallCount: 0,
   binaryPayloadCount: 0,
   textPayloadCount: 0,
@@ -181,7 +185,8 @@ assert.equal(assertWriterAdapterAudit(writerAudit, {
 }).ok, true);
 
 assert.equal(writerAdapterPlan.mode, 'dryRun', 'default writer adapter mode');
-assert.equal(writerAdapterPlan.rvmAdapter.writerReady, false, 'RVM readiness blocked until final transform');
+assert.equal(writerAdapterPlan.rvmAdapter.writerReady, true, 'RVM straight-pipe subset dry-run readiness is true after final transform');
+assert.equal(writerAdapterPlan.rvmAdapter.writerReadinessScope, 'straightPipeSubsetDryRunReady');
 assert.equal(writerAdapterPlan.rvmAdapter.plannedChunks.length, 19, 'RVM logical chunks');
 assert.equal(writerAdapterPlan.rvmAdapter.plannedChunks.every((entry) => entry.chunkKind === 'PRIM'), true, 'only PRIM chunk plans');
 assert.equal(writerAdapterPlan.rvmAdapter.plannedChunks.every((entry) => entry.primitiveKind === 'CYLINDER' && entry.primitiveCode === 8), true, 'only CYLINDER/code8 writer chunks');

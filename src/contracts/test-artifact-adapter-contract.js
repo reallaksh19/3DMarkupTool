@@ -27,7 +27,9 @@ const ALLOWED_ARTIFACT_KEYS = Object.freeze([
   'primitiveCount',
   'checksumSha256',
   'testOnlyOutputPath',
-  'sourceRef'
+  'sourceRef',
+  'transformReady',
+  'straightPipeSubsetReady'
 ]);
 
 export function validateTestArtifactAdapterPlanContract(plan) {
@@ -93,6 +95,8 @@ function validateArtifact(artifact, label, errors) {
   for (const key of ['artifactReady', 'artifactGenerated', 'artifactBlocked']) {
     if (typeof artifact[key] !== 'boolean') errors.push(`${label}.${key} must be boolean`);
   }
+  if (artifact.transformReady !== undefined && typeof artifact.transformReady !== 'boolean') errors.push(`${label}.transformReady must be boolean`);
+  if (artifact.straightPipeSubsetReady !== undefined && typeof artifact.straightPipeSubsetReady !== 'boolean') errors.push(`${label}.straightPipeSubsetReady must be boolean`);
   if (artifact.artifactBlocked === true && !artifact.reason) errors.push(`${label}.reason is required when artifact is blocked`);
   if (artifact.artifactBlocked === true) {
     if (Number(artifact.byteLength || 0) !== 0) errors.push(`${label}.byteLength must be 0 when artifact is blocked`);

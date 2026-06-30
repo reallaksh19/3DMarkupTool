@@ -8,9 +8,11 @@
     "artifactReady": false,
     "artifactGenerated": false,
     "artifactBlocked": true,
-    "reason": "RVM artifact blocked until final review transform policy is implemented",
+    "reason": "RVM artifact byte generation not implemented in Phase 8B; straight-pipe subset transform readiness proven",
     "byteLength": 0,
-    "primitiveCount": 1
+    "primitiveCount": 1,
+    "transformReady": true,
+    "straightPipeSubsetReady": true
   },
   "attArtifact": {
     "artifactKind": "att",

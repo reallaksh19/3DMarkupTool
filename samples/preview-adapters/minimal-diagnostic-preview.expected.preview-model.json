@@ -14,7 +14,7 @@
       "ready": false,
       "generated": false,
       "blocked": true,
-      "message": "RVM artifact blocked until final review transform policy is implemented"
+      "message": "RVM artifact byte generation not implemented in Phase 8B; straight-pipe subset transform readiness proven"
     },
     "att": {
       "ready": false,

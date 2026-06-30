@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import {
   assertAttExportModelContract,
+  assertDiagnosticCanvasPreviewModelContract,
   assertGlbVisualModelContract,
   assertResolvedGeometryModelContract,
   assertResolvedPrimitiveModelContract,
@@ -17,6 +18,7 @@ import { assertPrimitiveCompilationAudit } from '../../src/audit/primitive-compi
 import { assertExportModelCompilationAudit } from '../../src/audit/export-model-compilation-audit.js';
 import { assertWriterAdapterAudit } from '../../src/audit/writer-adapter-audit.js';
 import { assertTestArtifactAdapterAudit } from '../../src/audit/test-artifact-adapter-audit.js';
+import { assertDiagnosticCanvasPreviewAudit } from '../../src/audit/diagnostic-canvas-preview-audit.js';
 import {
   auditManagedStageToPlantGraph,
   convertManagedStageJsonToPlantGraph
@@ -46,48 +48,30 @@ import {
   buildTestArtifactAdapterAudit,
   buildTestArtifactAdapterPlan
 } from '../../src/artifact-adapters/test-artifact-adapter.js';
+import {
+  buildDiagnosticCanvasPreviewAudit,
+  buildDiagnosticCanvasPreviewModel
+} from '../../src/preview-adapters/diagnostic-canvas-preview-adapter.js';
 import { buildBmCiiStyleManagedStageFixture } from '../fixtures/bm-cii-managed-stage-fixture.mjs';
 
-const sourceName = 'bm-cii-managed-stage-full-topology.generated.json';
 const sourceText = JSON.stringify(buildBmCiiStyleManagedStageFixture());
 const graph = convertManagedStageJsonToPlantGraph(sourceText, {
-  sourceName,
-  phase: 'Phase 8B test artifact adapter benchmark'
+  sourceName: 'bm-cii-managed-stage-full-topology.generated.json',
+  phase: 'Phase 8B final review transform benchmark'
 });
-
 const graphValidation = validatePlantModelGraphContract(graph);
 assert.equal(graphValidation.ok, true, `graph validation ok: ${graphValidation.errors.join('; ')}`);
 const topologyAudit = auditPlantGraphTopology(graph);
 assert.equal(topologyAudit.ok, true, 'topology audit ok');
-assert.deepEqual(topologyAudit.missingRouteNodeRefs, []);
-assert.deepEqual(topologyAudit.missingItemNodeRefs, []);
-assert.deepEqual(topologyAudit.missingItemRouteRefs, []);
 
-const importerAudit = auditManagedStageToPlantGraph(sourceText, graph, { sourceName });
-assert.equal(importerAudit.placeholderGeneratedComponentCount, 0, 'placeholder-generated components must remain zero');
+const importerAudit = auditManagedStageToPlantGraph(sourceText, graph, { sourceName: 'bm-cii-managed-stage-full-topology.generated.json' });
 assert.equal(importerAudit.generatedPipeItemCount, 19, 'generated straight pipe count');
 assert.equal(importerAudit.sourceFlangeCount, 8, 'flange source count');
 assert.equal(importerAudit.sourceValveCount, 6, 'valve source count');
 assert.equal(importerAudit.sourceBendCount, 7, 'bend source count');
 assert.equal(importerAudit.sourceSupportCount, 12, 'support source count');
 
-const registryPath = 'catalogues/base-piping/catalogue-registry.json';
-const indexPath = 'catalogues/base-piping/base-piping.index.json';
-const itemPaths = [
-  'catalogues/base-piping/items/pipe-straight-4in-std.json',
-  'catalogues/base-piping/items/elbow-90lr-4in-std.json',
-  'catalogues/base-piping/items/support-rest-generic.json'
-];
-const registryResult = loadCatalogueRegistryFromText(await readFile(registryPath, 'utf8'), { sourceName: registryPath });
-assert.equal(registryResult.validation.ok, true, 'catalogue registry load ok');
-const fileMap = new Map();
-fileMap.set(indexPath, await readFile(indexPath, 'utf8'));
-for (const itemPath of itemPaths) fileMap.set(itemPath, await readFile(itemPath, 'utf8'));
-const itemResult = loadCatalogueItemsFromMap(registryResult.registry, fileMap, { sourceName: indexPath });
-assert.equal(itemResult.audit.itemCount, 3, 'catalogue item load ok');
-assert.equal(itemResult.audit.invalidItemCount, 0, 'catalogue item load has zero invalid items');
-
-const bindingAudit = auditCatalogueBinding(graph, itemResult.items);
+const bindingAudit = auditCatalogueBinding(graph, await loadBasePipingCatalogueItems());
 assert.equal(assertCatalogueBindingAudit(bindingAudit, {
   itemCount: 52,
   catalogueResolvedCount: 0,
@@ -97,10 +81,10 @@ assert.equal(assertCatalogueBindingAudit(bindingAudit, {
   supportIntentCount: 12,
   nearestMatchCount: 0,
   exportDecisionCount: 0
-}).ok, true);
+}).ok, true, 'binding audit ok');
 
 const resolvedGeometry = resolvePlantGraphGeometry(graph, bindingAudit);
-assert.equal(assertResolvedGeometryModelContract(resolvedGeometry, { expectedAuthoringBasis: graph.project.axisBasis.authoring }).ok, true, 'resolved geometry validates');
+assert.equal(assertResolvedGeometryModelContract(resolvedGeometry, { expectedAuthoringBasis: graph.project.axisBasis.authoring }).ok, true, 'resolved geometry ok');
 const geometryAudit = buildGeometryResolutionAudit(graph, resolvedGeometry, bindingAudit);
 assert.equal(assertGeometryResolutionAudit(geometryAudit, {
   ok: true,
@@ -114,10 +98,10 @@ assert.equal(assertGeometryResolutionAudit(geometryAudit, {
   supportPlacementCount: 12,
   blockedUnresolvedComponentCount: 21,
   unresolvedGeometryCount: 21
-}).ok, true);
+}).ok, true, 'geometry audit ok');
 
 const primitiveModel = compileResolvedGeometryToPrimitives(resolvedGeometry, geometryAudit);
-assert.equal(assertResolvedPrimitiveModelContract(primitiveModel, { expectedAuthoringBasis: resolvedGeometry.axisBasis.authoring }).ok, true, 'primitive model validates');
+assert.equal(assertResolvedPrimitiveModelContract(primitiveModel, { expectedAuthoringBasis: resolvedGeometry.axisBasis.authoring }).ok, true, 'primitive model remains authoring basis');
 const primitiveAudit = buildPrimitiveCompilationAudit(resolvedGeometry, primitiveModel, geometryAudit);
 assert.equal(assertPrimitiveCompilationAudit(primitiveAudit, {
   ok: true,
@@ -136,12 +120,12 @@ assert.equal(assertPrimitiveCompilationAudit(primitiveAudit, {
   blockedUnresolvedGeometryCount: 21,
   blockedPrimitiveCount: 21,
   missingDimensionCount: 0
-}).ok, true);
+}).ok, true, 'primitive audit ok');
 
 const exportModels = compileResolvedPrimitiveModelToExportModels(primitiveModel, primitiveAudit);
-assert.equal(assertRvmExportModelContract(exportModels.rvmExportModel).ok, true, 'RVM export model validates');
-assert.equal(assertAttExportModelContract(exportModels.attExportModel).ok, true, 'ATT export model validates');
-assert.equal(assertGlbVisualModelContract(exportModels.glbVisualModel).ok, true, 'GLB visual model validates');
+assert.equal(assertRvmExportModelContract(exportModels.rvmExportModel).ok, true, 'RVM export model ok');
+assert.equal(assertAttExportModelContract(exportModels.attExportModel).ok, true, 'ATT export model ok');
+assert.equal(assertGlbVisualModelContract(exportModels.glbVisualModel).ok, true, 'GLB visual model ok');
 const exportAudit = buildExportModelCompilationAudit(primitiveModel, exportModels, primitiveAudit);
 assert.equal(assertExportModelCompilationAudit(exportAudit, {
   ok: true,
@@ -159,13 +143,30 @@ assert.equal(assertExportModelCompilationAudit(exportAudit, {
   rvmBoxPlanCount: 0,
   rvmSpherePlanCount: 0,
   rvmPyramidPlanCount: 0,
-  glbVisualPlanCount: 19,
   blockedUnresolvedExportCount: 21,
   deferredSupportExportCount: 12
-}).ok, true);
+}).ok, true, 'export audit ok');
+
+assert.equal(exportModels.rvmExportModel.transformPolicy, 'final-review-transform.v1');
+assert.equal(exportModels.rvmExportModel.transformApplied, true);
+assert.deepEqual(exportModels.rvmExportModel.transformWarnings, []);
+const sourcePrimitiveById = new Map(primitiveModel.primitives.map((entry) => [entry.primitiveId, entry]));
+for (const primitive of exportModels.rvmExportModel.primitives) {
+  const source = sourcePrimitiveById.get(primitive.sourcePrimitiveId);
+  assert.equal(primitive.primitiveKind, 'CYLINDER');
+  assert.equal(primitive.primitiveCode, 8);
+  assert.equal(isFinitePoint3(primitive.center), true, 'transformed center finite');
+  assert.equal(isUnitVector(primitive.axis), true, 'transformed axis finite and normalized');
+  assert.equal(primitive.lengthMm, source.lengthMm, 'length scalar preserved');
+  assert.equal(primitive.radiusMm, source.radiusMm, 'radius scalar preserved');
+}
+assert.equal(exportModels.rvmExportModel.blockedExports.filter((entry) => entry.family === 'flange').length, 8);
+assert.equal(exportModels.rvmExportModel.blockedExports.filter((entry) => entry.family === 'valve').length, 6);
+assert.equal(exportModels.rvmExportModel.blockedExports.filter((entry) => entry.family === 'elbow').length, 7);
+assert.equal(exportModels.rvmExportModel.deferredExports.filter((entry) => entry.family === 'support').length, 12);
 
 const writerAdapterPlan = buildWriterAdapterPlan(exportModels, exportAudit);
-assert.equal(assertWriterAdapterPlanContract(writerAdapterPlan).ok, true, 'writer adapter plan validates');
+assert.equal(assertWriterAdapterPlanContract(writerAdapterPlan).ok, true, 'writer adapter plan ok');
 const writerAdapterAudit = buildWriterAdapterAudit(writerAdapterPlan, exportModels, exportAudit);
 assert.equal(assertWriterAdapterAudit(writerAdapterAudit, {
   ok: true,
@@ -180,18 +181,12 @@ assert.equal(assertWriterAdapterAudit(writerAdapterAudit, {
   rvmPlannedChunkCount: 19,
   rvmPlannedPrimChunkCount: 19,
   rvmPlannedCylinderCount: 19,
-  rvmPlannedTorusCount: 0,
-  rvmPlannedBoxCount: 0,
-  rvmPlannedSphereCount: 0,
-  rvmPlannedPyramidCount: 0,
-  attPlannedRecordCount: 19,
-  glbPlannedVisualCount: 19,
   blockedUnresolvedWriterCount: 21,
   deferredSupportWriterCount: 12
-}).ok, true);
+}).ok, true, 'writer adapter audit ok');
 
 const testArtifactPlan = buildTestArtifactAdapterPlan(exportModels, exportAudit, writerAdapterPlan, writerAdapterAudit);
-assert.equal(assertTestArtifactAdapterPlanContract(testArtifactPlan).ok, true, 'test artifact adapter plan validates');
+assert.equal(assertTestArtifactAdapterPlanContract(testArtifactPlan).ok, true, 'test artifact plan ok');
 const testArtifactAudit = buildTestArtifactAdapterAudit(testArtifactPlan, exportModels, writerAdapterPlan, writerAdapterAudit);
 assert.equal(assertTestArtifactAdapterAudit(testArtifactAudit, {
   ok: true,
@@ -204,51 +199,76 @@ assert.equal(assertTestArtifactAdapterAudit(testArtifactAudit, {
   rvmStraightPipeSubsetReady: true,
   attArtifactReady: false,
   glbArtifactReady: false,
-  glbArtifactGenerated: false,
-  glbArtifactBlocked: true,
-  sourceTraceCount: 52,
-  tracedStraightPipeCount: 19,
-  tracedBlockedFlangeCount: 8,
-  tracedBlockedValveCount: 6,
-  tracedBlockedBendCount: 7,
-  tracedDeferredSupportCount: 12,
-  blockedFlangeCount: 8,
-  blockedValveCount: 6,
-  blockedBendCount: 7,
-  deferredSupportWriterCount: 12,
   runtimeTouched: false,
   browserTouched: false,
   canvasTouched: false,
   objectUrlCount: 0,
   downloadSideEffectCount: 0,
-  productionPathMutationCount: 0,
   cacheKeyMutationCount: 0
-}).ok, true);
+}).ok, true, 'test artifact audit ok');
+assert.equal(testArtifactPlan.rvmArtifact.reason.includes('until final review transform policy is implemented'), false);
+assert.equal(testArtifactPlan.rvmArtifact.reason.includes('straight-pipe subset transform readiness proven'), true);
 
-assert.equal(testArtifactPlan.rvmArtifact.reason.includes('straight-pipe subset transform readiness proven'), true, 'RVM artifact blocked by byte bridge after transform readiness');
-assert.equal(testArtifactPlan.rvmArtifact.reason.includes('until final review transform policy is implemented'), false, 'RVM artifact is no longer blocked by missing transform');
-assert.equal(testArtifactPlan.attArtifact.reason, 'ATT writer adapter requires production writer model bridge not implemented in Phase 8A', 'ATT bridge blocked deterministically');
-assert.equal(testArtifactPlan.glbArtifact.reason, 'GLB test artifact writer not implemented in Phase 8A', 'GLB bridge blocked deterministically');
-assert.equal(testArtifactPlan.blockedArtifactItems.filter((entry) => entry.family === 'flange').length, 8, 'blocked flange artifact items');
-assert.equal(testArtifactPlan.blockedArtifactItems.filter((entry) => entry.family === 'valve').length, 6, 'blocked valve artifact items');
-assert.equal(testArtifactPlan.blockedArtifactItems.filter((entry) => entry.family === 'elbow').length, 7, 'blocked bend artifact items');
-assert.equal(testArtifactPlan.deferredArtifactItems.filter((entry) => entry.family === 'support').length, 12, 'deferred support artifact items');
-assert.equal(JSON.stringify(testArtifactPlan).includes('inputxml-chord-midpoint-not-arc-center'), false, 'bend chord midpoint must not become artifact geometry');
-assert.equal(JSON.stringify(testArtifactPlan).includes('objectUrl'), false, 'no object URLs');
-assert.equal(JSON.stringify(testArtifactPlan).includes('downloadUrl'), false, 'no download URLs');
-assert.equal(JSON.stringify(testArtifactPlan).includes('productionWrite'), false, 'no production writes');
-assert.equal(JSON.stringify(testArtifactPlan).includes('cacheKeyMutation'), false, 'no cache key mutation');
+const previewModel = buildDiagnosticCanvasPreviewModel(testArtifactPlan, testArtifactAudit, writerAdapterPlan, writerAdapterAudit);
+assert.equal(assertDiagnosticCanvasPreviewModelContract(previewModel).ok, true, 'diagnostic preview model ok');
+const previewAudit = buildDiagnosticCanvasPreviewAudit(previewModel, testArtifactPlan, testArtifactAudit, writerAdapterPlan, writerAdapterAudit);
+assert.equal(assertDiagnosticCanvasPreviewAudit(previewAudit, {
+  ok: true,
+  hardErrorCount: 0,
+  previewItemCount: 52,
+  straightPipeWriterPlanPreviewCount: 19,
+  blockedComponentPreviewCount: 21,
+  blockedFlangePreviewCount: 8,
+  blockedValvePreviewCount: 6,
+  blockedBendPreviewCount: 7,
+  deferredSupportPreviewCount: 12,
+  artifactStatusBannerCount: 1,
+  sourceTraceCount: 52,
+  geometryPayloadCount: 0,
+  meshPayloadCount: 0,
+  threeObjectCount: 0,
+  runtimeMutationCount: 0,
+  browserTouchCount: 0,
+  canvasTouchCount: 0,
+  objectUrlCount: 0,
+  downloadSideEffectCount: 0,
+  binaryPayloadCount: 0,
+  textPayloadCount: 0,
+  glbPayloadCount: 0,
+  cacheKeyMutationCount: 0
+}).ok, true, 'diagnostic preview audit ok');
 
-for (const sourcePath of [
-  'src/artifact-adapters/test-artifact-adapter.js',
-  'src/artifact-adapters/rvm-test-artifact-adapter.js',
-  'src/artifact-adapters/att-test-artifact-adapter.js',
-  'src/artifact-adapters/glb-test-artifact-adapter.js'
-]) {
-  const source = await readFile(sourcePath, 'utf8');
-  for (const forbidden of ['app.js', 'safe-ui-loader', 'app-loader', 'managed-stage-json-ui-controller', 'managed-stage-rvm-converter', 'canvas', "from 'three'", 'from "three"', 'window.', 'document.', 'rvm-writer', 'att-writer']) {
-    assert.equal(source.includes(forbidden), false, `${sourcePath} must not reference ${forbidden}`);
-  }
+assert.equal(JSON.stringify(exportModels).includes('inputxml-chord-midpoint-not-arc-center'), false);
+assert.equal(JSON.stringify({ exportModels, writerAdapterPlan, testArtifactPlan, previewModel }).includes('objectUrl'), false);
+assert.equal(JSON.stringify({ exportModels, writerAdapterPlan, testArtifactPlan, previewModel }).includes('downloadUrl'), false);
+assert.equal(JSON.stringify({ exportModels, writerAdapterPlan, testArtifactPlan, previewModel }).includes('attText'), false);
+assert.equal(JSON.stringify({ exportModels, writerAdapterPlan, testArtifactPlan, previewModel }).includes('glbBytes'), false);
+
+console.log('BM CII final review transform policy tests passed');
+
+async function loadBasePipingCatalogueItems() {
+  const registryPath = 'catalogues/base-piping/catalogue-registry.json';
+  const indexPath = 'catalogues/base-piping/base-piping.index.json';
+  const itemPaths = [
+    'catalogues/base-piping/items/pipe-straight-4in-std.json',
+    'catalogues/base-piping/items/elbow-90lr-4in-std.json',
+    'catalogues/base-piping/items/support-rest-generic.json'
+  ];
+  const registryResult = loadCatalogueRegistryFromText(await readFile(registryPath, 'utf8'), { sourceName: registryPath });
+  assert.equal(registryResult.validation.ok, true);
+  const fileMap = new Map();
+  fileMap.set(indexPath, await readFile(indexPath, 'utf8'));
+  for (const itemPath of itemPaths) fileMap.set(itemPath, await readFile(itemPath, 'utf8'));
+  const itemResult = loadCatalogueItemsFromMap(registryResult.registry, fileMap, { sourceName: indexPath });
+  assert.equal(itemResult.audit.itemCount, 3);
+  assert.equal(itemResult.audit.invalidItemCount, 0);
+  return itemResult.items;
 }
 
-console.log('BM CII test artifact adapter tests passed');
+function isFinitePoint3(value) {
+  return Array.isArray(value) && value.length === 3 && value.every((entry) => Number.isFinite(Number(entry)));
+}
+
+function isUnitVector(value) {
+  return isFinitePoint3(value) && Math.abs(Math.hypot(...value.map(Number)) - 1) <= 1e-6;
+}

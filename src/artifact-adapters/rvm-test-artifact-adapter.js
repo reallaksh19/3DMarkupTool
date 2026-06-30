@@ -1,5 +1,5 @@
 const RVM_TRANSFORM_BLOCK_REASON = 'RVM artifact blocked until final review transform policy is implemented';
-const RVM_BRIDGE_BLOCK_REASON = 'RVM test artifact writer bridge not implemented in Phase 8A';
+const RVM_BRIDGE_BLOCK_REASON = 'RVM artifact byte generation not implemented in Phase 8B; straight-pipe subset transform readiness proven';
 
 export function adaptRvmExportModelToTestArtifact(rvmExportModel, exportAudit, writerAdapterPlan, writerAdapterAudit, options = {}) {
   const canPlan = exportAudit?.schema === 'ExportModelCompilationAudit.v1'
@@ -8,14 +8,17 @@ export function adaptRvmExportModelToTestArtifact(rvmExportModel, exportAudit, w
     && writerAdapterAudit?.schema === 'WriterAdapterAudit.v1'
     && writerAdapterAudit.ok === true;
   const primitiveCount = Array.isArray(rvmExportModel?.primitives) ? rvmExportModel.primitives.length : 0;
-  if (!canPlan) return blockedRvmArtifact('Writer adapter audit must be ok before test artifact planning', primitiveCount);
-  if (rvmExportModel?.transformApplied !== true || writerAdapterPlan?.rvmAdapter?.transformApplied !== true) {
-    return blockedRvmArtifact(RVM_TRANSFORM_BLOCK_REASON, primitiveCount);
-  }
-  return blockedRvmArtifact(options.reason || RVM_BRIDGE_BLOCK_REASON, primitiveCount);
+  if (!canPlan) return blockedRvmArtifact('Writer adapter audit must be ok before test artifact planning', primitiveCount, false);
+  const transformReady = rvmExportModel?.transformApplied === true
+    && rvmExportModel?.transformPolicy === 'final-review-transform.v1'
+    && writerAdapterPlan?.rvmAdapter?.transformApplied === true
+    && writerAdapterPlan?.rvmAdapter?.transformPolicy === 'final-review-transform.v1'
+    && writerAdapterPlan?.rvmAdapter?.writerReady === true;
+  if (!transformReady) return blockedRvmArtifact(RVM_TRANSFORM_BLOCK_REASON, primitiveCount, false);
+  return blockedRvmArtifact(options.reason || RVM_BRIDGE_BLOCK_REASON, primitiveCount, true);
 }
 
-function blockedRvmArtifact(reason, primitiveCount) {
+function blockedRvmArtifact(reason, primitiveCount, transformReady) {
   return {
     artifactKind: 'rvm',
     artifactReady: false,
@@ -23,6 +26,8 @@ function blockedRvmArtifact(reason, primitiveCount) {
     artifactBlocked: true,
     reason,
     byteLength: 0,
-    primitiveCount
+    primitiveCount,
+    transformReady,
+    straightPipeSubsetReady: transformReady
   };
 }

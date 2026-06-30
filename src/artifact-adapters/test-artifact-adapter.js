@@ -52,6 +52,8 @@ export function buildTestArtifactAdapterAudit(testArtifactPlan, exportModels, wr
     rvmArtifactBlocked: testArtifactPlan?.rvmArtifact?.artifactBlocked === true,
     rvmArtifactByteLength: Number(testArtifactPlan?.rvmArtifact?.byteLength || 0),
     rvmArtifactChecksumPresent: Boolean(testArtifactPlan?.rvmArtifact?.checksumSha256),
+    rvmTransformReady: testArtifactPlan?.rvmArtifact?.transformReady === true,
+    rvmStraightPipeSubsetReady: testArtifactPlan?.rvmArtifact?.straightPipeSubsetReady === true,
     attArtifactReady: testArtifactPlan?.attArtifact?.artifactReady === true,
     attArtifactGenerated: testArtifactPlan?.attArtifact?.artifactGenerated === true,
     attArtifactBlocked: testArtifactPlan?.attArtifact?.artifactBlocked === true,

@@ -28,6 +28,8 @@ const BOOLEAN_KEYS = [
   'rvmArtifactGenerated',
   'rvmArtifactBlocked',
   'rvmArtifactChecksumPresent',
+  'rvmTransformReady',
+  'rvmStraightPipeSubsetReady',
   'attArtifactReady',
   'attArtifactGenerated',
   'attArtifactBlocked',

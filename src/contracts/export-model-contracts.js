@@ -4,6 +4,9 @@ import {
   RVM_EXPORT_MODEL_SCHEMA
 } from './platform-contract-schemas.js';
 
+const FINAL_REVIEW_TRANSFORM_POLICY = 'final-review-transform.v1';
+const PLACEHOLDER_TRANSFORM_POLICY = 'phase7-authoring-to-navis-review.identity-placeholder.v1';
+const AXIS_EPSILON = 1e-6;
 const FORBIDDEN_FIELDS = Object.freeze([
   'binary',
   'bytes',
@@ -30,6 +33,9 @@ export function validateRvmExportModelContract(model) {
   if (!model?.exportAxisBasis || typeof model.exportAxisBasis !== 'object') errors.push('exportAxisBasis object is required');
   if (!model?.transformPolicy) errors.push('transformPolicy is required');
   if (typeof model?.transformApplied !== 'boolean') errors.push('transformApplied must be boolean');
+  if (model?.transformApplied === true && model?.transformPolicy !== FINAL_REVIEW_TRANSFORM_POLICY) errors.push('transformApplied true requires final-review-transform.v1');
+  if (model?.transformApplied === false && model?.transformPolicy === FINAL_REVIEW_TRANSFORM_POLICY) errors.push('final-review-transform.v1 requires transformApplied true');
+  if (model?.transformApplied === true && model?.transformPolicy === PLACEHOLDER_TRANSFORM_POLICY) errors.push('placeholder transform policy cannot be marked applied');
   if (!Array.isArray(model?.primitives)) errors.push('primitives array is required');
   if (!Array.isArray(model?.blockedExports)) errors.push('blockedExports array is required');
   if (!Array.isArray(model?.deferredExports)) errors.push('deferredExports array is required');
@@ -39,12 +45,17 @@ export function validateRvmExportModelContract(model) {
     if (!primitive?.sourceItemId) errors.push(`primitives[${index}].sourceItemId is required`);
     if (!primitive?.primitiveKind) errors.push(`primitives[${index}].primitiveKind is required`);
     if (!Number.isInteger(Number(primitive?.primitiveCode))) errors.push(`primitives[${index}].primitiveCode must be integer-like`);
-    if (!isPoint3(primitive?.center)) errors.push(`primitives[${index}].center must be [x,y,z]`);
-    if (!isPoint3(primitive?.axis)) errors.push(`primitives[${index}].axis must be [x,y,z]`);
+    if (!isPoint3(primitive?.center)) errors.push(`primitives[${index}].center must be finite [x,y,z]`);
+    if (!isPoint3(primitive?.axis)) errors.push(`primitives[${index}].axis must be finite [x,y,z]`);
+    if (isPoint3(primitive?.axis) && !isUnitVector(primitive.axis)) errors.push(`primitives[${index}].axis must be normalized`);
     if (!Number.isFinite(Number(primitive?.lengthMm))) errors.push(`primitives[${index}].lengthMm must be numeric`);
     if (!Number.isFinite(Number(primitive?.radiusMm))) errors.push(`primitives[${index}].radiusMm must be numeric`);
+    if (primitive?.diameterMm !== undefined && !Number.isFinite(Number(primitive.diameterMm))) errors.push(`primitives[${index}].diameterMm must be numeric when present`);
+    if (primitive?.wallMm !== undefined && !Number.isFinite(Number(primitive.wallMm))) errors.push(`primitives[${index}].wallMm must be numeric when present`);
     if (!primitive?.basis) errors.push(`primitives[${index}].basis is required`);
+    if (model?.transformApplied === true && primitive?.basis !== 'navis-review') errors.push(`primitives[${index}].basis must be navis-review when transform is applied`);
     if (!primitive?.transformPolicy) errors.push(`primitives[${index}].transformPolicy is required`);
+    if (model?.transformApplied === true && primitive?.transformPolicy !== FINAL_REVIEW_TRANSFORM_POLICY) errors.push(`primitives[${index}].transformPolicy must be final-review-transform.v1`);
   }
   validateStatusArray(model?.blockedExports, 'blockedExports', 'blocked', errors);
   validateStatusArray(model?.deferredExports, 'deferredExports', 'deferred', errors);
@@ -156,4 +167,9 @@ function assertValid(result, label) {
 
 function isPoint3(value) {
   return Array.isArray(value) && value.length === 3 && value.every((entry) => Number.isFinite(Number(entry)));
+}
+
+function isUnitVector(value) {
+  const length = Math.hypot(Number(value[0]), Number(value[1]), Number(value[2]));
+  return Number.isFinite(length) && Math.abs(length - 1) <= AXIS_EPSILON;
 }

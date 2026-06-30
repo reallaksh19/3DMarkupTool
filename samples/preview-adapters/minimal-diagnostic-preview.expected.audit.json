@@ -29,7 +29,7 @@
   "ok": true,
   "errors": [],
   "warnings": [
-    "RVM artifact blocked until final review transform policy is implemented",
+    "RVM artifact byte generation not implemented in Phase 8B; straight-pipe subset transform readiness proven",
     "ATT writer adapter requires production writer model bridge not implemented in Phase 8A",
     "GLB test artifact writer not implemented in Phase 8A"
   ]

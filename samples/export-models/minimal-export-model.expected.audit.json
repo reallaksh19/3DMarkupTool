@@ -1,6 +1,8 @@
 {
   "schema": "ExportModelCompilationAudit.v1",
   "graphId": "minimal-primitive-compiler-fixture",
+  "transformPolicy": "final-review-transform.v1",
+  "rvmTransformWarningCount": 0,
   "rvmPrimitivePlanCount": 1,
   "rvmCylinderPlanCount": 1,
   "rvmTorusPlanCount": 0,
@@ -21,9 +23,9 @@
   "binaryPayloadCount": 0,
   "textPayloadCount": 0,
   "glbPayloadCount": 0,
-  "navisTransformApplied": false,
+  "navisTransformApplied": true,
   "hardErrorCount": 0,
   "ok": true,
   "errors": [],
-  "warnings": ["RVM transform policy not implemented in Phase 7"]
+  "warnings": []
 }

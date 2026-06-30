@@ -1,6 +1,11 @@
 export const FINAL_REVIEW_TRANSFORM_POLICY = 'final-review-transform.v1';
 
 const VECTOR_EPSILON = 1e-9;
+const REVIEW_TRANSFORM_MATRIX = Object.freeze([
+  Object.freeze([0, 0, -1]),
+  Object.freeze([-1, 0, 0]),
+  Object.freeze([0, 1, 0])
+]);
 
 export function describeFinalReviewTransformPolicy() {
   return {
@@ -8,8 +13,9 @@ export function describeFinalReviewTransformPolicy() {
     policy: FINAL_REVIEW_TRANSFORM_POLICY,
     sourceAxisBasis: { authoring: 'authoring' },
     exportAxisBasis: { review: 'navis-review' },
-    pointMapping: 'authoring-model-coordinate-pass-through',
-    vectorMapping: 'authoring-direction-pass-through-normalized',
+    pointMapping: 'canvasEngineeringToNavis [xPrime,yPrime,zPrime]=[-z,-x,y]',
+    vectorMapping: 'canvasEngineeringToNavis direction mapping, normalized',
+    matrix: REVIEW_TRANSFORM_MATRIX.map((row) => [...row]),
     coordinateUnit: 'millimetres',
     writerMatrixScale: 0.001,
     writerMatrixScaleUnit: 'metres',
@@ -20,11 +26,11 @@ export function describeFinalReviewTransformPolicy() {
 }
 
 export function transformAuthoringPointToReview(point, options = {}) {
-  return cleanPoint3(point, options.fieldName || 'point');
+  return applyMatrix(cleanPoint3(point, options.fieldName || 'point'));
 }
 
 export function transformAuthoringVectorToReview(vector, options = {}) {
-  return normalizeVector(cleanPoint3(vector, options.fieldName || 'vector'));
+  return normalizeVector(applyMatrix(cleanPoint3(vector, options.fieldName || 'vector')));
 }
 
 export function normalizeVector(vector) {
@@ -62,6 +68,12 @@ export function finalReviewTransformMetadata() {
     transformApplied: true,
     transformWarnings: []
   };
+}
+
+function applyMatrix(point) {
+  return REVIEW_TRANSFORM_MATRIX.map((row) => cleanNumber(
+    row[0] * point[0] + row[1] * point[1] + row[2] * point[2]
+  ));
 }
 
 function cleanPoint3(value, fieldName) {

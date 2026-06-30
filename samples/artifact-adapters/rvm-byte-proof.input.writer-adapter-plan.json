@@ -1,0 +1,66 @@
+{
+  "schema": "WriterAdapterPlan.v1",
+  "graphId": "rvm-byte-proof-fixture",
+  "units": "mm",
+  "mode": "dryRun",
+  "rvmAdapter": {
+    "schema": "RvmWriterAdapterPlan.v1",
+    "graphId": "rvm-byte-proof-fixture",
+    "writerKind": "rvm",
+    "mode": "dryRun",
+    "writerReady": true,
+    "writerReadinessScope": "straightPipeSubsetDryRunReady",
+    "sourceSchema": "RvmExportModel.v1",
+    "transformPolicy": "final-review-transform.v1",
+    "transformApplied": true,
+    "plannedPrimitiveCount": 1,
+    "plannedCylinderCount": 1,
+    "plannedTorusCount": 0,
+    "plannedBoxCount": 0,
+    "plannedSphereCount": 0,
+    "plannedPyramidCount": 0,
+    "plannedChunks": [
+      {
+        "chunkKind": "PRIM",
+        "sourcePrimitiveId": "PRIM-PIPE-1",
+        "sourceItemId": "PIPE-1",
+        "primitiveKind": "CYLINDER",
+        "primitiveCode": 8,
+        "writerStatus": "planned",
+        "reason": "writer-neutral cylinder primitive plan accepted"
+      }
+    ],
+    "blockedItems": [
+      {
+        "sourceItemId": "VALVE-1",
+        "family": "valve",
+        "type": "valve",
+        "writerStatus": "blocked",
+        "reason": "no exact catalogue item",
+        "sourceRef": "fixture/VALVE-1"
+      }
+    ],
+    "deferredItems": [
+      {
+        "sourceItemId": "SUPPORT-1",
+        "family": "support",
+        "type": "REST",
+        "writerStatus": "deferred",
+        "reason": "support primitive compiler not implemented in Phase 6",
+        "sourceRef": "fixture/SUPPORT-1"
+      }
+    ],
+    "warnings": ["RVM writer dry-run ready for straight-pipe cylinder subset only"]
+  },
+  "attAdapter": { "schema": "AttWriterAdapterPlan.v1", "graphId": "rvm-byte-proof-fixture", "writerKind": "att", "mode": "dryRun", "writerReady": false, "sourceSchema": "AttExportModel.v1", "plannedRecordCount": 0, "plannedRecords": [], "blockedRecords": [], "deferredRecords": [], "warnings": [] },
+  "glbAdapter": { "schema": "GlbWriterAdapterPlan.v1", "graphId": "rvm-byte-proof-fixture", "writerKind": "glb", "mode": "dryRun", "writerReady": false, "sourceSchema": "GlbVisualModel.v1", "plannedVisualCount": 0, "plannedVisuals": [], "blockedVisuals": [], "deferredVisuals": [], "warnings": [] },
+  "blockedWriterItems": [
+    { "sourceItemId": "VALVE-1", "family": "valve", "type": "valve", "writerStatus": "blocked", "reason": "no exact catalogue item", "sourceRef": "fixture/VALVE-1" }
+  ],
+  "deferredWriterItems": [
+    { "sourceItemId": "SUPPORT-1", "family": "support", "type": "REST", "writerStatus": "deferred", "reason": "support primitive compiler not implemented in Phase 6", "sourceRef": "fixture/SUPPORT-1" }
+  ],
+  "sourceRefs": [
+    { "sourceType": "rvm-byte-proof-fixture", "name": "rvm-byte-proof.input.writer-adapter-plan.json" }
+  ]
+}

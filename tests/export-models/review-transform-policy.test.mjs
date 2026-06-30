@@ -60,7 +60,7 @@ assert.equal(assertAttExportModelContract(exportModels.attExportModel).ok, true)
 assert.equal(assertGlbVisualModelContract(exportModels.glbVisualModel).ok, true);
 assert.equal(exportModels.attExportModel.records[0].sourceItemId, 'PIPE-X', 'ATT remains metadata only');
 assert.equal(exportModels.glbVisualModel.visualItems[0].basis, 'authoring', 'GLB visual model remains authoring basis');
-assert.deepEqual(exportModels.glbVisualModel.visualItems[0].axis, [0, 1, 0], 'GLB uses its own authoring visual model path');
+assert.deepEqual(exportModels.glbVisualModel.visualItems[0].axis, [0, 3, 4], 'GLB keeps authoring axis and is not RVM-transformed');
 const audit = buildExportModelCompilationAudit(primitiveModel, exportModels, primitiveAudit);
 assert.deepEqual(audit, expectedAudit, 'export audit matches final review transform fixture');
 assert.equal(assertExportModelCompilationAudit(audit, {

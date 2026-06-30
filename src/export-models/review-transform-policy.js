@@ -10,7 +10,7 @@ export function transformAuthoringAxisToReview(axis) {
 
 export function phase7TransformMetadata() {
   return {
-    sourceAxisBasis: { authoring: 'canvas-current' },
+    sourceAxisBasis: { authoring: 'authoring' },
     exportAxisBasis: { review: 'navis-review' },
     transformPolicy: PHASE7_RVM_TRANSFORM_POLICY,
     transformApplied: false,

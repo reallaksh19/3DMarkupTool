@@ -1,0 +1,37 @@
+{
+  "schema": "RvmTestArtifactByteProof.v1",
+  "graphId": "rvm-byte-proof-fixture",
+  "units": "mm",
+  "mode": "testOnly",
+  "artifactKind": "rvm",
+  "artifactReady": true,
+  "artifactGenerated": true,
+  "artifactBlocked": false,
+  "artifactByteLength": 1,
+  "checksumSha256": "0000000000000000000000000000000000000000000000000000000000000000",
+  "byteHeaderHex": "0000",
+  "writerBridge": "src/rvm-writer.js",
+  "writerBridgeMode": "isolated-test-only",
+  "transformPolicy": "final-review-transform.v1",
+  "transformApplied": true,
+  "sourceSchema": "RvmExportModel.v1",
+  "primitiveCount": 1,
+  "cylinderPrimitiveCount": 1,
+  "torusPrimitiveCount": 0,
+  "boxPrimitiveCount": 0,
+  "spherePrimitiveCount": 0,
+  "pyramidPrimitiveCount": 0,
+  "blockedArtifactItems": [
+    { "sourceItemId": "VALVE-1", "family": "valve", "type": "valve", "artifactStatus": "blocked", "reason": "no exact catalogue item", "sourceRef": "fixture/VALVE-1" }
+  ],
+  "deferredArtifactItems": [
+    { "sourceItemId": "SUPPORT-1", "family": "support", "type": "REST", "artifactStatus": "deferred", "reason": "support primitive compiler not implemented in Phase 6", "sourceRef": "fixture/SUPPORT-1" }
+  ],
+  "sourceTrace": [
+    { "sourceItemId": "PIPE-1", "bindingStatus": "proceduralResolved", "geometryStatus": "resolved", "primitiveStatus": "primitiveResolved", "exportStatus": "planned", "writerStatus": "planned", "artifactStatus": "writerPlanned" },
+    { "sourceItemId": "VALVE-1", "family": "valve", "type": "valve", "bindingStatus": "unresolved", "geometryStatus": "blocked", "primitiveStatus": "blocked", "exportStatus": "blocked", "writerStatus": "blocked", "artifactStatus": "blocked", "sourceRef": "fixture/VALVE-1" },
+    { "sourceItemId": "SUPPORT-1", "family": "support", "type": "REST", "bindingStatus": "supportIntent", "geometryStatus": "intentOnly", "primitiveStatus": "deferred", "exportStatus": "deferred", "writerStatus": "deferred", "artifactStatus": "deferred", "sourceRef": "fixture/SUPPORT-1" }
+  ],
+  "warnings": ["RVM full model remains not ready because blocked/deferred items are excluded from the test-only byte proof"],
+  "errors": []
+}

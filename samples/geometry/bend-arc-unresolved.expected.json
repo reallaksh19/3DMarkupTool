@@ -1,0 +1,7 @@
+{
+  "schema": "BendArcUnresolvedSample.v1",
+  "family": "elbow",
+  "geometryStatus": "blocked",
+  "reason": "missing deterministic bend tangent/arc evidence",
+  "forbiddenEvidence": "inputxml-chord-midpoint-not-arc-center"
+}

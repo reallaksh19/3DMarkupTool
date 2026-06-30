@@ -15,6 +15,7 @@ const FORBIDDEN_FIELDS = Object.freeze([
   'threeGeometry',
   'materialId'
 ]);
+const UNIT_EPSILON = 1e-6;
 
 export function validateResolvedPrimitiveModelContract(model, options = {}) {
   const errors = [];
@@ -27,9 +28,7 @@ export function validateResolvedPrimitiveModelContract(model, options = {}) {
     if (!model?.units) errors.push('units is required');
     if (!model?.axisBasis || typeof model.axisBasis !== 'object') errors.push('axisBasis object is required');
     if (!model?.axisBasis?.authoring) errors.push('axisBasis.authoring is required');
-    if (options.expectedAuthoringBasis && model?.axisBasis?.authoring !== options.expectedAuthoringBasis) {
-      errors.push('axisBasis.authoring must preserve ResolvedGeometryModel authoring basis');
-    }
+    if (options.expectedAuthoringBasis && model?.axisBasis?.authoring !== options.expectedAuthoringBasis) errors.push('axisBasis.authoring must preserve ResolvedGeometryModel authoring basis');
   }
   if (!Array.isArray(model?.items)) errors.push('items array is required');
   if (!Array.isArray(model?.primitives)) errors.push('primitives array is required');
@@ -44,9 +43,7 @@ export function validateResolvedPrimitiveModelContract(model, options = {}) {
   for (const [index, item] of (model?.items || []).entries()) {
     if (!item?.id) errors.push(`items[${index}].id is required`);
     if (item?.id) itemIds.add(String(item.id));
-    if (!['catalogue', 'procedural', 'fallback', 'unresolved', 'blocked', 'deferred'].includes(String(item?.resolutionMode || ''))) {
-      errors.push(`items[${index}].resolutionMode must be catalogue/procedural/fallback/unresolved/blocked/deferred`);
-    }
+    if (!['catalogue', 'procedural', 'fallback', 'unresolved', 'blocked', 'deferred'].includes(String(item?.resolutionMode || ''))) errors.push(`items[${index}].resolutionMode must be catalogue/procedural/fallback/unresolved/blocked/deferred`);
   }
 
   for (const [index, primitive] of (model?.primitives || []).entries()) {
@@ -59,10 +56,8 @@ export function validateResolvedPrimitiveModelContract(model, options = {}) {
     const code = primitive?.rvmCode ?? primitive?.primitiveCode;
     if (!Number.isInteger(Number(code))) errors.push(`primitives[${index}].rvmCode or primitiveCode must be integer-like`);
     if (!isPoint3(primitive?.center)) errors.push(`primitives[${index}].center must be [x,y,z]`);
-    if (!isPoint3(primitive?.axis)) errors.push(`primitives[${index}].axis must be [x,y,z]`);
-    if ('bbox' in primitive && !isBbox6(primitive?.bbox)) errors.push(`primitives[${index}].bbox must be [minX,minY,minZ,maxX,maxY,maxZ]`);
-    if ('lengthMm' in primitive && !Number.isFinite(Number(primitive.lengthMm))) errors.push(`primitives[${index}].lengthMm must be numeric`);
-    if ('radiusMm' in primitive && !Number.isFinite(Number(primitive.radiusMm))) errors.push(`primitives[${index}].radiusMm must be numeric`);
+    if (kind === 'TORUS') validateTorusPrimitive(primitive, index, errors);
+    else validateCylinderLikePrimitive(primitive, index, errors);
     if (primitive?.basis && primitive.basis !== 'authoring') errors.push(`primitives[${index}].basis must be authoring`);
   }
 
@@ -71,7 +66,6 @@ export function validateResolvedPrimitiveModelContract(model, options = {}) {
     if (primitive?.geometryStatus !== 'blocked') errors.push(`blockedPrimitives[${index}].geometryStatus must be blocked`);
     if (!primitive?.reason) errors.push(`blockedPrimitives[${index}].reason is required`);
   }
-
   for (const [index, primitive] of (model?.deferredPrimitives || []).entries()) {
     if (!primitive?.sourceItemId) errors.push(`deferredPrimitives[${index}].sourceItemId is required`);
     if (primitive?.geometryStatus !== 'deferred') errors.push(`deferredPrimitives[${index}].geometryStatus must be deferred`);
@@ -80,15 +74,7 @@ export function validateResolvedPrimitiveModelContract(model, options = {}) {
 
   const forbiddenHits = collectForbiddenFieldHits(model);
   errors.push(...forbiddenHits.map((hit) => `forbidden field ${hit.field} at ${hit.path}`));
-
-  return {
-    schema: 'ResolvedPrimitiveModelValidation.v1',
-    ok: errors.length === 0,
-    errorCount: errors.length,
-    errors,
-    forbiddenFieldCount: forbiddenHits.length,
-    forbiddenFields: forbiddenHits
-  };
+  return { schema: 'ResolvedPrimitiveModelValidation.v1', ok: errors.length === 0, errorCount: errors.length, errors, forbiddenFieldCount: forbiddenHits.length, forbiddenFields: forbiddenHits };
 }
 
 export function assertResolvedPrimitiveModelContract(model, options = {}) {
@@ -101,12 +87,31 @@ export function collectResolvedPrimitiveForbiddenFieldHits(value, path = '$', hi
   return collectForbiddenFieldHits(value, path, hits);
 }
 
+function validateCylinderLikePrimitive(primitive, index, errors) {
+  if (!isPoint3(primitive?.axis)) errors.push(`primitives[${index}].axis must be [x,y,z]`);
+  if ('bbox' in primitive && !isBbox6(primitive?.bbox)) errors.push(`primitives[${index}].bbox must be [minX,minY,minZ,maxX,maxY,maxZ]`);
+  if ('lengthMm' in primitive && !Number.isFinite(Number(primitive.lengthMm))) errors.push(`primitives[${index}].lengthMm must be numeric`);
+  if ('radiusMm' in primitive && !Number.isFinite(Number(primitive.radiusMm))) errors.push(`primitives[${index}].radiusMm must be numeric`);
+}
+
+function validateTorusPrimitive(primitive, index, errors) {
+  if (Number(primitive?.primitiveCode ?? primitive?.rvmCode) !== 4) errors.push(`primitives[${index}].TORUS primitiveCode must be 4`);
+  for (const key of ['normal', 'startTangent', 'endTangent']) {
+    if (!isPoint3(primitive?.[key])) errors.push(`primitives[${index}].${key} must be [x,y,z]`);
+    if (isPoint3(primitive?.[key]) && !isUnitVector(primitive[key])) errors.push(`primitives[${index}].${key} must be normalized`);
+  }
+  for (const key of ['majorRadiusMm', 'tubeRadiusMm', 'bendAngleDeg', 'sweepAngleDeg']) {
+    if (!Number.isFinite(Number(primitive?.[key])) || Number(primitive[key]) <= 0) errors.push(`primitives[${index}].${key} must be positive numeric`);
+  }
+  if (!primitive?.catalogueItemId) errors.push(`primitives[${index}].catalogueItemId is required`);
+  if (!primitive?.catalogueRef) errors.push(`primitives[${index}].catalogueRef is required`);
+  if (!primitive?.evidence || typeof primitive.evidence !== 'object') errors.push(`primitives[${index}].evidence is required`);
+  if (primitive?.evidence?.centerSource === 'inputxml-chord-midpoint-not-arc-center') errors.push(`primitives[${index}] must not use chord midpoint as torus center`);
+}
+
 function collectForbiddenFieldHits(value, path = '$', hits = []) {
   if (!value || typeof value !== 'object') return hits;
-  if (Array.isArray(value)) {
-    value.forEach((entry, index) => collectForbiddenFieldHits(entry, `${path}[${index}]`, hits));
-    return hits;
-  }
+  if (Array.isArray(value)) { value.forEach((entry, index) => collectForbiddenFieldHits(entry, `${path}[${index}]`, hits)); return hits; }
   for (const [key, entry] of Object.entries(value)) {
     if (FORBIDDEN_FIELDS.includes(key)) hits.push({ path: `${path}.${key}`, field: key });
     collectForbiddenFieldHits(entry, `${path}.${key}`, hits);
@@ -117,10 +122,10 @@ function collectForbiddenFieldHits(value, path = '$', hits = []) {
 function isPoint3(value) {
   return Array.isArray(value) && value.length === 3 && value.every((entry) => Number.isFinite(Number(entry)));
 }
-
+function isUnitVector(value) {
+  const length = Math.hypot(Number(value[0]), Number(value[1]), Number(value[2]));
+  return Number.isFinite(length) && Math.abs(length - 1) <= UNIT_EPSILON;
+}
 function isBbox6(value) {
-  return Array.isArray(value) && value.length === 6 && value.every((entry) => Number.isFinite(Number(entry)))
-    && Number(value[0]) <= Number(value[3])
-    && Number(value[1]) <= Number(value[4])
-    && Number(value[2]) <= Number(value[5]);
+  return Array.isArray(value) && value.length === 6 && value.every((entry) => Number.isFinite(Number(entry))) && Number(value[0]) <= Number(value[3]) && Number(value[1]) <= Number(value[4]) && Number(value[2]) <= Number(value[5]);
 }

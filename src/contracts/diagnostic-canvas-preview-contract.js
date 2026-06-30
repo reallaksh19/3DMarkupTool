@@ -5,6 +5,7 @@ const DIAGNOSTIC_KINDS = Object.freeze([
   'straightPipeWriterPlan',
   'blockedComponent',
   'deferredSupport',
+  'bendTorusWriterDeferred',
   'artifactStatus',
   'pipelineSummary'
 ]);
@@ -12,6 +13,7 @@ const DIAGNOSTIC_STATUSES = Object.freeze([
   'writerPlannedArtifactBlocked',
   'blockedUnresolved',
   'deferred',
+  'primitiveResolvedWriterDeferred',
   'artifactBlocked',
   'summary'
 ]);
@@ -61,6 +63,7 @@ export function validateDiagnosticCanvasPreviewModelContract(model) {
   for (const [index, item] of (model?.previewItems || []).entries()) validatePreviewItem(item, `previewItems[${index}]`, errors);
   for (const [index, item] of (model?.blockedBadges || []).entries()) validatePreviewItem(item, `blockedBadges[${index}]`, errors);
   for (const [index, item] of (model?.deferredBadges || []).entries()) validatePreviewItem(item, `deferredBadges[${index}]`, errors);
+  for (const [index, item] of (model?.bendTorusBadges || []).entries()) validatePreviewItem(item, `bendTorusBadges[${index}]`, errors);
   for (const [index, card] of (model?.summaryCards || []).entries()) {
     if (!card?.key) errors.push(`summaryCards[${index}].key is required`);
     if (!Object.hasOwn(card || {}, 'value')) errors.push(`summaryCards[${index}].value is required`);

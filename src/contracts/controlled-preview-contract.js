@@ -1,36 +1,10 @@
 import { CONTROLLED_PREVIEW_MODEL_SCHEMA } from './platform-contract-schemas.js';
 
 const ALLOWED_STATUSES = new Set(['partial-rvm-subset-ready', 'diagnostics-only', 'blocked', 'unavailable']);
-const ALLOWED_PREVIEW_STATUSES = new Set(['rvmStraightPipeSubsetReady', 'fullModelNotReady', 'blockedComponent', 'deferredSupport', 'attBlocked', 'glbBlocked', 'diagnosticOnly']);
+const ALLOWED_PREVIEW_STATUSES = new Set(['rvmStraightPipeSubsetReady', 'fullModelNotReady', 'blockedComponent', 'deferredSupport', 'bendTorusWriterDeferred', 'attBlocked', 'glbBlocked', 'diagnosticOnly']);
 const ALLOWED_READINESS = new Set(['ready', 'notReady', 'blocked', 'deferred', 'diagnosticOnly']);
 const ALLOWED_SEVERITY = new Set(['info', 'warning', 'blocked']);
-const FORBIDDEN_FIELDS = Object.freeze([
-  'geometry',
-  'mesh',
-  'meshGeometry',
-  'threeObject',
-  'threeGeometry',
-  'webgl',
-  'bufferGeometry',
-  'material',
-  'rvmBytes',
-  'bytes',
-  'binary',
-  'arrayBuffer',
-  'buffer',
-  'attText',
-  'glbBytes',
-  'gltfJson',
-  'objectUrl',
-  'downloadUrl',
-  'fileBlob',
-  'canvas',
-  'runtimeMutation',
-  'writerPayload',
-  'artifactPayload',
-  'productionWrite',
-  'cacheKeyMutation'
-]);
+const FORBIDDEN_FIELDS = Object.freeze(['geometry', 'mesh', 'meshGeometry', 'threeObject', 'threeGeometry', 'webgl', 'bufferGeometry', 'material', 'rvmBytes', 'bytes', 'binary', 'arrayBuffer', 'buffer', 'attText', 'glbBytes', 'gltfJson', 'objectUrl', 'downloadUrl', 'fileBlob', 'canvas', 'runtimeMutation', 'writerPayload', 'artifactPayload', 'productionWrite', 'cacheKeyMutation']);
 
 export function validateControlledPreviewModelContract(model) {
   const errors = [];
@@ -44,23 +18,14 @@ export function validateControlledPreviewModelContract(model) {
   if (model?.featureFlags?.shadowPreview !== true) errors.push('featureFlags.shadowPreview must be true');
   if (!model?.provenance || typeof model.provenance !== 'object') errors.push('provenance object is required');
   if (!model?.artifactReadiness || typeof model.artifactReadiness !== 'object') errors.push('artifactReadiness object is required');
-  for (const key of ['previewSections', 'straightPipeSubsetPreview', 'blockedPreview', 'deferredPreview', 'sourceTracePreview', 'warnings', 'errors']) {
-    if (!Array.isArray(model?.[key])) errors.push(`${key} array is required`);
-  }
+  for (const key of ['previewSections', 'straightPipeSubsetPreview', 'blockedPreview', 'deferredPreview', 'sourceTracePreview', 'warnings', 'errors']) if (!Array.isArray(model?.[key])) errors.push(`${key} array is required`);
   validatePreviewItems(model?.straightPipeSubsetPreview, 'straightPipeSubsetPreview', errors);
   validatePreviewItems(model?.blockedPreview, 'blockedPreview', errors);
   validatePreviewItems(model?.deferredPreview, 'deferredPreview', errors);
-  validatePreviewItems(model?.sourceTracePreview, 'sourceTracePreview', errors, { allowDiagnosticOnly: true });
+  validatePreviewItems(model?.sourceTracePreview, 'sourceTracePreview', errors);
   const forbiddenHits = collectControlledPreviewForbiddenFieldHits(model);
   errors.push(...forbiddenHits.map((hit) => `forbidden field ${hit.field} at ${hit.path}`));
-  return {
-    schema: 'ControlledPreviewModelValidation.v1',
-    ok: errors.length === 0,
-    errorCount: errors.length,
-    errors,
-    forbiddenFieldCount: forbiddenHits.length,
-    forbiddenFields: forbiddenHits
-  };
+  return { schema: 'ControlledPreviewModelValidation.v1', ok: errors.length === 0, errorCount: errors.length, errors, forbiddenFieldCount: forbiddenHits.length, forbiddenFields: forbiddenHits };
 }
 
 export function assertControlledPreviewModelContract(model) {
@@ -71,10 +36,7 @@ export function assertControlledPreviewModelContract(model) {
 
 export function collectControlledPreviewForbiddenFieldHits(value, path = '$', hits = []) {
   if (!value || typeof value !== 'object') return hits;
-  if (Array.isArray(value)) {
-    value.forEach((entry, index) => collectControlledPreviewForbiddenFieldHits(entry, `${path}[${index}]`, hits));
-    return hits;
-  }
+  if (Array.isArray(value)) { value.forEach((entry, index) => collectControlledPreviewForbiddenFieldHits(entry, `${path}[${index}]`, hits)); return hits; }
   for (const [key, entry] of Object.entries(value)) {
     if (FORBIDDEN_FIELDS.includes(key)) hits.push({ path: `${path}.${key}`, field: key });
     collectControlledPreviewForbiddenFieldHits(entry, `${path}.${key}`, hits);

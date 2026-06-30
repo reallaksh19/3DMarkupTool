@@ -1,0 +1,19 @@
+{
+  "schema": "BendTorusPrimitiveSample.v1",
+  "primitiveKind": "TORUS",
+  "primitiveCode": 4,
+  "resolver": "bendArcTorusPrimitive.v1",
+  "basis": "authoring",
+  "center": [152.399994, 0, 0],
+  "normal": [0, 1, 0],
+  "startTangent": [1, 0, 0],
+  "endTangent": [0.707106781, 0, -0.707106781],
+  "majorRadiusMm": 152.399994,
+  "tubeRadiusMm": 57.1499975,
+  "bendAngleDeg": 45,
+  "sweepAngleDeg": 45,
+  "evidence": {
+    "centerSource": "explicit-bend-arc-center",
+    "chordMidpointRejected": true
+  }
+}

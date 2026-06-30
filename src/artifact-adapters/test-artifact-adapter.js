@@ -1,7 +1,4 @@
-import {
-  collectTestArtifactForbiddenFieldHits,
-  validateTestArtifactAdapterPlanContract
-} from '../contracts/index.js';
+import { collectTestArtifactForbiddenFieldHits, validateTestArtifactAdapterPlanContract } from '../contracts/index.js';
 import { adaptAttExportModelToTestArtifact } from './att-test-artifact-adapter.js';
 import { adaptGlbVisualModelToTestArtifact } from './glb-test-artifact-adapter.js';
 import { adaptRvmExportModelToTestArtifact } from './rvm-test-artifact-adapter.js';
@@ -17,19 +14,7 @@ export function buildTestArtifactAdapterPlan(exportModels, exportAudit, writerAd
   const glbArtifact = adaptGlbVisualModelToTestArtifact(exportModels?.glbVisualModel, exportAudit, writerAdapterPlan, writerAdapterAudit, options);
   const blockedArtifactItems = mapArtifactItems(writerAdapterPlan?.blockedWriterItems, 'blocked');
   const deferredArtifactItems = mapArtifactItems(writerAdapterPlan?.deferredWriterItems, 'deferred');
-  return {
-    schema: TEST_ARTIFACT_PLAN_SCHEMA,
-    graphId: exportModels?.rvmExportModel?.graphId || writerAdapterPlan?.graphId || options.graphId || '<unknown-graph>',
-    units: exportModels?.rvmExportModel?.units || writerAdapterPlan?.units || options.units || 'mm',
-    mode,
-    rvmArtifact,
-    attArtifact,
-    glbArtifact,
-    blockedArtifactItems,
-    deferredArtifactItems,
-    sourceTrace: buildSourceTrace(writerAdapterPlan),
-    sourceRefs: Array.isArray(exportModels?.rvmExportModel?.sourceRefs) ? exportModels.rvmExportModel.sourceRefs : []
-  };
+  return { schema: TEST_ARTIFACT_PLAN_SCHEMA, graphId: exportModels?.rvmExportModel?.graphId || writerAdapterPlan?.graphId || options.graphId || '<unknown-graph>', units: exportModels?.rvmExportModel?.units || writerAdapterPlan?.units || options.units || 'mm', mode, rvmArtifact, attArtifact, glbArtifact, blockedArtifactItems, deferredArtifactItems, sourceTrace: buildSourceTrace(writerAdapterPlan), sourceRefs: Array.isArray(exportModels?.rvmExportModel?.sourceRefs) ? exportModels.rvmExportModel.sourceRefs : [] };
 }
 
 export function buildTestArtifactAdapterAudit(testArtifactPlan, exportModels, writerAdapterPlan, writerAdapterAudit, options = {}) {
@@ -39,7 +24,6 @@ export function buildTestArtifactAdapterAudit(testArtifactPlan, exportModels, wr
   const warnings = collectArtifactWarnings(testArtifactPlan);
   if (!writerAdapterAudit || writerAdapterAudit.schema !== 'WriterAdapterAudit.v1') errors.push('WriterAdapterAudit.v1 is required');
   if (writerAdapterAudit?.ok !== true) errors.push('WriterAdapterAudit.ok must be true before test artifact planning');
-
   const trace = Array.isArray(testArtifactPlan?.sourceTrace) ? testArtifactPlan.sourceTrace : [];
   const blockedItems = Array.isArray(testArtifactPlan?.blockedArtifactItems) ? testArtifactPlan.blockedArtifactItems : [];
   const deferredItems = Array.isArray(testArtifactPlan?.deferredArtifactItems) ? testArtifactPlan.deferredArtifactItems : [];
@@ -66,6 +50,8 @@ export function buildTestArtifactAdapterAudit(testArtifactPlan, exportModels, wr
     glbArtifactChecksumPresent: Boolean(testArtifactPlan?.glbArtifact?.checksumSha256),
     sourceTraceCount: trace.length,
     tracedStraightPipeCount: trace.filter((entry) => entry.primitiveStatus === 'primitiveResolved' && entry.writerStatus === 'planned').length,
+    tracedBendTorusPrimitiveResolvedCount: trace.filter((entry) => entry.family === 'elbow' && entry.primitiveKind === 'TORUS' && entry.primitiveStatus === 'primitiveResolved').length,
+    tracedBendTorusWriterDeferredCount: trace.filter((entry) => entry.family === 'elbow' && entry.primitiveKind === 'TORUS' && entry.writerStatus === 'deferred').length,
     tracedBlockedFlangeCount: trace.filter((entry) => entry.family === 'flange' && entry.artifactStatus === 'blocked').length,
     tracedBlockedValveCount: trace.filter((entry) => entry.family === 'valve' && entry.artifactStatus === 'blocked').length,
     tracedBlockedBendCount: trace.filter((entry) => entry.family === 'elbow' && entry.artifactStatus === 'blocked').length,
@@ -76,6 +62,7 @@ export function buildTestArtifactAdapterAudit(testArtifactPlan, exportModels, wr
     blockedValveCount: blockedItems.filter((entry) => entry.family === 'valve').length,
     blockedBendCount: blockedItems.filter((entry) => entry.family === 'elbow').length,
     deferredSupportWriterCount: deferredItems.filter((entry) => entry.family === 'support').length,
+    deferredBendTorusWriterCount: deferredItems.filter((entry) => entry.family === 'elbow' && entry.primitiveKind === 'TORUS').length,
     writerCallCount: 0,
     runtimeTouched: false,
     browserTouched: false,
@@ -90,94 +77,25 @@ export function buildTestArtifactAdapterAudit(testArtifactPlan, exportModels, wr
     errors,
     warnings
   };
-  audit.ok = validation.ok
-    && writerAdapterAudit?.ok === true
-    && audit.hardErrorCount === 0
-    && audit.runtimeTouched === false
-    && audit.browserTouched === false
-    && audit[TOUCH_FIELD] === false
-    && audit.objectUrlCount === 0
-    && audit.downloadSideEffectCount === 0
-    && audit.productionPathMutationCount === 0
-    && audit.cacheKeyMutationCount === 0;
+  audit.ok = validation.ok && writerAdapterAudit?.ok === true && audit.hardErrorCount === 0 && audit.runtimeTouched === false && audit.browserTouched === false && audit[TOUCH_FIELD] === false && audit.objectUrlCount === 0 && audit.downloadSideEffectCount === 0 && audit.productionPathMutationCount === 0 && audit.cacheKeyMutationCount === 0;
   return audit;
 }
 
-export {
-  adaptRvmExportModelToTestArtifact,
-  adaptAttExportModelToTestArtifact,
-  adaptGlbVisualModelToTestArtifact
-};
+export { adaptRvmExportModelToTestArtifact, adaptAttExportModelToTestArtifact, adaptGlbVisualModelToTestArtifact };
 
 function mapArtifactItems(entries, artifactStatus) {
-  return (Array.isArray(entries) ? entries : []).map((entry) => compact({
-    sourceItemId: entry.sourceItemId,
-    family: entry.family,
-    type: entry.type,
-    artifactStatus,
-    reason: entry.reason,
-    sourceRef: entry.sourceRef
-  }));
+  return (Array.isArray(entries) ? entries : []).map((entry) => compact({ sourceItemId: entry.sourceItemId, sourcePrimitiveId: entry.sourcePrimitiveId, family: entry.family, type: entry.type, primitiveKind: entry.primitiveKind, primitiveCode: entry.primitiveCode, artifactStatus, reason: entry.reason, sourceRef: entry.sourceRef }));
 }
 
 function buildSourceTrace(writerAdapterPlan) {
   const trace = [];
-  for (const chunk of Array.isArray(writerAdapterPlan?.rvmAdapter?.plannedChunks) ? writerAdapterPlan.rvmAdapter.plannedChunks : []) {
-    trace.push(compact({
-      sourceItemId: chunk.sourceItemId,
-      routeId: chunk.sourceRouteId,
-      bindingStatus: 'proceduralResolved',
-      geometryStatus: 'resolved',
-      primitiveStatus: 'primitiveResolved',
-      exportStatus: 'planned',
-      writerStatus: chunk.writerStatus,
-      artifactStatus: 'writerPlanned',
-      sourceRef: chunk.sourceRef
-    }));
-  }
-  for (const blocked of Array.isArray(writerAdapterPlan?.blockedWriterItems) ? writerAdapterPlan.blockedWriterItems : []) {
-    trace.push(compact({
-      sourceItemId: blocked.sourceItemId,
-      routeId: blocked.routeId,
-      family: blocked.family,
-      type: blocked.type,
-      bindingStatus: 'unresolved',
-      geometryStatus: 'blocked',
-      primitiveStatus: 'blocked',
-      exportStatus: 'blocked',
-      writerStatus: blocked.writerStatus,
-      artifactStatus: 'blocked',
-      sourceRef: blocked.sourceRef
-    }));
-  }
+  for (const chunk of Array.isArray(writerAdapterPlan?.rvmAdapter?.plannedChunks) ? writerAdapterPlan.rvmAdapter.plannedChunks : []) trace.push(compact({ sourceItemId: chunk.sourceItemId, routeId: chunk.sourceRouteId, bindingStatus: 'proceduralResolved', geometryStatus: 'resolved', primitiveStatus: 'primitiveResolved', exportStatus: 'planned', writerStatus: chunk.writerStatus, artifactStatus: 'writerPlanned', sourceRef: chunk.sourceRef }));
+  for (const blocked of Array.isArray(writerAdapterPlan?.blockedWriterItems) ? writerAdapterPlan.blockedWriterItems : []) trace.push(compact({ sourceItemId: blocked.sourceItemId, routeId: blocked.routeId, family: blocked.family, type: blocked.type, bindingStatus: 'unresolved', geometryStatus: 'blocked', primitiveStatus: 'blocked', exportStatus: 'blocked', writerStatus: blocked.writerStatus, artifactStatus: 'blocked', sourceRef: blocked.sourceRef }));
   for (const deferred of Array.isArray(writerAdapterPlan?.deferredWriterItems) ? writerAdapterPlan.deferredWriterItems : []) {
-    trace.push(compact({
-      sourceItemId: deferred.sourceItemId,
-      routeId: deferred.routeId,
-      family: deferred.family,
-      type: deferred.type,
-      bindingStatus: deferred.family === 'support' ? 'supportIntent' : 'deferred',
-      geometryStatus: deferred.family === 'support' ? 'intentOnly' : 'deferred',
-      primitiveStatus: 'deferred',
-      exportStatus: 'deferred',
-      writerStatus: deferred.writerStatus,
-      artifactStatus: 'deferred',
-      sourceRef: deferred.sourceRef
-    }));
+    const isBendTorus = deferred.family === 'elbow' && deferred.primitiveKind === 'TORUS';
+    trace.push(compact({ sourceItemId: deferred.sourceItemId, routeId: deferred.routeId, family: deferred.family, type: deferred.type, primitiveKind: deferred.primitiveKind, primitiveCode: deferred.primitiveCode, bindingStatus: isBendTorus ? 'catalogueResolved' : deferred.family === 'support' ? 'supportIntent' : 'deferred', geometryStatus: isBendTorus ? 'resolved' : deferred.family === 'support' ? 'intentOnly' : 'deferred', primitiveStatus: isBendTorus ? 'primitiveResolved' : 'deferred', exportStatus: 'deferred', writerStatus: deferred.writerStatus, artifactStatus: 'deferred', sourceRef: deferred.sourceRef }));
   }
   return trace;
 }
-
-function collectArtifactWarnings(plan) {
-  return [plan?.rvmArtifact, plan?.attArtifact, plan?.glbArtifact]
-    .filter((artifact) => artifact?.artifactBlocked === true && artifact?.reason)
-    .map((artifact) => artifact.reason);
-}
-
-function compact(value) {
-  const out = {};
-  for (const [key, entry] of Object.entries(value)) {
-    if (entry !== undefined && entry !== null && entry !== '') out[key] = entry;
-  }
-  return out;
-}
+function collectArtifactWarnings(plan) { return [plan?.rvmArtifact, plan?.attArtifact, plan?.glbArtifact].filter((artifact) => artifact?.artifactBlocked === true && artifact?.reason).map((artifact) => artifact.reason); }
+function compact(value) { const out = {}; for (const [key, entry] of Object.entries(value)) if (entry !== undefined && entry !== null && entry !== '') out[key] = entry; return out; }

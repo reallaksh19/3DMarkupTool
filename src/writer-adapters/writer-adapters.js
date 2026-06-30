@@ -1,7 +1,4 @@
-import {
-  collectWriterAdapterForbiddenFieldHits,
-  validateWriterAdapterPlanContract
-} from '../contracts/index.js';
+import { collectWriterAdapterForbiddenFieldHits, validateWriterAdapterPlanContract } from '../contracts/index.js';
 import { adaptAttExportModelForWriter } from './att-writer-adapter.js';
 import { adaptGlbVisualModelForWriter } from './glb-writer-adapter.js';
 import { adaptRvmExportModelForWriter } from './rvm-writer-adapter.js';
@@ -14,29 +11,14 @@ export function buildWriterAdapterPlan(exportModels, exportAudit, options = {}) 
   const rvmAdapter = adaptRvmExportModelForWriter(exportModels?.rvmExportModel, exportAudit, { ...options, mode });
   const attAdapter = adaptAttExportModelForWriter(exportModels?.attExportModel, exportAudit, { ...options, mode });
   const glbAdapter = adaptGlbVisualModelForWriter(exportModels?.glbVisualModel, exportAudit, { ...options, mode });
-  return {
-    schema: WRITER_ADAPTER_PLAN_SCHEMA,
-    graphId: exportModels?.rvmExportModel?.graphId || exportModels?.attExportModel?.graphId || exportModels?.glbVisualModel?.graphId || options.graphId || '<unknown-graph>',
-    units: exportModels?.rvmExportModel?.units || exportModels?.attExportModel?.units || exportModels?.glbVisualModel?.units || options.units || 'mm',
-    mode,
-    rvmAdapter,
-    attAdapter,
-    glbAdapter,
-    blockedWriterItems: Array.isArray(rvmAdapter.blockedItems) ? rvmAdapter.blockedItems : [],
-    deferredWriterItems: Array.isArray(rvmAdapter.deferredItems) ? rvmAdapter.deferredItems : [],
-    sourceRefs: Array.isArray(exportModels?.rvmExportModel?.sourceRefs) ? exportModels.rvmExportModel.sourceRefs : []
-  };
+  return { schema: WRITER_ADAPTER_PLAN_SCHEMA, graphId: exportModels?.rvmExportModel?.graphId || exportModels?.attExportModel?.graphId || exportModels?.glbVisualModel?.graphId || options.graphId || '<unknown-graph>', units: exportModels?.rvmExportModel?.units || exportModels?.attExportModel?.units || exportModels?.glbVisualModel?.units || options.units || 'mm', mode, rvmAdapter, attAdapter, glbAdapter, blockedWriterItems: Array.isArray(rvmAdapter.blockedItems) ? rvmAdapter.blockedItems : [], deferredWriterItems: Array.isArray(rvmAdapter.deferredItems) ? rvmAdapter.deferredItems : [], sourceRefs: Array.isArray(exportModels?.rvmExportModel?.sourceRefs) ? exportModels.rvmExportModel.sourceRefs : [] };
 }
 
 export function buildWriterAdapterAudit(writerAdapterPlan, exportModels, exportAudit, options = {}) {
   const validation = validateWriterAdapterPlanContract(writerAdapterPlan);
   const forbiddenHits = collectWriterAdapterForbiddenFieldHits(writerAdapterPlan);
   const errors = [...validation.errors];
-  const warnings = [
-    ...(Array.isArray(writerAdapterPlan?.rvmAdapter?.warnings) ? writerAdapterPlan.rvmAdapter.warnings : []),
-    ...(Array.isArray(writerAdapterPlan?.attAdapter?.warnings) ? writerAdapterPlan.attAdapter.warnings : []),
-    ...(Array.isArray(writerAdapterPlan?.glbAdapter?.warnings) ? writerAdapterPlan.glbAdapter.warnings : [])
-  ];
+  const warnings = [...(Array.isArray(writerAdapterPlan?.rvmAdapter?.warnings) ? writerAdapterPlan.rvmAdapter.warnings : []), ...(Array.isArray(writerAdapterPlan?.attAdapter?.warnings) ? writerAdapterPlan.attAdapter.warnings : []), ...(Array.isArray(writerAdapterPlan?.glbAdapter?.warnings) ? writerAdapterPlan.glbAdapter.warnings : [])];
   if (!exportAudit || exportAudit.schema !== 'ExportModelCompilationAudit.v1') errors.push('ExportModelCompilationAudit.v1 is required');
   if (exportAudit?.ok !== true) errors.push('ExportModelCompilationAudit.ok must be true before writer adapter planning');
 
@@ -63,6 +45,7 @@ export function buildWriterAdapterAudit(writerAdapterPlan, exportModels, exportA
     deferredWriterItemCount: deferredWriterItems.length,
     blockedUnresolvedWriterCount: blockedWriterItems.length,
     deferredSupportWriterCount: deferredWriterItems.filter((entry) => entry.family === 'support').length,
+    deferredBendTorusWriterCount: deferredWriterItems.filter((entry) => entry.family === 'elbow' && entry.primitiveKind === 'TORUS').length,
     writerCallCount: 0,
     binaryPayloadCount: forbiddenHits.filter((hit) => ['binary', 'bytes', 'buffer', 'arrayBuffer', 'chunkBytes', 'cntbBytes', 'primBody', 'fileBlob', 'writerPayload', 'writeResult'].includes(hit.field)).length,
     textPayloadCount: forbiddenHits.filter((hit) => hit.field === 'attText').length,
@@ -75,20 +58,8 @@ export function buildWriterAdapterAudit(writerAdapterPlan, exportModels, exportA
     errors,
     warnings
   };
-  audit.ok = validation.ok
-    && exportAudit?.ok === true
-    && audit.hardErrorCount === 0
-    && audit.writerCallCount === 0
-    && audit.binaryPayloadCount === 0
-    && audit.textPayloadCount === 0
-    && audit.glbPayloadCount === 0
-    && audit.downloadSideEffectCount === 0
-    && audit.runtimeMutationCount === 0;
+  audit.ok = validation.ok && exportAudit?.ok === true && audit.hardErrorCount === 0 && audit.writerCallCount === 0 && audit.binaryPayloadCount === 0 && audit.textPayloadCount === 0 && audit.glbPayloadCount === 0 && audit.downloadSideEffectCount === 0 && audit.runtimeMutationCount === 0;
   return audit;
 }
 
-export {
-  adaptRvmExportModelForWriter,
-  adaptAttExportModelForWriter,
-  adaptGlbVisualModelForWriter
-};
+export { adaptRvmExportModelForWriter, adaptAttExportModelForWriter, adaptGlbVisualModelForWriter };

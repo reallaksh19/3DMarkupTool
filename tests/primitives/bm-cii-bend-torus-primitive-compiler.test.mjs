@@ -1,0 +1,32 @@
+import assert from 'node:assert/strict';
+import { buildBmCiiPhase11aState } from '../fixtures/bend-torus-phase11a-pipeline.mjs';
+
+const state = await buildBmCiiPhase11aState();
+assert.equal(state.importerAudit.generatedPipeItemCount, 19);
+assert.equal(state.importerAudit.sourceBendCount, 7);
+assert.equal(state.importerAudit.bendArcEvidenceCount, 7);
+assert.equal(state.bindingAudit.bendCatalogueResolvedCount, 7);
+assert.equal(state.bindingAudit.unresolvedCount, 14);
+assert.equal(state.geometryAudit.ok, true);
+assert.equal(state.geometryAudit.routeFrameCount, 40);
+assert.equal(state.geometryAudit.itemFrameCount, 19);
+assert.equal(state.geometryAudit.resolvedStraightPipeCount, 19);
+assert.equal(state.geometryAudit.resolvedBendArcCount, 7);
+assert.equal(state.geometryAudit.supportPlacementCount, 12);
+assert.equal(state.geometryAudit.unresolvedGeometryCount, 14);
+assert.equal(state.geometryAudit.blockedBendGeometryCount, 0);
+assert.equal(state.geometryAudit.chordMidpointTorusCenterCount, 0);
+assert.equal(state.primitiveAudit.ok, true);
+assert.equal(state.primitiveAudit.primitiveCount, 26);
+assert.equal(state.primitiveAudit.cylinderPrimitiveCount, 19);
+assert.equal(state.primitiveAudit.torusPrimitiveCount, 7);
+assert.equal(state.primitiveAudit.bendTorusPrimitiveCount, 7);
+assert.equal(state.primitiveAudit.blockedFlangePrimitiveCount, 8);
+assert.equal(state.primitiveAudit.blockedValvePrimitiveCount, 6);
+assert.equal(state.primitiveAudit.blockedBendPrimitiveCount, 0);
+assert.equal(state.primitiveAudit.deferredSupportPrimitiveCount, 12);
+assert.equal(state.primitiveAudit.blockedUnresolvedGeometryCount, 14);
+assert.equal(state.primitiveAudit.chordMidpointTorusCenterCount, 0);
+assert.equal(state.primitiveModel.primitives.filter((entry) => entry.primitiveKind === 'TORUS' && Number(entry.primitiveCode) === 4).length, 7);
+
+console.log('BM CII bend torus primitive compiler tests passed');

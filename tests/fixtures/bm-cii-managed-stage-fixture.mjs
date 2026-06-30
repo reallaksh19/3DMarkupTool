@@ -80,6 +80,11 @@ function componentRecord(type, ordinal) {
     attrs.BEND_CHORD_LENGTH_MM = distance(start, end);
     attrs.BEND_CENTER_ESTIMATE = midpoint(start, end);
     attrs.BEND_CENTER_ESTIMATE_SOURCE = 'inputxml-chord-midpoint-not-arc-center';
+    attrs.BEND_ARC_CENTER = [start[0] + attrs.BEND_RADIUS_MM, start[1], start[2]];
+    attrs.BEND_PLANE_NORMAL = [0, 1, 0];
+    attrs.BEND_START_TANGENT = [1, 0, 0];
+    attrs.BEND_END_TANGENT = [Math.SQRT1_2, 0, -Math.SQRT1_2];
+    attrs.BEND_ARC_EVIDENCE_SOURCE = 'fixture-explicit-arc-center-normal-tangents';
   }
   return { name: `${type} ${attrs.NAME}`, type, attributes: attrs };
 }

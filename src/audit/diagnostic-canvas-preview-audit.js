@@ -2,6 +2,8 @@ const DIAGNOSTIC_CANVAS_PREVIEW_AUDIT_SCHEMA = 'DiagnosticCanvasPreviewAudit.v1'
 const COUNT_KEYS = [
   'previewItemCount',
   'straightPipeWriterPlanPreviewCount',
+  'bendTorusPrimitiveResolvedPreviewCount',
+  'bendTorusWriterDeferredPreviewCount',
   'blockedComponentPreviewCount',
   'blockedFlangePreviewCount',
   'blockedValvePreviewCount',
@@ -33,12 +35,8 @@ export function assertDiagnosticCanvasPreviewAudit(audit, expectations = {}) {
   if (audit?.schema !== DIAGNOSTIC_CANVAS_PREVIEW_AUDIT_SCHEMA) errors.push(`schema must be ${DIAGNOSTIC_CANVAS_PREVIEW_AUDIT_SCHEMA}`);
   if (!audit?.graphId) errors.push('graphId is required');
   if (audit?.mode !== 'diagnosticOnly') errors.push('mode must be diagnosticOnly');
-  for (const key of COUNT_KEYS) {
-    if (!Number.isInteger(Number(audit?.[key]))) errors.push(`${key} must be integer-like`);
-  }
-  for (const key of BOOLEAN_KEYS) {
-    if (typeof audit?.[key] !== 'boolean') errors.push(`${key} must be boolean`);
-  }
+  for (const key of COUNT_KEYS) if (!Number.isInteger(Number(audit?.[key]))) errors.push(`${key} must be integer-like`);
+  for (const key of BOOLEAN_KEYS) if (typeof audit?.[key] !== 'boolean') errors.push(`${key} must be boolean`);
   if (!Array.isArray(audit?.errors)) errors.push('errors array is required');
   if (!Array.isArray(audit?.warnings)) errors.push('warnings array is required');
   for (const [key, expected] of Object.entries(expectations)) {

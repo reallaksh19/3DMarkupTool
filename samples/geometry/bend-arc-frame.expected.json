@@ -1,0 +1,22 @@
+{
+  "schema": "BendArcFrameSample.v1",
+  "geometryKind": "bendArcFrame.v1",
+  "family": "elbow",
+  "geometryStatus": "resolved",
+  "resolver": "catalogueBackedBendArcGeometry.v1",
+  "basis": "authoring",
+  "startPoint": [0, 0, 0],
+  "endPoint": [100, 0, -50],
+  "center": [152.399994, 0, 0],
+  "normal": [0, 1, 0],
+  "startTangent": [1, 0, 0],
+  "endTangent": [0.707106781, 0, -0.707106781],
+  "bendAngleDeg": 45,
+  "sweepAngleDeg": 45,
+  "majorRadiusMm": 152.399994,
+  "tubeRadiusMm": 57.1499975,
+  "evidence": {
+    "centerSource": "explicit-bend-arc-center",
+    "chordMidpointRejected": true
+  }
+}

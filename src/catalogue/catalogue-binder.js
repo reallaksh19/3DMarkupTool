@@ -28,6 +28,8 @@ export function auditCatalogueBinding(graph, catalogueItems = [], options = {}) 
     supportIntentCount: countStatus(bindings, STATUS.SUPPORT_INTENT),
     nearestMatchCount: 0,
     exportDecisionCount: 0,
+    bendCatalogueResolvedCount: bindings.filter((entry) => entry.status === STATUS.CATALOGUE_RESOLVED && entry.family === 'elbow').length,
+    bendCatalogueMissingCount: bindings.filter((entry) => entry.status === STATUS.UNRESOLVED && entry.family === 'elbow').length,
     bindings
   };
 }
@@ -83,8 +85,12 @@ function bindItem(item, routesById, catalogueIndex) {
         status: STATUS.CATALOGUE_RESOLVED,
         family: identity.family,
         type: identity.type,
+        route: item.route,
+        identityKey: match.key,
         catalogueItemKey: match.key,
-        reason: 'exact catalogue item match'
+        catalogueItemId: match.item?.id || match.key,
+        catalogueRef: compact({ catalogue: match.item?.catalogue, family: match.item?.family, type: match.item?.type }),
+        reason: identity.family === 'elbow' ? 'exact catalogue-backed bend evidence match' : 'exact catalogue item match'
       });
     }
     return compact({
@@ -94,7 +100,7 @@ function bindItem(item, routesById, catalogueIndex) {
       type: identity.type,
       route: item.route,
       identityKey: identityKey(identity),
-      reason: 'no exact catalogue item'
+      reason: identity.family === 'elbow' ? 'no exact catalogue-backed bend evidence match' : 'no exact catalogue item'
     });
   }
 
@@ -126,13 +132,16 @@ function findExactCatalogueItem(identity, catalogueIndex) {
 function componentIdentity(item) {
   const ref = item.catalogueRef || {};
   const dimensions = item.dimensions || {};
+  const bend = item.bendEvidence || {};
   return {
     family: canonicalFamily(ref.family || item.family),
     type: canonicalType(ref.type || item.type),
     nps: ref.nps || item.nps,
     schedule: ref.schedule || item.schedule,
-    diameterMm: dimensions.diameterMm || dimensions.odMm || item.diameterMm,
-    wallMm: dimensions.wallMm || item.wallMm
+    diameterMm: dimensions.diameterMm || dimensions.odMm || item.diameterMm || bend.diameterMm,
+    wallMm: dimensions.wallMm || item.wallMm || bend.wallMm,
+    bendAngleDeg: bend.bendAngleDeg || dimensions.angleDeg || item.bendAngleDeg,
+    bendRadiusMm: bend.bendRadiusMm || dimensions.bendRadiusMm || item.bendRadiusMm
   };
 }
 
@@ -144,7 +153,18 @@ function itemIdentityKeys(item) {
   const schedule = item.schedule;
   const diameterMm = item.diameterMm || dimensions.diameterMm || dimensions.odMm;
   const wallMm = item.wallMm || dimensions.wallMm;
+  const bendAngleDeg = item.bendAngleDeg || dimensions.angleDeg;
+  const bendRadiusMm = item.bendRadiusMm || dimensions.bendRadiusMm || dimensions.centerToEndMm;
   const keys = [];
+  if (family === 'elbow') {
+    if (family && type && diameterMm !== undefined && wallMm !== undefined && bendAngleDeg !== undefined && bendRadiusMm !== undefined) {
+      keys.push(identityKey({ family, type, diameterMm, wallMm, bendAngleDeg, bendRadiusMm }));
+    }
+    if (family && type && nps && schedule && bendAngleDeg !== undefined && bendRadiusMm !== undefined) {
+      keys.push(identityKey({ family, type, nps, schedule, bendAngleDeg, bendRadiusMm }));
+    }
+    return keys;
+  }
   if (family && type && nps && schedule) keys.push(identityKey({ family, type, nps, schedule }));
   if (family && type && diameterMm !== undefined && wallMm !== undefined) keys.push(identityKey({ family, type, diameterMm, wallMm }));
   return keys;
@@ -157,7 +177,9 @@ function identityKey(identity) {
     identity.nps ? `nps:${normalize(identity.nps)}` : '',
     identity.schedule ? `schedule:${normalize(identity.schedule)}` : '',
     identity.diameterMm !== undefined ? `diameterMm:${normalizeNumber(identity.diameterMm)}` : '',
-    identity.wallMm !== undefined ? `wallMm:${normalizeNumber(identity.wallMm)}` : ''
+    identity.wallMm !== undefined ? `wallMm:${normalizeNumber(identity.wallMm)}` : '',
+    identity.bendAngleDeg !== undefined ? `bendAngleDeg:${normalizeNumber(identity.bendAngleDeg)}` : '',
+    identity.bendRadiusMm !== undefined ? `bendRadiusMm:${normalizeNumber(identity.bendRadiusMm)}` : ''
   ].filter(Boolean).join('|');
 }
 
@@ -173,6 +195,7 @@ function canonicalType(value) {
   const text = normalize(value);
   if (text === 'flan') return 'flange';
   if (text === 'valv') return 'valve';
+  if (text === 'elbow') return 'bend';
   if (text === 'bend') return 'bend';
   return text;
 }

@@ -51,7 +51,7 @@ export function compileResolvedPrimitiveModelToGlbVisualModel(primitiveModel, pr
     schema: GLB_VISUAL_MODEL_SCHEMA,
     graphId,
     units: primitiveModel?.units || options.units || 'mm',
-    sourceAxisBasis: primitiveModel?.axisBasis || { authoring: 'canvas-current' },
+    sourceAxisBasis: primitiveModel?.axisBasis || { authoring: 'authoring' },
     visualItems,
     blockedVisuals,
     deferredVisuals,

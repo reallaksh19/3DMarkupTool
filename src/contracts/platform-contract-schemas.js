@@ -9,6 +9,7 @@ export const RVM_EXPORT_MODEL_SCHEMA = 'RvmExportModel.v1';
 export const ATT_EXPORT_MODEL_SCHEMA = 'AttExportModel.v1';
 export const GLB_VISUAL_MODEL_SCHEMA = 'GlbVisualModel.v1';
 export const WRITER_ADAPTER_PLAN_SCHEMA = 'WriterAdapterPlan.v1';
+export const TEST_ARTIFACT_ADAPTER_PLAN_SCHEMA = 'TestArtifactAdapterPlan.v1';
 
 export const CONTRACT_SCHEMA_SET = Object.freeze({
   schema: PLATFORM_CONTRACT_SCHEMA,
@@ -20,5 +21,6 @@ export const CONTRACT_SCHEMA_SET = Object.freeze({
   rvmExportModel: RVM_EXPORT_MODEL_SCHEMA,
   attExportModel: ATT_EXPORT_MODEL_SCHEMA,
   glbVisualModel: GLB_VISUAL_MODEL_SCHEMA,
-  writerAdapterPlan: WRITER_ADAPTER_PLAN_SCHEMA
+  writerAdapterPlan: WRITER_ADAPTER_PLAN_SCHEMA,
+  testArtifactAdapterPlan: TEST_ARTIFACT_ADAPTER_PLAN_SCHEMA
 });

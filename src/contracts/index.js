@@ -10,6 +10,7 @@ export {
   GLB_VISUAL_MODEL_SCHEMA,
   WRITER_ADAPTER_PLAN_SCHEMA,
   TEST_ARTIFACT_ADAPTER_PLAN_SCHEMA,
+  DIAGNOSTIC_CANVAS_PREVIEW_MODEL_SCHEMA,
   CONTRACT_SCHEMA_SET
 } from './platform-contract-schemas.js';
 
@@ -57,6 +58,12 @@ export {
   assertTestArtifactAdapterPlanContract,
   collectTestArtifactForbiddenFieldHits
 } from './test-artifact-adapter-contract.js';
+
+export {
+  validateDiagnosticCanvasPreviewModelContract,
+  assertDiagnosticCanvasPreviewModelContract,
+  collectDiagnosticPreviewForbiddenFieldHits
+} from './diagnostic-canvas-preview-contract.js';
 
 export {
   FALLBACK_POLICY_SCHEMA,

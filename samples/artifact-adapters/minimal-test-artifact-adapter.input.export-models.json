@@ -1,0 +1,132 @@
+{
+  "rvmExportModel": {
+    "schema": "RvmExportModel.v1",
+    "graphId": "minimal-test-artifact-fixture",
+    "units": "mm",
+    "sourceAxisBasis": { "authoring": "canvas-current" },
+    "exportAxisBasis": { "review": "navis-review" },
+    "transformPolicy": "phase7-authoring-to-navis-review.identity-placeholder.v1",
+    "transformApplied": false,
+    "transformWarnings": ["RVM transform policy not implemented in Phase 7"],
+    "primitives": [
+      {
+        "exportPrimitiveId": "RVM-PRIM-PIPE-1",
+        "sourcePrimitiveId": "PRIM-PIPE-1",
+        "sourceItemId": "PIPE-1",
+        "primitiveKind": "CYLINDER",
+        "primitiveCode": 8,
+        "center": [500, 0, 0],
+        "axis": [1, 0, 0],
+        "lengthMm": 1000,
+        "radiusMm": 57.15,
+        "basis": "authoring",
+        "transformPolicy": "phase7-authoring-to-navis-review.identity-placeholder.v1",
+        "sourceRef": "fixture/PIPE-1"
+      }
+    ],
+    "blockedExports": [
+      {
+        "sourceItemId": "VALVE-1",
+        "family": "valve",
+        "type": "valve",
+        "exportStatus": "blocked",
+        "reason": "no exact catalogue item",
+        "sourceRef": "fixture/VALVE-1"
+      }
+    ],
+    "deferredExports": [
+      {
+        "sourceItemId": "SUPPORT-1",
+        "family": "support",
+        "type": "REST",
+        "exportStatus": "deferred",
+        "reason": "support primitive compiler not implemented in Phase 6",
+        "sourceRef": "fixture/SUPPORT-1"
+      }
+    ],
+    "sourceRefs": [
+      { "sourceType": "artifact-fixture", "name": "minimal-test-artifact-adapter.input.export-models.json" }
+    ]
+  },
+  "attExportModel": {
+    "schema": "AttExportModel.v1",
+    "graphId": "minimal-test-artifact-fixture",
+    "units": "mm",
+    "records": [
+      {
+        "recordId": "ATT-PIPE-1",
+        "sourceItemId": "PIPE-1",
+        "sourceRef": "fixture/PIPE-1",
+        "resolutionMode": "procedural",
+        "exportStatus": "recordPlanned"
+      }
+    ],
+    "blockedRecords": [
+      {
+        "sourceItemId": "VALVE-1",
+        "family": "valve",
+        "type": "valve",
+        "recordStatus": "blocked",
+        "reason": "no exact catalogue item",
+        "sourceRef": "fixture/VALVE-1"
+      }
+    ],
+    "deferredRecords": [
+      {
+        "sourceItemId": "SUPPORT-1",
+        "family": "support",
+        "type": "REST",
+        "recordStatus": "deferred",
+        "reason": "support primitive compiler not implemented in Phase 6",
+        "sourceRef": "fixture/SUPPORT-1"
+      }
+    ],
+    "sourceRefs": [
+      { "sourceType": "artifact-fixture", "name": "minimal-test-artifact-adapter.input.export-models.json" }
+    ]
+  },
+  "glbVisualModel": {
+    "schema": "GlbVisualModel.v1",
+    "graphId": "minimal-test-artifact-fixture",
+    "units": "mm",
+    "sourceAxisBasis": { "authoring": "canvas-current" },
+    "visualItems": [
+      {
+        "visualItemId": "VIS-PRIM-PIPE-1",
+        "sourcePrimitiveId": "PRIM-PIPE-1",
+        "sourceItemId": "PIPE-1",
+        "visualKind": "cylinder",
+        "center": [500, 0, 0],
+        "axis": [1, 0, 0],
+        "lengthMm": 1000,
+        "radiusMm": 57.15,
+        "basis": "authoring",
+        "visualStatus": "visualPlanned",
+        "sourceRef": "fixture/PIPE-1"
+      }
+    ],
+    "blockedVisuals": [
+      {
+        "sourceItemId": "VALVE-1",
+        "family": "valve",
+        "type": "valve",
+        "visualStatus": "blocked",
+        "reason": "no exact catalogue item",
+        "sourceRef": "fixture/VALVE-1"
+      }
+    ],
+    "deferredVisuals": [
+      {
+        "sourceItemId": "SUPPORT-1",
+        "family": "support",
+        "type": "REST",
+        "visualStatus": "deferred",
+        "reason": "support primitive compiler not implemented in Phase 6",
+        "sourceRef": "fixture/SUPPORT-1"
+      }
+    ],
+    "sourceRefs": [
+      { "sourceType": "artifact-fixture", "name": "minimal-test-artifact-adapter.input.export-models.json" }
+    ]
+  }
+}

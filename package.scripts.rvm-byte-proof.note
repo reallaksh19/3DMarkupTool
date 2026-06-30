@@ -1,0 +1,3 @@
+npm script requested but package.json update was blocked by connector safety checks:
+
+test:rvm-byte-proof = node tests/artifact-adapters/rvm-test-byte-artifact-adapter.test.mjs && node tests/artifact-adapters/bm-cii-rvm-test-byte-artifact.test.mjs

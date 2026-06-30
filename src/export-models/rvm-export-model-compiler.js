@@ -17,7 +17,7 @@ export function compileResolvedPrimitiveModelToRvmExportModel(primitiveModel, pr
     for (const primitive of Array.isArray(primitiveModel?.primitives) ? primitiveModel.primitives : []) {
       if (primitive.primitiveKind === 'CYLINDER' && Number(primitive.primitiveCode) === 8) {
         const transformed = applyFinalReviewTransformToRvmPrimitive(primitive);
-        primitives.push({
+        primitives.push(copyDefined({
           exportPrimitiveId: `RVM-${primitive.primitiveId || primitive.sourceItemId}`,
           sourcePrimitiveId: primitive.primitiveId,
           sourceItemId: primitive.sourceItemId,
@@ -27,10 +27,12 @@ export function compileResolvedPrimitiveModelToRvmExportModel(primitiveModel, pr
           axis: transformed.axis,
           lengthMm: transformed.lengthMm,
           radiusMm: transformed.radiusMm,
+          diameterMm: transformed.diameterMm,
+          wallMm: transformed.wallMm,
           basis: 'navis-review',
           transformPolicy: transform.transformPolicy,
           sourceRef: primitive.sourceRef
-        });
+        }));
       }
     }
     for (const blocked of Array.isArray(primitiveModel?.blockedPrimitives) ? primitiveModel.blockedPrimitives : []) {
@@ -69,4 +71,8 @@ export function compileResolvedPrimitiveModelToRvmExportModel(primitiveModel, pr
     deferredExports,
     sourceRefs: Array.isArray(primitiveModel?.sourceRefs) ? primitiveModel.sourceRefs : []
   };
+}
+
+function copyDefined(value) {
+  return Object.fromEntries(Object.entries(value).filter(([, entry]) => entry !== undefined));
 }

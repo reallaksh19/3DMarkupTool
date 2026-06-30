@@ -50,6 +50,8 @@ export function validateRvmExportModelContract(model) {
     if (isPoint3(primitive?.axis) && !isUnitVector(primitive.axis)) errors.push(`primitives[${index}].axis must be normalized`);
     if (!Number.isFinite(Number(primitive?.lengthMm))) errors.push(`primitives[${index}].lengthMm must be numeric`);
     if (!Number.isFinite(Number(primitive?.radiusMm))) errors.push(`primitives[${index}].radiusMm must be numeric`);
+    if (primitive?.diameterMm !== undefined && !Number.isFinite(Number(primitive.diameterMm))) errors.push(`primitives[${index}].diameterMm must be numeric when present`);
+    if (primitive?.wallMm !== undefined && !Number.isFinite(Number(primitive.wallMm))) errors.push(`primitives[${index}].wallMm must be numeric when present`);
     if (!primitive?.basis) errors.push(`primitives[${index}].basis is required`);
     if (model?.transformApplied === true && primitive?.basis !== 'navis-review') errors.push(`primitives[${index}].basis must be navis-review when transform is applied`);
     if (!primitive?.transformPolicy) errors.push(`primitives[${index}].transformPolicy is required`);

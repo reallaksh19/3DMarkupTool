@@ -30,6 +30,7 @@ export function buildExportModelCompilationAudit(primitiveModel, exportModels, p
   if (rvm?.transformApplied !== true && rvm?.transformPolicy === FINAL_REVIEW_TRANSFORM_POLICY) errors.push('final-review-transform.v1 requires transformApplied true');
 
   const rvmPrimitives = Array.isArray(rvm?.primitives) ? rvm.primitives : [];
+  const testByteEligiblePrimitives = Array.isArray(rvm?.testByteEligiblePrimitives) ? rvm.testByteEligiblePrimitives : [];
   const deferredExports = Array.isArray(rvm?.deferredExports) ? rvm.deferredExports : [];
   const blockedExports = Array.isArray(rvm?.blockedExports) ? rvm.blockedExports : [];
   const primitiveById = new Map((Array.isArray(primitiveModel?.primitives) ? primitiveModel.primitives : []).map((entry) => [entry.primitiveId, entry]));
@@ -45,45 +46,15 @@ export function buildExportModelCompilationAudit(primitiveModel, exportModels, p
       if (source.wallMm !== undefined && Number(primitive.wallMm) !== Number(source.wallMm)) errors.push(`RVM primitive ${index} wallMm changed during transform`);
     }
   }
+  for (const [index, primitive] of testByteEligiblePrimitives.entries()) {
+    if (!isPoint3(primitive.center)) errors.push(`RVM TORUS test primitive ${index} transformed center is missing or non-finite`);
+    for (const key of ['normal', 'startTangent', 'endTangent']) if (!isPoint3(primitive[key]) || !isUnitVector(primitive[key])) errors.push(`RVM TORUS test primitive ${index} ${key} is not normalized finite`);
+  }
 
   const deferredBendTorus = deferredExports.filter((entry) => entry.family === 'elbow' && entry.primitiveKind === 'TORUS');
-  const audit = {
-    schema: EXPORT_AUDIT_SCHEMA,
-    graphId: primitiveModel?.graphId || options.graphId || '<unknown-graph>',
-    transformPolicy: rvm?.transformPolicy || '<missing-transform-policy>',
-    rvmTransformWarningCount: Array.isArray(rvm?.transformWarnings) ? rvm.transformWarnings.length : 0,
-    rvmPrimitivePlanCount: rvmPrimitives.length,
-    rvmCylinderPlanCount: rvmPrimitives.filter((entry) => entry.primitiveKind === 'CYLINDER').length,
-    rvmTorusPlanCount: rvmPrimitives.filter((entry) => entry.primitiveKind === 'TORUS').length,
-    rvmTorusWriterReadyCount: rvmPrimitives.filter((entry) => entry.primitiveKind === 'TORUS' && entry.writerReady === true).length,
-    deferredBendTorusExportCount: deferredBendTorus.length,
-    rvmBoxPlanCount: rvmPrimitives.filter((entry) => entry.primitiveKind === 'BOX').length,
-    rvmSpherePlanCount: rvmPrimitives.filter((entry) => entry.primitiveKind === 'SPHERE').length,
-    rvmPyramidPlanCount: rvmPrimitives.filter((entry) => entry.primitiveKind === 'PYRAMID').length,
-    attRecordPlanCount: Array.isArray(att?.records) ? att.records.length : 0,
-    glbVisualPlanCount: Array.isArray(glb?.visualItems) ? glb.visualItems.length : 0,
-    blockedExportCount: blockedExports.length,
-    deferredExportCount: deferredExports.length,
-    blockedAttRecordCount: Array.isArray(att?.blockedRecords) ? att.blockedRecords.length : 0,
-    deferredAttRecordCount: Array.isArray(att?.deferredRecords) ? att.deferredRecords.length : 0,
-    blockedVisualCount: Array.isArray(glb?.blockedVisuals) ? glb.blockedVisuals.length : 0,
-    deferredVisualCount: Array.isArray(glb?.deferredVisuals) ? glb.deferredVisuals.length : 0,
-    blockedUnresolvedExportCount: blockedExports.length,
-    blockedFlangeExportCount: blockedExports.filter((entry) => entry.family === 'flange').length,
-    blockedValveExportCount: blockedExports.filter((entry) => entry.family === 'valve').length,
-    blockedBendExportCount: blockedExports.filter((entry) => entry.family === 'elbow').length,
-    deferredSupportExportCount: deferredExports.filter((entry) => entry.family === 'support').length,
-    writerCallCount: 0,
-    binaryPayloadCount: forbiddenHits.filter((hit) => ['binary', 'bytes', 'buffer', 'arrayBuffer', 'chunk', 'cntb', 'primBody', 'fileBlob', 'writerPayload'].includes(hit.field)).length,
-    textPayloadCount: forbiddenHits.filter((hit) => hit.field === 'attText').length,
-    glbPayloadCount: forbiddenHits.filter((hit) => hit.field === 'glbBytes' || hit.field === 'gltfJson').length,
-    navisTransformApplied: rvm?.transformApplied === true,
-    hardErrorCount: errors.length,
-    ok: false,
-    errors,
-    warnings
-  };
-  audit.ok = rvmValidation.ok && attValidation.ok && glbValidation.ok && primitiveAudit?.ok === true && audit.hardErrorCount === 0 && audit.rvmTorusWriterReadyCount === 0 && audit.writerCallCount === 0 && audit.binaryPayloadCount === 0 && audit.textPayloadCount === 0 && audit.glbPayloadCount === 0;
+  const testByteTorus = testByteEligiblePrimitives.filter((entry) => entry.primitiveKind === 'TORUS' && Number(entry.primitiveCode) === 4);
+  const audit = { schema: EXPORT_AUDIT_SCHEMA, graphId: primitiveModel?.graphId || options.graphId || '<unknown-graph>', transformPolicy: rvm?.transformPolicy || '<missing-transform-policy>', rvmTransformWarningCount: Array.isArray(rvm?.transformWarnings) ? rvm.transformWarnings.length : 0, rvmPrimitivePlanCount: rvmPrimitives.length, rvmCylinderPlanCount: rvmPrimitives.filter((entry) => entry.primitiveKind === 'CYLINDER').length, rvmTorusPlanCount: rvmPrimitives.filter((entry) => entry.primitiveKind === 'TORUS').length, rvmTorusWriterReadyCount: rvmPrimitives.filter((entry) => entry.primitiveKind === 'TORUS' && entry.writerReady === true).length, testByteEligibleTorusCount: testByteTorus.length, testByteEligibleBendTorusCount: testByteTorus.filter((entry) => entry.resolver === 'bendArcTorusPrimitive.v1').length, productionReadyTorusCount: testByteTorus.filter((entry) => entry.writerReady === true).length, deferredBendTorusExportCount: deferredBendTorus.length, rvmBoxPlanCount: rvmPrimitives.filter((entry) => entry.primitiveKind === 'BOX').length, rvmSpherePlanCount: rvmPrimitives.filter((entry) => entry.primitiveKind === 'SPHERE').length, rvmPyramidPlanCount: rvmPrimitives.filter((entry) => entry.primitiveKind === 'PYRAMID').length, attRecordPlanCount: Array.isArray(att?.records) ? att.records.length : 0, glbVisualPlanCount: Array.isArray(glb?.visualItems) ? glb.visualItems.length : 0, blockedExportCount: blockedExports.length, deferredExportCount: deferredExports.length, blockedAttRecordCount: Array.isArray(att?.blockedRecords) ? att.blockedRecords.length : 0, deferredAttRecordCount: Array.isArray(att?.deferredRecords) ? att.deferredRecords.length : 0, blockedVisualCount: Array.isArray(glb?.blockedVisuals) ? glb.blockedVisuals.length : 0, deferredVisualCount: Array.isArray(glb?.deferredVisuals) ? glb.deferredVisuals.length : 0, blockedUnresolvedExportCount: blockedExports.length, blockedFlangeExportCount: blockedExports.filter((entry) => entry.family === 'flange').length, blockedValveExportCount: blockedExports.filter((entry) => entry.family === 'valve').length, blockedBendExportCount: blockedExports.filter((entry) => entry.family === 'elbow').length, deferredSupportExportCount: deferredExports.filter((entry) => entry.family === 'support').length, writerCallCount: 0, binaryPayloadCount: forbiddenHits.filter((hit) => ['binary', 'bytes', 'buffer', 'arrayBuffer', 'chunk', 'cntb', 'primBody', 'fileBlob', 'writerPayload'].includes(hit.field)).length, textPayloadCount: forbiddenHits.filter((hit) => hit.field === 'attText').length, glbPayloadCount: forbiddenHits.filter((hit) => hit.field === 'glbBytes' || hit.field === 'gltfJson').length, navisTransformApplied: rvm?.transformApplied === true, hardErrorCount: errors.length, ok: false, errors, warnings };
+  audit.ok = rvmValidation.ok && attValidation.ok && glbValidation.ok && primitiveAudit?.ok === true && audit.hardErrorCount === 0 && audit.rvmTorusWriterReadyCount === 0 && audit.productionReadyTorusCount === 0 && audit.writerCallCount === 0 && audit.binaryPayloadCount === 0 && audit.textPayloadCount === 0 && audit.glbPayloadCount === 0;
   return audit;
 }
 

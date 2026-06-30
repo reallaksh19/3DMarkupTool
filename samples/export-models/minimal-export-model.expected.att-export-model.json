@@ -1,0 +1,48 @@
+{
+  "schema": "AttExportModel.v1",
+  "graphId": "minimal-primitive-compiler-fixture",
+  "units": "mm",
+  "records": [
+    {
+      "recordId": "ATT-PIPE-1",
+      "sourceItemId": "PIPE-1",
+      "sourceRef": "fixture/PIPE-1",
+      "resolutionMode": "procedural",
+      "exportStatus": "recordPlanned"
+    }
+  ],
+  "blockedRecords": [
+    {
+      "sourceItemId": "VALVE-1",
+      "family": "valve",
+      "type": "valve",
+      "recordStatus": "blocked",
+      "reason": "no exact catalogue item",
+      "sourceRef": "fixture/VALVE-1"
+    }
+  ],
+  "deferredRecords": [
+    {
+      "sourceItemId": "ELBOW-1",
+      "family": "elbow",
+      "type": "90lr",
+      "recordStatus": "deferred",
+      "reason": "component primitive compiler not implemented in Phase 6",
+      "sourceRef": "fixture/ELBOW-1"
+    },
+    {
+      "sourceItemId": "SUPPORT-1",
+      "family": "support",
+      "type": "REST",
+      "recordStatus": "deferred",
+      "reason": "support primitive compiler not implemented in Phase 6",
+      "sourceRef": "fixture/SUPPORT-1"
+    }
+  ],
+  "sourceRefs": [
+    {
+      "sourceType": "primitive-fixture",
+      "name": "minimal-primitive-compiler.input.resolved-geometry.json"
+    }
+  ]
+}

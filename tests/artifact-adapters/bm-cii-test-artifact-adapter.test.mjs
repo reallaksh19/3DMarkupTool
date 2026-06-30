@@ -52,7 +52,7 @@ const sourceName = 'bm-cii-managed-stage-full-topology.generated.json';
 const sourceText = JSON.stringify(buildBmCiiStyleManagedStageFixture());
 const graph = convertManagedStageJsonToPlantGraph(sourceText, {
   sourceName,
-  phase: 'Phase 8A test artifact adapter benchmark'
+  phase: 'Phase 8B test artifact adapter benchmark'
 });
 
 const graphValidation = validatePlantModelGraphContract(graph);
@@ -146,6 +146,9 @@ const exportAudit = buildExportModelCompilationAudit(primitiveModel, exportModel
 assert.equal(assertExportModelCompilationAudit(exportAudit, {
   ok: true,
   hardErrorCount: 0,
+  transformPolicy: 'final-review-transform.v1',
+  rvmTransformWarningCount: 0,
+  navisTransformApplied: true,
   writerCallCount: 0,
   binaryPayloadCount: 0,
   textPayloadCount: 0,
@@ -167,6 +170,7 @@ const writerAdapterAudit = buildWriterAdapterAudit(writerAdapterPlan, exportMode
 assert.equal(assertWriterAdapterAudit(writerAdapterAudit, {
   ok: true,
   hardErrorCount: 0,
+  rvmWriterReady: true,
   writerCallCount: 0,
   binaryPayloadCount: 0,
   textPayloadCount: 0,
@@ -196,6 +200,8 @@ assert.equal(assertTestArtifactAdapterAudit(testArtifactAudit, {
   rvmArtifactGenerated: false,
   rvmArtifactBlocked: true,
   rvmArtifactByteLength: 0,
+  rvmTransformReady: true,
+  rvmStraightPipeSubsetReady: true,
   attArtifactReady: false,
   glbArtifactReady: false,
   glbArtifactGenerated: false,
@@ -219,7 +225,8 @@ assert.equal(assertTestArtifactAdapterAudit(testArtifactAudit, {
   cacheKeyMutationCount: 0
 }).ok, true);
 
-assert.equal(testArtifactPlan.rvmArtifact.reason.includes('final review transform policy'), true, 'RVM artifact blocked by transform readiness');
+assert.equal(testArtifactPlan.rvmArtifact.reason.includes('straight-pipe subset transform readiness proven'), true, 'RVM artifact blocked by byte bridge after transform readiness');
+assert.equal(testArtifactPlan.rvmArtifact.reason.includes('until final review transform policy is implemented'), false, 'RVM artifact is no longer blocked by missing transform');
 assert.equal(testArtifactPlan.attArtifact.reason, 'ATT writer adapter requires production writer model bridge not implemented in Phase 8A', 'ATT bridge blocked deterministically');
 assert.equal(testArtifactPlan.glbArtifact.reason, 'GLB test artifact writer not implemented in Phase 8A', 'GLB bridge blocked deterministically');
 assert.equal(testArtifactPlan.blockedArtifactItems.filter((entry) => entry.family === 'flange').length, 8, 'blocked flange artifact items');

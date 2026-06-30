@@ -28,10 +28,16 @@ final-review-transform.v1
 
 The source basis is the authoring/model basis. The target basis is the Navis/RVM review basis.
 
-For the current shadow export model, the final review transform is a writer-independent pass-through of authoring model coordinates into review coordinates, with strict validation and vector normalization:
+The final review transform uses the existing production Navis/RVM post-transform convention:
 
-- points remain in model millimetres;
-- direction vectors are normalized;
+```text
+[xPrime, yPrime, zPrime] = [-z, -x, y]
+```
+
+This corresponds to the existing `canvasEngineeringToNavis` right-handed mapping. Phase 8B implements that mapping as a pure writer-independent helper:
+
+- points are transformed by the matrix above in model millimetres;
+- direction vectors are transformed by the same matrix and normalized;
 - non-finite values fail closed;
 - zero vectors fail closed;
 - scalar dimensions are preserved.

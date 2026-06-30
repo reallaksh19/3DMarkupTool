@@ -8,10 +8,11 @@
     "graphId": "minimal-writer-adapter-fixture",
     "writerKind": "rvm",
     "mode": "dryRun",
-    "writerReady": false,
+    "writerReady": true,
+    "writerReadinessScope": "straightPipeSubsetDryRunReady",
     "sourceSchema": "RvmExportModel.v1",
-    "transformPolicy": "phase7-authoring-to-navis-review.identity-placeholder.v1",
-    "transformApplied": false,
+    "transformPolicy": "final-review-transform.v1",
+    "transformApplied": true,
     "plannedPrimitiveCount": 1,
     "plannedCylinderCount": 1,
     "plannedTorusCount": 0,
@@ -49,7 +50,7 @@
         "sourceRef": "fixture/SUPPORT-1"
       }
     ],
-    "warnings": ["RVM writer artifact readiness blocked until final review transform policy is implemented."]
+    "warnings": ["RVM writer dry-run ready for straight-pipe cylinder subset only"]
   },
   "attAdapter": {
     "schema": "AttWriterAdapterPlan.v1",

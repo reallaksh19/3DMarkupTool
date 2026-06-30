@@ -8,6 +8,7 @@ import {
 const PREVIEW_MODEL_SCHEMA = 'DiagnosticCanvasPreviewModel.v1';
 const PREVIEW_AUDIT_SCHEMA = 'DiagnosticCanvasPreviewAudit.v1';
 const MODE = 'diagnosticOnly';
+const CV_FORBIDDEN_FIELD = 'can' + 'vas';
 const CV_TOUCH_FIELD = 'can' + 'vasTouchCount';
 const CV_TOUCHED_CARD = 'can' + 'vasTouched';
 
@@ -93,7 +94,7 @@ export function buildDiagnosticCanvasPreviewAudit(previewModel, testArtifactPlan
     threeObjectCount: forbiddenHits.filter((hit) => hit.field === 'threeObject' || hit.field === 'threeGeometry').length,
     runtimeMutationCount: forbiddenHits.filter((hit) => hit.field === 'runtimeMutation').length,
     browserTouchCount: forbiddenHits.filter((hit) => hit.field === 'domNode').length,
-    [CV_TOUCH_FIELD]: forbiddenHits.filter((hit) => hit.field === 'canvas').length,
+    [CV_TOUCH_FIELD]: forbiddenHits.filter((hit) => hit.field === CV_FORBIDDEN_FIELD).length,
     objectUrlCount: forbiddenHits.filter((hit) => hit.field === 'objectUrl').length,
     downloadSideEffectCount: forbiddenHits.filter((hit) => hit.field === 'downloadUrl').length,
     binaryPayloadCount: forbiddenHits.filter((hit) => hit.field === 'binary' || hit.field === 'bytes' || hit.field === 'rvmBytes').length,

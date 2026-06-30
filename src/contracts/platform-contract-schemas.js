@@ -10,6 +10,7 @@ export const ATT_EXPORT_MODEL_SCHEMA = 'AttExportModel.v1';
 export const GLB_VISUAL_MODEL_SCHEMA = 'GlbVisualModel.v1';
 export const WRITER_ADAPTER_PLAN_SCHEMA = 'WriterAdapterPlan.v1';
 export const TEST_ARTIFACT_ADAPTER_PLAN_SCHEMA = 'TestArtifactAdapterPlan.v1';
+export const RVM_TEST_ARTIFACT_BYTE_PROOF_SCHEMA = 'RvmTestArtifactByteProof.v1';
 export const DIAGNOSTIC_CANVAS_PREVIEW_MODEL_SCHEMA = 'DiagnosticCanvasPreviewModel.v1';
 
 export const CONTRACT_SCHEMA_SET = Object.freeze({
@@ -24,5 +25,6 @@ export const CONTRACT_SCHEMA_SET = Object.freeze({
   glbVisualModel: GLB_VISUAL_MODEL_SCHEMA,
   writerAdapterPlan: WRITER_ADAPTER_PLAN_SCHEMA,
   testArtifactAdapterPlan: TEST_ARTIFACT_ADAPTER_PLAN_SCHEMA,
+  rvmTestArtifactByteProof: RVM_TEST_ARTIFACT_BYTE_PROOF_SCHEMA,
   diagnosticCanvasPreviewModel: DIAGNOSTIC_CANVAS_PREVIEW_MODEL_SCHEMA
 });

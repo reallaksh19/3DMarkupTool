@@ -31,7 +31,7 @@ assert.equal(policy.policy, 'final-review-transform.v1');
 assert.equal(policy.transformApplied, true);
 assert.equal(policy.writerMatrixScale, 0.001);
 assert.deepEqual(policy.matrix, [[0, 0, -1], [-1, 0, 0], [0, 1, 0]], 'policy exposes production Navis transform matrix');
-assert.equal(policy.pointMapping, 'canvasEngineeringToNavis [xPrime,yPrime,zPrime]=[-z,-x,y]');
+assert.equal(policy.pointMapping, 'engineering-to-navis [xPrime,yPrime,zPrime]=[-z,-x,y]');
 assert.deepEqual(transformAuthoringPointToReview([1, 2, 3]), [-3, -1, 2], 'point transform uses production Navis matrix');
 assert.deepEqual(transformAuthoringVectorToReview([0, 3, 4]), [-0.8, 0, 0.6], 'vector transform uses production Navis matrix and normalizes');
 assert.deepEqual(normalizeVector([10, 0, 0]), [1, 0, 0], 'normalizeVector normalizes axis');

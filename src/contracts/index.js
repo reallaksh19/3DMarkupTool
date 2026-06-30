@@ -8,6 +8,7 @@ export {
   RVM_EXPORT_MODEL_SCHEMA,
   ATT_EXPORT_MODEL_SCHEMA,
   GLB_VISUAL_MODEL_SCHEMA,
+  WRITER_ADAPTER_PLAN_SCHEMA,
   CONTRACT_SCHEMA_SET
 } from './platform-contract-schemas.js';
 
@@ -43,6 +44,12 @@ export {
   assertGlbVisualModelContract,
   collectExportModelForbiddenFieldHits
 } from './export-model-contracts.js';
+
+export {
+  validateWriterAdapterPlanContract,
+  assertWriterAdapterPlanContract,
+  collectWriterAdapterForbiddenFieldHits
+} from './writer-adapter-contract.js';
 
 export {
   FALLBACK_POLICY_SCHEMA,

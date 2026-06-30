@@ -1,0 +1,17 @@
+{
+  "schema": "ComponentCatalogueItem.v1",
+  "catalogue": "base-piping",
+  "family": "elbow",
+  "type": "bend",
+  "dimensions": {
+    "odMm": 88.900002,
+    "wallMm": 5.5,
+    "bendRadiusMm": 114.299995,
+    "angleDeg": 45
+  },
+  "ports": [
+    { "id": "P1", "role": "inlet", "localPosition": [-114.299995, 0, 0], "localDirection": [-1, 0, 0] },
+    { "id": "P2", "role": "outlet", "localPosition": [80.822322, 0, -80.822322], "localDirection": [0.707106781, 0, -0.707106781] }
+  ],
+  "rvmRecipe": { "preferredPrimitive": "TORUS", "primitiveCode": 4 }
+}

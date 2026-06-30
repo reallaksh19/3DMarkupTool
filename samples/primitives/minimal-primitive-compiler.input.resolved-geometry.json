@@ -1,0 +1,84 @@
+{
+  "schema": "ResolvedGeometryModel.v1",
+  "graphId": "minimal-primitive-compiler-fixture",
+  "units": "mm",
+  "axisBasis": {
+    "authoring": "canvas-current",
+    "rvmExport": "navis-review"
+  },
+  "nodes": [
+    { "id": "N1", "coord": [0, 0, 0], "sourceRef": "fixture/N1" },
+    { "id": "N2", "coord": [1000, 0, 0], "sourceRef": "fixture/N2" }
+  ],
+  "routeFrames": [
+    {
+      "routeId": "R1",
+      "fromNode": "N1",
+      "toNode": "N2",
+      "start": [0, 0, 0],
+      "end": [1000, 0, 0],
+      "direction": [1, 0, 0],
+      "lengthMm": 1000,
+      "diameterMm": 114.3,
+      "radiusMm": 57.15,
+      "wallMm": 6.02,
+      "sourceRef": "fixture/R1",
+      "topologyRole": "pipe-run-segment"
+    }
+  ],
+  "itemFrames": [
+    {
+      "itemId": "PIPE-1",
+      "routeId": "R1",
+      "center": [500, 0, 0],
+      "axis": [1, 0, 0],
+      "lengthMm": 1000,
+      "diameterMm": 114.3,
+      "radiusMm": 57.15,
+      "wallMm": 6.02,
+      "geometryStatus": "resolved",
+      "resolver": "straightPipeGeometry.v1",
+      "sourceRef": "fixture/PIPE-1"
+    },
+    {
+      "itemId": "ELBOW-1",
+      "routeId": "R1",
+      "position": [1000, 0, 0],
+      "axis": [0, 1, 0],
+      "family": "elbow",
+      "type": "90lr",
+      "catalogueItemKey": "elbow|90lr|nps:4in|schedule:std",
+      "geometryStatus": "catalogueFrameResolved",
+      "resolver": "catalogueComponentFrame.v1",
+      "sourceRef": "fixture/ELBOW-1"
+    }
+  ],
+  "supportPlacements": [
+    {
+      "itemId": "SUPPORT-1",
+      "node": "N2",
+      "position": [1000, 0, 0],
+      "axis": "+Y",
+      "supportFamily": "REST",
+      "geometryStatus": "intentOnly",
+      "resolver": "supportPlacementIntent.v1",
+      "sourceRef": "fixture/SUPPORT-1"
+    }
+  ],
+  "unresolvedGeometry": [
+    {
+      "itemId": "VALVE-1",
+      "family": "valve",
+      "type": "valve",
+      "geometryStatus": "blocked",
+      "reason": "no exact catalogue item",
+      "sourceRef": "fixture/VALVE-1"
+    }
+  ],
+  "sourceRefs": [
+    {
+      "sourceType": "primitive-fixture",
+      "name": "minimal-primitive-compiler.input.resolved-geometry.json"
+    }
+  ]
+}

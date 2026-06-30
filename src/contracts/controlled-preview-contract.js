@@ -1,0 +1,96 @@
+import { CONTROLLED_PREVIEW_MODEL_SCHEMA } from './platform-contract-schemas.js';
+
+const ALLOWED_STATUSES = new Set(['partial-rvm-subset-ready', 'diagnostics-only', 'blocked', 'unavailable']);
+const ALLOWED_PREVIEW_STATUSES = new Set(['rvmStraightPipeSubsetReady', 'fullModelNotReady', 'blockedComponent', 'deferredSupport', 'attBlocked', 'glbBlocked', 'diagnosticOnly']);
+const ALLOWED_READINESS = new Set(['ready', 'notReady', 'blocked', 'deferred', 'diagnosticOnly']);
+const ALLOWED_SEVERITY = new Set(['info', 'warning', 'blocked']);
+const FORBIDDEN_FIELDS = Object.freeze([
+  'geometry',
+  'mesh',
+  'meshGeometry',
+  'threeObject',
+  'threeGeometry',
+  'webgl',
+  'bufferGeometry',
+  'material',
+  'rvmBytes',
+  'bytes',
+  'binary',
+  'arrayBuffer',
+  'buffer',
+  'attText',
+  'glbBytes',
+  'gltfJson',
+  'objectUrl',
+  'downloadUrl',
+  'fileBlob',
+  'canvas',
+  'runtimeMutation',
+  'writerPayload',
+  'artifactPayload',
+  'productionWrite',
+  'cacheKeyMutation'
+]);
+
+export function validateControlledPreviewModelContract(model) {
+  const errors = [];
+  if (!model || typeof model !== 'object') errors.push('model must be an object');
+  if (model?.schema !== CONTROLLED_PREVIEW_MODEL_SCHEMA) errors.push(`schema must be ${CONTROLLED_PREVIEW_MODEL_SCHEMA}`);
+  if (!model?.graphId) errors.push('graphId is required');
+  if (model?.mode !== 'controlledPreview') errors.push('mode must be controlledPreview');
+  if (model?.previewKind !== 'diagnosticArtifactState') errors.push('previewKind must be diagnosticArtifactState');
+  if (!ALLOWED_STATUSES.has(model?.overallStatus)) errors.push('overallStatus is invalid');
+  if (model?.featureFlags?.shadowDiagnostics !== true) errors.push('featureFlags.shadowDiagnostics must be true');
+  if (model?.featureFlags?.shadowPreview !== true) errors.push('featureFlags.shadowPreview must be true');
+  if (!model?.provenance || typeof model.provenance !== 'object') errors.push('provenance object is required');
+  if (!model?.artifactReadiness || typeof model.artifactReadiness !== 'object') errors.push('artifactReadiness object is required');
+  for (const key of ['previewSections', 'straightPipeSubsetPreview', 'blockedPreview', 'deferredPreview', 'sourceTracePreview', 'warnings', 'errors']) {
+    if (!Array.isArray(model?.[key])) errors.push(`${key} array is required`);
+  }
+  validatePreviewItems(model?.straightPipeSubsetPreview, 'straightPipeSubsetPreview', errors);
+  validatePreviewItems(model?.blockedPreview, 'blockedPreview', errors);
+  validatePreviewItems(model?.deferredPreview, 'deferredPreview', errors);
+  validatePreviewItems(model?.sourceTracePreview, 'sourceTracePreview', errors, { allowDiagnosticOnly: true });
+  const forbiddenHits = collectControlledPreviewForbiddenFieldHits(model);
+  errors.push(...forbiddenHits.map((hit) => `forbidden field ${hit.field} at ${hit.path}`));
+  return {
+    schema: 'ControlledPreviewModelValidation.v1',
+    ok: errors.length === 0,
+    errorCount: errors.length,
+    errors,
+    forbiddenFieldCount: forbiddenHits.length,
+    forbiddenFields: forbiddenHits
+  };
+}
+
+export function assertControlledPreviewModelContract(model) {
+  const result = validateControlledPreviewModelContract(model);
+  if (!result.ok) throw new Error(`ControlledPreviewModel contract invalid: ${result.errors.join('; ')}`);
+  return result;
+}
+
+export function collectControlledPreviewForbiddenFieldHits(value, path = '$', hits = []) {
+  if (!value || typeof value !== 'object') return hits;
+  if (Array.isArray(value)) {
+    value.forEach((entry, index) => collectControlledPreviewForbiddenFieldHits(entry, `${path}[${index}]`, hits));
+    return hits;
+  }
+  for (const [key, entry] of Object.entries(value)) {
+    if (FORBIDDEN_FIELDS.includes(key)) hits.push({ path: `${path}.${key}`, field: key });
+    collectControlledPreviewForbiddenFieldHits(entry, `${path}.${key}`, hits);
+  }
+  return hits;
+}
+
+function validatePreviewItems(items, label, errors) {
+  for (const [index, item] of (items || []).entries()) {
+    if (!item?.previewId) errors.push(`${label}[${index}].previewId is required`);
+    if (!item?.sourceItemId) errors.push(`${label}[${index}].sourceItemId is required`);
+    if (!item?.family) errors.push(`${label}[${index}].family is required`);
+    if (!ALLOWED_PREVIEW_STATUSES.has(item?.previewStatus)) errors.push(`${label}[${index}].previewStatus is invalid`);
+    if (!ALLOWED_READINESS.has(item?.readiness)) errors.push(`${label}[${index}].readiness is invalid`);
+    if (!ALLOWED_SEVERITY.has(item?.severity)) errors.push(`${label}[${index}].severity is invalid`);
+    if (typeof item?.label !== 'string') errors.push(`${label}[${index}].label must be string`);
+    if (typeof item?.message !== 'string') errors.push(`${label}[${index}].message must be string`);
+  }
+}

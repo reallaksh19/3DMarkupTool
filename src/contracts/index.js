@@ -12,6 +12,7 @@ export {
   TEST_ARTIFACT_ADAPTER_PLAN_SCHEMA,
   RVM_TEST_ARTIFACT_BYTE_PROOF_SCHEMA,
   DIAGNOSTIC_CANVAS_PREVIEW_MODEL_SCHEMA,
+  CONTROLLED_PREVIEW_MODEL_SCHEMA,
   CONTRACT_SCHEMA_SET
 } from './platform-contract-schemas.js';
 
@@ -71,6 +72,12 @@ export {
   assertDiagnosticCanvasPreviewModelContract,
   collectDiagnosticPreviewForbiddenFieldHits
 } from './diagnostic-canvas-preview-contract.js';
+
+export {
+  validateControlledPreviewModelContract,
+  assertControlledPreviewModelContract,
+  collectControlledPreviewForbiddenFieldHits
+} from './controlled-preview-contract.js';
 
 export {
   FALLBACK_POLICY_SCHEMA,

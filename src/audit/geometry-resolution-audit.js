@@ -5,10 +5,17 @@ const COUNT_KEYS = [
   'supportPlacementCount',
   'unresolvedGeometryCount',
   'resolvedStraightPipeCount',
+  'resolvedBendArcCount',
   'catalogueFrameResolvedCount',
   'blockedUnresolvedComponentCount',
+  'blockedBendGeometryCount',
+  'missingBendCatalogueCount',
+  'missingBendTangentEvidenceCount',
+  'ambiguousBendPlaneCount',
+  'chordMidpointTorusCenterCount',
   'hardErrorCount',
   'primitiveCodeCount',
+  'writerCallCount',
   'exportDecisionCount'
 ];
 

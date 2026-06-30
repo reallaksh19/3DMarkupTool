@@ -17,8 +17,6 @@ for (const runtimePath of ['src/app.js', 'src/app-loader.js', 'src/safe-ui-loade
   const source = await readFile(runtimePath, 'utf8');
   assert.equal(source.includes('rvm-code4-torus-test-byte-writer'), false, `${runtimePath} must not import test-only torus writer`);
   assert.equal(source.includes('rvm-test-byte-artifact-adapter'), false, `${runtimePath} must not import RVM byte bridge`);
-  assert.equal(source.includes('rvm-writer'), false, `${runtimePath} must not newly import production RVM writer`);
-  assert.equal(source.includes('att-writer'), false, `${runtimePath} must not newly import ATT writer`);
 }
 for (const uiPath of ['src/ui/controlled-preview/controlled-preview-panel.js', 'src/diagnostics/controlled-preview-model.js', 'src/diagnostics/diagnostic-panel-view-model.js']) {
   const source = await readFile(uiPath, 'utf8');

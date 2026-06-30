@@ -1,0 +1,39 @@
+{
+  "schema": "RvmExportModel.v1",
+  "graphId": "invalid-torus-test-byte",
+  "units": "mm",
+  "sourceAxisBasis": { "authoring": "canvas-current" },
+  "exportAxisBasis": { "review": "navis-review" },
+  "transformPolicy": "final-review-transform.v1",
+  "transformApplied": true,
+  "transformWarnings": [],
+  "primitives": [],
+  "testByteEligiblePrimitives": [
+    {
+      "exportPrimitiveId": "RVM-TORUS-INVALID",
+      "sourcePrimitiveId": "PRIM-TORUS-INVALID",
+      "sourceItemId": "BEND-INVALID",
+      "primitiveKind": "TORUS",
+      "primitiveCode": 4,
+      "center": [0, 0, 0],
+      "normal": [0, 0, 2],
+      "startTangent": [1, 0, 0],
+      "endTangent": [0, 1, 0],
+      "majorRadiusMm": 0,
+      "tubeRadiusMm": 57.15,
+      "bendAngleDeg": 90,
+      "sweepAngleDeg": 90,
+      "basis": "navis-review",
+      "transformPolicy": "final-review-transform.v1",
+      "transformApplied": true,
+      "writerReady": false,
+      "testByteEligible": true,
+      "byteBridge": "test-only",
+      "resolver": "bendArcTorusPrimitive.v1",
+      "evidence": { "centerSource": "inputxml-chord-midpoint-not-arc-center" }
+    }
+  ],
+  "blockedExports": [],
+  "deferredExports": [],
+  "sourceRefs": []
+}

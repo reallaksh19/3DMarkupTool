@@ -16,25 +16,15 @@ import { buildControlledPreviewModel } from '../../src/diagnostics/controlled-pr
 import { buildBmCiiStyleManagedStageFixture } from './bm-cii-managed-stage-fixture.mjs';
 
 export async function loadPhase11aCatalogueItems() {
-  const paths = [
-    'catalogues/base-piping/items/pipe-straight-4in-std.json',
-    'catalogues/base-piping/items/support-rest-generic.json',
-    'catalogues/base-piping/items/elbow-bend-45-114mm-6mm.json',
-    'catalogues/base-piping/items/elbow-bend-45-88mm-55mm.json',
-    'catalogues/base-piping/items/elbow-bend-45-60mm-39mm.json'
-  ];
+  const paths = ['catalogues/base-piping/items/pipe-straight-4in-std.json', 'catalogues/base-piping/items/support-rest-generic.json', 'catalogues/base-piping/items/elbow-bend-45-114mm-6mm.json', 'catalogues/base-piping/items/elbow-bend-45-88mm-55mm.json', 'catalogues/base-piping/items/elbow-bend-45-60mm-39mm.json'];
   const items = [];
-  for (const path of paths) {
-    const item = JSON.parse(await readFile(path, 'utf8'));
-    assert.equal(assertComponentCatalogueItemContract(item).ok, true, `${path} validates`);
-    items.push(item);
-  }
+  for (const path of paths) { const item = JSON.parse(await readFile(path, 'utf8')); assert.equal(assertComponentCatalogueItemContract(item).ok, true, `${path} validates`); items.push(item); }
   return items;
 }
 
 export async function buildBmCiiPhase11aState() {
   const sourceText = JSON.stringify(buildBmCiiStyleManagedStageFixture());
-  const graph = convertManagedStageJsonToPlantGraph(sourceText, { sourceName: 'BM_CII_INPUT_managed_stage.json', phase: 'Phase 11A bend torus primitive benchmark' });
+  const graph = convertManagedStageJsonToPlantGraph(sourceText, { sourceName: 'BM_CII_INPUT_managed_stage.json', phase: 'Phase 11B pipe+bend byte proof benchmark' });
   assert.equal(validatePlantModelGraphContract(graph).ok, true, 'PlantModelGraph validates');
   const importerAudit = auditManagedStageToPlantGraph(sourceText, graph, { sourceName: 'BM_CII_INPUT_managed_stage.json' });
   const catalogueItems = await loadPhase11aCatalogueItems();
@@ -51,7 +41,7 @@ export async function buildBmCiiPhase11aState() {
   const testArtifactAudit = buildTestArtifactAdapterAudit(testArtifactPlan, exportModels, writerAdapterPlan, writerAdapterAudit);
   const rvmByteProof = buildRvmTestArtifactByteProof(exportModels, exportAudit, writerAdapterPlan, writerAdapterAudit, testArtifactPlan, testArtifactAudit);
   const rvmByteProofAudit = buildRvmTestArtifactByteProofAudit(rvmByteProof, exportModels, writerAdapterPlan, writerAdapterAudit, testArtifactAudit);
-  const diagnosticPreviewModel = buildDiagnosticCanvasPreviewModel(testArtifactPlan, testArtifactAudit, writerAdapterPlan, writerAdapterAudit);
+  const diagnosticPreviewModel = buildDiagnosticCanvasPreviewModel(testArtifactPlan, testArtifactAudit, writerAdapterPlan, writerAdapterAudit, { sourceTrace: rvmByteProof.sourceTrace });
   const diagnosticPreviewAudit = buildDiagnosticCanvasPreviewAudit(diagnosticPreviewModel, testArtifactPlan, testArtifactAudit, writerAdapterPlan, writerAdapterAudit);
   const diagnosticPanelViewModel = buildDiagnosticPanelViewModel(diagnosticPreviewModel, diagnosticPreviewAudit, rvmByteProof, rvmByteProofAudit, { featureFlagEnabled: true });
   const controlledPreviewModel = buildControlledPreviewModel(diagnosticPanelViewModel, diagnosticPreviewModel, diagnosticPreviewAudit, rvmByteProof, rvmByteProofAudit, { featureFlagEnabled: true });
@@ -59,9 +49,4 @@ export async function buildBmCiiPhase11aState() {
   return { sourceText, graph, importerAudit, catalogueItems, bindingAudit, resolvedGeometry, geometryAudit, primitiveModel, primitiveAudit, exportModels, exportAudit, writerAdapterPlan, writerAdapterAudit, testArtifactPlan, testArtifactAudit, rvmByteProof, rvmByteProofAudit, diagnosticPreviewModel, diagnosticPreviewAudit, diagnosticPanelViewModel, controlledPreviewModel, controlledPreviewAudit };
 }
 
-export function assertNoRawRuntimePayload(value) {
-  const text = JSON.stringify(value);
-  for (const forbidden of ['rvmBytes', 'attText', 'glbBytes', 'gltfJson', 'objectUrl', 'downloadUrl', 'threeObject', 'threeGeometry', 'meshGeometry', 'canvas']) {
-    assert.equal(text.includes(forbidden), false, `no ${forbidden}`);
-  }
-}
+export function assertNoRawRuntimePayload(value) { const text = JSON.stringify(value); for (const forbidden of ['rvmBytes', 'attText', 'glbBytes', 'gltfJson', 'objectUrl', 'downloadUrl', 'threeObject', 'threeGeometry', 'meshGeometry', 'canvas']) assert.equal(text.includes(forbidden), false, `no ${forbidden}`); }

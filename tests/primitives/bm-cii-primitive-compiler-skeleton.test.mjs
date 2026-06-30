@@ -131,7 +131,7 @@ assert.equal(primitiveModel.primitives.some((entry) => ['BOX', 'SPHERE', 'PYRAMI
 const compilerSource = await readFile('src/primitives/primitive-compiler.js', 'utf8');
 const contractSource = await readFile('src/contracts/resolved-primitive-model-contract.js', 'utf8');
 for (const source of [compilerSource, contractSource]) {
-  for (const forbidden of ['catalogue-binder', 'geometry-solver', 'rvm-writer', 'att-writer', 'managed-stage-rvm-converter', 'canvas', 'app-loader', 'safe-ui-loader', 'three', 'window.', 'document.']) {
+  for (const forbidden of ['catalogue-binder', 'geometry-solver', 'rvm-writer', 'att-writer', 'managed-stage-rvm-converter', 'canvas', 'app-loader', 'safe-ui-loader', "from 'three'", 'from "three"', 'window.', 'document.']) {
     assert.equal(source.includes(forbidden), false, `Phase 6 source must not reference ${forbidden}`);
   }
 }

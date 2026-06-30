@@ -53,6 +53,8 @@ Each exported straight-pipe `CYLINDER` / code-8 primitive has:
 - finite normalized transformed axis;
 - preserved `lengthMm`;
 - preserved `radiusMm`;
+- preserved `diameterMm` when present;
+- preserved `wallMm` when present;
 - `basis: navis-review`;
 - `transformPolicy: final-review-transform.v1`.
 

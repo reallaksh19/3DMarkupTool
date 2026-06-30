@@ -1,0 +1,53 @@
+{
+  "schema": "RvmExportModel.v1",
+  "graphId": "sample-pipe-bend-test-byte",
+  "units": "mm",
+  "sourceAxisBasis": { "authoring": "canvas-current" },
+  "exportAxisBasis": { "review": "navis-review" },
+  "transformPolicy": "final-review-transform.v1",
+  "transformApplied": true,
+  "transformWarnings": [],
+  "primitives": [
+    {
+      "exportPrimitiveId": "RVM-CYL-1",
+      "sourcePrimitiveId": "PRIM-CYL-1",
+      "sourceItemId": "PIPE-1",
+      "primitiveKind": "CYLINDER",
+      "primitiveCode": 8,
+      "center": [0, 0, 0],
+      "axis": [0, 0, 1],
+      "lengthMm": 1000,
+      "radiusMm": 57.15,
+      "basis": "navis-review",
+      "transformPolicy": "final-review-transform.v1"
+    }
+  ],
+  "testByteEligiblePrimitives": [
+    {
+      "exportPrimitiveId": "RVM-TORUS-1",
+      "sourcePrimitiveId": "PRIM-TORUS-1",
+      "sourceItemId": "BEND-1",
+      "primitiveKind": "TORUS",
+      "primitiveCode": 4,
+      "center": [100, 0, 0],
+      "normal": [0, 0, 1],
+      "startTangent": [1, 0, 0],
+      "endTangent": [0, 1, 0],
+      "majorRadiusMm": 152.4,
+      "tubeRadiusMm": 57.15,
+      "bendAngleDeg": 90,
+      "sweepAngleDeg": 90,
+      "basis": "navis-review",
+      "transformPolicy": "final-review-transform.v1",
+      "transformApplied": true,
+      "writerReady": false,
+      "testByteEligible": true,
+      "byteBridge": "test-only",
+      "resolver": "bendArcTorusPrimitive.v1",
+      "evidence": { "centerSource": "explicit-bend-arc-center" }
+    }
+  ],
+  "blockedExports": [],
+  "deferredExports": [],
+  "sourceRefs": []
+}

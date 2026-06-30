@@ -38,31 +38,37 @@ export function buildRvmTestArtifactByteProof(exportModels, exportAudit, writerA
   const preflightErrors = preflightErrorsForByteProof(rvmExportModel, exportAudit, writerAdapterPlan, writerAdapterAudit, testArtifactPlan, testArtifactAudit);
   if (preflightErrors.length) return blockedProof(base, preflightErrors.join('; '), preflightErrors);
 
-  const acceptedPrimitives = (Array.isArray(rvmExportModel?.primitives) ? rvmExportModel.primitives : []).filter(isWritableCylinderPrimitive);
-  const rejectedCount = (Array.isArray(rvmExportModel?.primitives) ? rvmExportModel.primitives : []).length - acceptedPrimitives.length;
+  const allPrimitives = Array.isArray(rvmExportModel?.primitives) ? rvmExportModel.primitives : [];
+  const acceptedPrimitives = allPrimitives.filter(isWritableCylinderPrimitive);
+  const rejectedCount = allPrimitives.length - acceptedPrimitives.length;
   if (rejectedCount > 0) return blockedProof(base, 'RVM test byte bridge accepts only final transformed CYLINDER/code8 primitives', [`Rejected ${rejectedCount} non-writable RVM primitive plan(s)`]);
   if (acceptedPrimitives.length === 0) return blockedProof(base, 'RVM test byte bridge requires at least one transformed CYLINDER/code8 primitive', ['No writable cylinder primitives']);
 
   try {
     const writerModel = buildStraightPipeWriterModel(rvmExportModel, acceptedPrimitives);
-    const arrayBuffer = writeRvm(writerModel, { mode: 'testOnly', phase: '8C' });
-    const binaryAudit = assertRvmBinaryCompatibility(arrayBuffer, { primitiveCount: acceptedPrimitives.length });
-    const decodedPrimitives = decodePrimitiveBodies(arrayBuffer);
+    const firstBuffer = writeRvm(writerModel, { mode: 'testOnly', phase: '8C' });
+    const secondBuffer = writeRvm(writerModel, { mode: 'testOnly', phase: '8C' });
+    const firstBytes = new Uint8Array(firstBuffer);
+    const secondBytes = new Uint8Array(secondBuffer);
+    const checksumSha256 = sha256(firstBytes);
+    const secondChecksumSha256 = sha256(secondBytes);
+    const binaryAudit = assertRvmBinaryCompatibility(firstBuffer, { primitiveCount: acceptedPrimitives.length });
+    const decodedPrimitives = decodePrimitiveBodies(firstBuffer);
     const counts = primitiveCounts(decodedPrimitives);
-    const byteView = new Uint8Array(arrayBuffer);
-    const checksumSha256 = createHash('sha256').update(Buffer.from(byteView)).digest('hex');
-    const byteHeaderHex = Buffer.from(byteView.slice(0, 32)).toString('hex');
+    const byteHeaderHex = Buffer.from(firstBytes.slice(0, 32)).toString('hex');
     const errors = [];
+    if (firstBuffer.byteLength !== secondBuffer.byteLength) errors.push('RVM byte proof is not deterministic: byte length changed between runs');
+    if (checksumSha256 !== secondChecksumSha256) errors.push('RVM byte proof is not deterministic: checksum changed between runs');
     if (counts.primitiveCount !== acceptedPrimitives.length) errors.push(`Decoded PRIM count mismatch: expected ${acceptedPrimitives.length}, got ${counts.primitiveCount}`);
     if (counts.cylinderPrimitiveCount !== acceptedPrimitives.length) errors.push(`Decoded cylinder count mismatch: expected ${acceptedPrimitives.length}, got ${counts.cylinderPrimitiveCount}`);
-    if (counts.torusPrimitiveCount || counts.boxPrimitiveCount || counts.spherePrimitiveCount || counts.pyramidPrimitiveCount) errors.push('Decoded byte proof contains non-cylinder primitive codes');
+    if (counts.torusPrimitiveCount || counts.boxPrimitiveCount || counts.spherePrimitiveCount || counts.pyramidPrimitiveCount || counts.supportPrimitiveCount) errors.push('Decoded byte proof contains non-cylinder primitive codes');
     if (binaryAudit.primitiveChunkCount !== acceptedPrimitives.length) errors.push('RVM binary audit primitive count mismatch');
     return {
       ...base,
       artifactReady: errors.length === 0,
       artifactGenerated: errors.length === 0,
       artifactBlocked: errors.length > 0,
-      artifactByteLength: arrayBuffer.byteLength,
+      artifactByteLength: firstBuffer.byteLength,
       checksumSha256: errors.length === 0 ? checksumSha256 : '',
       byteHeaderHex: errors.length === 0 ? byteHeaderHex : '',
       primitiveCount: counts.primitiveCount,
@@ -71,6 +77,7 @@ export function buildRvmTestArtifactByteProof(exportModels, exportAudit, writerA
       boxPrimitiveCount: counts.boxPrimitiveCount,
       spherePrimitiveCount: counts.spherePrimitiveCount,
       pyramidPrimitiveCount: counts.pyramidPrimitiveCount,
+      supportPrimitiveCount: counts.supportPrimitiveCount,
       warnings: blockedArtifactItems.length || deferredArtifactItems.length ? [FULL_MODEL_WARNING] : [],
       errors
     };
@@ -115,7 +122,7 @@ export function buildRvmTestArtifactByteProofAudit(byteProof, exportModels, writ
     boxWriteCount: Number(byteProof?.boxPrimitiveCount || 0),
     sphereWriteCount: Number(byteProof?.spherePrimitiveCount || 0),
     pyramidWriteCount: Number(byteProof?.pyramidPrimitiveCount || 0),
-    supportWriteCount: 0,
+    supportWriteCount: Number(byteProof?.supportPrimitiveCount || 0),
     blockedFlangeCount: blockedItems.filter((entry) => entry.family === 'flange').length,
     blockedValveCount: blockedItems.filter((entry) => entry.family === 'valve').length,
     blockedBendCount: blockedItems.filter((entry) => entry.family === 'elbow').length,
@@ -257,7 +264,8 @@ function primitiveCounts(decodedPrimitives) {
     torusPrimitiveCount: decodedPrimitives.filter((entry) => Number(entry.code) === 4).length,
     boxPrimitiveCount: decodedPrimitives.filter((entry) => Number(entry.code) === 2).length,
     spherePrimitiveCount: decodedPrimitives.filter((entry) => Number(entry.code) === 9).length,
-    pyramidPrimitiveCount: decodedPrimitives.filter((entry) => Number(entry.code) === 1).length
+    pyramidPrimitiveCount: decodedPrimitives.filter((entry) => Number(entry.code) === 1).length,
+    supportPrimitiveCount: 0
   };
 }
 
@@ -275,9 +283,14 @@ function blockedProof(base, reason, errors = []) {
     boxPrimitiveCount: 0,
     spherePrimitiveCount: 0,
     pyramidPrimitiveCount: 0,
+    supportPrimitiveCount: 0,
     warnings: [reason],
     errors
   };
+}
+
+function sha256(bytes) {
+  return createHash('sha256').update(Buffer.from(bytes)).digest('hex');
 }
 
 function isPoint3(value) {

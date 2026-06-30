@@ -23,6 +23,8 @@
       "axis": [0, 0.6, 0.8],
       "lengthMm": 500,
       "radiusMm": 25,
+      "diameterMm": 50,
+      "wallMm": 5,
       "basis": "navis-review",
       "transformPolicy": "final-review-transform.v1",
       "sourceRef": "fixture/PIPE-X"

@@ -2,7 +2,7 @@
   "schema": "WriterAdapterAudit.v1",
   "graphId": "minimal-writer-adapter-fixture",
   "mode": "dryRun",
-  "rvmWriterReady": false,
+  "rvmWriterReady": true,
   "attWriterReady": true,
   "glbWriterReady": true,
   "rvmPlannedChunkCount": 1,
@@ -29,7 +29,7 @@
   "ok": true,
   "errors": [],
   "warnings": [
-    "RVM writer artifact readiness blocked until final review transform policy is implemented.",
+    "RVM writer dry-run ready for straight-pipe cylinder subset only",
     "GLB artifact output is not implemented in Phase 8."
   ]
 }

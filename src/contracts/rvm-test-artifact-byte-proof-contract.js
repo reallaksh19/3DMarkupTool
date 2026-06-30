@@ -44,10 +44,10 @@ export function validateRvmTestArtifactByteProofContract(proof) {
   if (proof?.writerBridgeMode !== 'isolated-test-only') errors.push('writerBridgeMode must be isolated-test-only');
   if (proof?.transformPolicy !== 'final-review-transform.v1') errors.push('transformPolicy must be final-review-transform.v1');
   if (proof?.sourceSchema !== 'RvmExportModel.v1') errors.push('sourceSchema must be RvmExportModel.v1');
-  for (const key of ['primitiveCount', 'cylinderPrimitiveCount', 'torusPrimitiveCount', 'boxPrimitiveCount', 'spherePrimitiveCount', 'pyramidPrimitiveCount']) {
+  for (const key of ['primitiveCount', 'cylinderPrimitiveCount', 'torusPrimitiveCount', 'boxPrimitiveCount', 'spherePrimitiveCount', 'pyramidPrimitiveCount', 'supportPrimitiveCount']) {
     if (!Number.isInteger(Number(proof?.[key])) || Number(proof?.[key]) < 0) errors.push(`${key} must be non-negative integer-like`);
   }
-  if (Number(proof?.primitiveCount) !== Number(proof?.cylinderPrimitiveCount) + Number(proof?.torusPrimitiveCount) + Number(proof?.boxPrimitiveCount) + Number(proof?.spherePrimitiveCount) + Number(proof?.pyramidPrimitiveCount)) {
+  if (Number(proof?.primitiveCount) !== Number(proof?.cylinderPrimitiveCount) + Number(proof?.torusPrimitiveCount) + Number(proof?.boxPrimitiveCount) + Number(proof?.spherePrimitiveCount) + Number(proof?.pyramidPrimitiveCount) + Number(proof?.supportPrimitiveCount)) {
     errors.push('primitiveCount must equal per-kind primitive count total');
   }
   if (!Array.isArray(proof?.blockedArtifactItems)) errors.push('blockedArtifactItems array is required');

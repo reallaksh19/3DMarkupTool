@@ -36,8 +36,10 @@ assert.equal(rvm.primitives[0].primitiveKind, 'CYLINDER');
 assert.equal(rvm.primitives[0].primitiveCode, 8);
 assert.equal(rvm.primitives[0].lengthMm, primitiveModel.primitives[0].lengthMm, 'RVM preserves length scalar');
 assert.equal(rvm.primitives[0].radiusMm, primitiveModel.primitives[0].radiusMm, 'RVM preserves radius scalar');
-assert.equal(rvm.transformApplied, false, 'Phase 7 transform placeholder is honest');
-assert.ok(rvm.transformWarnings.includes('RVM transform policy not implemented in Phase 7'));
+assert.equal(rvm.transformPolicy, 'final-review-transform.v1', 'RVM uses final review transform policy');
+assert.equal(rvm.transformApplied, true, 'final review transform is applied at RVM export boundary');
+assert.deepEqual(rvm.transformWarnings, [], 'placeholder transform warning is removed');
+assert.equal(rvm.primitives[0].basis, 'navis-review');
 
 assert.equal(att.records.length, 1, 'ATT metadata record plans only');
 assert.equal(att.records[0].exportStatus, 'recordPlanned');
@@ -45,6 +47,7 @@ assert.equal(JSON.stringify(att).includes('attText'), false, 'ATT model has no t
 
 assert.equal(glb.visualItems.length, 1, 'GLB visual plan only');
 assert.equal(glb.visualItems[0].visualKind, 'cylinder');
+assert.equal(glb.visualItems[0].basis, 'authoring', 'GLB visual model remains authoring basis');
 assert.equal(JSON.stringify(glb).includes('glbBytes'), false, 'GLB model has no byte payload');
 assert.equal(JSON.stringify(glb).includes('threeObject'), false, 'GLB model has no runtime object');
 
@@ -54,6 +57,9 @@ assert.deepEqual(audit, expectedAudit, 'export audit must match golden fixture')
 assert.equal(assertExportModelCompilationAudit(audit, {
   ok: true,
   hardErrorCount: 0,
+  transformPolicy: 'final-review-transform.v1',
+  rvmTransformWarningCount: 0,
+  navisTransformApplied: true,
   writerCallCount: 0,
   binaryPayloadCount: 0,
   textPayloadCount: 0,

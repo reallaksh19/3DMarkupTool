@@ -1,0 +1,19 @@
+{
+  "schema": "ComponentCatalogueItem.v1",
+  "id": "flange/weld-neck/60.299999mm/3.9mm/class150/RF",
+  "catalogue": "base-piping",
+  "family": "flange",
+  "type": "weld-neck",
+  "flangeType": "weld-neck",
+  "diameterMm": 60.299999,
+  "wallMm": 3.9,
+  "rating": "150",
+  "facing": "RF",
+  "connectionType": "butt-weld",
+  "dimensions": { "diameterMm": 60.299999, "wallMm": 3.9, "lengthMm": 44, "outerDiameterMm": 150, "boreDiameterMm": 60.299999, "faceThicknessMm": 3, "hubDiameterMm": 84, "hubLengthMm": 28 },
+  "ports": [
+    { "id": "in", "localPosition": [-22, 0, 0], "localDirection": [-1, 0, 0] },
+    { "id": "out", "localPosition": [22, 0, 0], "localDirection": [1, 0, 0] }
+  ],
+  "rvmRecipe": { "kind": "logical-flange-cylinder", "phase": "11C", "writerReady": false }
+}

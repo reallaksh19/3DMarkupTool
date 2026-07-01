@@ -15,25 +15,8 @@ export function buildBmCiiStyleManagedStageFixture() {
     source: 'BM_CII_INPUT.XML',
     converterSchema: 'inputxml-direct-managed-stage/v2-rich-topology',
     units: { length: 'mm' },
-    stats: {
-      components: 40,
-      componentRows: 40,
-      validRestraints: 12,
-      emittedSupports: 12,
-      bends: 7,
-      rigids: 15,
-      routeLengthRows: 40,
-      richGeometryComponents: 40,
-      uxmlReadyComponents: 52,
-      branches: 1,
-      children: 52
-    },
-    hierarchy: [{
-      name: '/INPUTXML/BM_CII_INPUT/BRANCH-001',
-      type: 'BRANCH',
-      attributes: { TYPE: 'BRAN', NAME: '/INPUTXML/BM_CII_INPUT/BRANCH-001' },
-      children
-    }]
+    stats: { components: 40, componentRows: 40, validRestraints: 12, emittedSupports: 12, bends: 7, flanges: 8, valves: 6, rigids: 15, routeLengthRows: 40, richGeometryComponents: 40, uxmlReadyComponents: 52, branches: 1, children: 52 },
+    hierarchy: [{ name: '/INPUTXML/BM_CII_INPUT/BRANCH-001', type: 'BRANCH', attributes: { TYPE: 'BRAN', NAME: '/INPUTXML/BM_CII_INPUT/BRANCH-001' }, children }]
   };
 }
 
@@ -70,6 +53,7 @@ function componentRecord(type, ordinal) {
     WALL_THICKNESS_MM: wall,
     MATERIAL: 'A106 B'
   };
+  if (type === 'FLAN') applyFlangeEvidence(attrs, diameter, wall);
   if (type === 'BEND') {
     attrs.BEND_RADIUS_MM = diameter === 60.299999 ? 76.199997 : diameter === 88.900002 ? 114.299995 : 152.399994;
     attrs.BEND_RADIUS = String(attrs.BEND_RADIUS_MM);
@@ -89,28 +73,25 @@ function componentRecord(type, ordinal) {
   return { name: `${type} ${attrs.NAME}`, type, attributes: attrs };
 }
 
-function supportRecord(ordinal) {
-  const node = String(ordinal * 30);
-  return {
-    name: `ATTA SUPPORT_${ordinal}`,
-    type: 'ATTA',
-    attributes: {
-      TYPE: 'ATTA',
-      NAME: `SUPPORT_${ordinal}`,
-      SOURCE_ELEMENT_ID: `SUPPORT_${ordinal}`,
-      NODE: node,
-      SUPPORT_KIND: ordinal % 3 === 0 ? 'LINESTOP' : ordinal % 2 === 0 ? 'GUIDE' : 'REST',
-      SUPPORT_AXIS: '+Y',
-      POS: [ordinal * 300, 0, -ordinal * 100],
-      SOURCE: 'InputXML'
-    }
-  };
+function applyFlangeEvidence(attrs, diameter, wall) {
+  const dims = flangeDims(diameter);
+  attrs.CATALOGUE_FAMILY = 'flange';
+  attrs.CATALOGUE_TYPE = 'weld-neck';
+  attrs.FLANGE_TYPE = 'weld-neck';
+  attrs.FACING = 'RF';
+  attrs.RATING = '150';
+  attrs.CONNECTION_TYPE = 'butt-weld';
+  attrs.FLANGE_LENGTH_MM = dims.lengthMm;
+  attrs.FLANGE_OD_MM = dims.outerDiameterMm;
+  attrs.BORE_DIAMETER_MM = diameter;
+  attrs.FACE_THICKNESS_MM = dims.faceThicknessMm;
+  attrs.HUB_DIAMETER_MM = dims.hubDiameterMm;
+  attrs.HUB_LENGTH_MM = dims.hubLengthMm;
+  attrs.FLANGE_PLACEMENT_SOURCE = 'fixture-inline-from-apos-lpos';
+  attrs.FLANGE_EXACT_EVIDENCE = { diameterMm: diameter, wallMm: wall, lengthMm: dims.lengthMm, outerDiameterMm: dims.outerDiameterMm, rating: '150', facing: 'RF', connectionType: 'butt-weld' };
 }
+function flangeDims(diameter) { if (diameter < 70) return { lengthMm: 44, outerDiameterMm: 150, faceThicknessMm: 3, hubDiameterMm: 84, hubLengthMm: 28 }; if (diameter < 100) return { lengthMm: 52, outerDiameterMm: 190, faceThicknessMm: 3, hubDiameterMm: 116, hubLengthMm: 34 }; return { lengthMm: 60, outerDiameterMm: 230, faceThicknessMm: 3, hubDiameterMm: 150, hubLengthMm: 40 }; }
 
-function midpoint(a, b) {
-  return [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2, (a[2] + b[2]) / 2];
-}
-
-function distance(a, b) {
-  return Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
-}
+function supportRecord(ordinal) { const node = String(ordinal * 30); return { name: `ATTA SUPPORT_${ordinal}`, type: 'ATTA', attributes: { TYPE: 'ATTA', NAME: `SUPPORT_${ordinal}`, SOURCE_ELEMENT_ID: `SUPPORT_${ordinal}`, NODE: node, SUPPORT_KIND: ordinal % 3 === 0 ? 'LINESTOP' : ordinal % 2 === 0 ? 'GUIDE' : 'REST', SUPPORT_AXIS: '+Y', POS: [ordinal * 300, 0, -ordinal * 100], SOURCE: 'InputXML' } }; }
+function midpoint(a, b) { return [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2, (a[2] + b[2]) / 2]; }
+function distance(a, b) { return Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]); }

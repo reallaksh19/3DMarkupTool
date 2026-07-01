@@ -1,0 +1,25 @@
+{
+  "schema": "Phase11CFlangeFrameSample.v1",
+  "geometryKind": "flangeFrame.v1",
+  "family": "flange",
+  "geometryStatus": "resolved",
+  "resolver": "catalogueBackedFlangeGeometry.v1",
+  "basis": "authoring",
+  "center": [50, 0, -25],
+  "axis": [0.8944271909999159, 0, -0.4472135954999579],
+  "lengthMm": 60,
+  "boreRadiusMm": 57.1499975,
+  "outerRadiusMm": 115,
+  "faceThicknessMm": 3,
+  "flangeType": "weld-neck",
+  "facing": "RF",
+  "rating": "150",
+  "connectionType": "butt-weld",
+  "evidence": {
+    "placementSource": "fixture-inline-from-apos-lpos",
+    "axisSource": "route-frame-direction",
+    "axialExtentSource": "catalogue-length",
+    "dimensionSource": "exact-catalogue-item",
+    "fallbackUsed": false
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "schema": "Phase11CUnresolvedFlangeCatalogueInput.v1",
+  "family": "flange",
+  "type": "weld-neck",
+  "diameterMm": 114.299995,
+  "wallMm": 6.0,
+  "lengthMm": 60,
+  "outerDiameterMm": null,
+  "boreDiameterMm": 114.299995,
+  "faceThicknessMm": 3,
+  "flangeType": "weld-neck",
+  "facing": "RF",
+  "rating": "150",
+  "connectionType": "butt-weld",
+  "expectedBindingStatus": "unresolved",
+  "reason": "outerDiameterMm is required for exact flange catalogue identity"
+}

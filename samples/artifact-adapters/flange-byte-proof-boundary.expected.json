@@ -1,0 +1,14 @@
+{
+  "schema": "Phase11CFlangeByteProofBoundaryExpected.v1",
+  "rvmPipeBendSubsetArtifactReady": true,
+  "rvmFlangeSubsetArtifactReady": false,
+  "rvmFullModelArtifactReady": false,
+  "primitiveWriteCount": 26,
+  "cylinderWriteCount": 19,
+  "torusWriteCount": 7,
+  "flangeWriteCount": 0,
+  "blockedFlangeCount": 0,
+  "blockedValveCount": 6,
+  "deferredFlangeWriterCount": 8,
+  "deferredSupportWriterCount": 12
+}

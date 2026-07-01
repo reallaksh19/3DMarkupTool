@@ -16,7 +16,16 @@ import { buildControlledPreviewModel } from '../../src/diagnostics/controlled-pr
 import { buildBmCiiStyleManagedStageFixture } from './bm-cii-managed-stage-fixture.mjs';
 
 export async function loadPhase11aCatalogueItems() {
-  const paths = ['catalogues/base-piping/items/pipe-straight-4in-std.json', 'catalogues/base-piping/items/support-rest-generic.json', 'catalogues/base-piping/items/elbow-bend-45-114mm-6mm.json', 'catalogues/base-piping/items/elbow-bend-45-88mm-55mm.json', 'catalogues/base-piping/items/elbow-bend-45-60mm-39mm.json'];
+  const paths = [
+    'catalogues/base-piping/items/pipe-straight-4in-std.json',
+    'catalogues/base-piping/items/support-rest-generic.json',
+    'catalogues/base-piping/items/elbow-bend-45-114mm-6mm.json',
+    'catalogues/base-piping/items/elbow-bend-45-88mm-55mm.json',
+    'catalogues/base-piping/items/elbow-bend-45-60mm-39mm.json',
+    'catalogues/base-piping/items/flange-weld-neck-114mm-6mm-class150-rf.json',
+    'catalogues/base-piping/items/flange-weld-neck-88mm-55mm-class150-rf.json',
+    'catalogues/base-piping/items/flange-weld-neck-60mm-39mm-class150-rf.json'
+  ];
   const items = [];
   for (const path of paths) { const item = JSON.parse(await readFile(path, 'utf8')); assert.equal(assertComponentCatalogueItemContract(item).ok, true, `${path} validates`); items.push(item); }
   return items;
@@ -24,7 +33,7 @@ export async function loadPhase11aCatalogueItems() {
 
 export async function buildBmCiiPhase11aState() {
   const sourceText = JSON.stringify(buildBmCiiStyleManagedStageFixture());
-  const graph = convertManagedStageJsonToPlantGraph(sourceText, { sourceName: 'BM_CII_INPUT_managed_stage.json', phase: 'Phase 11B pipe+bend byte proof benchmark' });
+  const graph = convertManagedStageJsonToPlantGraph(sourceText, { sourceName: 'BM_CII_INPUT_managed_stage.json', phase: 'Phase 11C flange primitive benchmark' });
   assert.equal(validatePlantModelGraphContract(graph).ok, true, 'PlantModelGraph validates');
   const importerAudit = auditManagedStageToPlantGraph(sourceText, graph, { sourceName: 'BM_CII_INPUT_managed_stage.json' });
   const catalogueItems = await loadPhase11aCatalogueItems();

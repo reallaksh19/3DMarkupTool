@@ -4,6 +4,7 @@
   "catalogue": "base-piping",
   "family": "flange",
   "type": "weld-neck",
+  "flangeType": "weld-neck",
   "diameterMm": 60.299999,
   "wallMm": 3.9,
   "rating": "150",

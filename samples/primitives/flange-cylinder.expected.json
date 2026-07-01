@@ -1,0 +1,19 @@
+{
+  "schema": "Phase11CFlangePrimitiveSample.v1",
+  "primitiveKind": "FLANGE_CYLINDER",
+  "primitiveCode": 8,
+  "family": "flange",
+  "resolver": "flangeCylinderPrimitive.v1",
+  "geometryStatus": "primitiveResolved",
+  "basis": "authoring",
+  "writerReady": false,
+  "testByteEligible": false,
+  "byteBridge": "not-implemented-phase-11c",
+  "bodyPrimitive": {
+    "primitiveKind": "CYLINDER",
+    "primitiveCode": 8,
+    "radiusMm": 115,
+    "lengthMm": 60
+  },
+  "optionalSubPrimitives": []
+}

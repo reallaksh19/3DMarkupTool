@@ -22,6 +22,7 @@
     "test:resolved-geometry": "node tests/geometry/resolved-geometry-model-contract.test.mjs && node tests/geometry/geometry-solver.test.mjs && node tests/geometry/route-frame-error-policy.test.mjs && node tests/geometry/bm-cii-resolved-geometry-skeleton.test.mjs",
     "test:primitive-compiler": "node tests/primitives/resolved-primitive-model-contract.test.mjs && node tests/primitives/primitive-compiler.test.mjs && node tests/primitives/bm-cii-primitive-compiler-skeleton.test.mjs",
     "test:export-models": "node tests/export-models/export-model-contracts.test.mjs && node tests/export-models/export-model-compilers.test.mjs && node tests/export-models/bm-cii-export-model-compilers.test.mjs",
+    "test:new-core-readiness": "node tests/audit/new-core-readiness-audit.test.mjs",
     "test:writer-adapters": "node tests/writer-adapters/writer-adapter-contract.test.mjs && node tests/writer-adapters/writer-adapters.test.mjs && node tests/writer-adapters/bm-cii-writer-adapters.test.mjs",
     "test:artifact-adapters": "node tests/artifact-adapters/test-artifact-adapter.test.mjs && node tests/artifact-adapters/bm-cii-test-artifact-adapter.test.mjs",
     "test:diagnostic-preview": "node tests/preview-adapters/diagnostic-canvas-preview-adapter.test.mjs && node tests/preview-adapters/bm-cii-diagnostic-canvas-preview.test.mjs",

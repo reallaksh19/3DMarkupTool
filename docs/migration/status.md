@@ -1,16 +1,8 @@
 # Migration Status
 
-## Phase 01 — New-Core Readiness Audit
+## Current state
 
-Status: implemented on branch `agent01-new-core-readiness-audit`; pending CI/reviewer approval.
-
-Audit artifact:
-
-```text
-NewCoreReadinessAudit.v1
-```
-
-Covered pipeline:
+This migration is a layered staged-contract handoff. It is not a vertical feature split.
 
 ```text
 ManagedStage JSON
@@ -20,26 +12,62 @@ ManagedStage JSON
 → ResolvedPrimitiveModel.v1
 → RvmExportModel.v1 / AttExportModel.v1 / GlbVisualModel.v1
 → NewCoreReadinessAudit.v1
+→ WriterRuntimeReadinessAudit.v1
+→ CI validation gate
 ```
 
-Current readiness policy:
+## Completed work on `main`
+
+| Stage | Artifact / output | Repository status |
+|---|---|---|
+| Core readiness | `NewCoreReadinessAudit.v1` | Merged in PR #482 |
+| Writer/runtime proof | `WriterRuntimeReadinessAudit.v1` | Merged in PR #483 |
+| Validation infrastructure | `test:writer-runtime-readiness` and GitHub Actions workflow | Merged in PR #484 |
+
+## Runtime boundary
+
+The active production runtime path is unchanged.
+
+No merged readiness phase authorizes changes to:
+
+```text
+src/rvm-converter.js
+src/rvm-preview.js
+src/rvm-writer.js
+src/att-writer.js
+src/app.js
+src/main.js
+index.html
+UI runtime/controller files
+```
+
+## Readiness policy
 
 | Area | Status |
 |---|---|
-| Straight procedural pipe | `production-ready` when RVM/ATT/GLB export-boundary rows exist |
+| Straight procedural pipe | `production-ready` in Phase 01 only when full graph → binding → geometry → primitive → RVM/ATT/GLB export evidence exists |
+| Valid `CYLINDER`/code8 export row | `dry-run-ready` by default in Phase 02; `writer-ready` only with explicit production policy approval |
 | TORUS/code4 bend | `test-byte-only` unless production writer policy explicitly enables it |
-| Flange primitive | `deferred` until writer bridge exists |
-| Supports | `support-intent-only`; primitive generation outside Phase 01 |
+| Flange primitive | `deferred` until writer bridge proof and production policy approval exist |
+| Support intent | `support-intent-only` / `deferred`; production support primitive generation is outside these phases |
 | Unknown catalogue/procedural state | `unresolved` |
-| Missing geometry/primitive/export evidence | `blocked` with reason |
+| Missing evidence or unsupported primitive | `blocked` with reason |
 
-Required validation gate:
+## Validation gate
 
-```bash
-npm run test:new-core-readiness
+GitHub Actions workflow:
+
+```text
+.github/workflows/new-core-runtime-readiness.yml
 ```
 
-Required surrounding gates:
+Workflow name:
+
+```text
+New Core Runtime Readiness
+```
+
+Required commands:
 
 ```bash
 npm run test:platform-contracts
@@ -48,12 +76,30 @@ npm run test:catalogue-binding
 npm run test:resolved-geometry
 npm run test:primitive-compiler
 npm run test:export-models
+npm run test:new-core-readiness
+npm run test:writer-adapters
+npm run test:artifact-adapters
+npm run test:diagnostic-preview
+npm run test:controlled-preview
+npm run test:rvm-byte-proof
+npm run test:rvm-torus-byte-proof
+npm run test:writer-runtime-readiness
 ```
 
-Boundary statement:
+## Next gate
 
-Phase 01 is shadow-only. It does not modify production runtime wiring, UI files, RVM writer, ATT writer, converter path, or preview runtime.
+Before any runtime switch proposal is written, the workflow above must produce a green run on `main`.
 
-Next handoff:
+If no workflow run appears automatically, manually trigger `New Core Runtime Readiness` from the GitHub Actions tab.
 
-Agent 02 may consume `NewCoreReadinessAudit.v1` only after this phase passes CI and reviewer approval.
+## Next allowed work
+
+The next work is a single decision review:
+
+```text
+Runtime switch decision review
+```
+
+It must decide whether the new export models are ready to become the legal input boundary for `writeRvm()` or whether another proof phase is required.
+
+It must not modify production runtime, writer, converter, preview, or UI files.

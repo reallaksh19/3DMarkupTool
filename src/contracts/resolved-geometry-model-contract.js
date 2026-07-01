@@ -1,16 +1,6 @@
 import { RESOLVED_GEOMETRY_MODEL_SCHEMA } from './platform-contract-schemas.js';
 
-const FORBIDDEN_FIELDS = Object.freeze([
-  'primitiveCode',
-  'rvmCode',
-  'materialId',
-  'navisTransform',
-  'glbMesh',
-  'meshGeometry',
-  'exportTransform',
-  'rvmMatrix',
-  'attRecord'
-]);
+const FORBIDDEN_FIELDS = Object.freeze(['primitiveCode', 'rvmCode', 'materialId', 'navisTransform', 'glbMesh', 'meshGeometry', 'exportTransform', 'rvmMatrix', 'attRecord']);
 const UNIT_EPSILON = 1e-6;
 
 export function validateResolvedGeometryModelContract(model, options = {}) {
@@ -22,87 +12,19 @@ export function validateResolvedGeometryModelContract(model, options = {}) {
   if (!model?.axisBasis || typeof model.axisBasis !== 'object') errors.push('axisBasis object is required');
   if (!model?.axisBasis?.authoring) errors.push('axisBasis.authoring is required');
   if (options.expectedAuthoringBasis && model?.axisBasis?.authoring !== options.expectedAuthoringBasis) errors.push('axisBasis.authoring must preserve PlantModelGraph authoring basis');
-  for (const key of ['nodes', 'routeFrames', 'itemFrames', 'supportPlacements', 'unresolvedGeometry', 'sourceRefs']) {
-    if (!Array.isArray(model?.[key])) errors.push(`${key} array is required`);
-  }
-
-  for (const [index, node] of (model?.nodes || []).entries()) {
-    if (!node?.id) errors.push(`nodes[${index}].id is required`);
-    if (!isPoint3(node?.coord)) errors.push(`nodes[${index}].coord must be [x,y,z]`);
-  }
-  for (const [index, frame] of (model?.routeFrames || []).entries()) {
-    if (!frame?.routeId) errors.push(`routeFrames[${index}].routeId is required`);
-    if (!frame?.fromNode) errors.push(`routeFrames[${index}].fromNode is required`);
-    if (!frame?.toNode) errors.push(`routeFrames[${index}].toNode is required`);
-    if (!isPoint3(frame?.start)) errors.push(`routeFrames[${index}].start must be [x,y,z]`);
-    if (!isPoint3(frame?.end)) errors.push(`routeFrames[${index}].end must be [x,y,z]`);
-    if (!isPoint3(frame?.direction)) errors.push(`routeFrames[${index}].direction must be [x,y,z]`);
-    if (!Number.isFinite(Number(frame?.lengthMm))) errors.push(`routeFrames[${index}].lengthMm must be numeric`);
-  }
-  for (const [index, frame] of (model?.itemFrames || []).entries()) {
-    if (!frame?.itemId) errors.push(`itemFrames[${index}].itemId is required`);
-    if (!frame?.geometryStatus) errors.push(`itemFrames[${index}].geometryStatus is required`);
-    if (!frame?.resolver) errors.push(`itemFrames[${index}].resolver is required`);
-    if (frame?.geometryKind === 'bendArcFrame.v1') validateBendArcFrame(frame, index, errors);
-  }
-  for (const [index, placement] of (model?.supportPlacements || []).entries()) {
-    if (!placement?.itemId) errors.push(`supportPlacements[${index}].itemId is required`);
-    if (!isPoint3(placement?.position)) errors.push(`supportPlacements[${index}].position must be [x,y,z]`);
-    if (placement?.geometryStatus !== 'intentOnly') errors.push(`supportPlacements[${index}].geometryStatus must be intentOnly`);
-  }
-  for (const [index, unresolved] of (model?.unresolvedGeometry || []).entries()) {
-    if (!unresolved?.itemId) errors.push(`unresolvedGeometry[${index}].itemId is required`);
-    if (unresolved?.geometryStatus !== 'blocked') errors.push(`unresolvedGeometry[${index}].geometryStatus must be blocked`);
-    if (!unresolved?.reason) errors.push(`unresolvedGeometry[${index}].reason is required`);
-  }
-
+  for (const key of ['nodes', 'routeFrames', 'itemFrames', 'supportPlacements', 'unresolvedGeometry', 'sourceRefs']) if (!Array.isArray(model?.[key])) errors.push(`${key} array is required`);
+  for (const [index, node] of (model?.nodes || []).entries()) { if (!node?.id) errors.push(`nodes[${index}].id is required`); if (!isPoint3(node?.coord)) errors.push(`nodes[${index}].coord must be [x,y,z]`); }
+  for (const [index, frame] of (model?.routeFrames || []).entries()) { if (!frame?.routeId) errors.push(`routeFrames[${index}].routeId is required`); if (!frame?.fromNode) errors.push(`routeFrames[${index}].fromNode is required`); if (!frame?.toNode) errors.push(`routeFrames[${index}].toNode is required`); if (!isPoint3(frame?.start)) errors.push(`routeFrames[${index}].start must be [x,y,z]`); if (!isPoint3(frame?.end)) errors.push(`routeFrames[${index}].end must be [x,y,z]`); if (!isPoint3(frame?.direction)) errors.push(`routeFrames[${index}].direction must be [x,y,z]`); if (!Number.isFinite(Number(frame?.lengthMm))) errors.push(`routeFrames[${index}].lengthMm must be numeric`); }
+  for (const [index, frame] of (model?.itemFrames || []).entries()) { if (!frame?.itemId) errors.push(`itemFrames[${index}].itemId is required`); if (!frame?.geometryStatus) errors.push(`itemFrames[${index}].geometryStatus is required`); if (!frame?.resolver) errors.push(`itemFrames[${index}].resolver is required`); if (frame?.geometryKind === 'bendArcFrame.v1') validateBendArcFrame(frame, index, errors); if (frame?.geometryKind === 'flangeFrame.v1') validateFlangeFrame(frame, index, errors); }
+  for (const [index, placement] of (model?.supportPlacements || []).entries()) { if (!placement?.itemId) errors.push(`supportPlacements[${index}].itemId is required`); if (!isPoint3(placement?.position)) errors.push(`supportPlacements[${index}].position must be [x,y,z]`); if (placement?.geometryStatus !== 'intentOnly') errors.push(`supportPlacements[${index}].geometryStatus must be intentOnly`); }
+  for (const [index, unresolved] of (model?.unresolvedGeometry || []).entries()) { if (!unresolved?.itemId) errors.push(`unresolvedGeometry[${index}].itemId is required`); if (unresolved?.geometryStatus !== 'blocked') errors.push(`unresolvedGeometry[${index}].geometryStatus must be blocked`); if (!unresolved?.reason) errors.push(`unresolvedGeometry[${index}].reason is required`); }
   const forbiddenHits = collectForbiddenFieldHits(model);
   errors.push(...forbiddenHits.map((hit) => `forbidden field ${hit.field} at ${hit.path}`));
   return { schema: 'ResolvedGeometryModelValidation.v1', ok: errors.length === 0, errorCount: errors.length, errors, forbiddenFieldCount: forbiddenHits.length, forbiddenFields: forbiddenHits };
 }
-
-export function assertResolvedGeometryModelContract(model, options = {}) {
-  const result = validateResolvedGeometryModelContract(model, options);
-  if (!result.ok) throw new Error(`ResolvedGeometryModel contract invalid: ${result.errors.join('; ')}`);
-  return result;
-}
-
-export function collectForbiddenFieldHits(value, path = '$', hits = []) {
-  if (!value || typeof value !== 'object') return hits;
-  if (Array.isArray(value)) {
-    value.forEach((entry, index) => collectForbiddenFieldHits(entry, `${path}[${index}]`, hits));
-    return hits;
-  }
-  for (const [key, entry] of Object.entries(value)) {
-    if (FORBIDDEN_FIELDS.includes(key)) hits.push({ path: `${path}.${key}`, field: key });
-    collectForbiddenFieldHits(entry, `${path}.${key}`, hits);
-  }
-  return hits;
-}
-
-function validateBendArcFrame(frame, index, errors) {
-  for (const key of ['startPoint', 'endPoint', 'center', 'normal', 'startTangent', 'endTangent']) {
-    if (!isPoint3(frame?.[key])) errors.push(`itemFrames[${index}].${key} must be finite [x,y,z]`);
-  }
-  for (const key of ['normal', 'startTangent', 'endTangent']) {
-    if (isPoint3(frame?.[key]) && !isUnitVector(frame[key])) errors.push(`itemFrames[${index}].${key} must be normalized`);
-  }
-  for (const key of ['majorRadiusMm', 'tubeRadiusMm', 'bendAngleDeg', 'sweepAngleDeg']) {
-    if (!Number.isFinite(Number(frame?.[key])) || Number(frame[key]) <= 0) errors.push(`itemFrames[${index}].${key} must be positive numeric`);
-  }
-  if (frame?.basis !== 'authoring') errors.push(`itemFrames[${index}].basis must be authoring`);
-  if (frame?.family !== 'elbow') errors.push(`itemFrames[${index}].family must be elbow`);
-  if (!frame?.catalogueItemId) errors.push(`itemFrames[${index}].catalogueItemId is required`);
-  if (!frame?.catalogueRef) errors.push(`itemFrames[${index}].catalogueRef is required`);
-  if (!frame?.evidence || typeof frame.evidence !== 'object') errors.push(`itemFrames[${index}].evidence is required`);
-  if (frame?.evidence?.centerSource === 'inputxml-chord-midpoint-not-arc-center') errors.push(`itemFrames[${index}] must not use chord midpoint as bend center`);
-}
-
-function isPoint3(value) {
-  return Array.isArray(value) && value.length === 3 && value.every((entry) => Number.isFinite(Number(entry)));
-}
-
-function isUnitVector(value) {
-  const length = Math.hypot(Number(value[0]), Number(value[1]), Number(value[2]));
-  return Number.isFinite(length) && Math.abs(length - 1) <= UNIT_EPSILON;
-}
+export function assertResolvedGeometryModelContract(model, options = {}) { const result = validateResolvedGeometryModelContract(model, options); if (!result.ok) throw new Error(`ResolvedGeometryModel contract invalid: ${result.errors.join('; ')}`); return result; }
+export function collectForbiddenFieldHits(value, path = '$', hits = []) { if (!value || typeof value !== 'object') return hits; if (Array.isArray(value)) { value.forEach((entry, index) => collectForbiddenFieldHits(entry, `${path}[${index}]`, hits)); return hits; } for (const [key, entry] of Object.entries(value)) { if (FORBIDDEN_FIELDS.includes(key)) hits.push({ path: `${path}.${key}`, field: key }); collectForbiddenFieldHits(entry, `${path}.${key}`, hits); } return hits; }
+function validateBendArcFrame(frame, index, errors) { for (const key of ['startPoint', 'endPoint', 'center', 'normal', 'startTangent', 'endTangent']) if (!isPoint3(frame?.[key])) errors.push(`itemFrames[${index}].${key} must be finite [x,y,z]`); for (const key of ['normal', 'startTangent', 'endTangent']) if (isPoint3(frame?.[key]) && !isUnitVector(frame[key])) errors.push(`itemFrames[${index}].${key} must be normalized`); for (const key of ['majorRadiusMm', 'tubeRadiusMm', 'bendAngleDeg', 'sweepAngleDeg']) if (!Number.isFinite(Number(frame?.[key])) || Number(frame[key]) <= 0) errors.push(`itemFrames[${index}].${key} must be positive numeric`); if (frame?.basis !== 'authoring') errors.push(`itemFrames[${index}].basis must be authoring`); if (frame?.family !== 'elbow') errors.push(`itemFrames[${index}].family must be elbow`); if (!frame?.catalogueItemId) errors.push(`itemFrames[${index}].catalogueItemId is required`); if (!frame?.catalogueRef) errors.push(`itemFrames[${index}].catalogueRef is required`); if (!frame?.evidence || typeof frame.evidence !== 'object') errors.push(`itemFrames[${index}].evidence is required`); if (frame?.evidence?.centerSource === 'inputxml-chord-midpoint-not-arc-center') errors.push(`itemFrames[${index}] must not use chord midpoint as bend center`); }
+function validateFlangeFrame(frame, index, errors) { for (const key of ['center', 'axis', 'startPoint', 'endPoint']) if (!isPoint3(frame?.[key])) errors.push(`itemFrames[${index}].${key} must be finite [x,y,z]`); if (isPoint3(frame?.axis) && !isUnitVector(frame.axis)) errors.push(`itemFrames[${index}].axis must be normalized`); for (const key of ['lengthMm', 'boreRadiusMm', 'outerRadiusMm', 'faceThicknessMm']) if (!Number.isFinite(Number(frame?.[key])) || Number(frame[key]) <= 0) errors.push(`itemFrames[${index}].${key} must be positive numeric`); if (Number(frame?.outerRadiusMm) <= Number(frame?.boreRadiusMm)) errors.push(`itemFrames[${index}].outerRadiusMm must be greater than boreRadiusMm`); for (const key of ['hubRadiusMm', 'hubLengthMm']) if (frame?.[key] !== undefined && (!Number.isFinite(Number(frame[key])) || Number(frame[key]) <= 0)) errors.push(`itemFrames[${index}].${key} must be positive numeric when present`); if (frame?.basis !== 'authoring') errors.push(`itemFrames[${index}].basis must be authoring`); if (frame?.family !== 'flange') errors.push(`itemFrames[${index}].family must be flange`); if (frame?.geometryStatus !== 'resolved') errors.push(`itemFrames[${index}].geometryStatus must be resolved`); if (frame?.resolver !== 'catalogueBackedFlangeGeometry.v1') errors.push(`itemFrames[${index}].resolver must be catalogueBackedFlangeGeometry.v1`); if (!frame?.catalogueItemId) errors.push(`itemFrames[${index}].catalogueItemId is required`); if (!frame?.catalogueRef) errors.push(`itemFrames[${index}].catalogueRef is required`); if (!frame?.flangeType) errors.push(`itemFrames[${index}].flangeType is required`); if (!frame?.facing) errors.push(`itemFrames[${index}].facing is required`); if (!frame?.rating) errors.push(`itemFrames[${index}].rating is required`); if (!frame?.connectionType) errors.push(`itemFrames[${index}].connectionType is required`); if (!frame?.evidence || typeof frame.evidence !== 'object') errors.push(`itemFrames[${index}].evidence is required`); if (frame?.evidence?.fallbackUsed === true || frame?.evidence?.placementSource === 'fallback') errors.push(`itemFrames[${index}] must not use fallback flange geometry`); }
+function isPoint3(value) { return Array.isArray(value) && value.length === 3 && value.every((entry) => Number.isFinite(Number(entry))); }
+function isUnitVector(value) { const length = Math.hypot(Number(value[0]), Number(value[1]), Number(value[2])); return Number.isFinite(length) && Math.abs(length - 1) <= UNIT_EPSILON; }

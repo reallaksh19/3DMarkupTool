@@ -1,0 +1,71 @@
+name: New Core Runtime Readiness
+
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  readiness:
+    name: Phase 01 and Phase 02 readiness gates
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Phase 01 platform contracts
+        run: npm run test:platform-contracts
+
+      - name: Phase 01 managed-stage importer
+        run: npm run test:managed-stage-importer
+
+      - name: Phase 01 catalogue binding
+        run: npm run test:catalogue-binding
+
+      - name: Phase 01 resolved geometry
+        run: npm run test:resolved-geometry
+
+      - name: Phase 01 primitive compiler
+        run: npm run test:primitive-compiler
+
+      - name: Phase 01 export models
+        run: npm run test:export-models
+
+      - name: Phase 01 new-core readiness
+        run: npm run test:new-core-readiness
+
+      - name: Phase 02 writer adapters
+        run: npm run test:writer-adapters
+
+      - name: Phase 02 artifact adapters
+        run: npm run test:artifact-adapters
+
+      - name: Phase 02 diagnostic preview
+        run: npm run test:diagnostic-preview
+
+      - name: Phase 02 controlled preview
+        run: npm run test:controlled-preview
+
+      - name: Phase 02 RVM byte proof
+        run: npm run test:rvm-byte-proof
+
+      - name: Phase 02 RVM torus byte proof
+        run: npm run test:rvm-torus-byte-proof
+
+      - name: Phase 02 writer runtime readiness
+        run: npm run test:writer-runtime-readiness

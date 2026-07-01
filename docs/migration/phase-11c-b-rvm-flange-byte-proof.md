@@ -36,6 +36,23 @@ The byte-proof audit therefore reports:
 
 `CYLINDER/code-8` alone must never be interpreted as pipe.
 
+## Segmented aggregate proof
+
+Phase 11C-B produces a segmented aggregate test proof, not a single production full-model RVM artifact.
+
+The aggregate proof combines metadata from two isolated test-only byte segments:
+
+1. `pipe-bend` segment, written by `src/artifact-adapters/rvm-code4-torus-test-byte-writer.js`;
+2. `flange` segment, written by `src/artifact-adapters/rvm-flange-cylinder-test-byte-writer.js`.
+
+The aggregate proof reports:
+
+- `writerBridge: "composite-pipe-bend-flange-test-byte-proof.v1"`;
+- `writerBridges` containing both isolated test-only writer modules;
+- `artifactSegments` with per-segment byte length and checksum metadata.
+
+This segmented proof is sufficient for Phase 11C-B test-byte validation only. It is not production RVM export, not a single full-model RVM file, and not a browser-visible artifact.
+
 ## Allowed flange byte bridge inputs
 
 The flange bridge accepts only transformed, catalogue-backed flange body primitives:
@@ -77,7 +94,7 @@ No runtime transform or canvas transform is introduced.
 
 ## Byte proof
 
-The new isolated flange byte writer produces deterministic test bytes and checksum metadata. Raw `.rvm` files are not committed. The proof object stores metadata only: byte length, SHA-256 checksum, decoded counts, and source trace status.
+The new isolated flange byte writer produces deterministic test bytes and checksum metadata. Raw `.rvm` files are not committed. The proof object stores metadata only: byte length, SHA-256 checksum, decoded counts, artifact segment metadata, writer bridge metadata, and source trace status.
 
 ## Production safety
 

@@ -1,6 +1,8 @@
 const LEDGER_SCHEMA = 'ElementRvmLedger.v1';
 const SOURCE_SCHEMA = 'inputxml-managed-stage/v1';
 const SOURCE_PROFILE = 'AVEVA_JSON_FOR_3D_RVM_VIEWER';
+const SOURCE_EVIDENCE = 'staged-json-child';
+const SOURCE_OF_TRUTH = 'PlantModelGraph.v1';
 const TYPE_TO_FAMILY = Object.freeze({ PIPE: 'pipe', BEND: 'elbow', FLAN: 'flange', FLANGE: 'flange', VALV: 'valve', VALVE: 'valve', ATTA: 'support', SUPPORT: 'support', RESTRAINT: 'support', BRANCH: 'branch' });
 const FAMILY_TO_TYPE = Object.freeze({ pipe: 'PIPE', elbow: 'BEND', bend: 'BEND', flange: 'FLAN', valve: 'VALV', support: 'ATTA', branch: 'BRANCH' });
 
@@ -11,7 +13,7 @@ export function buildElementRvmLedger(input, options = {}) {
   const sourceChildren = collectSourceChildren(source, branches);
   const primitiveBySource = buildPrimitiveMap(options.primitiveModel || input?.primitiveModel);
   const graphItemBySource = buildGraphItemMap(options.plantGraph || input?.plantGraph || options.graph || input?.graph);
-  const entries = sourceChildren.map((child, index) => buildEntry(child, index + 1, primitiveBySource, graphItemBySource));
+  const entries = sourceChildren.map((child, index) => buildEntry(child, index + 1, primitiveBySource, graphItemBySource, graphId));
   const typeCounts = countTypes(entries, branches.length);
   const generationReadiness = {
     writableElementCount: entries.filter((entry) => entry.rvmElementUnitStatus === 'candidate').length,
@@ -62,7 +64,7 @@ function collectSourceChildren(source, branches) {
   for (const key of ['children', 'items', 'records', 'components', 'supports', 'geometryRecords']) for (const record of Array.isArray(source?.[key]) ? source[key] : []) if (isLedgerChild(record)) children.push({ record, branch: null });
   return children;
 }
-function buildEntry(child, sequenceIndex, primitiveBySource, graphItemBySource) {
+function buildEntry(child, sequenceIndex, primitiveBySource, graphItemBySource, graphId) {
   const record = child.record;
   const branch = child.branch;
   const a = attrs(record);
@@ -104,9 +106,13 @@ function buildEntry(child, sequenceIndex, primitiveBySource, graphItemBySource) 
     blockReason: status.blockReason,
     deferReason: status.deferReason,
     sourceTrace: {
-      masterSource: 'staged-json-child',
+      sourceEvidence: SOURCE_EVIDENCE,
+      sourceOfTruth: SOURCE_OF_TRUTH,
       sourceSchema: SOURCE_SCHEMA,
       sourceProfile: SOURCE_PROFILE,
+      graphId,
+      graphItemId: graphItem?.id || null,
+      graphSourceRef: graphItem?.sourceRef || sourceElementId,
       branchId,
       branchName,
       sequenceIndex,

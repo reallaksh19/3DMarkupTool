@@ -1,0 +1,13 @@
+{
+  "schema": "Phase11CFlangeExportBoundaryExpected.v1",
+  "rvmPrimitivePlanCount": 19,
+  "testByteEligibleTorusCount": 7,
+  "flangeDeferredExportCount": 8,
+  "flangeWriterReadyCount": 0,
+  "flangeTestByteEligibleCount": 0,
+  "blockedFlangeExportCount": 0,
+  "blockedValveExportCount": 6,
+  "deferredSupportExportCount": 12,
+  "fullRvmModelReady": false,
+  "writerCallCount": 0
+}

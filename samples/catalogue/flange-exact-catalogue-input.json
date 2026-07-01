@@ -1,0 +1,18 @@
+{
+  "schema": "Phase11CExactFlangeCatalogueInput.v1",
+  "family": "flange",
+  "type": "weld-neck",
+  "diameterMm": 114.299995,
+  "wallMm": 6.0,
+  "lengthMm": 60,
+  "outerDiameterMm": 230,
+  "boreDiameterMm": 114.299995,
+  "faceThicknessMm": 3,
+  "hubDiameterMm": 150,
+  "hubLengthMm": 40,
+  "flangeType": "weld-neck",
+  "facing": "RF",
+  "rating": "150",
+  "connectionType": "butt-weld",
+  "expectedBindingStatus": "catalogueResolved"
+}

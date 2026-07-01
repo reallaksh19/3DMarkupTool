@@ -2,23 +2,28 @@
 
 ## Purpose
 
-Phase E1 realigns the migration around element-by-element RVM generation.
+Phase E1 adds `ElementRvmLedger.v1` as a downstream trace/readiness ledger for future element-by-element RVM generation.
 
-The source element is now the master unit:
+`PlantModelGraph.v1` remains the engineering source-of-truth. Managed/staged JSON child identity is preserved as source-import evidence and traceability, not as the master model.
+
+The allowed Phase E1 evidence chain is:
 
 ```text
 Managed/Staged JSON child
-→ ElementRvmLedger entry
-→ future RVM element unit
+→ PlantModelGraph.v1 import trace
+→ NewCoreReadinessAudit.v1
+→ ElementRvmLedger.v1 trace/readiness row
+→ future RvmElementUnit.v1 candidate
 → future stitch manifest
-→ future stitched Review-style RVM
 ```
 
-This intentionally avoids treating primitive/output rows or aggregate byte proof results as the master model.
+This intentionally avoids treating primitive/output rows, aggregate byte proof results, staged JSON child records, or ledger rows as replacement source-of-truth models.
 
-## Why the roadmap resets
+## Why this does not reset the roadmap
 
-Aggregate byte proof is useful evidence, but it is not the correct long-term architecture for Review-style RVM generation. The correct unit of ownership is the original staged JSON child, because each RVM element unit must remain traceable back to one source element even when geometry, byte writing, or stitching is not available yet.
+Aggregate byte proof is useful readiness evidence, but it is not the long-term production architecture by itself. The correct long-term architecture remains graph-first: `PlantModelGraph.v1` owns engineering intent; downstream audit, primitive, export, byte-proof, and ledger records only prove readiness and traceability.
+
+`ElementRvmLedger.v1` records one downstream trace/readiness row per preserved staged JSON child so later RVM element-unit work can prove that no imported source evidence was dropped. It does not bypass graph import, readiness audit, primitive resolution, writer adapters, or production runtime policy.
 
 ## What the ledger preserves
 
@@ -34,7 +39,7 @@ Aggregate byte proof is useful evidence, but it is not the correct long-term arc
 - future RVM element-unit status;
 - byte/stitch status, both `notStarted` in Phase E1;
 - block or defer reason;
-- source trace back to the staged JSON child.
+- source trace where `sourceEvidence` is `staged-json-child` and `sourceOfTruth` is `PlantModelGraph.v1`.
 
 ## BM_CII inventory
 
@@ -52,7 +57,7 @@ For the BM_CII-style staged fixture, the expected source inventory is:
 12 ATTA
 ```
 
-The branch is counted as source context through `branchCount` and `typeCounts.BRANCH`, but it is not inserted as a 53rd ledger entry. The 52 ledger entries are the 52 branch children that will later become element units or explicit blocked/deferred records.
+The branch is counted as source context through `branchCount` and `typeCounts.BRANCH`, but it is not inserted as a 53rd ledger entry. The 52 ledger entries are downstream trace/readiness rows for the 52 branch children that will later become element units or explicit blocked/deferred records.
 
 ## Status rules
 
@@ -79,7 +84,8 @@ Phase E1 does not implement:
 - valve solving;
 - support solving;
 - production writer integration;
-- full-model readiness.
+- full-model readiness;
+- production runtime switch.
 
 Every ledger entry keeps `rvmByteStatus: "notStarted"` and `stitchStatus: "notStarted"`. `generationReadiness.fullRvmReady` is always false.
 
@@ -88,8 +94,8 @@ Every ledger entry keeps `rvmByteStatus: "notStarted"` and `stitchStatus: "notSt
 Phase E1 prepares Phase E2:
 
 ```text
-ElementRvmLedger.v1
-→ RvmElementUnit.v1
+ElementRvmLedger.v1 trace/readiness row
+→ RvmElementUnit.v1 candidate
 ```
 
-Phase E2 should create one future element unit per candidate ledger entry while preserving blocked/deferred entries for valves and supports. Later phases can introduce a stitch manifest and stitched RVM artifact only after element units are proven individually.
+Phase E2 should create one future element unit per candidate ledger entry while preserving blocked/deferred entries for valves and supports. Later phases can introduce a stitch manifest and stitched RVM artifact only after element units are proven individually and production policy explicitly approves the next boundary.

@@ -189,16 +189,30 @@ function decideReadiness({ item, binding, geometry, primitive, rvm, att, glb }) 
   if (item?.kind === 'support' || binding?.status === 'supportIntent') {
     return { status: 'support-intent-only', reason: reasonOf(primitive, rvm, att, glb, binding) || 'support engineering intent is preserved; support primitive generation is outside Phase 01' };
   }
-  if (binding?.status === 'unresolved') return { status: 'unresolved', reason: binding.reason || 'no deterministic catalogue/procedural/fallback binding decision exists' };
-  if (binding?.status === 'fallbackBlocked') return { status: 'blocked', reason: binding.reason || 'fallback is blocked without production evidence' };
-  if (geometry?.status === 'blocked') return { status: 'blocked', reason: geometry.reason || 'resolved geometry is blocked' };
-  if (primitive?.status === 'blocked') return { status: 'blocked', reason: primitive.reason || 'primitive compilation is blocked' };
-  if (rvm?.status === 'blocked' || att?.status === 'blocked' || glb?.status === 'blocked') return { status: 'blocked', reason: reasonOf(rvm, att, glb) || 'export model is blocked' };
-  if (rvm?.status === 'test-byte-only' || rvm?.testByteEligible === true || primitive?.primitiveKind === 'TORUS') return { status: 'test-byte-only', reason: reasonOf(rvm, primitive) || 'TORUS/code4 is test-byte-only until production writer policy explicitly allows it' };
-  if (primitive?.status === 'deferred' || rvm?.status === 'deferred' || att?.status === 'deferred' || glb?.status === 'deferred') return { status: 'deferred', reason: reasonOf(rvm, att, glb, primitive) || 'valid model state is deferred until writer/runtime support is implemented' };
-  if (rvm?.status === 'exportPlanned' && att?.status === 'recordPlanned' && glb?.status === 'visualPlanned') return { status: 'production-ready' };
-  if (!binding || !geometry || !primitive || !rvm || !att || !glb) return { status: 'blocked', reason: 'missing end-to-end readiness evidence' };
+  if (!binding) return { status: 'blocked', reason: 'missing catalogue/procedural/fallback binding evidence' };
+  if (binding.status === 'unresolved') return { status: 'unresolved', reason: binding.reason || 'no deterministic catalogue/procedural/fallback binding decision exists' };
+  if (binding.status === 'fallbackBlocked') return { status: 'blocked', reason: binding.reason || 'fallback is blocked without production evidence' };
+  if (!geometry) return { status: 'blocked', reason: 'missing resolved geometry evidence' };
+  if (geometry.status === 'blocked') return { status: 'blocked', reason: geometry.reason || 'resolved geometry is blocked' };
+  if (!primitive) return { status: 'blocked', reason: 'missing resolved primitive evidence' };
+  if (primitive.status === 'blocked') return { status: 'blocked', reason: primitive.reason || 'primitive compilation is blocked' };
+  if (!rvm) return { status: 'blocked', reason: 'missing RVM export evidence' };
+  if (!att) return { status: 'blocked', reason: 'missing ATT export evidence' };
+  if (!glb) return { status: 'blocked', reason: 'missing GLB visual/export evidence' };
+  if (rvm.status === 'blocked' || att.status === 'blocked' || glb.status === 'blocked') return { status: 'blocked', reason: reasonOf(rvm, att, glb) || 'export model is blocked' };
+  if (rvm.status === 'test-byte-only' || rvm.testByteEligible === true || primitive.primitiveKind === 'TORUS') return { status: 'test-byte-only', reason: reasonOf(rvm, primitive) || 'TORUS/code4 is test-byte-only until production writer policy explicitly allows it' };
+  if (primitive.status === 'deferred' || rvm.status === 'deferred' || att.status === 'deferred' || glb.status === 'deferred') return { status: 'deferred', reason: reasonOf(rvm, att, glb, primitive) || 'valid model state is deferred until writer/runtime support is implemented' };
+  if (isProductionReadyEvidence({ binding, geometry, primitive, rvm, att, glb })) return { status: 'production-ready' };
   return { status: 'deferred', reason: 'readiness policy has no production writer proof for this item' };
+}
+
+function isProductionReadyEvidence({ binding, geometry, primitive, rvm, att, glb }) {
+  return ['catalogueResolved', 'proceduralResolved'].includes(binding.status)
+    && ['resolved', 'catalogueFrameResolved'].includes(geometry.status)
+    && primitive.status === 'primitiveResolved'
+    && rvm.status === 'exportPlanned'
+    && att.status === 'recordPlanned'
+    && glb.status === 'visualPlanned';
 }
 
 function appendValidationErrors(errors, label, result) {

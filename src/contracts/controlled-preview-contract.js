@@ -1,6 +1,6 @@
 import { CONTROLLED_PREVIEW_MODEL_SCHEMA } from './platform-contract-schemas.js';
-const ALLOWED_STATUSES = new Set(['pipe-bend-subset-ready', 'partial-rvm-subset-ready', 'diagnostics-only', 'blocked', 'unavailable']);
-const ALLOWED_PREVIEW_STATUSES = new Set(['rvmStraightPipeSubsetReady', 'rvmPipeBendSubsetReady', 'fullModelNotReady', 'blockedComponent', 'deferredSupport', 'bendTorusWriterDeferred', 'bendTorusByteProven', 'flangeWriterDeferred', 'attBlocked', 'glbBlocked', 'diagnosticOnly']);
+const ALLOWED_STATUSES = new Set(['pipe-bend-flange-subsets-ready', 'pipe-bend-subset-ready', 'partial-rvm-subset-ready', 'diagnostics-only', 'blocked', 'unavailable']);
+const ALLOWED_PREVIEW_STATUSES = new Set(['rvmStraightPipeSubsetReady', 'rvmPipeBendSubsetReady', 'rvmFlangeSubsetReady', 'fullModelNotReady', 'blockedComponent', 'deferredSupport', 'bendTorusWriterDeferred', 'bendTorusByteProven', 'flangeWriterDeferred', 'attBlocked', 'glbBlocked', 'diagnosticOnly']);
 const ALLOWED_READINESS = new Set(['ready', 'notReady', 'blocked', 'deferred', 'diagnosticOnly']);
 const ALLOWED_SEVERITY = new Set(['info', 'warning', 'blocked']);
 const FORBIDDEN_FIELDS = Object.freeze(['geometry', 'mesh', 'meshGeometry', 'threeObject', 'threeGeometry', 'webgl', 'bufferGeometry', 'material', 'rvmBytes', 'bytes', 'binary', 'arrayBuffer', 'buffer', 'attText', 'glbBytes', 'gltfJson', 'objectUrl', 'downloadUrl', 'fileBlob', 'canvas', 'runtimeMutation', 'writerPayload', 'artifactPayload', 'productionWrite', 'cacheKeyMutation']);

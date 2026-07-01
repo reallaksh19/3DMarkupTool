@@ -8,10 +8,17 @@ const state = await buildBmCiiPhase11aState();
 const ledger = buildElementRvmLedger(state.sourceText, { graphId: state.graph.id, plantGraph: state.graph, primitiveModel: state.primitiveModel });
 assert.equal(assertElementRvmLedgerContract(ledger).ok, true);
 const audit = buildElementRvmLedgerAudit(ledger, { expectedSourceChildCount: 52 });
-assert.equal(assertElementRvmLedgerAudit(audit, { ok: true, totalElementCount: 52, componentElementCount: 40, supportElementCount: 12, branchCount: 1, 'typeCounts.BRANCH': 1, 'typeCounts.PIPE': 19, 'typeCounts.BEND': 7, 'typeCounts.FLAN': 8, 'typeCounts.VALV': 6, 'typeCounts.ATTA': 12, primitiveResolvedElementCount: 34, writableElementCount: 34, blockedElementCount: 6, deferredElementCount: 12, blockedValveCount: 6, deferredSupportCount: 12, rvmByteNotStartedCount: 52, stitchNotStartedCount: 52, primitiveOnlyOrphanCount: 0, fullRvmReady: false }).ok, true);
+assert.equal(assertElementRvmLedgerAudit(audit, { ok: true, totalElementCount: 52, componentElementCount: 40, supportElementCount: 12, branchCount: 1, 'typeCounts.BRANCH': 1, 'typeCounts.PIPE': 19, 'typeCounts.BEND': 7, 'typeCounts.FLAN': 8, 'typeCounts.VALV': 6, 'typeCounts.ATTA': 12, primitiveResolvedElementCount: 34, writableElementCount: 34, blockedElementCount: 6, deferredElementCount: 12, blockedValveCount: 6, deferredSupportCount: 12, sourceEvidenceTraceCount: 52, graphSourceOfTruthTraceCount: 52, rvmByteNotStartedCount: 52, stitchNotStartedCount: 52, primitiveOnlyOrphanCount: 0, fullRvmReady: false }).ok, true);
 
+assert.equal(state.graph.schema, 'PlantModelGraph.v1', 'PlantModelGraph.v1 remains the upstream engineering source-of-truth');
 assert.equal(ledger.schema, 'ElementRvmLedger.v1');
+assert.equal(ledger.graphId, state.graph.id, 'ledger references the PlantModelGraph import/readiness trace');
+assert.notEqual(ledger.schema, state.graph.schema, 'ledger does not replace PlantModelGraph.v1');
 assert.equal(ledger.totalElementCount, 52);
+assert.equal(ledger.entries.every((entry) => entry.sourceTrace.sourceEvidence === 'staged-json-child'), true, 'staged JSON child is preserved as source evidence');
+assert.equal(ledger.entries.every((entry) => entry.sourceTrace.sourceOfTruth === 'PlantModelGraph.v1'), true, 'source of truth remains PlantModelGraph.v1');
+assert.equal(ledger.entries.every((entry) => entry.sourceTrace.graphId === state.graph.id), true, 'every ledger entry references graph trace');
+assert.equal(ledger.entries.some((entry) => Object.hasOwn(entry.sourceTrace, 'masterSource')), false, 'masterSource is not allowed');
 assert.equal(ledger.entries.filter((entry) => entry.sourceElementType === 'PIPE').length, 19);
 assert.equal(ledger.entries.filter((entry) => entry.sourceElementType === 'BEND').length, 7);
 assert.equal(ledger.entries.filter((entry) => entry.sourceElementType === 'FLAN').length, 8);
@@ -23,5 +30,8 @@ assert.equal(ledger.entries.filter((entry) => entry.sourceElementType === 'FLAN'
 assert.equal(ledger.entries.filter((entry) => entry.sourceElementType === 'VALV').every((entry) => entry.rvmElementUnitStatus === 'blocked' && entry.blockReason), true);
 assert.equal(ledger.entries.filter((entry) => entry.sourceElementType === 'ATTA').every((entry) => entry.rvmElementUnitStatus === 'deferred' && entry.deferReason), true);
 assert.deepEqual(ledger.entries.map((entry) => entry.sequenceIndex), Array.from({ length: 52 }, (_, index) => index + 1));
+assert.equal(ledger.entries.every((entry) => entry.rvmByteStatus === 'notStarted'), true, 'byte status stays notStarted in Phase E1');
+assert.equal(ledger.entries.every((entry) => entry.stitchStatus === 'notStarted'), true, 'stitch status stays notStarted in Phase E1');
+assert.equal(ledger.generationReadiness.fullRvmReady, false, 'full RVM readiness stays false in Phase E1');
 
 console.log('BM CII ElementRvmLedger inventory test passed');

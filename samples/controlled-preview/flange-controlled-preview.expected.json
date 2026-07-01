@@ -1,0 +1,15 @@
+{
+  "schema": "Phase11CControlledPreviewExpected.v1",
+  "straightPipeReadyCount": 19,
+  "bendTorusByteProvenCount": 7,
+  "flangePrimitiveResolvedCount": 8,
+  "flangeWriterDeferredCount": 8,
+  "blockedFlangeCount": 0,
+  "blockedValveCount": 6,
+  "deferredSupportCount": 12,
+  "rvmPipeBendSubsetReady": true,
+  "rvmFlangeSubsetReady": false,
+  "rvmFullModelReady": false,
+  "attReady": false,
+  "glbReady": false
+}

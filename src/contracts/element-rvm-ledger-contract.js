@@ -2,6 +2,8 @@ import { ELEMENT_RVM_LEDGER_SCHEMA } from './platform-contract-schemas.js';
 
 const SOURCE_SCHEMA = 'inputxml-managed-stage/v1';
 const SOURCE_PROFILE = 'AVEVA_JSON_FOR_3D_RVM_VIEWER';
+const SOURCE_EVIDENCE = 'staged-json-child';
+const SOURCE_OF_TRUTH = 'PlantModelGraph.v1';
 const ELEMENT_TYPES = new Set(['PIPE', 'BEND', 'FLAN', 'VALV', 'ATTA', 'BRANCH', 'UNKNOWN']);
 const FAMILIES = new Set(['pipe', 'elbow', 'flange', 'valve', 'support', 'branch', 'unknown']);
 const GEOMETRY_STATUSES = new Set(['primitiveResolved', 'blocked', 'deferred', 'notApplicable']);
@@ -15,7 +17,7 @@ export function validateElementRvmLedgerContract(ledger) {
   const errors = [];
   if (!ledger || typeof ledger !== 'object') errors.push('ledger must be an object');
   if (ledger?.schema !== ELEMENT_RVM_LEDGER_SCHEMA) errors.push(`schema must be ${ELEMENT_RVM_LEDGER_SCHEMA}`);
-  if (!ledger?.graphId) errors.push('graphId is required');
+  if (!ledger?.graphId) errors.push('graphId is required because PlantModelGraph.v1 remains source-of-truth');
   if (ledger?.sourceSchema !== SOURCE_SCHEMA) errors.push(`sourceSchema must be ${SOURCE_SCHEMA}`);
   if (ledger?.sourceProfile !== SOURCE_PROFILE) errors.push(`sourceProfile must be ${SOURCE_PROFILE}`);
   if (ledger?.units !== 'mm') errors.push('units must be mm');
@@ -32,7 +34,7 @@ export function validateElementRvmLedgerContract(ledger) {
   const entries = Array.isArray(ledger?.entries) ? ledger.entries : [];
   const sourceIds = new Set();
   const sequenceIndexes = [];
-  for (const [index, entry] of entries.entries()) validateEntry(entry, index, errors, sourceIds, sequenceIndexes);
+  for (const [index, entry] of entries.entries()) validateEntry(entry, index, errors, sourceIds, sequenceIndexes, ledger?.graphId);
   if (nonNegativeInteger(ledger?.totalElementCount) && ledger.totalElementCount !== entries.length) errors.push('totalElementCount must equal entries.length');
   const componentCount = entries.filter((entry) => ['PIPE', 'BEND', 'FLAN', 'VALV'].includes(entry.sourceElementType)).length;
   const supportCount = entries.filter((entry) => entry.sourceElementType === 'ATTA').length;
@@ -63,7 +65,7 @@ export function assertElementRvmLedgerContract(ledger) {
   return result;
 }
 
-function validateEntry(entry, index, errors, sourceIds, sequenceIndexes) {
+function validateEntry(entry, index, errors, sourceIds, sequenceIndexes, ledgerGraphId) {
   const prefix = `entries[${index}]`;
   if (!entry || typeof entry !== 'object') { errors.push(`${prefix} must be an object`); return; }
   for (const key of ['ledgerEntryId', 'sourceElementId', 'sourceElementName', 'sourceElementType', 'normalizedFamily', 'branchId', 'branchName']) if (!entry[key]) errors.push(`${prefix}.${key} is required`);
@@ -86,7 +88,17 @@ function validateEntry(entry, index, errors, sourceIds, sequenceIndexes) {
   if (entry.stitchOrder !== null) errors.push(`${prefix}.stitchOrder must be null in Phase E1`);
   if (entry.blockReason !== null && typeof entry.blockReason !== 'string') errors.push(`${prefix}.blockReason must be string or null`);
   if (entry.deferReason !== null && typeof entry.deferReason !== 'string') errors.push(`${prefix}.deferReason must be string or null`);
-  if (!entry.sourceTrace || typeof entry.sourceTrace !== 'object' || Array.isArray(entry.sourceTrace)) errors.push(`${prefix}.sourceTrace object is required`);
+  if (!entry.sourceTrace || typeof entry.sourceTrace !== 'object' || Array.isArray(entry.sourceTrace)) {
+    errors.push(`${prefix}.sourceTrace object is required`);
+    return;
+  }
+  if (Object.hasOwn(entry.sourceTrace, 'masterSource')) errors.push(`${prefix}.sourceTrace.masterSource is forbidden; use sourceEvidence/sourceOfTruth`);
+  if (entry.sourceTrace.sourceEvidence !== SOURCE_EVIDENCE) errors.push(`${prefix}.sourceTrace.sourceEvidence must be ${SOURCE_EVIDENCE}`);
+  if (entry.sourceTrace.sourceOfTruth !== SOURCE_OF_TRUTH) errors.push(`${prefix}.sourceTrace.sourceOfTruth must be ${SOURCE_OF_TRUTH}`);
+  if (!entry.sourceTrace.graphId) errors.push(`${prefix}.sourceTrace.graphId is required`);
+  if (ledgerGraphId && entry.sourceTrace.graphId !== ledgerGraphId) errors.push(`${prefix}.sourceTrace.graphId must match ledger.graphId`);
+  if (entry.sourceTrace.sourceElementId !== entry.sourceElementId) errors.push(`${prefix}.sourceTrace.sourceElementId must match entry.sourceElementId`);
+  if (entry.sourceTrace.sequenceIndex !== entry.sequenceIndex) errors.push(`${prefix}.sourceTrace.sequenceIndex must match entry.sequenceIndex`);
 }
 function nonNegativeInteger(value) { return Number.isInteger(Number(value)) && Number(value) >= 0; }
 function positiveInteger(value) { return Number.isInteger(Number(value)) && Number(value) > 0; }

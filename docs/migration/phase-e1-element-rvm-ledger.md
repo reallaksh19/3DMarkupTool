@@ -19,7 +19,7 @@ Managed/Staged JSON child
 
 This intentionally avoids treating primitive/output rows, aggregate byte proof results, staged JSON child records, or ledger rows as replacement source-of-truth models.
 
-## Why this does not reset the roadmap
+## Why this remains graph-first
 
 Aggregate byte proof is useful readiness evidence, but it is not the long-term production architecture by itself. The correct long-term architecture remains graph-first: `PlantModelGraph.v1` owns engineering intent; downstream audit, primitive, export, byte-proof, and ledger records only prove readiness and traceability.
 

@@ -83,7 +83,22 @@ const taintedAudit = buildNewCoreReadinessAudit(tainted, { sourceName: 'tainted.
 assert.equal(taintedAudit.ok, false, 'binary/writer fields fail closed');
 assert.ok(taintedAudit.errors.some((entry) => entry.includes('writer/binary payload field')));
 
+const missingPrimitive = buildFixture();
+missingPrimitive.primitiveModel.primitives = missingPrimitive.primitiveModel.primitives.filter((primitive) => primitive.sourceItemId !== 'PIPE-1');
+const missingPrimitiveAudit = buildNewCoreReadinessAudit(missingPrimitive, { sourceName: 'missing-primitive.managed-stage.json' });
+const missingPrimitivePipe = row(missingPrimitiveAudit, 'PIPE-1');
+assert.equal(missingPrimitivePipe.rvmExportStatus, 'exportPlanned', 'negative test keeps downstream RVM evidence present');
+assert.equal(missingPrimitivePipe.attStatus, 'recordPlanned', 'negative test keeps downstream ATT evidence present');
+assert.equal(missingPrimitivePipe.glbStatus, 'visualPlanned', 'negative test keeps downstream GLB evidence present');
+assert.equal(missingPrimitivePipe.primitiveStatus, 'missing', 'negative test removes upstream primitive evidence');
+assert.equal(missingPrimitivePipe.readinessStatus, 'blocked', 'missing primitive evidence blocks production readiness even when export rows exist');
+assert.match(missingPrimitivePipe.reason, /missing resolved primitive evidence/i);
+assert.equal(missingPrimitiveAudit.productionReadyCount, 0);
+assert.equal(missingPrimitiveAudit.blockedCount, 1);
+
 console.log('new-core readiness audit tests passed');
+
+await import('./new-core-readiness-pipeline-smoke.test.mjs');
 
 function row(auditValue, itemId) {
   const found = auditValue.traceRows.find((entry) => entry.itemId === itemId);
@@ -131,11 +146,11 @@ function buildFixture() {
     nearestMatchCount: 0,
     exportDecisionCount: 0,
     bindings: [
-      { itemId: 'PIPE-1', itemKind: 'generated', sourceRef: 'SRC-PIPE-1', status: 'proceduralResolved', family: 'pipe', type: 'straight', reason: 'deterministic procedural straight pipe generator' },
-      { itemId: 'BEND-1', itemKind: 'component', sourceRef: 'SRC-BEND-1', status: 'catalogueResolved', family: 'elbow', type: 'bend', catalogueItemId: 'CAT-BEND-90LR', catalogueRef: { catalogue: 'base-piping', family: 'elbow', type: 'bend' }, reason: 'exact catalogue-backed bend evidence match' },
-      { itemId: 'FLANGE-1', itemKind: 'component', sourceRef: 'SRC-FLANGE-1', status: 'catalogueResolved', family: 'flange', type: 'weld-neck', catalogueItemId: 'CAT-FLANGE-WN', catalogueRef: { catalogue: 'base-piping', family: 'flange', type: 'weld-neck' }, reason: 'exact catalogue-backed flange evidence match' },
-      { itemId: 'SUPPORT-1', itemKind: 'support', sourceRef: 'SRC-SUPPORT-1', status: 'supportIntent', family: 'support', type: 'GUIDE', reason: 'support intent is preserved for later support binding' },
-      { itemId: 'UNKNOWN-1', itemKind: 'component', sourceRef: 'SRC-UNKNOWN-1', status: 'unresolved', family: 'valve', type: 'unknown', reason: 'no exact catalogue item' }
+      binding('PIPE-1', 'generated', 'proceduralResolved', 'pipe', 'straight', 'deterministic procedural straight pipe generator'),
+      binding('BEND-1', 'component', 'catalogueResolved', 'elbow', 'bend', 'exact catalogue-backed bend evidence match', 'CAT-BEND-90LR'),
+      binding('FLANGE-1', 'component', 'catalogueResolved', 'flange', 'weld-neck', 'exact catalogue-backed flange evidence match', 'CAT-FLANGE-WN'),
+      binding('SUPPORT-1', 'support', 'supportIntent', 'support', 'GUIDE', 'support intent is preserved for later support binding'),
+      binding('UNKNOWN-1', 'component', 'unresolved', 'valve', 'unknown', 'no exact catalogue item')
     ]
   };
 
@@ -151,9 +166,9 @@ function buildFixture() {
       routeFrame('R-FLANGE', 'N3', 'N4', [1000, 1000, 0], [1600, 1000, 0], [1, 0, 0], 600)
     ],
     itemFrames: [
-      { itemId: 'PIPE-1', routeId: 'R-PIPE', center: [500, 0, 0], axis: [1, 0, 0], lengthMm: 1000, radiusMm: 50, diameterMm: 100, wallMm: 6.02, geometryStatus: 'resolved', resolver: 'straightPipeGeometry.v1', sourceRef: 'SRC-PIPE-1' },
-      { frameId: 'BEND-FRAME-BEND-1', itemId: 'BEND-1', routeId: 'R-BEND', family: 'elbow', type: 'bend', geometryKind: 'bendArcFrame.v1', geometryStatus: 'resolved', resolver: 'catalogueBackedBendArcGeometry.v1', basis: 'authoring', startPoint: [1000, 0, 0], endPoint: [1000, 1000, 0], center: [1000, 500, 0], normal: [0, 0, 1], startTangent: [1, 0, 0], endTangent: [0, 1, 0], majorRadiusMm: 500, tubeRadiusMm: 50, bendAngleDeg: 90, sweepAngleDeg: 90, catalogueItemId: 'CAT-BEND-90LR', catalogueRef: { catalogue: 'base-piping', family: 'elbow', type: 'bend' }, evidence: { centerSource: 'explicit-bend-arc-center' }, sourceRef: 'SRC-BEND-1' },
-      { frameId: 'FLANGE-FRAME-FLANGE-1', itemId: 'FLANGE-1', routeId: 'R-FLANGE', family: 'flange', type: 'weld-neck', geometryKind: 'flangeFrame.v1', geometryStatus: 'resolved', resolver: 'catalogueBackedFlangeGeometry.v1', basis: 'authoring', center: [1300, 1000, 0], axis: [1, 0, 0], startPoint: [1200, 1000, 0], endPoint: [1400, 1000, 0], lengthMm: 200, boreRadiusMm: 50, outerRadiusMm: 90, faceThicknessMm: 10, hubRadiusMm: 65, hubLengthMm: 80, flangeType: 'weld-neck', facing: 'RF', rating: '150', connectionType: 'butt-weld', catalogueItemId: 'CAT-FLANGE-WN', catalogueRef: { catalogue: 'base-piping', family: 'flange', type: 'weld-neck' }, evidence: { fallbackUsed: false, placementSource: 'endpoint-topology' }, sourceRef: 'SRC-FLANGE-1' }
+      pipeFrame(),
+      bendFrame(),
+      flangeFrame()
     ],
     supportPlacements: [
       { itemId: 'SUPPORT-1', node: 'N2', position: [1000, 0, 0], axis: '+Y', supportFamily: 'GUIDE', geometryStatus: 'intentOnly', resolver: 'supportPlacementIntent.v1', sourceRef: 'SRC-SUPPORT-1' }
@@ -171,93 +186,78 @@ function buildFixture() {
     sourceGeometryId: graph.id,
     units: 'mm',
     axisBasis: { authoring: 'canvas-current', rvmExport: 'navis-review' },
-    items: [
-      { id: 'PIPE-1', sourceGraphItemId: 'PIPE-1', resolutionMode: 'procedural', sourceRef: 'SRC-PIPE-1' },
-      { id: 'BEND-1', sourceGraphItemId: 'BEND-1', resolutionMode: 'catalogue', sourceRef: 'SRC-BEND-1' },
-      { id: 'FLANGE-1', sourceGraphItemId: 'FLANGE-1', resolutionMode: 'catalogue', sourceRef: 'SRC-FLANGE-1' },
-      { id: 'SUPPORT-1', sourceGraphItemId: 'SUPPORT-1', resolutionMode: 'deferred', sourceRef: 'SRC-SUPPORT-1' },
-      { id: 'UNKNOWN-1', sourceGraphItemId: 'UNKNOWN-1', resolutionMode: 'blocked', sourceRef: 'SRC-UNKNOWN-1' }
-    ],
-    primitives: [
-      { primitiveId: 'PRIM-PIPE-1', sourceItemId: 'PIPE-1', sourceRouteId: 'R-PIPE', primitiveKind: 'CYLINDER', primitiveCode: 8, center: [500, 0, 0], axis: [1, 0, 0], lengthMm: 1000, radiusMm: 50, basis: 'authoring', resolver: 'straightPipeCylinderPrimitive.v1', geometryStatus: 'primitiveResolved', sourceRef: 'SRC-PIPE-1' },
-      { primitiveId: 'PRIM-BEND-1', sourceItemId: 'BEND-1', sourceRouteId: 'R-BEND', primitiveKind: 'TORUS', primitiveCode: 4, center: [1000, 500, 0], normal: [0, 0, 1], startTangent: [1, 0, 0], endTangent: [0, 1, 0], majorRadiusMm: 500, tubeRadiusMm: 50, bendAngleDeg: 90, sweepAngleDeg: 90, basis: 'authoring', resolver: 'bendArcTorusPrimitive.v1', geometryStatus: 'primitiveResolved', family: 'elbow', type: 'bend', catalogueItemId: 'CAT-BEND-90LR', catalogueRef: { catalogue: 'base-piping', family: 'elbow', type: 'bend' }, evidence: { centerSource: 'explicit-bend-arc-center' }, sourceRef: 'SRC-BEND-1' },
-      { primitiveId: 'PRIM-FLANGE-1', sourceItemId: 'FLANGE-1', sourceRouteId: 'R-FLANGE', family: 'flange', type: 'weld-neck', primitiveKind: 'FLANGE_CYLINDER', primitiveCode: 8, center: [1300, 1000, 0], axis: [1, 0, 0], lengthMm: 200, boreRadiusMm: 50, outerRadiusMm: 90, bodyPrimitive: { primitiveKind: 'CYLINDER', primitiveCode: 8, radiusMm: 90, lengthMm: 200 }, optionalSubPrimitives: [], basis: 'authoring', resolver: 'flangeCylinderPrimitive.v1', geometryStatus: 'primitiveResolved', writerReady: false, testByteEligible: false, byteBridge: 'not-implemented-phase-11c', flangeType: 'weld-neck', facing: 'RF', rating: '150', connectionType: 'butt-weld', catalogueItemId: 'CAT-FLANGE-WN', catalogueRef: { catalogue: 'base-piping', family: 'flange', type: 'weld-neck' }, evidence: { fallbackUsed: false }, sourceRef: 'SRC-FLANGE-1' }
-    ],
-    deferredPrimitives: [
-      { sourceItemId: 'SUPPORT-1', family: 'support', type: 'GUIDE', geometryStatus: 'deferred', reason: 'support primitive compiler not implemented in Phase 6', sourceRef: 'SRC-SUPPORT-1' }
-    ],
-    blockedPrimitives: [
-      { sourceItemId: 'UNKNOWN-1', family: 'valve', type: 'unknown', geometryStatus: 'blocked', reason: 'no deterministic catalogue/procedural geometry resolver', sourceRef: 'SRC-UNKNOWN-1' }
-    ],
+    items: graph.items.map((item) => ({ id: item.id, sourceGraphItemId: item.id, resolutionMode: item.id === 'SUPPORT-1' ? 'deferred' : item.id === 'UNKNOWN-1' ? 'blocked' : item.id === 'PIPE-1' ? 'procedural' : 'catalogue', sourceRef: item.sourceRef })),
+    primitives: [pipePrimitive(), bendPrimitive(), flangePrimitive()],
+    deferredPrimitives: [{ sourceItemId: 'SUPPORT-1', family: 'support', type: 'GUIDE', geometryStatus: 'deferred', reason: 'support primitive compiler not implemented in Phase 6', sourceRef: 'SRC-SUPPORT-1' }],
+    blockedPrimitives: [{ sourceItemId: 'UNKNOWN-1', family: 'valve', type: 'unknown', geometryStatus: 'blocked', reason: 'unresolved geometry', sourceRef: 'SRC-UNKNOWN-1' }],
     sourceRefs
   };
 
-  const rvmExportModel = {
+  return {
+    graph,
+    bindingAudit,
+    resolvedGeometry,
+    primitiveModel,
+    rvmExportModel: rvmExportModel(graph, sourceRefs),
+    attExportModel: attExportModel(graph, sourceRefs),
+    glbVisualModel: glbVisualModel(graph, sourceRefs)
+  };
+}
+
+function binding(itemId, itemKind, status, family, type, reason, catalogueItemId) {
+  return { itemId, itemKind, sourceRef: `SRC-${itemId}`, status, family, type, catalogueItemId, catalogueRef: catalogueItemId ? { catalogue: 'base-piping', family, type } : undefined, reason };
+}
+
+function routeFrame(routeId, fromNode, toNode, start, end, direction, lengthMm) {
+  return { routeId, fromNode, toNode, start, end, direction, lengthMm };
+}
+
+function pipeFrame() {
+  return { itemId: 'PIPE-1', routeId: 'R-PIPE', center: [500, 0, 0], axis: [1, 0, 0], lengthMm: 1000, radiusMm: 50, diameterMm: 100, wallMm: 6.02, geometryStatus: 'resolved', resolver: 'straightPipeGeometry.v1', sourceRef: 'SRC-PIPE-1' };
+}
+
+function bendFrame() {
+  return { frameId: 'BEND-FRAME-BEND-1', itemId: 'BEND-1', routeId: 'R-BEND', family: 'elbow', type: 'bend', geometryKind: 'bendArcFrame.v1', geometryStatus: 'resolved', resolver: 'catalogueBackedBendArcGeometry.v1', basis: 'authoring', startPoint: [1000, 0, 0], endPoint: [1000, 1000, 0], center: [1000, 500, 0], normal: [0, 0, 1], startTangent: [1, 0, 0], endTangent: [0, 1, 0], majorRadiusMm: 500, tubeRadiusMm: 50, bendAngleDeg: 90, sweepAngleDeg: 90, catalogueItemId: 'CAT-BEND-90LR', catalogueRef: { catalogue: 'base-piping', family: 'elbow', type: 'bend' }, evidence: { centerSource: 'explicit-bend-arc-center' }, sourceRef: 'SRC-BEND-1' };
+}
+
+function flangeFrame() {
+  return { frameId: 'FLANGE-FRAME-FLANGE-1', itemId: 'FLANGE-1', routeId: 'R-FLANGE', family: 'flange', type: 'weld-neck', geometryKind: 'flangeFrame.v1', geometryStatus: 'resolved', resolver: 'catalogueBackedFlangeGeometry.v1', basis: 'authoring', center: [1300, 1000, 0], axis: [1, 0, 0], startPoint: [1200, 1000, 0], endPoint: [1400, 1000, 0], lengthMm: 200, boreRadiusMm: 50, outerRadiusMm: 90, faceThicknessMm: 10, hubRadiusMm: 65, hubLengthMm: 80, flangeType: 'weld-neck', facing: 'RF', rating: '150', connectionType: 'butt-weld', catalogueItemId: 'CAT-FLANGE-WN', catalogueRef: { catalogue: 'base-piping', family: 'flange', type: 'weld-neck' }, evidence: { fallbackUsed: false, placementSource: 'endpoint-topology' }, sourceRef: 'SRC-FLANGE-1' };
+}
+
+function pipePrimitive() {
+  return { primitiveId: 'PRIM-PIPE-1', sourceItemId: 'PIPE-1', sourceRouteId: 'R-PIPE', primitiveKind: 'CYLINDER', primitiveCode: 8, center: [500, 0, 0], axis: [1, 0, 0], lengthMm: 1000, radiusMm: 50, basis: 'authoring', resolver: 'straightPipeCylinderPrimitive.v1', geometryStatus: 'primitiveResolved', sourceRef: 'SRC-PIPE-1' };
+}
+
+function bendPrimitive() {
+  return { primitiveId: 'PRIM-BEND-1', sourceItemId: 'BEND-1', sourceRouteId: 'R-BEND', primitiveKind: 'TORUS', primitiveCode: 4, center: [1000, 500, 0], normal: [0, 0, 1], startTangent: [1, 0, 0], endTangent: [0, 1, 0], majorRadiusMm: 500, tubeRadiusMm: 50, bendAngleDeg: 90, sweepAngleDeg: 90, basis: 'authoring', resolver: 'bendArcTorusPrimitive.v1', geometryStatus: 'primitiveResolved', family: 'elbow', type: 'bend', catalogueItemId: 'CAT-BEND-90LR', catalogueRef: { catalogue: 'base-piping', family: 'elbow', type: 'bend' }, sourceRef: 'SRC-BEND-1', evidence: { centerSource: 'explicit-bend-arc-center' } };
+}
+
+function flangePrimitive() {
+  return { primitiveId: 'PRIM-FLANGE-1', sourceItemId: 'FLANGE-1', sourceRouteId: 'R-FLANGE', family: 'flange', type: 'weld-neck', primitiveKind: 'FLANGE_CYLINDER', primitiveCode: 8, center: [1300, 1000, 0], axis: [1, 0, 0], lengthMm: 200, boreRadiusMm: 50, outerRadiusMm: 90, bodyPrimitive: { primitiveKind: 'CYLINDER', primitiveCode: 8, radiusMm: 90, lengthMm: 200 }, optionalSubPrimitives: [], basis: 'authoring', resolver: 'flangeCylinderPrimitive.v1', geometryStatus: 'primitiveResolved', writerReady: false, testByteEligible: false, byteBridge: 'not-implemented-phase-11c', flangeType: 'weld-neck', facing: 'RF', rating: '150', connectionType: 'butt-weld', catalogueItemId: 'CAT-FLANGE-WN', catalogueRef: { catalogue: 'base-piping', family: 'flange', type: 'weld-neck' }, sourceRef: 'SRC-FLANGE-1', evidence: { fallbackUsed: false } };
+}
+
+function rvmExportModel(graph, sourceRefs) {
+  return {
     schema: 'RvmExportModel.v1',
     graphId: graph.id,
     units: 'mm',
-    sourceAxisBasis: { authoring: 'canvas-current', rvmExport: 'navis-review' },
+    sourceAxisBasis: { authoring: 'authoring' },
     exportAxisBasis: { review: 'navis-review' },
     transformPolicy: 'final-review-transform.v1',
     transformApplied: true,
     transformWarnings: [],
-    primitives: [
-      { exportPrimitiveId: 'RVM-PRIM-PIPE-1', sourcePrimitiveId: 'PRIM-PIPE-1', sourceItemId: 'PIPE-1', primitiveKind: 'CYLINDER', primitiveCode: 8, center: [500, 0, 0], axis: [1, 0, 0], lengthMm: 1000, radiusMm: 50, basis: 'navis-review', transformPolicy: 'final-review-transform.v1', sourceRef: 'SRC-PIPE-1' }
-    ],
-    testByteEligiblePrimitives: [
-      { exportPrimitiveId: 'RVM-PRIM-BEND-1', sourcePrimitiveId: 'PRIM-BEND-1', sourceItemId: 'BEND-1', primitiveKind: 'TORUS', primitiveCode: 4, center: [1000, 500, 0], normal: [0, 0, 1], startTangent: [1, 0, 0], endTangent: [0, 1, 0], majorRadiusMm: 500, tubeRadiusMm: 50, bendAngleDeg: 90, sweepAngleDeg: 90, basis: 'navis-review', transformPolicy: 'final-review-transform.v1', transformApplied: true, writerReady: false, testByteEligible: true, byteBridge: 'test-only', resolver: 'bendArcTorusPrimitive.v1', catalogueItemId: 'CAT-BEND-90LR', catalogueRef: { catalogue: 'base-piping', family: 'elbow', type: 'bend' }, evidence: { centerSource: 'explicit-bend-arc-center' }, sourceRef: 'SRC-BEND-1' }
-    ],
-    deferredExports: [
-      { sourcePrimitiveId: 'PRIM-BEND-1', sourceItemId: 'BEND-1', family: 'elbow', type: 'bend', primitiveKind: 'TORUS', primitiveCode: 4, exportStatus: 'deferred', writerReady: false, testByteEligible: true, byteBridge: 'test-only', reason: 'TORUS/code4 is eligible for Phase 11B test-only byte proof; production writer remains disabled', resolver: 'bendArcTorusPrimitive.v1', catalogueItemId: 'CAT-BEND-90LR', catalogueRef: { catalogue: 'base-piping', family: 'elbow', type: 'bend' }, sourceRef: 'SRC-BEND-1' },
-      { sourcePrimitiveId: 'PRIM-FLANGE-1', sourceItemId: 'FLANGE-1', family: 'flange', type: 'weld-neck', primitiveKind: 'FLANGE_CYLINDER', primitiveCode: 8, exportStatus: 'deferred', writerReady: false, testByteEligible: false, byteBridge: 'not-implemented-phase-11c', reason: 'FLANGE_CYLINDER/code8 RVM byte writer bridge not implemented in Phase 11C', resolver: 'flangeCylinderPrimitive.v1', catalogueItemId: 'CAT-FLANGE-WN', catalogueRef: { catalogue: 'base-piping', family: 'flange', type: 'weld-neck' }, sourceRef: 'SRC-FLANGE-1' },
-      { sourceItemId: 'SUPPORT-1', family: 'support', type: 'GUIDE', exportStatus: 'deferred', reason: 'support primitive compiler not implemented in Phase 6', sourceRef: 'SRC-SUPPORT-1' }
-    ],
-    blockedExports: [
-      { sourceItemId: 'UNKNOWN-1', family: 'valve', type: 'unknown', exportStatus: 'blocked', reason: 'no deterministic catalogue/procedural geometry resolver', sourceRef: 'SRC-UNKNOWN-1' }
-    ],
+    primitives: [{ exportPrimitiveId: 'RVM-PRIM-PIPE-1', sourcePrimitiveId: 'PRIM-PIPE-1', sourceItemId: 'PIPE-1', primitiveKind: 'CYLINDER', primitiveCode: 8, center: [0, 0, 0], axis: [1, 0, 0], lengthMm: 1000, radiusMm: 50, basis: 'navis-review', transformPolicy: 'final-review-transform.v1', sourceRef: 'SRC-PIPE-1' }],
+    testByteEligiblePrimitives: [{ exportPrimitiveId: 'RVM-PRIM-BEND-1', sourcePrimitiveId: 'PRIM-BEND-1', sourceItemId: 'BEND-1', primitiveKind: 'TORUS', primitiveCode: 4, center: [1000, 500, 0], normal: [0, 0, 1], startTangent: [1, 0, 0], endTangent: [0, 1, 0], majorRadiusMm: 500, tubeRadiusMm: 50, bendAngleDeg: 90, sweepAngleDeg: 90, basis: 'navis-review', transformPolicy: 'final-review-transform.v1', writerReady: false, testByteEligible: true, byteBridge: 'test-only', resolver: 'bendArcTorusPrimitive.v1', reason: 'TORUS/code4 is test-byte-only until production writer policy explicitly allows it', sourceRef: 'SRC-BEND-1' }],
+    deferredExports: [{ sourcePrimitiveId: 'PRIM-BEND-1', sourceItemId: 'BEND-1', family: 'elbow', type: 'bend', primitiveKind: 'TORUS', primitiveCode: 4, exportStatus: 'deferred', writerReady: false, testByteEligible: true, byteBridge: 'test-only', reason: 'TORUS/code4 is test-byte-only until production writer policy explicitly allows it', sourceRef: 'SRC-BEND-1' }, { sourcePrimitiveId: 'PRIM-FLANGE-1', sourceItemId: 'FLANGE-1', family: 'flange', type: 'weld-neck', primitiveKind: 'FLANGE_CYLINDER', primitiveCode: 8, exportStatus: 'deferred', reason: 'FLANGE_CYLINDER/code8 RVM byte writer bridge not implemented in Phase 11C', sourceRef: 'SRC-FLANGE-1' }, { sourceItemId: 'SUPPORT-1', family: 'support', type: 'GUIDE', exportStatus: 'deferred', reason: 'support primitive compiler not implemented in Phase 6', sourceRef: 'SRC-SUPPORT-1' }],
+    blockedExports: [{ sourceItemId: 'UNKNOWN-1', family: 'valve', type: 'unknown', exportStatus: 'blocked', reason: 'unresolved geometry', sourceRef: 'SRC-UNKNOWN-1' }],
     sourceRefs
   };
-
-  const attExportModel = {
-    schema: 'AttExportModel.v1',
-    graphId: graph.id,
-    units: 'mm',
-    records: [
-      { recordId: 'ATT-PIPE-1', sourceItemId: 'PIPE-1', sourceRef: 'SRC-PIPE-1', resolutionMode: 'procedural', exportStatus: 'recordPlanned' },
-      { recordId: 'ATT-BEND-1', sourceItemId: 'BEND-1', sourceRef: 'SRC-BEND-1', resolutionMode: 'catalogue', exportStatus: 'recordPlanned' },
-      { recordId: 'ATT-FLANGE-1', sourceItemId: 'FLANGE-1', sourceRef: 'SRC-FLANGE-1', resolutionMode: 'catalogue', exportStatus: 'recordPlanned' }
-    ],
-    deferredRecords: [
-      { sourceItemId: 'SUPPORT-1', family: 'support', type: 'GUIDE', recordStatus: 'deferred', reason: 'support primitive compiler not implemented in Phase 6', sourceRef: 'SRC-SUPPORT-1' }
-    ],
-    blockedRecords: [
-      { sourceItemId: 'UNKNOWN-1', family: 'valve', type: 'unknown', recordStatus: 'blocked', reason: 'no deterministic catalogue/procedural geometry resolver', sourceRef: 'SRC-UNKNOWN-1' }
-    ],
-    sourceRefs
-  };
-
-  const glbVisualModel = {
-    schema: 'GlbVisualModel.v1',
-    graphId: graph.id,
-    units: 'mm',
-    sourceAxisBasis: { authoring: 'canvas-current', rvmExport: 'navis-review' },
-    visualItems: [
-      { visualItemId: 'VIS-PRIM-PIPE-1', sourcePrimitiveId: 'PRIM-PIPE-1', sourceItemId: 'PIPE-1', visualKind: 'cylinder', center: [500, 0, 0], axis: [1, 0, 0], lengthMm: 1000, radiusMm: 50, basis: 'authoring', visualStatus: 'visualPlanned', sourceRef: 'SRC-PIPE-1' }
-    ],
-    deferredVisuals: [
-      { sourceItemId: 'BEND-1', family: 'elbow', type: 'bend', visualStatus: 'deferred', reason: 'TORUS GLB visual bridge not production-enabled in Phase 01 audit', sourceRef: 'SRC-BEND-1' },
-      { sourceItemId: 'FLANGE-1', family: 'flange', type: 'weld-neck', visualStatus: 'deferred', reason: 'flange GLB visual bridge not production-enabled in Phase 01 audit', sourceRef: 'SRC-FLANGE-1' },
-      { sourceItemId: 'SUPPORT-1', family: 'support', type: 'GUIDE', visualStatus: 'deferred', reason: 'support visual generation not implemented in Phase 01 audit', sourceRef: 'SRC-SUPPORT-1' }
-    ],
-    blockedVisuals: [
-      { sourceItemId: 'UNKNOWN-1', family: 'valve', type: 'unknown', visualStatus: 'blocked', reason: 'no deterministic catalogue/procedural geometry resolver', sourceRef: 'SRC-UNKNOWN-1' }
-    ],
-    sourceRefs
-  };
-
-  return { graph, bindingAudit, resolvedGeometry, primitiveModel, exportModels: { rvmExportModel, attExportModel, glbVisualModel } };
 }
 
-function routeFrame(routeId, fromNode, toNode, start, end, direction, lengthMm) {
-  return { routeId, fromNode, toNode, start, end, direction, lengthMm, diameterMm: 100, radiusMm: 50, wallMm: 6.02 };
+function attExportModel(graph, sourceRefs) {
+  return { schema: 'AttExportModel.v1', graphId: graph.id, units: 'mm', records: ['PIPE-1', 'BEND-1', 'FLANGE-1'].map((id) => ({ recordId: `ATT-${id}`, sourceItemId: id, resolutionMode: id === 'PIPE-1' ? 'procedural' : 'catalogue', exportStatus: 'recordPlanned', sourceRef: `SRC-${id}` })), deferredRecords: [{ sourceItemId: 'SUPPORT-1', recordStatus: 'deferred', reason: 'support ATT bridge deferred', sourceRef: 'SRC-SUPPORT-1' }], blockedRecords: [{ sourceItemId: 'UNKNOWN-1', recordStatus: 'blocked', reason: 'unresolved component ATT record blocked', sourceRef: 'SRC-UNKNOWN-1' }], sourceRefs };
+}
+
+function glbVisualModel(graph, sourceRefs) {
+  return { schema: 'GlbVisualModel.v1', graphId: graph.id, units: 'mm', sourceAxisBasis: { authoring: 'canvas-current' }, visualItems: [{ visualItemId: 'GLB-PIPE-1', sourceItemId: 'PIPE-1', sourcePrimitiveId: 'PRIM-PIPE-1', visualKind: 'cylinder', center: [500, 0, 0], axis: [1, 0, 0], lengthMm: 1000, radiusMm: 50, basis: 'authoring', visualStatus: 'visualPlanned', sourceRef: 'SRC-PIPE-1' }], deferredVisuals: [{ sourceItemId: 'BEND-1', visualStatus: 'deferred', reason: 'bend GLB visual deferred in fixture', sourceRef: 'SRC-BEND-1' }, { sourceItemId: 'FLANGE-1', visualStatus: 'deferred', reason: 'flange GLB visual deferred in fixture', sourceRef: 'SRC-FLANGE-1' }, { sourceItemId: 'SUPPORT-1', visualStatus: 'deferred', reason: 'support GLB visual deferred in fixture', sourceRef: 'SRC-SUPPORT-1' }], blockedVisuals: [{ sourceItemId: 'UNKNOWN-1', visualStatus: 'blocked', reason: 'unresolved component GLB visual blocked', sourceRef: 'SRC-UNKNOWN-1' }], sourceRefs };
 }

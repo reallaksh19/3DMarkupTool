@@ -13,6 +13,7 @@ export {
   RVM_TEST_ARTIFACT_BYTE_PROOF_SCHEMA,
   DIAGNOSTIC_CANVAS_PREVIEW_MODEL_SCHEMA,
   CONTROLLED_PREVIEW_MODEL_SCHEMA,
+  ELEMENT_RVM_LEDGER_SCHEMA,
   CONTRACT_SCHEMA_SET
 } from './platform-contract-schemas.js';
 
@@ -78,6 +79,11 @@ export {
   assertControlledPreviewModelContract,
   collectControlledPreviewForbiddenFieldHits
 } from './controlled-preview-contract.js';
+
+export {
+  validateElementRvmLedgerContract,
+  assertElementRvmLedgerContract
+} from './element-rvm-ledger-contract.js';
 
 export {
   FALLBACK_POLICY_SCHEMA,

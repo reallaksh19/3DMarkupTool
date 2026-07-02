@@ -27,18 +27,11 @@
       "itemKind": "component",
       "sourceRef": "fixture/ELBOW-1",
       "status": "catalogueResolved",
-      "family": "elbow",
+      "family": "component",
       "type": "90lr",
       "route": "R2",
-      "identityKey": "elbow|90lr|diameterMm:114.3|wallMm:6.02|bendAngleDeg:90|bendRadiusMm:152.4",
-      "catalogueItemKey": "elbow|90lr|diameterMm:114.3|wallMm:6.02|bendAngleDeg:90|bendRadiusMm:152.4",
-      "catalogueItemId": "elbow|90lr|diameterMm:114.3|wallMm:6.02|bendAngleDeg:90|bendRadiusMm:152.4",
-      "catalogueRef": {
-        "catalogue": "base-piping",
-        "family": "elbow",
-        "type": "90LR"
-      },
-      "reason": "exact catalogue-backed bend evidence match"
+      "catalogueItemKey": "elbow|90lr|nps:4in|schedule:std",
+      "reason": "exact catalogue item match"
     },
     {
       "itemId": "SUPPORT-1",

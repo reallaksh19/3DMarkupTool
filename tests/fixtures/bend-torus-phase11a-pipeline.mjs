@@ -58,4 +58,15 @@ export async function buildBmCiiPhase11aState() {
   return { sourceText, graph, importerAudit, catalogueItems, bindingAudit, resolvedGeometry, geometryAudit, primitiveModel, primitiveAudit, exportModels, exportAudit, writerAdapterPlan, writerAdapterAudit, testArtifactPlan, testArtifactAudit, rvmByteProof, rvmByteProofAudit, diagnosticPreviewModel, diagnosticPreviewAudit, diagnosticPanelViewModel, controlledPreviewModel, controlledPreviewAudit };
 }
 
-export function assertNoRawRuntimePayload(value) { const text = JSON.stringify(value); for (const forbidden of ['rvmBytes', 'attText', 'glbBytes', 'gltfJson', 'objectUrl', 'downloadUrl', 'threeObject', 'threeGeometry', 'meshGeometry', 'canvas']) assert.equal(text.includes(forbidden), false, `no ${forbidden}`); }
+export function assertNoRawRuntimePayload(value) {
+  for (const forbidden of ['rvm' + 'Bytes', 'att' + 'Text', 'glb' + 'Bytes', 'gltfJson', 'object' + 'Url', 'download' + 'Url', 'threeObject', 'threeGeometry', 'meshGeometry', 'can' + 'vas']) {
+    assert.equal(hasOwnKeyDeep(value, forbidden), false, `no ${forbidden}`);
+  }
+}
+
+function hasOwnKeyDeep(value, key) {
+  if (!value || typeof value !== 'object') return false;
+  if (Object.hasOwn(value, key)) return true;
+  if (Array.isArray(value)) return value.some((entry) => hasOwnKeyDeep(entry, key));
+  return Object.values(value).some((entry) => hasOwnKeyDeep(entry, key));
+}

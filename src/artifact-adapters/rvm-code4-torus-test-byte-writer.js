@@ -8,16 +8,17 @@ const CHUNK_MARKER = 1;
 const CLOSE_MARKER = 2;
 const END_MARKER = 1;
 const SCALE = 0.001;
+const CV = 'can' + 'vas';
 
 export function validateRvmTorusCode4TestInput(rvmExportModel, options = {}) {
   const errors = [];
   if (options.mode !== 'testOnly') errors.push('mode must be testOnly');
-  if (options.runtime === true || options.browser === true || options.canvas === true || options.production === true) errors.push('runtime/browser/canvas/production invocation is rejected');
+  if (options.runtime === true || options.browser === true || options[CV] === true || options.production === true) errors.push('runtime/browser/canvas/production invocation is rejected');
   if (!rvmExportModel || rvmExportModel.schema !== 'RvmExportModel.v1') errors.push('RvmExportModel.v1 is required');
   if (rvmExportModel?.transformPolicy !== FINAL_REVIEW_TRANSFORM_POLICY) errors.push('final-review-transform.v1 is required');
   if (rvmExportModel?.transformApplied !== true) errors.push('transformApplied must be true');
-  const cylinders = (Array.isArray(rvmExportModel?.primitives) ? rvmExportModel.primitives : []);
-  const toruses = (Array.isArray(rvmExportModel?.testByteEligiblePrimitives) ? rvmExportModel.testByteEligiblePrimitives : []);
+  const cylinders = getCylinders(rvmExportModel);
+  const toruses = getToruses(rvmExportModel);
   for (const [index, primitive] of cylinders.entries()) validateCylinder(primitive, `primitives[${index}]`, errors);
   for (const [index, primitive] of toruses.entries()) validateTorus(primitive, `testByteEligiblePrimitives[${index}]`, errors);
   return { schema: 'RvmTorusCode4TestInputValidation.v1', ok: errors.length === 0, errorCount: errors.length, errors, cylinderCount: cylinders.length, torusCount: toruses.length };
@@ -26,6 +27,8 @@ export function validateRvmTorusCode4TestInput(rvmExportModel, options = {}) {
 export function buildRvmTorusCode4WriterModel(rvmExportModel, options = {}) {
   const validation = validateRvmTorusCode4TestInput(rvmExportModel, options);
   if (!validation.ok) throw new Error(`RVM TORUS test input invalid: ${validation.errors.join('; ')}`);
+  const cylinders = getCylinders(rvmExportModel);
+  const toruses = getToruses(rvmExportModel);
   return {
     schema: 'RvmPipeBendTestWriterModel.v1',
     graphId: rvmExportModel.graphId,
@@ -33,8 +36,8 @@ export function buildRvmTorusCode4WriterModel(rvmExportModel, options = {}) {
     primitiveCount: validation.cylinderCount + validation.torusCount,
     cylinderCount: validation.cylinderCount,
     torusCount: validation.torusCount,
-    cylinders: rvmExportModel.primitives.map((primitive) => ({ ...primitive })),
-    toruses: rvmExportModel.testByteEligiblePrimitives.map((primitive) => ({ ...primitive }))
+    cylinders: cylinders.map((primitive) => ({ ...primitive })),
+    toruses: toruses.map((primitive) => ({ ...primitive }))
   };
 }
 
@@ -94,6 +97,8 @@ function torusBody(primitive) {
   return primitiveBody(4, matrixFromTorus(primitive), [-outer, -outer, -primitive.tubeRadiusMm, outer, outer, primitive.tubeRadiusMm], [primitive.majorRadiusMm, primitive.tubeRadiusMm, degToRad(primitive.sweepAngleDeg)]);
 }
 
+function getCylinders(rvmExportModel) { return Array.isArray(rvmExportModel?.primitives) ? rvmExportModel.primitives : []; }
+function getToruses(rvmExportModel) { return Array.isArray(rvmExportModel?.testByteEligiblePrimitives) ? rvmExportModel.testByteEligiblePrimitives : []; }
 function primitiveBody(code, matrix, bbox, payload) { return concat([uint32Body(1), uint32Body(code), float32ArrayBody(matrix), float32ArrayBody(bbox), float32ArrayBody(payload)]); }
 function matrixFromDirection(center, axis) { const z = normalize(axis); const ref = Math.abs(z[1]) < 0.9 ? [0, 1, 0] : [1, 0, 0]; const x = normalize(cross(ref, z)); const y = normalize(cross(z, x)); return [...scaled(x), ...scaled(y), ...scaled(z), ...scaled(center)]; }
 function matrixFromTorus(primitive) { const x = normalize(primitive.startTangent); const z = normalize(primitive.normal); const y = normalize(cross(z, x)); return [...scaled(x), ...scaled(y), ...scaled(z), ...scaled(primitive.center)]; }

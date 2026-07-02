@@ -60,10 +60,29 @@
         "nps": "4in",
         "schedule": "STD"
       },
+      "dimensions": {
+        "diameterMm": 114.3,
+        "wallMm": 6.02
+      },
       "placement": {
         "node": "N2",
         "inRoute": "R1",
         "outRoute": "R2"
+      },
+      "bendEvidence": {
+        "fromNode": "N2",
+        "toNode": "N3",
+        "startPosition": [1000, 0, 0],
+        "endPosition": [1000, 1000, 0],
+        "arcCenter": [1000, 0, 1000],
+        "normal": [0, 0, 1],
+        "startTangent": [0, 1, 0],
+        "endTangent": [-1, 0, 0],
+        "diameterMm": 114.3,
+        "wallMm": 6.02,
+        "bendAngleDeg": 90,
+        "bendRadiusMm": 152.4,
+        "centerEstimateSource": "explicit-bend-arc-center"
       },
       "sourceRef": "fixture/ELBOW-1"
     },

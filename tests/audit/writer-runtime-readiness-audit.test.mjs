@@ -21,85 +21,65 @@ const phase01Audit = {
 
 const phase02Models = withPhase02PolicyRows(exportModels);
 const audit = buildWriterRuntimeReadinessAudit({ ...phase02Models, newCoreReadinessAudit: phase01Audit }, {
-  changedFiles: [
-    'src/diagnostics/writer-runtime-readiness-audit.js',
-    'tests/audit/writer-runtime-readiness-audit.test.mjs',
-    'docs/migration/phase-02-writer-runtime-proof.md'
-  ]
+  changedFiles: ['src/diagnostics/writer-runtime-readiness-audit.js', 'tests/audit/writer-runtime-readiness-audit.test.mjs', 'docs/migration/phase-02-writer-runtime-proof.md']
 });
 
-assert.equal(audit.schema, 'WriterRuntimeReadinessAudit.v1', 'WriterRuntimeReadinessAudit.v1 is generated');
+assert.equal(audit.schema, 'WriterRuntimeReadinessAudit.v1');
 assert.equal(audit.ok, true, audit.errors.join('\n'));
-assert.equal(validateWriterRuntimeReadinessAudit(audit).ok, true, 'audit contract validates');
-assert.equal(assertWriterRuntimeReadinessAudit(audit).ok, true, 'audit assertion passes');
-assert.equal(audit.runtimeUnchanged, true, 'production runtime remains unchanged');
-assert.equal(audit.runtimeFilesChanged, false, 'no runtime files changed');
-assert.equal(audit.productionWriterCalled, false, 'production writer is not called');
-assert.equal(audit.binaryArtifactGenerated, false, 'readiness audit does not generate binary artifacts');
+assert.equal(validateWriterRuntimeReadinessAudit(audit).ok, true);
+assert.equal(assertWriterRuntimeReadinessAudit(audit).ok, true);
+assert.equal(audit.runtimeUnchanged, true);
+assert.equal(audit.runtimeFilesChanged, false);
+assert.equal(audit.productionWriterCalled, false);
+assert.equal(audit.binaryArtifactGenerated, false);
 
-const rvmExpectedRows = phase02Models.rvmExportModel.primitives.length
-  + phase02Models.rvmExportModel.testByteEligiblePrimitives.length
-  + phase02Models.rvmExportModel.deferredExports.length
-  + phase02Models.rvmExportModel.blockedExports.length;
-assert.equal(rowsFor(audit, 'RvmExportModel.v1').length, rvmExpectedRows, 'every RVM export row has an adapter trace row');
-assert.equal(rowsFor(audit, 'AttExportModel.v1').length, phase02Models.attExportModel.records.length + phase02Models.attExportModel.deferredRecords.length + phase02Models.attExportModel.blockedRecords.length, 'every ATT export row has an identity trace row');
-assert.equal(rowsFor(audit, 'GlbVisualModel.v1').length, phase02Models.glbVisualModel.visualItems.length + phase02Models.glbVisualModel.deferredVisuals.length + phase02Models.glbVisualModel.blockedVisuals.length, 'every GLB visual row has a preview/diagnostic trace row');
+const rvmExpectedRows = phase02Models.rvmExportModel.primitives.length + phase02Models.rvmExportModel.testByteEligiblePrimitives.length + phase02Models.rvmExportModel.deferredExports.length + phase02Models.rvmExportModel.blockedExports.length;
+assert.equal(rowsFor(audit, 'RvmExportModel.v1').length, rvmExpectedRows);
+assert.equal(rowsFor(audit, 'AttExportModel.v1').length, phase02Models.attExportModel.records.length + phase02Models.attExportModel.deferredRecords.length + phase02Models.attExportModel.blockedRecords.length);
+assert.equal(rowsFor(audit, 'GlbVisualModel.v1').length, phase02Models.glbVisualModel.visualItems.length + phase02Models.glbVisualModel.deferredVisuals.length + phase02Models.glbVisualModel.blockedVisuals.length);
 
 const cylinder = audit.traceRows.find((row) => row.exportRowId === 'RVM-PRIM-PIPE-1');
-assert.ok(['writer-ready', 'dry-run-ready'].includes(cylinder.readinessStatus), 'valid CYLINDER/code8 reaches writer-ready or dry-run-ready');
-assert.equal(cylinder.readinessStatus, 'dry-run-ready', 'Phase 02 keeps production bytes dry-run only by default');
-
+assert.equal(cylinder.readinessStatus, 'dry-run-ready');
 const torus = audit.traceRows.find((row) => row.exportRowId === 'RVM-PRIM-BEND-1');
 assert.equal(torus.primitiveKind, 'TORUS');
 assert.equal(Number(torus.primitiveCode), 4);
-assert.equal(torus.readinessStatus, 'test-byte-only', 'TORUS/code4 remains test-byte-only');
-assert.match(torus.reason, /TORUS\/code4|test-byte-only/i, 'TORUS test-byte-only row has reason');
-
+assert.equal(torus.readinessStatus, 'test-byte-only');
+assert.match(torus.reason, /TORUS\/code4|test-byte-only/i);
 const flange = audit.traceRows.find((row) => row.sourceItemId === 'FLANGE-1' && row.exportModel === 'RvmExportModel.v1');
 assert.equal(flange.primitiveKind, 'FLANGE_CYLINDER');
-assert.equal(flange.readinessStatus, 'deferred', 'flange remains deferred unless bridge proof exists');
-assert.match(flange.reason, /flange|FLANGE_CYLINDER/i, 'flange deferred row has reason');
-
+assert.equal(flange.readinessStatus, 'deferred');
 const support = audit.traceRows.find((row) => row.sourceItemId === 'SUPPORT-1' && row.exportModel === 'RvmExportModel.v1');
-assert.equal(support.readinessStatus, 'deferred', 'support remains deferred/support-intent-only when present');
-assert.match(support.reason, /support|SUPPORT_INTENT/i, 'support deferred row has reason');
+assert.equal(support.readinessStatus, 'deferred');
 
-const unsupportedModels = withUnsupportedPrimitive(phase02Models);
-const unsupportedAudit = buildWriterRuntimeReadinessAudit({ ...unsupportedModels, newCoreReadinessAudit: phase01Audit });
-assert.equal(unsupportedAudit.ok, false, 'unsupported primitive fails closed');
-assert.ok(unsupportedAudit.errors.some((entry) => entry.includes('unsupported primitive')), 'unsupported primitive produces hard error evidence');
-assert.ok(unsupportedAudit.traceRows.some((row) => row.exportRowId === 'RVM-PRIM-CONE-1' && row.readinessStatus === 'blocked'), 'unsupported primitive trace row is blocked');
+const unsupportedAudit = buildWriterRuntimeReadinessAudit({ ...withUnsupportedPrimitive(phase02Models), newCoreReadinessAudit: phase01Audit });
+assert.equal(unsupportedAudit.ok, false);
+assert.ok(unsupportedAudit.errors.some((entry) => entry.includes('unsupported primitive')));
+assert.ok(unsupportedAudit.traceRows.some((row) => row.exportRowId === 'RVM-PRIM-CONE-1' && row.readinessStatus === 'blocked'));
 
 const missingPhase01 = buildWriterRuntimeReadinessAudit(phase02Models);
-assert.equal(missingPhase01.ok, false, 'missing Phase 01 audit fails');
+assert.equal(missingPhase01.ok, false);
 assert.ok(missingPhase01.errors.some((entry) => entry.includes('NewCoreReadinessAudit.v1 is missing')));
-
 const badPhase01 = buildWriterRuntimeReadinessAudit({ ...phase02Models, newCoreReadinessAudit: { ...phase01Audit, ok: false, hardErrorCount: 1, errors: ['phase 01 failed'] } });
-assert.equal(badPhase01.ok, false, 'non-OK Phase 01 audit fails');
+assert.equal(badPhase01.ok, false);
 assert.ok(badPhase01.errors.some((entry) => entry.includes('not OK')));
 
 const runtimeChanged = buildWriterRuntimeReadinessAudit({ ...phase02Models, newCoreReadinessAudit: phase01Audit }, { changedFiles: ['src/rvm-writer.js'] });
-assert.equal(runtimeChanged.ok, false, 'production runtime file change fails without approval');
+assert.equal(runtimeChanged.ok, false);
 assert.ok(runtimeChanged.errors.some((entry) => entry.includes('Production runtime files')));
-
 const coreChanged = buildWriterRuntimeReadinessAudit({ ...phase02Models, newCoreReadinessAudit: phase01Audit }, { changedFiles: ['src/contracts/index.js'] });
-assert.equal(coreChanged.ok, false, 'core contract/import/catalogue/geometry/primitive files are guarded');
+assert.equal(coreChanged.ok, false);
 assert.ok(coreChanged.errors.some((entry) => entry.includes('Core contract')));
-
 const catalogueLookup = buildWriterRuntimeReadinessAudit({ ...phase02Models, newCoreReadinessAudit: phase01Audit }, { writerAdapterCatalogueLookup: true });
-assert.equal(catalogueLookup.ok, false, 'writer adapter catalogue lookup fails closed');
+assert.equal(catalogueLookup.ok, false);
 assert.ok(catalogueLookup.errors.some((entry) => entry.includes('catalogue lookup')));
-
 const geometrySolving = buildWriterRuntimeReadinessAudit({ ...phase02Models, newCoreReadinessAudit: phase01Audit }, { writerAdapterSolvesGeometry: true });
-assert.equal(geometrySolving.ok, false, 'writer adapter geometry solving fails closed');
+assert.equal(geometrySolving.ok, false);
 assert.ok(geometrySolving.errors.some((entry) => entry.includes('solves geometry')));
-
 const secondTransform = buildWriterRuntimeReadinessAudit({ ...phase02Models, newCoreReadinessAudit: phase01Audit }, { secondFinalReviewTransformApplied: true });
-assert.equal(secondTransform.ok, false, 'second final-review transform fails closed');
+assert.equal(secondTransform.ok, false);
 assert.ok(secondTransform.errors.some((entry) => entry.includes('second Navis/final-review transform')));
 
-const rvmRows = buildRvmWriterReadinessRows(phase02Models.rvmExportModel, null, null);
-assert.ok(rvmRows.length >= rvmExpectedRows, 'public RVM row builder returns trace rows');
+assert.ok(buildRvmWriterReadinessRows(phase02Models.rvmExportModel, null, null).length >= rvmExpectedRows);
 assert.deepEqual(traceWriterAdapterReadiness({ writerStatus: 'testByteEligible', reason: 'test only' }), { readinessStatus: 'test-byte-only', reason: 'test only' });
 
 console.log('writer runtime readiness audit tests passed');
@@ -123,27 +103,19 @@ function withPhase02PolicyRows(base) {
       sweepAngleDeg: 90,
       basis: 'navis-review',
       transformPolicy: 'final-review-transform.v1',
+      transformApplied: true,
       writerReady: false,
       testByteEligible: true,
       byteBridge: 'test-only',
       resolver: 'bendArcTorusPrimitive.v1',
-      reason: 'TORUS/code4 is test-byte-only until production writer policy explicitly allows it',
-      sourceRef: 'fixture/BEND-1'
+      reason: 'TORUS/code4 is test-byte-only',
+      sourceRef: 'fixture/BEND-1',
+      evidence: { centerSource: 'explicit-bend-arc-center' }
     }
   ];
   copy.rvmExportModel.deferredExports = [
     ...copy.rvmExportModel.deferredExports.map((entry) => entry.sourceItemId === 'SUPPORT-1' ? { ...entry, sourcePrimitiveId: 'PRIM-SUPPORT-1', primitiveKind: 'SUPPORT_INTENT', reason: 'support remains support-intent-only/deferred in Phase 02' } : entry),
-    {
-      sourceItemId: 'FLANGE-1',
-      sourcePrimitiveId: 'PRIM-FLANGE-1',
-      family: 'flange',
-      type: 'flange',
-      primitiveKind: 'FLANGE_CYLINDER',
-      primitiveCode: 8,
-      exportStatus: 'deferred',
-      reason: 'flange writer bridge remains deferred until byte proof and production policy approval exist',
-      sourceRef: 'fixture/FLANGE-1'
-    }
+    { sourceItemId: 'FLANGE-1', sourcePrimitiveId: 'PRIM-FLANGE-1', family: 'flange', type: 'flange', primitiveKind: 'FLANGE_CYLINDER', primitiveCode: 8, exportStatus: 'deferred', reason: 'flange writer bridge remains deferred until byte proof exists', sourceRef: 'fixture/FLANGE-1' }
   ];
   return copy;
 }
@@ -152,20 +124,7 @@ function withUnsupportedPrimitive(base) {
   const copy = structuredClone(base);
   copy.rvmExportModel.primitives = [
     ...copy.rvmExportModel.primitives,
-    {
-      exportPrimitiveId: 'RVM-PRIM-CONE-1',
-      sourcePrimitiveId: 'PRIM-CONE-1',
-      sourceItemId: 'CONE-1',
-      primitiveKind: 'CONE',
-      primitiveCode: 99,
-      center: [0, 0, 0],
-      axis: [1, 0, 0],
-      lengthMm: 100,
-      radiusMm: 10,
-      basis: 'navis-review',
-      transformPolicy: 'final-review-transform.v1',
-      sourceRef: 'fixture/CONE-1'
-    }
+    { exportPrimitiveId: 'RVM-PRIM-CONE-1', sourcePrimitiveId: 'PRIM-CONE-1', sourceItemId: 'CONE-1', primitiveKind: 'CONE', primitiveCode: 99, center: [0, 0, 0], axis: [1, 0, 0], lengthMm: 100, radiusMm: 10, basis: 'navis-review', transformPolicy: 'final-review-transform.v1', sourceRef: 'fixture/CONE-1' }
   ];
   return copy;
 }

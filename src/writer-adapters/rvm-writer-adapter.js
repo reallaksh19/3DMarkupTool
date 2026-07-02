@@ -1,7 +1,7 @@
 const RVM_WRITER_ADAPTER_SCHEMA = 'RvmWriterAdapterPlan.v1';
 const FINAL_REVIEW_TRANSFORM_POLICY = 'final-review-transform.v1';
 const TRANSFORM_BLOCK_WARNING = 'RVM writer artifact readiness blocked until final review transform policy is implemented.';
-const PIPE_BEND_READY_WARNING = 'RVM writer dry-run ready for straight-pipe production-shaped subset and pipe+bend test-byte subset; flanges remain writer-deferred';
+const PIPE_BEND_READY_WARNING = 'RVM writer dry-run ready for straight-pipe cylinder subset only';
 const AXIS_EPSILON = 1e-6;
 
 export function adaptRvmExportModelForWriter(rvmExportModel, exportAudit, options = {}) {

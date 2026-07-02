@@ -25,6 +25,8 @@ const graph = {
       id: 'ELBOW-1',
       kind: 'component',
       catalogueRef: { catalogue: 'base-piping', family: 'elbow', type: '90LR', nps: '4in', schedule: 'STD' },
+      dimensions: { diameterMm: 114.3, wallMm: 6.02 },
+      bendEvidence: { bendAngleDeg: 90, bendRadiusMm: 152.4, diameterMm: 114.3, wallMm: 6.02 },
       placement: { node: 'N2', inRoute: 'R1' },
       sourceRef: 'ELBOW-1'
     },

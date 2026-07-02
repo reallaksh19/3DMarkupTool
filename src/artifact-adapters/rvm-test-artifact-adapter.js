@@ -1,5 +1,5 @@
 const RVM_TRANSFORM_BLOCK_REASON = 'RVM artifact blocked until final review transform policy is implemented';
-const RVM_BRIDGE_BLOCK_REASON = 'RVM full model artifact remains blocked; pipe+bend subset byte proof is handled by isolated Phase 11B test bridge';
+const RVM_BRIDGE_BLOCK_REASON = 'RVM artifact byte generation not implemented in Phase 8B; straight-pipe subset transform readiness proven; pipe+bend subset byte proof is handled by isolated Phase 11B test bridge';
 
 export function adaptRvmExportModelToTestArtifact(rvmExportModel, exportAudit, writerAdapterPlan, writerAdapterAudit, options = {}) {
   const canPlan = exportAudit?.schema === 'ExportModelCompilationAudit.v1' && exportAudit.ok === true && writerAdapterPlan?.schema === 'WriterAdapterPlan.v1' && writerAdapterAudit?.schema === 'WriterAdapterAudit.v1' && writerAdapterAudit.ok === true;

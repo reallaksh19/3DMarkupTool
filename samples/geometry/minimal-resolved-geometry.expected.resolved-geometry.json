@@ -51,7 +51,7 @@
       "routeId": "R2",
       "position": [1000, 0, 0],
       "axis": [0, 1, 0],
-      "family": "elbow",
+      "family": "component",
       "type": "90lr",
       "catalogueItemKey": "elbow|90lr|nps:4in|schedule:std",
       "geometryStatus": "catalogueFrameResolved",

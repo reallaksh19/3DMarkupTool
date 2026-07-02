@@ -28,6 +28,7 @@
       "sourceRef": "fixture/PIPE-1"
     }
   ],
+  "testByteEligiblePrimitives": [],
   "blockedExports": [
     {
       "sourceItemId": "VALVE-1",

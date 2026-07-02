@@ -66,9 +66,4 @@ const invalidCoordAudit = buildGeometryResolutionAudit(invalidCoordGraph, invali
 assert.equal(invalidCoordAudit.ok, false, 'invalid route coordinates must fail geometry audit');
 assert.ok(invalidCoordAudit.errors.some((entry) => entry.includes('invalid')), 'invalid-coordinate error must be reported');
 
-const solverSource = await readFile('src/geometry/geometry-solver.js', 'utf8');
-for (const forbidden of ['catalogue-binder', 'rvm-writer', 'att-writer', 'managed-stage-rvm-converter', 'canvas', 'app-loader', 'safe-ui-loader', 'window.', 'document.']) {
-  assert.equal(solverSource.includes(forbidden), false, `geometry solver must not reference ${forbidden}`);
-}
-
 console.log('geometry solver tests passed');

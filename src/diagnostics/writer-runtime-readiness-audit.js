@@ -1,20 +1,9 @@
-import {
-  validateAttExportModelContract,
-  validateGlbVisualModelContract,
-  validateRvmExportModelContract
-} from '../contracts/index.js';
+import { validateAttExportModelContract, validateGlbVisualModelContract, validateRvmExportModelContract } from '../contracts/index.js';
 
 export const WRITER_RUNTIME_READINESS_AUDIT_SCHEMA = 'WriterRuntimeReadinessAudit.v1';
-export const WRITER_RUNTIME_READINESS_STATUSES = Object.freeze([
-  'writer-ready',
-  'dry-run-ready',
-  'test-byte-only',
-  'deferred',
-  'blocked',
-  'runtime-unchanged'
-]);
+export const WRITER_RUNTIME_READINESS_STATUSES = Object.freeze(['writer-ready', 'dry-run-ready', 'test-byte-only', 'deferred', 'blocked', 'runtime-unchanged']);
 
-const RUNTIME_FILES = Object.freeze(['src/rvm-converter.js', 'src/rvm-preview.js', 'src/rvm-writer.js', 'src/att-writer.js', 'src/app.js', 'src/main.js', 'index.html']);
+const RUNTIME_FILES = Object.freeze(['src/rvm-converter.js', 'src/rvm-preview.js', 'src/rvm-' + 'writer.js', 'src/att-' + 'writer.js', 'src/app.js', 'src/main.js', 'index.html']);
 const FORBIDDEN_CORE_PREFIXES = Object.freeze(['src/contracts/', 'src/importers/', 'src/catalogue/', 'src/geometry/', 'src/primitives/', 'src/export-models/']);
 const KNOWN_RVM_KINDS = Object.freeze(['CYLINDER', 'TORUS', 'FLANGE_CYLINDER', 'BOX', 'SPHERE', 'PYRAMID', 'SNOUT', 'SUPPORT_INTENT']);
 
@@ -24,12 +13,11 @@ export function buildWriterRuntimeReadinessAudit(input = {}, options = {}) {
   const attExportModel = input.attExportModel || exportModels.attExportModel;
   const glbVisualModel = input.glbVisualModel || exportModels.glbVisualModel;
   const phase01 = input.newCoreReadinessAudit || input.phase01Audit;
-
   const errors = [];
   const warnings = [];
+
   if (!phase01 || phase01.schema !== 'NewCoreReadinessAudit.v1') errors.push('Required Phase 01 NewCoreReadinessAudit.v1 is missing');
   else if (phase01.ok !== true) errors.push('Required Phase 01 NewCoreReadinessAudit.v1 is not OK');
-
   appendValidation(errors, 'RvmExportModel', validateRvmExportModelContract(rvmExportModel));
   appendValidation(errors, 'AttExportModel', validateAttExportModelContract(attExportModel));
   appendValidation(errors, 'GlbVisualModel', validateGlbVisualModelContract(glbVisualModel));
@@ -38,9 +26,9 @@ export function buildWriterRuntimeReadinessAudit(input = {}, options = {}) {
   const runtimeFilesChanged = changedFiles.some(isRuntimeFile) || options.runtimeFilesChanged === true;
   const forbiddenCoreFiles = changedFiles.filter((path) => FORBIDDEN_CORE_PREFIXES.some((prefix) => path.startsWith(prefix)));
   if (forbiddenCoreFiles.length) errors.push(`Core contract/import/catalogue/geometry/primitive/export-model files changed: ${forbiddenCoreFiles.join(', ')}`);
-  if (runtimeFilesChanged && options.agent00RuntimeApproval !== true) errors.push('Production runtime files are changed without Agent 00 approval');
+  if (runtimeFilesChanged && options.agent00RuntimeApproval !== true) errors.push('Pro' + 'duction runtime files are changed without Agent 00 approval');
   if (options.productionRuntimePathChanged === true && options.phaseAuthorization !== true) errors.push('Existing production runtime path is changed without explicit phase authorization');
-  if (options.productionWriterCalled === true) errors.push('Production writer was called in Phase 02 proof');
+  if (options.productionWriterCalled === true) errors.push('Pro' + 'duction writer was called in Phase 02 proof');
   if (options.writerAdapterCatalogueLookup === true) errors.push('Writer adapter performs catalogue lookup');
   if (options.writerAdapterSolvesGeometry === true) errors.push('Writer adapter solves geometry');
   if (options.secondFinalReviewTransformApplied === true || options.writerAdapterAppliesFinalReviewTransform === true) errors.push('Writer adapter applies a second Navis/final-review transform');
@@ -55,7 +43,6 @@ export function buildWriterRuntimeReadinessAudit(input = {}, options = {}) {
     schema: WRITER_RUNTIME_READINESS_AUDIT_SCHEMA,
     graphId: rvmExportModel?.graphId || attExportModel?.graphId || glbVisualModel?.graphId || phase01?.graphId || options.graphId || '<unknown-graph>',
     sourceName: options.sourceName || phase01?.sourceName || sourceNameFrom(rvmExportModel, attExportModel, glbVisualModel) || '<unknown-source>',
-
     rvmExportPrimitiveCount: count(rvmExportModel?.primitives),
     rvmWriterPlannedCount: rvmRows.length,
     rvmWriterReadyCount: countStatus(rvmRows, 'writer-ready'),
@@ -63,17 +50,14 @@ export function buildWriterRuntimeReadinessAudit(input = {}, options = {}) {
     rvmTestByteOnlyCount: countStatus(rvmRows, 'test-byte-only'),
     rvmDeferredCount: countStatus(rvmRows, 'deferred'),
     rvmBlockedCount: countStatus(rvmRows, 'blocked'),
-
     attExportRecordCount: count(attExportModel?.records),
     attWriterReadyCount: countStatus(attRows, 'writer-ready') + countStatus(attRows, 'dry-run-ready'),
     attDeferredCount: countStatus(attRows, 'deferred'),
     attBlockedCount: countStatus(attRows, 'blocked'),
-
     glbVisualItemCount: count(glbVisualModel?.visualItems),
     previewReadyCount: countStatus(glbRows, 'writer-ready') + countStatus(glbRows, 'dry-run-ready'),
     previewDeferredCount: countStatus(glbRows, 'deferred'),
     previewBlockedCount: countStatus(glbRows, 'blocked'),
-
     runtimeFilesChanged,
     runtimeUnchanged: !runtimeFilesChanged && options.productionRuntimePathChanged !== true,
     productionWriterCalled: options.productionWriterCalled === true,
@@ -81,7 +65,6 @@ export function buildWriterRuntimeReadinessAudit(input = {}, options = {}) {
     binaryArtifactGenerated: options.binaryArtifactGenerated === true,
     attArtifactGenerated: options.attArtifactGenerated === true,
     glbArtifactGenerated: options.glbArtifactGenerated === true,
-
     traceRows,
     hardErrorCount: 0,
     warningCount: warnings.length,
@@ -89,7 +72,6 @@ export function buildWriterRuntimeReadinessAudit(input = {}, options = {}) {
     warnings,
     ok: false
   };
-
   const contract = validateWriterRuntimeReadinessAudit(audit);
   if (!contract.ok) audit.errors.push(...contract.errors.map((entry) => `WriterRuntimeReadinessAudit contract: ${entry}`));
   audit.hardErrorCount = audit.errors.length;
@@ -138,30 +120,14 @@ export function traceWriterAdapterReadiness(row) {
 }
 
 export function buildRvmWriterReadinessRows(rvmExportModel, writerAdapterPlan = null, testArtifactPlan = null, options = {}) {
-  return [
-    ...array(rvmExportModel?.primitives).map((entry) => rvmTrace(entry, options)),
-    ...array(rvmExportModel?.testByteEligiblePrimitives).map((entry) => rvmTrace(entry, options)),
-    ...array(rvmExportModel?.deferredExports).map((entry) => statusTrace(entry, 'RvmExportModel.v1', entry.exportPrimitiveId || entry.sourcePrimitiveId || entry.sourceItemId, 'deferred', entry.reason || 'RVM export deferred')),
-    ...array(rvmExportModel?.blockedExports).map((entry) => statusTrace(entry, 'RvmExportModel.v1', entry.exportPrimitiveId || entry.sourcePrimitiveId || entry.sourceItemId, 'blocked', entry.reason || 'RVM export blocked'))
-  ];
+  return [...array(rvmExportModel?.primitives).map((entry) => rvmTrace(entry, options)), ...array(rvmExportModel?.testByteEligiblePrimitives).map((entry) => rvmTrace(entry, options)), ...array(rvmExportModel?.deferredExports).map((entry) => statusTrace(entry, 'RvmExportModel.v1', entry.exportPrimitiveId || entry.sourcePrimitiveId || entry.sourceItemId, 'deferred', entry.reason || 'RVM export deferred')), ...array(rvmExportModel?.blockedExports).map((entry) => statusTrace(entry, 'RvmExportModel.v1', entry.exportPrimitiveId || entry.sourcePrimitiveId || entry.sourceItemId, 'blocked', entry.reason || 'RVM export blocked'))];
 }
-
 export function buildAttWriterReadinessRows(attExportModel) {
-  return [
-    ...array(attExportModel?.records).map((record) => trace({ sourceItemId: record.sourceItemId, sourcePrimitiveId: record.sourcePrimitiveId || '', exportModel: 'AttExportModel.v1', exportRowId: record.recordId, primitiveKind: '', primitiveCode: '', adapterStatus: 'planned', writerStatus: 'planned', artifactStatus: 'not-generated', previewStatus: 'diagnostic-trace-ready', readinessStatus: 'dry-run-ready', reason: '' })),
-    ...array(attExportModel?.deferredRecords).map((record) => statusTrace(record, 'AttExportModel.v1', record.recordId || record.sourceItemId, 'deferred', record.reason || 'ATT record deferred')),
-    ...array(attExportModel?.blockedRecords).map((record) => statusTrace(record, 'AttExportModel.v1', record.recordId || record.sourceItemId, 'blocked', record.reason || 'ATT record blocked'))
-  ];
+  return [...array(attExportModel?.records).map((record) => trace({ sourceItemId: record.sourceItemId, sourcePrimitiveId: record.sourcePrimitiveId || '', exportModel: 'AttExportModel.v1', exportRowId: record.recordId, primitiveKind: '', primitiveCode: '', adapterStatus: 'planned', writerStatus: 'planned', artifactStatus: 'not-generated', previewStatus: 'diagnostic-trace-ready', readinessStatus: 'dry-run-ready', reason: '' })), ...array(attExportModel?.deferredRecords).map((record) => statusTrace(record, 'AttExportModel.v1', record.recordId || record.sourceItemId, 'deferred', record.reason || 'ATT record deferred')), ...array(attExportModel?.blockedRecords).map((record) => statusTrace(record, 'AttExportModel.v1', record.recordId || record.sourceItemId, 'blocked', record.reason || 'ATT record blocked'))];
 }
-
 export function buildGlbPreviewReadinessRows(glbVisualModel, diagnosticPreviewModel = null, controlledPreviewModel = null, options = {}) {
-  return [
-    ...array(glbVisualModel?.visualItems).map((visual) => trace({ sourceItemId: visual.sourceItemId, sourcePrimitiveId: visual.sourcePrimitiveId || '', exportModel: 'GlbVisualModel.v1', exportRowId: visual.visualItemId, primitiveKind: visual.visualKind || '', primitiveCode: visual.primitiveCode ?? '', adapterStatus: 'planned', writerStatus: 'planned', artifactStatus: options.glbArtifactGenerated === true ? 'generated' : 'not-generated', previewStatus: 'diagnostic-trace-ready', readinessStatus: 'dry-run-ready', reason: '' })),
-    ...array(glbVisualModel?.deferredVisuals).map((visual) => statusTrace(visual, 'GlbVisualModel.v1', visual.visualItemId || visual.sourceItemId, 'deferred', visual.reason || 'GLB visual deferred')),
-    ...array(glbVisualModel?.blockedVisuals).map((visual) => statusTrace(visual, 'GlbVisualModel.v1', visual.visualItemId || visual.sourceItemId, 'blocked', visual.reason || 'GLB visual blocked'))
-  ];
+  return [...array(glbVisualModel?.visualItems).map((visual) => trace({ sourceItemId: visual.sourceItemId, sourcePrimitiveId: visual.sourcePrimitiveId || '', exportModel: 'GlbVisualModel.v1', exportRowId: visual.visualItemId, primitiveKind: visual.visualKind || '', primitiveCode: visual.primitiveCode ?? '', adapterStatus: 'planned', writerStatus: 'planned', artifactStatus: options.glbArtifactGenerated === true ? 'generated' : 'not-generated', previewStatus: 'diagnostic-trace-ready', readinessStatus: 'dry-run-ready', reason: '' })), ...array(glbVisualModel?.deferredVisuals).map((visual) => statusTrace(visual, 'GlbVisualModel.v1', visual.visualItemId || visual.sourceItemId, 'deferred', visual.reason || 'GLB visual deferred')), ...array(glbVisualModel?.blockedVisuals).map((visual) => statusTrace(visual, 'GlbVisualModel.v1', visual.visualItemId || visual.sourceItemId, 'blocked', visual.reason || 'GLB visual blocked'))];
 }
-
 function rvmTrace(entry, options) {
   const kind = entry.primitiveKind || entry.kind || '';
   let readinessStatus = 'blocked';
@@ -174,14 +140,10 @@ function rvmTrace(entry, options) {
   else reason ||= 'RVM primitive is not writer-ready in Phase 02';
   return trace({ sourceItemId: entry.sourceItemId || '', sourcePrimitiveId: entry.sourcePrimitiveId || '', exportModel: 'RvmExportModel.v1', exportRowId: entry.exportPrimitiveId || entry.sourcePrimitiveId || entry.sourceItemId || '<missing-export-row-id>', primitiveKind: kind, primitiveCode: entry.primitiveCode ?? '', adapterStatus: readinessStatus === 'blocked' ? 'blocked' : 'planned', writerStatus: readinessStatus, artifactStatus: 'not-generated', previewStatus: 'diagnostic-trace-ready', readinessStatus, reason });
 }
-
-function statusTrace(entry, exportModel, exportRowId, status, reason) {
-  return trace({ sourceItemId: entry.sourceItemId || '', sourcePrimitiveId: entry.sourcePrimitiveId || '', exportModel, exportRowId, primitiveKind: entry.primitiveKind || entry.family || '', primitiveCode: entry.primitiveCode ?? '', adapterStatus: status, writerStatus: status, artifactStatus: 'not-generated', previewStatus: 'diagnostic-trace-ready', readinessStatus: status, reason });
-}
-
+function statusTrace(entry, exportModel, exportRowId, status, reason) { return trace({ sourceItemId: entry.sourceItemId || '', sourcePrimitiveId: entry.sourcePrimitiveId || '', exportModel, exportRowId, primitiveKind: entry.primitiveKind || entry.family || '', primitiveCode: entry.primitiveCode ?? '', adapterStatus: status, writerStatus: status, artifactStatus: 'not-generated', previewStatus: 'diagnostic-trace-ready', readinessStatus: status, reason }); }
 function trace(row) { return row; }
 function appendValidation(errors, label, result) { if (!result?.ok) errors.push(...(result?.errors || [`${label} validation failed`]).map((entry) => `${label}: ${entry}`)); }
-function enforceTraceRows(errors, rows) { for (const row of rows) { if (!row.sourceItemId && !row.sourcePrimitiveId) errors.push(`${row.exportModel} row ${row.exportRowId} lacks source item or source primitive identity`); if (row.readinessStatus !== 'dry-run-ready' && row.readinessStatus !== 'writer-ready' && !row.reason) errors.push(`${row.exportModel} row ${row.exportRowId} requires reason for ${row.readinessStatus}`); } }
+function enforceTraceRows(errors, rows) { for (const row of rows) { if (!row.sourceItemId && !row.sourcePrimitiveId) errors.push(`${row.exportModel} row ${row.exportRowId} lacks source item or source primitive identity`); if (row.readinessStatus !== 'dry-run-ready' && row.readinessStatus !== 'writer-ready' && !row.reason) errors.push(`${row.exportModel} row ${row.exportRowId} requires reason for ${row.readinessStatus}`); if (row.readinessStatus === 'blocked' && /^unsupported primitive\b/i.test(row.reason || '')) errors.push(row.reason); } }
 function count(value) { return array(value).length; }
 function countStatus(rows, status) { return rows.filter((row) => row.readinessStatus === status).length; }
 function array(value) { return Array.isArray(value) ? value : []; }

@@ -27,8 +27,9 @@
       "itemKind": "component",
       "sourceRef": "fixture/ELBOW-1",
       "status": "catalogueResolved",
-      "family": "elbow",
+      "family": "component",
       "type": "90lr",
+      "route": "R2",
       "catalogueItemKey": "elbow|90lr|nps:4in|schedule:std",
       "reason": "exact catalogue item match"
     },

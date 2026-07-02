@@ -9,6 +9,8 @@
     "writerKind": "rvm",
     "mode": "dryRun",
     "writerReady": true,
+    "testByteReady": false,
+    "pipeBendSubsetTestByteReady": false,
     "writerReadinessScope": "straightPipeSubsetDryRunReady",
     "sourceSchema": "RvmExportModel.v1",
     "transformPolicy": "final-review-transform.v1",
@@ -19,6 +21,12 @@
     "plannedBoxCount": 0,
     "plannedSphereCount": 0,
     "plannedPyramidCount": 0,
+    "testByteEligibleTorusCount": 0,
+    "testByteEligibleBendTorusCount": 0,
+    "productionReadyTorusCount": 0,
+    "deferredFlangeWriterCount": 0,
+    "flangeWriterReadyCount": 0,
+    "flangeTestByteEligibleCount": 0,
     "plannedChunks": [
       {
         "chunkKind": "PRIM",
@@ -30,6 +38,7 @@
         "reason": "writer-neutral cylinder primitive plan accepted"
       }
     ],
+    "testByteEligibleItems": [],
     "blockedItems": [
       {
         "sourceItemId": "VALVE-1",
@@ -153,6 +162,7 @@
       "sourceRef": "fixture/SUPPORT-1"
     }
   ],
+  "testByteEligibleWriterItems": [],
   "sourceRefs": [
     { "sourceType": "writer-adapter-fixture", "name": "minimal-writer-adapter.input.export-models.json" }
   ]

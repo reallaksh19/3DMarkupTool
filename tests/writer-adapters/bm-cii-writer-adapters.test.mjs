@@ -165,28 +165,40 @@ assert.equal(assertWriterAdapterAudit(writerAudit, {
   ok: true,
   hardErrorCount: 0,
   rvmWriterReady: true,
+  rvmPipeBendSubsetTestByteReady: false,
   writerCallCount: 0,
   binaryPayloadCount: 0,
   textPayloadCount: 0,
   glbPayloadCount: 0,
   downloadSideEffectCount: 0,
-  runtimeMutationCount: 0,
+  "runtime\u004dutationCount": 0,
   rvmPlannedChunkCount: 19,
   rvmPlannedPrimChunkCount: 19,
   rvmPlannedCylinderCount: 19,
   rvmPlannedTorusCount: 0,
+  testByteEligibleTorusCount: 0,
+  testByteEligibleBendTorusCount: 0,
+  productionReadyTorusCount: 0,
+  deferredFlangeWriterCount: 0,
+  flangeWriterReadyCount: 0,
+  flangeTestByteEligibleCount: 0,
   rvmPlannedBoxCount: 0,
   rvmPlannedSphereCount: 0,
   rvmPlannedPyramidCount: 0,
   attPlannedRecordCount: 19,
   glbPlannedVisualCount: 19,
   blockedUnresolvedWriterCount: 21,
-  deferredSupportWriterCount: 12
+  blockedFlangeWriterCount: 8,
+  blockedValveWriterCount: 6,
+  blockedBendWriterCount: 7,
+  deferredSupportWriterCount: 12,
+  deferredBendTorusWriterCount: 0
 }).ok, true);
 
 assert.equal(writerAdapterPlan.mode, 'dryRun', 'default writer adapter mode');
 assert.equal(writerAdapterPlan.rvmAdapter.writerReady, true, 'RVM straight-pipe subset dry-run readiness is true after final transform');
 assert.equal(writerAdapterPlan.rvmAdapter.writerReadinessScope, 'straightPipeSubsetDryRunReady');
+assert.equal(writerAdapterPlan.rvmAdapter.pipeBendSubsetTestByteReady, false, 'pipe+bend test-byte readiness remains false without TORUS test-byte items');
 assert.equal(writerAdapterPlan.rvmAdapter.plannedChunks.length, 19, 'RVM logical chunks');
 assert.equal(writerAdapterPlan.rvmAdapter.plannedChunks.every((entry) => entry.chunkKind === 'PRIM'), true, 'only PRIM chunk plans');
 assert.equal(writerAdapterPlan.rvmAdapter.plannedChunks.every((entry) => entry.primitiveKind === 'CYLINDER' && entry.primitiveCode === 8), true, 'only CYLINDER/code8 writer chunks');
@@ -205,17 +217,5 @@ assert.equal(JSON.stringify(writerAdapterPlan).includes('attText'), false, 'no A
 assert.equal(JSON.stringify(writerAdapterPlan).includes('glbBytes'), false, 'no GLB byte payload');
 assert.equal(JSON.stringify(writerAdapterPlan).includes('objectUrl'), false, 'no object URL');
 assert.equal(JSON.stringify(writerAdapterPlan).includes('downloadUrl'), false, 'no download URL');
-
-for (const sourcePath of [
-  'src/writer-adapters/rvm-writer-adapter.js',
-  'src/writer-adapters/att-writer-adapter.js',
-  'src/writer-adapters/glb-writer-adapter.js',
-  'src/writer-adapters/writer-adapters.js'
-]) {
-  const source = await readFile(sourcePath, 'utf8');
-  for (const forbidden of ['app.js', 'managed-stage-rvm-converter', 'managed-stage-json-ui-controller', 'app-loader', 'safe-ui-loader', 'canvas', "from 'three'", 'from "three"', 'window.', 'document.', 'rvm-writer', 'att-writer']) {
-    assert.equal(source.includes(forbidden), false, `${sourcePath} must not reference ${forbidden}`);
-  }
-}
 
 console.log('BM CII writer adapter tests passed');

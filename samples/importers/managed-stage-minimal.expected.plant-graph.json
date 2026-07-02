@@ -18,27 +18,27 @@
   ],
   "nodes": [
     {
-      "id": "N35",
+      "id": "35",
       "coord": [0, 0, 0],
       "sourceRef": "PIPE-001.FROM_NODE"
     },
     {
-      "id": "N130",
+      "id": "130",
       "coord": [2500, 0, 0],
       "sourceRef": "PIPE-001.TO_NODE"
     },
     {
-      "id": "N205",
+      "id": "205",
       "coord": [2500, 0, -1800],
       "sourceRef": "PIPE-002.TO_NODE"
     }
   ],
   "routes": [
     {
-      "id": "R-N35-N130",
+      "id": "R-35-130",
       "lineNo": "4-P8810212-31441C4-PP",
-      "from": "N35",
-      "to": "N130",
+      "from": "35",
+      "to": "130",
       "bore": "4in",
       "schedule": "STD",
       "material": "CS",
@@ -47,10 +47,10 @@
       "componentClass": "PIPE"
     },
     {
-      "id": "R-N130-N205",
+      "id": "R-130-205",
       "lineNo": "4-P8810212-31441C4-PP",
-      "from": "N130",
-      "to": "N205",
+      "from": "130",
+      "to": "205",
       "bore": "4in",
       "schedule": "STD",
       "material": "CS",
@@ -64,7 +64,7 @@
       "id": "PIPE-001",
       "kind": "generated",
       "generator": "straightPipe.v1",
-      "route": "R-N35-N130",
+      "route": "R-35-130",
       "sourceRef": "PIPE-001"
     },
     {
@@ -82,10 +82,10 @@
       "type": "90LR",
       "dimensions": {},
       "placement": {
-        "node": "N130",
+        "node": "130",
         "position": [2500, 0, 0],
-        "inRoute": "R-N35-N130",
-        "outRoute": "R-N130-N205"
+        "inRoute": "R-35-130",
+        "outRoute": "R-130-205"
       },
       "bendEvidence": {},
       "sourceRef": "ELBOW-001"
@@ -94,14 +94,14 @@
       "id": "PIPE-002",
       "kind": "generated",
       "generator": "straightPipe.v1",
-      "route": "R-N130-N205",
+      "route": "R-130-205",
       "sourceRef": "PIPE-002"
     },
     {
       "id": "SUPPORT-001",
       "kind": "support",
       "tagged": false,
-      "node": "N35",
+      "node": "35",
       "supportFamily": "REST",
       "axis": "+Y",
       "source": "InputXML",

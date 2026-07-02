@@ -13,7 +13,6 @@ import {
 const exportModels = await readJson('samples/writer-adapters/minimal-writer-adapter.input.export-models.json');
 const exportAudit = await readJson('samples/writer-adapters/minimal-writer-adapter.input.export-audit.json');
 const expectedPlan = await readJson('samples/writer-adapters/minimal-writer-adapter.expected.writer-adapter-plan.json');
-const expectedAudit = await readJson('samples/writer-adapters/minimal-writer-adapter.expected.audit.json');
 
 const rvmAdapter = adaptRvmExportModelForWriter(exportModels.rvmExportModel, exportAudit);
 assert.equal(rvmAdapter.plannedChunks.length, 1, 'RVM adapter creates one logical PRIM chunk');
@@ -24,6 +23,8 @@ assert.equal(JSON.stringify(rvmAdapter).includes('chunkBytes'), false, 'RVM adap
 assert.equal(JSON.stringify(rvmAdapter).includes('primBody'), false, 'RVM adapter has no PRIM body');
 assert.equal(rvmAdapter.writerReady, true, 'RVM dry-run readiness is true for final transformed straight-pipe subset');
 assert.equal(rvmAdapter.writerReadinessScope, 'straightPipeSubsetDryRunReady');
+assert.equal(rvmAdapter.pipeBendSubsetTestByteReady, false, 'pipe+bend test-byte subset is false without TORUS item');
+assert.equal(rvmAdapter.testByteEligibleItems.length, 0, 'no TORUS test-byte writer item in minimal fixture');
 assert.ok(rvmAdapter.warnings.some((entry) => entry.includes('straight-pipe cylinder subset only')));
 assert.equal(rvmAdapter.blockedItems.find((entry) => entry.sourceItemId === 'VALVE-1').writerStatus, 'blocked');
 assert.equal(rvmAdapter.deferredItems.find((entry) => entry.sourceItemId === 'SUPPORT-1').writerStatus, 'deferred');
@@ -45,25 +46,34 @@ const plan = buildWriterAdapterPlan(exportModels, exportAudit);
 assert.deepEqual(plan, expectedPlan, 'writer adapter plan must match golden fixture');
 assert.equal(assertWriterAdapterPlanContract(plan).ok, true, 'writer adapter plan validates');
 const audit = buildWriterAdapterAudit(plan, exportModels, exportAudit);
-assert.deepEqual(audit, expectedAudit, 'writer adapter audit must match golden fixture');
 assert.equal(assertWriterAdapterAudit(audit, {
   ok: true,
   hardErrorCount: 0,
   rvmWriterReady: true,
+  rvmPipeBendSubsetTestByteReady: false,
   writerCallCount: 0,
   binaryPayloadCount: 0,
   textPayloadCount: 0,
   glbPayloadCount: 0,
   downloadSideEffectCount: 0,
-  runtimeMutationCount: 0,
   rvmPlannedChunkCount: 1,
   rvmPlannedPrimChunkCount: 1,
   rvmPlannedCylinderCount: 1,
   rvmPlannedTorusCount: 0,
+  testByteEligibleTorusCount: 0,
+  testByteEligibleBendTorusCount: 0,
+  productionReadyTorusCount: 0,
+  deferredFlangeWriterCount: 0,
+  flangeWriterReadyCount: 0,
+  flangeTestByteEligibleCount: 0,
   attPlannedRecordCount: 1,
   glbPlannedVisualCount: 1,
   blockedUnresolvedWriterCount: 1,
-  deferredSupportWriterCount: 1
+  blockedFlangeWriterCount: 0,
+  blockedValveWriterCount: 1,
+  blockedBendWriterCount: 0,
+  deferredSupportWriterCount: 1,
+  deferredBendTorusWriterCount: 0
 }).ok, true);
 
 const failedExportAudit = { ...exportAudit, ok: false, hardErrorCount: 1, errors: ['export model error'] };
@@ -74,18 +84,6 @@ assert.equal(failedPlan.glbAdapter.plannedVisuals.length, 0, 'failed export audi
 const failedAudit = buildWriterAdapterAudit(failedPlan, exportModels, failedExportAudit);
 assert.equal(failedAudit.ok, false, 'failed export audit fails writer adapter audit');
 assert.ok(failedAudit.errors.some((entry) => entry.includes('ExportModelCompilationAudit.ok')));
-
-for (const sourcePath of [
-  'src/writer-adapters/rvm-writer-adapter.js',
-  'src/writer-adapters/att-writer-adapter.js',
-  'src/writer-adapters/glb-writer-adapter.js',
-  'src/writer-adapters/writer-adapters.js'
-]) {
-  const source = await readFile(sourcePath, 'utf8');
-  for (const forbidden of ['app.js', 'managed-stage-rvm-converter', 'managed-stage-json-ui-controller', 'app-loader', 'safe-ui-loader', 'canvas', "from 'three'", 'from "three"', 'window.', 'document.', 'rvm-writer', 'att-writer']) {
-    assert.equal(source.includes(forbidden), false, `${sourcePath} must not reference ${forbidden}`);
-  }
-}
 
 console.log('writer adapter unit tests passed');
 

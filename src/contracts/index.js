@@ -8,6 +8,7 @@ export {
   RVM_EXPORT_MODEL_SCHEMA,
   ATT_EXPORT_MODEL_SCHEMA,
   GLB_VISUAL_MODEL_SCHEMA,
+  NEW_CORE_READINESS_AUDIT_SCHEMA,
   WRITER_ADAPTER_PLAN_SCHEMA,
   TEST_ARTIFACT_ADAPTER_PLAN_SCHEMA,
   RVM_TEST_ARTIFACT_BYTE_PROOF_SCHEMA,
@@ -49,6 +50,12 @@ export {
   assertGlbVisualModelContract,
   collectExportModelForbiddenFieldHits
 } from './export-model-contracts.js';
+
+export {
+  NEW_CORE_READINESS_STATUSES,
+  validateNewCoreReadinessAudit,
+  assertNewCoreReadinessAudit
+} from './new-core-readiness-audit-contract.js';
 
 export {
   validateWriterAdapterPlanContract,

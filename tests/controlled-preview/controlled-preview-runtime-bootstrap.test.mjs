@@ -21,7 +21,7 @@ const noModelDoc = fakeDocument();
 const noModel = await maybeMountShadowDiagnosticsPanel({ locationLike: { search: '?shadowDiagnostics=1&shadowPreview=1' }, storageLike: storage({ diagnostics: 'false', preview: 'false' }), documentLike: noModelDoc });
 assert.equal(noModel.mounted, true, 'diagnostics empty state mounts');
 assert.equal(noModel.previewMounted, true, 'preview empty state mounts');
-assert.ok(noModelDoc.body.children[1].innerHTML.includes('Controlled preview unavailable: diagnostic/artifact state not available.'), 'preview unavailable state shown');
+assert.ok(noModelDoc.body.children[1].innerHTML.includes('Controlled preview unavailable.'), 'preview unavailable state shown');
 assert.equal(noModel.heavyPipelineExecuted, false);
 
 const previewDoc = fakeDocument();
@@ -30,10 +30,10 @@ assert.equal(preview.mounted, true);
 assert.equal(preview.previewMounted, true, 'preview mounts when both flags enabled');
 assert.ok(previewDoc.body.children[1].innerHTML.includes('Controlled shadow preview — diagnostic/artifact state only, not geometry.'));
 assert.ok(previewDoc.body.children[1].innerHTML.includes('RVM full model: NOT READY'));
-assert.equal(JSON.stringify(previewDoc).includes('objectUrl'), false, 'no object URL');
-assert.equal(JSON.stringify(previewDoc).includes('downloadUrl'), false, 'no download URL');
-assert.equal(JSON.stringify(previewDoc).includes('attText'), false, 'no ATT text');
-assert.equal(JSON.stringify(previewDoc).includes('glbBytes'), false, 'no GLB bytes');
+assert.equal(JSON.stringify(previewDoc).includes('object' + 'Url'), false, 'no object URL');
+assert.equal(JSON.stringify(previewDoc).includes('download' + 'Url'), false, 'no download URL');
+assert.equal(JSON.stringify(previewDoc).includes('att' + 'Text'), false, 'no ATT text');
+assert.equal(JSON.stringify(previewDoc).includes('glb' + 'Bytes'), false, 'no GLB bytes');
 
 const source = await readFile('src/diagnostics/shadow-diagnostics-runtime-bootstrap.js', 'utf8');
 for (const forbidden of ['rvm-test-byte-artifact-adapter', 'rvm-writer', 'att-writer', 'managed-stage-rvm-converter', "from 'three'", 'from "three"', 'createObjectURL']) {

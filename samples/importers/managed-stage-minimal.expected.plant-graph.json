@@ -78,12 +78,16 @@
         "nps": "4in",
         "schedule": "STD"
       },
+      "family": "elbow",
+      "type": "90LR",
+      "dimensions": {},
       "placement": {
         "node": "N130",
         "position": [2500, 0, 0],
         "inRoute": "R-N35-N130",
         "outRoute": "R-N130-N205"
       },
+      "bendEvidence": {},
       "sourceRef": "ELBOW-001"
     },
     {

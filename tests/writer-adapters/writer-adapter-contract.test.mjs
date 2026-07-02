@@ -8,7 +8,8 @@ import {
 const plan = await readJson('samples/writer-adapters/minimal-writer-adapter.expected.writer-adapter-plan.json');
 assert.equal(assertWriterAdapterPlanContract(plan).ok, true, 'writer adapter plan fixture validates');
 assert.equal(plan.mode, 'dryRun', 'default fixture mode is dryRun');
-assert.equal(plan.rvmAdapter.writerReady, false, 'RVM writer artifact readiness stays blocked for placeholder transform');
+assert.equal(plan.rvmAdapter.writerReady, true, 'RVM dry-run readiness is true for final transformed straight-pipe subset');
+assert.equal(plan.rvmAdapter.pipeBendSubsetTestByteReady, false, 'pipe+bend subset stays false when no TORUS test-byte item exists');
 assert.equal(plan.attAdapter.writerReady, true, 'ATT metadata readiness is true');
 assert.equal(plan.glbAdapter.writerReady, true, 'GLB model readiness is true');
 

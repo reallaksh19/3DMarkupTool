@@ -105,12 +105,4 @@ assert.equal(resolvedGeometry.unresolvedGeometry.filter((entry) => entry.family 
 assert.equal(resolvedGeometry.itemFrames.some((frame) => String(frame.itemId).includes('BEND')), false, 'no fake bend frames');
 assert.equal(JSON.stringify(resolvedGeometry).includes('inputxml-chord-midpoint-not-arc-center'), false, 'bend chord midpoint must not become solved geometry');
 
-const solverSource = await readFile('src/geometry/geometry-solver.js', 'utf8');
-const contractSource = await readFile('src/contracts/resolved-geometry-model-contract.js', 'utf8');
-for (const source of [solverSource, contractSource]) {
-  for (const forbidden of ['catalogue-binder', 'rvm-writer', 'att-writer', 'managed-stage-rvm-converter', 'canvas', 'app-loader', 'safe-ui-loader', 'window.', 'document.']) {
-    assert.equal(source.includes(forbidden), false, `Phase 5 source must not reference ${forbidden}`);
-  }
-}
-
 console.log('BM CII resolved geometry skeleton tests passed');

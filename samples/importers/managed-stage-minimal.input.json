@@ -1,7 +1,6 @@
 {
   "schema": "ManagedStageMinimalFixture.v1",
   "source": "managed-stage-minimal",
-  "units": "mm",
   "stats": {
     "componentRows": 2
   },

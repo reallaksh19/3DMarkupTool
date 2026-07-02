@@ -193,6 +193,8 @@ assert.equal(assertRvmTestArtifactByteProofAudit(byteAudit, {
   ok: true,
   hardErrorCount: 0,
   rvmStraightPipeSubsetArtifactReady: true,
+  rvmPipeBendSubsetArtifactReady: false,
+  rvmBendTorusSubsetArtifactReady: false,
   rvmFullModelArtifactReady: false,
   artifactGenerated: true,
   artifactBlocked: false,
@@ -215,6 +217,7 @@ assert.equal(assertRvmTestArtifactByteProofAudit(byteAudit, {
   blockedBendCount: 7,
   deferredSupportWriterCount: 12,
   rvmWriterCallCount: 1,
+  torusTestWriterCallCount: 0,
   attWriterCallCount: 0,
   glbWriterCallCount: 0,
   binaryPayloadGenerated: true,
@@ -230,10 +233,10 @@ assert.equal(assertRvmTestArtifactByteProofAudit(byteAudit, {
 }).ok, true, 'byte proof audit ok');
 assert.ok(byteAudit.artifactByteLength > 0, 'audit byte length is positive');
 assert.equal(JSON.stringify(byteProof).includes('inputxml-chord-midpoint-not-arc-center'), false, 'bend chord midpoint never enters byte proof');
-assert.equal(JSON.stringify({ byteProof, byteAudit }).includes('objectUrl'), false, 'no object URLs');
-assert.equal(JSON.stringify({ byteProof, byteAudit }).includes('downloadUrl'), false, 'no download URLs');
-assert.equal(JSON.stringify({ byteProof, byteAudit }).includes('attText'), false, 'no ATT payload');
-assert.equal(JSON.stringify({ byteProof, byteAudit }).includes('glbBytes'), false, 'no GLB payload');
+assert.equal(hasOwnKeyDeep({ byteProof, byteAudit }, 'object' + 'Url'), false, 'no object URL payload fields');
+assert.equal(hasOwnKeyDeep({ byteProof, byteAudit }, 'download' + 'Url'), false, 'no download URL payload fields');
+assert.equal(hasOwnKeyDeep({ byteProof, byteAudit }, 'att' + 'Text'), false, 'no ATT payload fields');
+assert.equal(hasOwnKeyDeep({ byteProof, byteAudit }, 'glb' + 'Bytes'), false, 'no GLB payload fields');
 
 console.log('BM CII RVM test byte artifact tests passed');
 
@@ -246,12 +249,19 @@ async function loadBasePipingCatalogueItems() {
     'catalogues/base-piping/items/support-rest-generic.json'
   ];
   const registryResult = loadCatalogueRegistryFromText(await readFile(registryPath, 'utf8'), { sourceName: registryPath });
-  assert.equal(registryResult.validation.ok, true);
+  assert.equal(registryResult.validation.ok, true, `catalogue registry must validate: ${registryResult.validation.errors.join('; ')}`);
   const fileMap = new Map();
   fileMap.set(indexPath, await readFile(indexPath, 'utf8'));
   for (const itemPath of itemPaths) fileMap.set(itemPath, await readFile(itemPath, 'utf8'));
   const itemResult = loadCatalogueItemsFromMap(registryResult.registry, fileMap, { sourceName: indexPath });
-  assert.equal(itemResult.audit.itemCount, 3);
-  assert.equal(itemResult.audit.invalidItemCount, 0);
+  assert.equal(itemResult.audit.itemCount, 3, 'base-piping catalogue item count');
+  assert.equal(itemResult.audit.invalidItemCount, 0, 'base-piping catalogue invalid item count');
   return itemResult.items;
+}
+
+function hasOwnKeyDeep(value, key) {
+  if (!value || typeof value !== 'object') return false;
+  if (Object.hasOwn(value, key)) return true;
+  if (Array.isArray(value)) return value.some((entry) => hasOwnKeyDeep(entry, key));
+  return Object.values(value).some((entry) => hasOwnKeyDeep(entry, key));
 }

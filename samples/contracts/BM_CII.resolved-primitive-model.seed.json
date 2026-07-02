@@ -42,10 +42,22 @@
       "rvmCode": 4,
       "center": [2500, 0, 0],
       "axis": [0, 1, 0],
+      "normal": [0, 1, 0],
+      "startTangent": [1, 0, 0],
+      "endTangent": [0, 0, 1],
       "bendRadiusMm": 152.4,
+      "majorRadiusMm": 152.4,
       "tubeRadiusMm": 57.15,
+      "bendAngleDeg": 90,
+      "sweepAngleDeg": 90,
+      "catalogueItemId": "elbow/90LR/4in/STD",
+      "catalogueRef": "base-piping:elbow/90LR/4in/STD",
       "bbox": [2347.6, -57.15, -152.4, 2557.15, 57.15, 57.15],
-      "material": "fitting-default"
+      "material": "fitting-default",
+      "evidence": {
+        "source": "contract-seed",
+        "fallbackUsed": false
+      }
     },
     {
       "id": "PRIM-SUP-35-REST",

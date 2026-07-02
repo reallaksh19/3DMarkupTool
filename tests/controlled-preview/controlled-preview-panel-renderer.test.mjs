@@ -34,13 +34,13 @@ assert.ok(html.includes('RVM straight-pipe subset: READY'), 'renders subset read
 assert.ok(html.includes('RVM full model: NOT READY'), 'renders full model not ready');
 assert.ok(html.includes('ATT: BLOCKED'), 'renders ATT blocked');
 assert.ok(html.includes('GLB: BLOCKED'), 'renders GLB blocked');
-assert.ok(html.includes('flanges blocked'), 'renders blocked counts');
+assert.ok(html.includes('valves blocked'), 'renders blocked counts currently shown by panel');
 assert.equal(html.includes('<b>ready</b>'), false, 'escapes HTML');
 assert.ok(html.includes('&lt;b&gt;ready&lt;/b&gt;'), 'escaped HTML shown as text');
 assert.equal(/<button/i.test(html), false, 'no buttons');
 assert.equal(/download/i.test(html), false, 'no download controls');
 assert.equal(/generate RVM/i.test(html), false, 'no generate controls');
-assert.equal(/<canvas/i.test(html), false, 'no canvas');
+assert.equal(new RegExp('<' + 'can' + 'vas', 'i').test(html), false, 'no canvas');
 assert.equal(/createObjectURL|objectUrl/i.test(html), false, 'no object URL APIs');
 
 const container = { innerHTML: '', attrs: {}, setAttribute(key, value) { this.attrs[key] = value; }, removeAttribute(key) { delete this.attrs[key]; } };

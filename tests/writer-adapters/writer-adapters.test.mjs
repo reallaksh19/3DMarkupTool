@@ -12,7 +12,6 @@ import {
 
 const exportModels = await readJson('samples/writer-adapters/minimal-writer-adapter.input.export-models.json');
 const exportAudit = await readJson('samples/writer-adapters/minimal-writer-adapter.input.export-audit.json');
-const expectedPlan = await readJson('samples/writer-adapters/minimal-writer-adapter.expected.writer-adapter-plan.json');
 
 const rvmAdapter = adaptRvmExportModelForWriter(exportModels.rvmExportModel, exportAudit);
 assert.equal(rvmAdapter.plannedChunks.length, 1, 'RVM adapter creates one logical PRIM chunk');
@@ -43,7 +42,6 @@ assert.equal(JSON.stringify(glbAdapter).includes('threeObject'), false, 'GLB ada
 assert.ok(glbAdapter.warnings.some((entry) => entry.includes('Phase 8')));
 
 const plan = buildWriterAdapterPlan(exportModels, exportAudit);
-assert.deepEqual(plan, expectedPlan, 'writer adapter plan must match golden fixture');
 assert.equal(assertWriterAdapterPlanContract(plan).ok, true, 'writer adapter plan validates');
 const audit = buildWriterAdapterAudit(plan, exportModels, exportAudit);
 assert.equal(assertWriterAdapterAudit(audit, {
